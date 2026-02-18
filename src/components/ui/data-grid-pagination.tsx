@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { useDataGrid } from '@/components/ui/data-grid';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -66,11 +66,11 @@ function DataGridPagination(props: DataGridPaginationProps) {
   const currentGroupStart = Math.floor(pageIndex / paginationMoreLimit) * paginationMoreLimit;
   const currentGroupEnd = Math.min(currentGroupStart + paginationMoreLimit, pageCount);
 
-  // Render page buttons based on the current group
-  const renderPageButtons = () => {
-    const buttons = [];
-    for (let i = currentGroupStart; i < currentGroupEnd; i++) {
-      buttons.push(
+  // Memoize page buttons
+  const pageButtons = useMemo(() => {
+    return Array.from({ length: currentGroupEnd - currentGroupStart }, (_, idx) => {
+      const i = currentGroupStart + idx;
+      return (
         <Button
           key={i}
           size="sm"
@@ -86,47 +86,10 @@ function DataGridPagination(props: DataGridPaginationProps) {
           }}
         >
           {i + 1}
-        </Button>,
-      );
-    }
-    return buttons;
-  };
-
-  // Render a "previous" ellipsis button if there are previous pages to show
-  const renderEllipsisPrevButton = () => {
-    if (currentGroupStart > 0) {
-      return (
-        <Button
-          size="sm"
-          mode="icon"
-          className={btnBaseClasses}
-          variant="ghost"
-          onClick={() => table.setPageIndex(currentGroupStart - 1)}
-        >
-          {mergedProps.ellipsisText}
         </Button>
       );
-    }
-    return null;
-  };
-
-  // Render a "next" ellipsis button if there are more pages to show after the current group
-  const renderEllipsisNextButton = () => {
-    if (currentGroupEnd < pageCount) {
-      return (
-        <Button
-          className={btnBaseClasses}
-          variant="ghost"
-          size="sm"
-          mode="icon"
-          onClick={() => table.setPageIndex(currentGroupEnd)}
-        >
-          {mergedProps.ellipsisText}
-        </Button>
-      );
-    }
-    return null;
-  };
+    });
+  }, [currentGroupStart, currentGroupEnd, pageIndex, table, btnBaseClasses]);
 
   return (
     <div
@@ -184,11 +147,31 @@ function DataGridPagination(props: DataGridPaginationProps) {
                   <ChevronLeftIcon className="size-4" />
                 </Button>
 
-                {renderEllipsisPrevButton()}
+                {currentGroupStart > 0 && (
+                  <Button
+                    size="sm"
+                    mode="icon"
+                    className={btnBaseClasses}
+                    variant="ghost"
+                    onClick={() => table.setPageIndex(currentGroupStart - 1)}
+                  >
+                    {mergedProps.ellipsisText}
+                  </Button>
+                )}
 
-                {renderPageButtons()}
+                {pageButtons}
 
-                {renderEllipsisNextButton()}
+                {currentGroupEnd < pageCount && (
+                  <Button
+                    className={btnBaseClasses}
+                    variant="ghost"
+                    size="sm"
+                    mode="icon"
+                    onClick={() => table.setPageIndex(currentGroupEnd)}
+                  >
+                    {mergedProps.ellipsisText}
+                  </Button>
+                )}
 
                 <Button
                   size="sm"

@@ -115,10 +115,10 @@ function DataGridTableDnd<TData>({ handleDragEnd }: { handleDragEnd: (event: Dra
               console.log('table.getState().columnOrder:', table.getState().columnOrder);
 
               return (
-                <DataGridTableHeadRow headerGroup={headerGroup} key={index}>
+                <DataGridTableHeadRow headerGroup={headerGroup} key={headerGroup.id}>
                   <SortableContext items={table.getState().columnOrder} strategy={horizontalListSortingStrategy}>
-                    {headerGroup.headers.map((header, index) => (
-                      <DataGridTableDndHeader header={header} key={index} />
+                    {headerGroup.headers.map((header) => (
+                      <DataGridTableDndHeader header={header} key={header.id} />
                     ))}
                   </SortableContext>
                 </DataGridTableHeadRow>

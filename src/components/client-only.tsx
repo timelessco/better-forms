@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useSyncExternalStore } from "react";
 
 interface ClientOnlyProps {
   children: ReactNode;
@@ -6,11 +6,11 @@ interface ClientOnlyProps {
 }
 
 function ClientOnly({ children, fallback = null }: ClientOnlyProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   return mounted ? children : fallback;
 }

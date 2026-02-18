@@ -1,5 +1,5 @@
 import { ChevronRightIcon } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from "motion/react";
 import type { Value } from "platejs";
 import { useEffect, useState } from "react";
 import { RenderPreviewInput } from "@/components/form-components/render-preview-input";
@@ -616,6 +616,7 @@ function FormPreviewContent({
   const { currentStep, totalSteps, isSubmitted, direction, reset } = useStepForm();
   const { t } = useTranslation();
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   // Create a dummy form for thank you content rendering (static elements only)
   const { form } = usePreviewForm({ fields: [] });
@@ -670,9 +671,9 @@ function FormPreviewContent({
           )}
         >
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.3 }}
           >
             {thankYouContent && thankYouContent.length > 0 ? (
               <RenderThankYouContent
@@ -736,12 +737,12 @@ function FormPreviewContent({
             key={currentStep}
             custom={direction}
             variants={stepVariants}
-            initial="enter"
+            initial={prefersReducedMotion ? false : "enter"}
             animate="center"
-            exit="exit"
+            exit={prefersReducedMotion ? undefined : "exit"}
             transition={{
-              x: { type: "spring", stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 },
+              x: prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 30 },
+              opacity: { duration: prefersReducedMotion ? 0 : 0.2 },
             }}
             className="w-full"
           >

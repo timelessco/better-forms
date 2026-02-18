@@ -164,7 +164,7 @@ export function BlockMenu({ children }: { children: React.ReactNode }) {
   const handleToggleRequired = () => {
     if (!labelNode || !firstPath) return;
     // Find the label path
-    const labelPath = nodeType === "formLabel" ? firstPath : [...firstPath];
+    const labelPath = [...firstPath];
     if (["formInput", "formTextarea"].includes(nodeType ?? "")) {
       labelPath[labelPath.length - 1] -= 1;
     }
@@ -238,8 +238,7 @@ export function BlockMenu({ children }: { children: React.ReactNode }) {
 
   const handleUpdateFieldName = () => {
     if (!labelNode || !firstPath || !fieldName.trim()) return;
-    const labelPath =
-      nodeType === "formLabel" || nodeType === "formButton" ? firstPath : [...firstPath];
+    const labelPath = [...firstPath];
     if (["formInput", "formTextarea"].includes(nodeType ?? "")) {
       labelPath[labelPath.length - 1] -= 1;
     }

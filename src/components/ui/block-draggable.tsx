@@ -209,7 +209,7 @@ function Draggable(props: PlateElementProps) {
     if (justStartedAboutToDrag) {
       previewRef.current?.classList.remove("opacity-0");
     }
-  }, [isAboutToDrag, previewRef.current?.classList.remove]);
+  }, [isAboutToDrag]);
 
   React.useEffect(() => {
     const node = nodeRef.current;

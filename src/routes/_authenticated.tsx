@@ -252,15 +252,13 @@ function AuthLayoutContent() {
 
   // Initialize sidebar state from URL params on mount only
   // Changes should be handled via event handlers (router navigation)
-  const initializedRef = useRef(false);
-  if (!initializedRef.current) {
-    initializedRef.current = true;
+  useEffect(() => {
     if (sidebarParam) {
       setActiveSidebar(sidebarParam);
     } else {
       resetSidebar();
     }
-  }
+  }, []);
 
   const isFormBuilder = pathname.includes("/form-builder/");
   const showEditorSidebar = !!(activeSidebar && isFormBuilder && formId);
@@ -1716,7 +1714,7 @@ function SidebarSection({
   action?: React.ReactNode;
   initialOpen?: boolean;
 }) {
-  const [isOpen, setIsOpen] = useState(initialOpen);
+  const [isOpen, setIsOpen] = useState(() => initialOpen);
 
   return (
     <div className="flex flex-col">

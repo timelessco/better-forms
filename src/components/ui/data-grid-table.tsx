@@ -416,14 +416,14 @@ function DataGridTable<TData>() {
   return (
     <DataGridTableBase>
       <DataGridTableHead>
-        {table.getHeaderGroups().map((headerGroup: HeaderGroup<TData>, index) => {
+        {table.getHeaderGroups().map((headerGroup: HeaderGroup<TData>) => {
           return (
-            <DataGridTableHeadRow headerGroup={headerGroup} key={index}>
-              {headerGroup.headers.map((header, index) => {
+            <DataGridTableHeadRow headerGroup={headerGroup} key={headerGroup.id}>
+              {headerGroup.headers.map((header) => {
                 const { column } = header;
 
                 return (
-                  <DataGridTableHeadRowCell header={header} key={index}>
+                  <DataGridTableHeadRowCell header={header} key={header.id}>
                     {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     {props.tableLayout?.columnsResizable && column.getCanResize() && (
                       <DataGridTableHeadRowCellResize header={header} />
@@ -476,13 +476,13 @@ function DataGridTable<TData>() {
           </tr>
         ) : table.getRowModel().rows.length ? (
           // Show actual data when not loading
-          table.getRowModel().rows.map((row: Row<TData>, index) => {
+          table.getRowModel().rows.map((row: Row<TData>) => {
             return (
               <Fragment key={row.id}>
-                <DataGridTableBodyRow row={row} key={index}>
-                  {row.getVisibleCells().map((cell: Cell<TData, unknown>, colIndex) => {
+                <DataGridTableBodyRow row={row}>
+                  {row.getVisibleCells().map((cell: Cell<TData, unknown>) => {
                     return (
-                      <DataGridTableBodyRowCell cell={cell} key={colIndex}>
+                      <DataGridTableBodyRowCell cell={cell} key={cell.id}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </DataGridTableBodyRowCell>
                     );
