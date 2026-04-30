@@ -322,7 +322,7 @@ const DataGridScrollArea = ({
           >
             <ScrollAreaPrimitive.Thumb
               data-slot="data-grid-thumb"
-              className="bg-border rounded-full relative flex-1"
+              className="relative flex-1 rounded-full bg-border"
             />
           </ScrollAreaPrimitive.Scrollbar>
         )}
@@ -336,7 +336,7 @@ const DataGridScrollArea = ({
           >
             <ScrollAreaPrimitive.Thumb
               data-slot="data-grid-thumb"
-              className="bg-border rounded-full relative flex-1"
+              className="relative flex-1 rounded-full bg-border"
             />
           </ScrollAreaPrimitive.Scrollbar>
         )}
@@ -353,7 +353,7 @@ const DataGridScrollArea = ({
           >
             <div
               className={cn(
-                "bg-border absolute end-px w-2",
+                "absolute end-px w-2 bg-border",
                 "top-(--data-grid-scrollbar-thumb-top) h-(--data-grid-scrollbar-thumb-height)",
                 "rounded-full",
               )}

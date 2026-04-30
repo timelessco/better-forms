@@ -153,7 +153,7 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
         <SettingsIcon className="h-4 w-4 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent
-        className="w-64 p-4 border"
+        className="w-64 border p-4"
         side={isPrevious ? "right" : "left"}
         align="start"
         onMouseDown={handlePopoverMouseDown}
@@ -179,7 +179,7 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
 
   return (
     <PlateElement
-      className={cn("m-0 px-0", isPrevious ? "float-left" : "overflow-hidden flex")}
+      className={cn("m-0 px-0", isPrevious ? "float-left" : "flex overflow-hidden")}
       {...props}
       attributes={{ ...props.attributes, "data-bf-chrome": "" }}
     >
@@ -188,7 +188,7 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
       {/* Non-editable button visual - onMouseDown prevents cursor placement */}
       <div
         className={cn(
-          "inline-flex items-center gap-1 group py-2.5",
+          "group inline-flex items-center gap-1 py-2.5",
           !isPrevious && isMultiStep && "ml-auto",
         )}
         contentEditable={false}
@@ -200,10 +200,10 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
         {!isPrevious && isMultiStep && GearIcon}
         <span
           className={cn(
-            "inline-flex h-8 items-center justify-center rounded-lg px-2.5 text-sm transition-colors cursor-default select-none gap-1.5",
+            "inline-flex h-8 cursor-default items-center justify-center gap-1.5 rounded-lg px-2.5 text-sm transition-colors select-none",
             isPrevious
-              ? "border border-input bg-background shadow-xs text-foreground"
-              : "bg-primary text-primary-foreground ",
+              ? "border border-input bg-background text-foreground shadow-xs"
+              : "bg-primary text-primary-foreground",
           )}
         >
           {isPrevious && <ChevronLeftIcon className="h-4 w-4" />}

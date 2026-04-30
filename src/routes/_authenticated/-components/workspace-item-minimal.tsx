@@ -184,7 +184,7 @@ export const WorkspaceItemMinimal = ({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="p-[5px] mr-1 rounded-lg overflow-hidden hover:bg-sidebar-active text-muted-foreground hover:text-foreground"
+                  className="hover:bg-sidebar-active mr-1 overflow-hidden rounded-lg p-[5px] text-muted-foreground hover:text-foreground"
                   title="More options"
                   onPointerDown={(e) => e.stopPropagation()}
                 />
@@ -194,14 +194,14 @@ export const WorkspaceItemMinimal = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48" sideOffset={4}>
               <Collapsible open={sortExpanded} onOpenChange={setSortExpanded}>
-                <CollapsibleTrigger className="h-[26px] px-2 py-[5.5px] rounded-lg inline-flex items-center gap-1.5 w-full overflow-hidden text-[13px] transition-colors cursor-pointer text-foreground">
+                <CollapsibleTrigger className="inline-flex h-[26px] w-full cursor-pointer items-center gap-1.5 overflow-hidden rounded-lg px-2 py-[5.5px] text-[13px] text-foreground transition-colors">
                   <currentSort.icon className="size-4 shrink-0" />
                   <span className="flex-1 text-left">{currentSort.label}</span>
                   <ChevronDownIcon
                     className={cn("size-3 shrink-0 transition-transform duration-200")}
                   />
                 </CollapsibleTrigger>
-                <CollapsibleContent className="overflow-hidden h-(--collapsible-panel-height) transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0">
+                <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0">
                   <div className="flex flex-col pt-1">
                     <DropdownMenuGroup>
                       <DropdownMenuLabel>Sort by</DropdownMenuLabel>
@@ -266,7 +266,7 @@ export const WorkspaceItemMinimal = ({
           </SortableContext>
         </DndContext>
         {workspace.forms.length === 0 && (
-          <span className="text-muted-foreground/50 text-[11px] px-8 py-1 italic">
+          <span className="px-8 py-1 text-[11px] text-muted-foreground/50 italic">
             No forms yet
           </span>
         )}
@@ -370,7 +370,7 @@ const WorkspaceFormMinimal = ({
     >
       <SidebarItem label={label} linkOptions={linkOptions} isActive={isActive} prefix={prefix}>
         {showCount && (
-          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0 tracking-5 font-case transition-opacity group-hover/row:opacity-0 group-has-[[data-state=open]]/row:opacity-0">
+          <span className="shrink-0 font-case text-[11px] tracking-5 text-muted-foreground tabular-nums transition-opacity group-hover/row:opacity-0 group-has-[[data-state=open]]/row:opacity-0">
             {submissionCount}
           </span>
         )}
@@ -383,7 +383,7 @@ const WorkspaceFormMinimal = ({
               aria-label="Form options"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={stopBubble}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center size-5 rounded-md text-muted-foreground hover:text-foreground hover:bg-sidebar-active opacity-0 group-hover/row:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+              className="hover:bg-sidebar-active absolute top-1/2 right-2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 hover:text-foreground data-[state=open]:opacity-100"
             />
           }
         >
@@ -423,7 +423,7 @@ const WorkspaceFormMinimal = ({
                   <DropdownMenuSubContent className="w-48">
                     {otherWorkspaces.map((ws) => (
                       <DropdownMenuItem key={ws.id} onClick={() => handleMoveToWorkspace(ws.id)}>
-                        <span className="flex-1 text-left truncate">{ws.name}</span>
+                        <span className="flex-1 truncate text-left">{ws.name}</span>
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuSubContent>
@@ -483,7 +483,7 @@ const InlineRenameForm = ({
         onKeyDown={(e) => {
           if (e.key === "Escape") onClose();
         }}
-        className="w-full bg-secondary rounded-md px-2 py-1 text-[13px] outline-hidden ring-1 ring-foreground/20"
+        className="w-full rounded-md bg-secondary px-2 py-1 text-[13px] ring-1 ring-foreground/20 outline-hidden"
         aria-label="Rename form"
       />
     </form>

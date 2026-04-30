@@ -117,7 +117,7 @@ type NumberRowProps = {
 // blend into the menu instead of standing out.
 const NumberRow = ({ label, value, onChange, min, max, suffix, defaultHint }: NumberRowProps) => (
   <DropdownMenuItem closeOnClick={false} onPointerDown={stopMouseEventPropagation}>
-    <span className="flex-1 min-w-0 text-[13px] text-foreground/80 text-left">{label}</span>
+    <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">{label}</span>
     <Input
       type="number"
       min={min}
@@ -128,7 +128,7 @@ const NumberRow = ({ label, value, onChange, min, max, suffix, defaultHint }: Nu
       onKeyDown={stopKeyEventPropagation}
       onClick={stopMouseEventPropagation}
       aria-label={label}
-      className="h-[20px] w-[48px] shrink-0 text-[12px] text-right px-1 rounded-[4px] border border-transparent dark:border-transparent shadow-none bg-transparent focus:border-border/70 focus-visible:border-border/70 dark:focus:border-border/70 dark:focus-visible:border-border/70 focus-visible:ring-0 placeholder:text-muted-foreground/60"
+      className="h-[20px] w-[48px] shrink-0 rounded-[4px] border border-transparent bg-transparent px-1 text-right text-[12px] shadow-none placeholder:text-muted-foreground/60 focus:border-border/70 focus-visible:border-border/70 focus-visible:ring-0 dark:border-transparent dark:focus:border-border/70 dark:focus-visible:border-border/70"
     />
     {suffix && <span className="shrink-0 text-[11px] text-muted-foreground/80">{suffix}</span>}
   </DropdownMenuItem>
@@ -151,8 +151,8 @@ const FileExtensionToggleRow = ({ category, selected, onToggle }: FileExtensionT
   return (
     <Collapsible open={open}>
       <CollapsibleContent>
-        <div className="px-2 pb-1 pt-0.5">
-          <div className="flex items-stretch h-[28px] rounded-[6px] border border-border/60 overflow-hidden bg-transparent">
+        <div className="px-2 pt-0.5 pb-1">
+          <div className="flex h-[28px] items-stretch overflow-hidden rounded-[6px] border border-border/60 bg-transparent">
             {subtypes.map((subtype, i) => {
               const active = isActive(subtype.id);
               return (
@@ -168,10 +168,10 @@ const FileExtensionToggleRow = ({ category, selected, onToggle }: FileExtensionT
                     onPointerDown={stopMouseEventPropagation}
                     aria-pressed={active}
                     className={cn(
-                      "flex-1 text-[11px] font-medium uppercase tracking-wide transition-colors",
+                      "flex-1 text-[11px] font-medium tracking-wide uppercase transition-colors",
                       active
-                        ? "text-foreground bg-(--color-gray-alpha-100)"
-                        : "text-muted-foreground/50 hover:text-foreground hover:bg-(--color-gray-alpha-100)/50",
+                        ? "bg-(--color-gray-alpha-100) text-foreground"
+                        : "text-muted-foreground/50 hover:bg-(--color-gray-alpha-100)/50 hover:text-foreground",
                     )}
                   >
                     {subtype.label}
@@ -693,13 +693,13 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
           sideOffset={8}
         >
           <div className="flex items-center gap-2 px-2 py-1.5">
-            <span className="text-[13px] flex-1 truncate text-foreground">{fieldName}</span>
+            <span className="flex-1 truncate text-[13px] text-foreground">{fieldName}</span>
           </div>
           <DropdownMenuSeparator />
 
           {fieldType !== "static" && fieldType !== "formButton" && fieldType !== "unknown" && (
             <DropdownMenuItem closeOnClick={false} onClick={handleToggleRequired}>
-              <span className="flex-1 min-w-0 text-[13px] text-foreground/80 text-left">
+              <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
                 Required
               </span>
               <Switch
@@ -715,7 +715,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
           {fieldType === "textLike" && (
             <>
               <DropdownMenuItem closeOnClick={false} onClick={handleToggleDefaultValue}>
-                <span className="flex-1 min-w-0 text-[13px] text-foreground/80 text-left">
+                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
                   Default answer
                 </span>
                 <Switch
@@ -733,7 +733,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
                     onChange={handleDefaultValueChange}
                     onKeyDown={handleInputKeyDown}
                     placeholder="Enter default value"
-                    className="h-7 text-[13px] rounded-lg"
+                    className="h-7 rounded-lg text-[13px]"
                     aria-label="Default value"
                   />
                 </div>
@@ -766,7 +766,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
           {fieldType === "formNumber" && (
             <>
               <DropdownMenuItem closeOnClick={false} onClick={handleToggleDefaultValue}>
-                <span className="flex-1 min-w-0 text-[13px] text-foreground/80 text-left">
+                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
                   Default answer
                 </span>
                 <Switch
@@ -785,7 +785,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
                     onChange={handleDefaultValueChange}
                     onKeyDown={handleInputKeyDown}
                     placeholder="Enter default value"
-                    className="h-7 text-[13px] rounded-lg"
+                    className="h-7 rounded-lg text-[13px]"
                     aria-label="Default value"
                   />
                 </div>
@@ -810,7 +810,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
               />
 
               <DropdownMenuItem closeOnClick={false} onClick={handleToggleAllowDecimals}>
-                <span className="flex-1 min-w-0 text-[13px] text-foreground/80 text-left">
+                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
                   Allow decimals
                 </span>
                 <Switch
@@ -848,14 +848,14 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
               />
 
               <DropdownMenuItem closeOnClick={false}>
-                <span className="flex-1 min-w-0 text-[13px] text-foreground/80 text-left">
+                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
                   File types
                 </span>
                 <Select
                   value={(inputNode?.allowedFileTypes as string) ?? "all"}
                   onValueChange={(v) => v && handleUpdateAllowedFileTypes(v)}
                 >
-                  <SelectTrigger className="h-[20px] w-[100px] text-[12px] rounded-[4px] border border-transparent dark:border-transparent shadow-none bg-transparent px-1 focus:border-border/70 focus-visible:border-border/70 dark:focus:border-border/70 dark:focus-visible:border-border/70 focus-visible:ring-0">
+                  <SelectTrigger className="h-[20px] w-[100px] rounded-[4px] border border-transparent bg-transparent px-1 text-[12px] shadow-none focus:border-border/70 focus-visible:border-border/70 focus-visible:ring-0 dark:border-transparent dark:focus:border-border/70 dark:focus-visible:border-border/70">
                     <SelectValue>
                       {(value) =>
                         FILE_TYPE_CATEGORY_LABELS[value as FileTypeCategory] ?? (value as string)
@@ -904,7 +904,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
                 defaultHint={3}
               />
               <DropdownMenuItem closeOnClick={false} onClick={handleToggleRandomizeOrder}>
-                <span className="flex-1 min-w-0 text-[13px] text-foreground/80 text-left">
+                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
                   Randomize order
                 </span>
                 <Switch
@@ -916,7 +916,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
                 />
               </DropdownMenuItem>
               <DropdownMenuItem closeOnClick={false} onClick={handleToggleAllowOther}>
-                <span className="flex-1 min-w-0 text-[13px] text-foreground/80 text-left">
+                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
                   &quot;Other&quot; option
                 </span>
                 <Switch
@@ -956,7 +956,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
           {fieldType === "optionMultiChoice" && (
             <>
               <DropdownMenuItem closeOnClick={false} onClick={handleToggleRandomizeOrder}>
-                <span className="flex-1 min-w-0 text-[13px] text-foreground/80 text-left">
+                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
                   Randomize order
                 </span>
                 <Switch
@@ -968,7 +968,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
                 />
               </DropdownMenuItem>
               <DropdownMenuItem closeOnClick={false} onClick={handleToggleAllowOther}>
-                <span className="flex-1 min-w-0 text-[13px] text-foreground/80 text-left">
+                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
                   &quot;Other&quot; option
                 </span>
                 <Switch
@@ -991,14 +991,14 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
 
           {fieldType === "formButton" && (
             <>
-              <div className="px-2 py-1.5 space-y-2">
+              <div className="space-y-2 px-2 py-1.5">
                 <Label className="text-[12px] text-muted-foreground">Button Name</Label>
                 <Input
                   value={buttonText}
                   onChange={handleButtonTextChange}
                   onKeyDown={handleInputKeyDown}
                   placeholder="Enter button name"
-                  className="h-8 text-[13px] rounded-lg"
+                  className="h-8 rounded-lg text-[13px]"
                 />
               </div>
               <DropdownMenuSeparator />

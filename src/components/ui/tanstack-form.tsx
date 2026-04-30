@@ -54,7 +54,7 @@ const Form = ({
     <form
       ref={ref}
       onSubmit={handleSubmit}
-      className={cn("flex flex-col  w-full mx-auto", className)}
+      className={cn("mx-auto flex w-full flex-col", className)}
       noValidate
       {...props}
     >
@@ -75,7 +75,7 @@ const FieldSet = ({ className, children, ...props }: React.ComponentProps<"field
 
   return (
     <FormItemContext.Provider value={itemContextValue}>
-      <DefaultFieldSet className={cn("grid ", className)} {...props}>
+      <DefaultFieldSet className={cn("grid", className)} {...props}>
         {children}
       </DefaultFieldSet>
     </FormItemContext.Provider>
@@ -159,7 +159,7 @@ const FieldError = ({ className, ...props }: React.ComponentProps<"p">) => {
     <DefaultFieldError
       data-slot="form-message"
       id={formMessageId}
-      className={cn("text-destructive text-sm", className)}
+      className={cn("text-sm text-destructive", className)}
       {...props}
       errors={body ? [{ message: body }] : []}
     />

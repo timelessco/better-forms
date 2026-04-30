@@ -71,7 +71,7 @@ const ImageFocusRing = (props: ImageFocusRingProps) => {
 
   return (
     <div
-      className="group-focus-visible:ring-ring/50 absolute inset-0 size-full transition ring-inset group-focus-visible:ring"
+      className="absolute inset-0 size-full transition ring-inset group-focus-visible:ring group-focus-visible:ring-ring/50"
       data-slot="image-focus-ring"
     />
   );

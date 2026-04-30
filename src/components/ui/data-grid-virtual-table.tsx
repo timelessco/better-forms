@@ -99,7 +99,7 @@ const DataGridTableVirtualStatusRow = ({
   <tr>
     <td
       colSpan={columnCount}
-      className={cn("text-muted-foreground py-4 text-center text-sm", className)}
+      className={cn("py-4 text-center text-sm text-muted-foreground", className)}
     >
       {children}
     </td>

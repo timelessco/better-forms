@@ -74,12 +74,12 @@ export const DataGridColumnHeader = <TData, TValue>({
   const headerLabel = (
     <div
       className={cn(
-        "text-secondary-foreground/80 font-normal inline-flex h-full items-center gap-1.5 text-[0.8125rem] min-w-0 [&_svg]:size-3.5 [&_svg]:opacity-60",
+        "inline-flex h-full min-w-0 items-center gap-1.5 text-[0.8125rem] font-normal text-secondary-foreground/80 [&_svg]:size-3.5 [&_svg]:opacity-60",
         className,
       )}
       title={title}
     >
-      <span className="shrink-0 inline-flex">{icon}</span>
+      <span className="inline-flex shrink-0">{icon}</span>
       <span className="truncate">{title}</span>
     </div>
   );
@@ -129,7 +129,7 @@ export const DataGridColumnHeader = <TData, TValue>({
   const headerButtonProps = {
     variant: "ghost" as const,
     className: cn(
-      "text-secondary-foreground/80 rounded-none font-normal px-2 h-full w-full justify-between hover:bg-transparent! data-[state=open]:bg-transparent! aria-expanded:bg-transparent!",
+      "h-full w-full justify-between rounded-none px-2 font-normal text-secondary-foreground/80 hover:bg-transparent! aria-expanded:bg-transparent! data-[state=open]:bg-transparent!",
       className,
     ),
     disabled: isLoading || recordCount === 0,
@@ -138,15 +138,15 @@ export const DataGridColumnHeader = <TData, TValue>({
 
   const headerButtonContent = (
     <>
-      <span className="inline-flex items-center gap-1.5 min-w-0" title={title}>
-        <span className="shrink-0 inline-flex">{icon}</span>
+      <span className="inline-flex min-w-0 items-center gap-1.5" title={title}>
+        <span className="inline-flex shrink-0">{icon}</span>
         <span className="truncate">{title}</span>
       </span>
       {column.getCanSort() &&
         (column.getIsSorted() === "desc" ? (
-          <ArrowDown className="size-[0.7rem]! mt-px" />
+          <ArrowDown className="mt-px size-[0.7rem]!" />
         ) : column.getIsSorted() === "asc" ? (
-          <ArrowUp className="size-[0.7rem]! mt-px" />
+          <ArrowUp className="mt-px size-[0.7rem]!" />
         ) : null)}
     </>
   );
@@ -167,7 +167,7 @@ export const DataGridColumnHeader = <TData, TValue>({
   );
 
   const headerControls = (
-    <div className="flex items-center h-full gap-1.5 justify-between">
+    <div className="flex h-full items-center justify-between gap-1.5">
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button {...headerButtonProps} />}>
           {headerButtonContent}
@@ -189,14 +189,14 @@ export const DataGridColumnHeader = <TData, TValue>({
                 <ArrowUp className="size-3.5!" />
                 <span className="grow">Asc</span>
                 {column.getIsSorted() === "asc" && (
-                  <CheckIcon className="size-4 opacity-100! text-primary" />
+                  <CheckIcon className="size-4 text-primary opacity-100!" />
                 )}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSortDesc} disabled={!column.getCanSort()}>
                 <ArrowDown className="size-3.5!" />
                 <span className="grow">Desc</span>
                 {column.getIsSorted() === "desc" && (
-                  <CheckIcon className="size-4 opacity-100! text-primary" />
+                  <CheckIcon className="size-4 text-primary opacity-100!" />
                 )}
               </DropdownMenuItem>
             </>
@@ -212,14 +212,14 @@ export const DataGridColumnHeader = <TData, TValue>({
                 <ArrowLeftToLine className="size-3.5!" aria-hidden="true" />
                 <span className="grow">Pin to left</span>
                 {column.getIsPinned() === "left" && (
-                  <CheckIcon className="size-4 opacity-100! text-primary" />
+                  <CheckIcon className="size-4 text-primary opacity-100!" />
                 )}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handlePinRight}>
                 <ArrowRightToLine className="size-3.5!" aria-hidden="true" />
                 <span className="grow">Pin to right</span>
                 {column.getIsPinned() === "right" && (
-                  <CheckIcon className="size-4 opacity-100! text-primary" />
+                  <CheckIcon className="size-4 text-primary opacity-100!" />
                 )}
               </DropdownMenuItem>
             </>
@@ -294,7 +294,7 @@ export const DataGridColumnHeader = <TData, TValue>({
   }
 
   if (column.getCanSort() || (props.tableLayout?.columnsResizable && column.getCanResize())) {
-    return <div className="flex items-center h-full">{headerButton}</div>;
+    return <div className="flex h-full items-center">{headerButton}</div>;
   }
 
   return headerLabel;

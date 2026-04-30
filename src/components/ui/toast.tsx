@@ -35,7 +35,7 @@ const Title = (props: ToastPrimitive.Title.Props) => {
   const { className, ...rest } = props;
   return (
     <ToastPrimitive.Title
-      className={cn("text-sm font-450 text-gray-0 not-italic", className)}
+      className={cn("font-450 text-gray-0 text-sm not-italic", className)}
       {...rest}
     />
   );
@@ -45,7 +45,7 @@ const Description = (props: ToastPrimitive.Description.Props) => {
   const { className, ...rest } = props;
   return (
     <ToastPrimitive.Description
-      className={cn("mt-[4px] text-13 font-450 text-gray-500 not-italic", className)}
+      className={cn("text-13 font-450 mt-[4px] text-gray-500 not-italic", className)}
       {...rest}
     />
   );

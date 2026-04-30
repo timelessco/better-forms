@@ -14,8 +14,8 @@ export interface PublicFormTracking {
   visitId: string | null;
   visitorHash: string;
   formId: string;
-  /** "page-break" if the form has multiple step pages, "field-by-field" if popup mode chunks one field per step. null disables question-progress tracking. */
-  mode: "page-break" | "field-by-field" | null;
+  /** "card" if the form is multi-step via author-inserted page breaks, "field-by-field" if presentation mode chunks one field per step. null disables question-progress tracking. Matches `forms.settings.presentationMode` end-to-end. */
+  mode: "card" | "field-by-field" | null;
 }
 
 type StepFormContextValue = {

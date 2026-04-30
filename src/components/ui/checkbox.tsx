@@ -9,14 +9,14 @@ export const Checkbox = ({ className, ...props }: CheckboxPrimitive.Root.Props) 
   <CheckboxPrimitive.Root
     data-slot="checkbox"
     className={cn(
-      "shrink-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring flex size-4 items-center justify-center rounded-[4px] border border-input bg-transparent transition-colors data-checked:bg-primary data-checked:text-primary-foreground data-checked:border-primary aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive group-has-disabled/field:opacity-50 peer relative after:absolute after:-inset-x-3 after:-inset-y-2 disabled:cursor-not-allowed disabled:opacity-50",
+      "peer relative flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-[4px] border border-input bg-transparent transition-colors outline-none group-has-disabled/field:opacity-50 after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground",
       className,
     )}
     {...props}
   >
     <CheckboxPrimitive.Indicator
       data-slot="checkbox-indicator"
-      className="[&>svg]:size-3.5 grid place-content-center text-current transition-none"
+      className="grid place-content-center text-current transition-none [&>svg]:size-3.5"
     >
       <CheckIcon />
     </CheckboxPrimitive.Indicator>

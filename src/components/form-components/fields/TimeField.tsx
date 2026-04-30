@@ -28,13 +28,13 @@ const TimeField = ({ element, form }: FieldRendererProps<"Time">) => (
             invalid={hasErrors}
           >
             <TimePickerInputGroup
-              className={cn("form-input h-7 px-[10px]", hasErrors && "form-input-error")}
+              className={cn("h-7 form-input px-[10px]", hasErrors && "form-input-error")}
               onBlur={f.handleBlur}
             >
               <TimePickerInput segment="hour" className="text-sm" />
               <TimePickerSeparator />
               <TimePickerInput segment="minute" className="text-sm" />
-              <TimePickerInput segment="period" className="text-sm ml-1" />
+              <TimePickerInput segment="period" className="ml-1 text-sm" />
               <TimePickerTrigger />
             </TimePickerInputGroup>
             <TimePickerContent>

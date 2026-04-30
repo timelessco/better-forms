@@ -83,7 +83,7 @@ interface EmptyMessageProps {
 
 const EmptyMessage = ({ height = 180 }: EmptyMessageProps) => (
   <div
-    className="flex items-center justify-center text-muted-foreground text-sm"
+    className="flex items-center justify-center text-sm text-muted-foreground"
     style={{ height }}
   >
     No data yet

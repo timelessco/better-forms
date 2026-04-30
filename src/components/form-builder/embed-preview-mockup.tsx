@@ -56,7 +56,7 @@ const PopupIconContent = ({ display }: { display: IconDisplay }) => {
   }
   if (display.type === "emoji") {
     return (
-      <span className="absolute inset-0 flex items-center justify-center text-[14px] text-muted bg-muted">
+      <span className="absolute inset-0 flex items-center justify-center bg-muted text-[14px] text-muted">
         {display.value}
       </span>
     );
@@ -222,7 +222,7 @@ export const EmbedPreviewMockup = ({
   const popupIconDisplay = resolveIconDisplay(emoji, emojiIcon);
 
   return (
-    <div className="rounded-[12px] bg-secondary overflow-hidden">
+    <div className="overflow-hidden rounded-[12px] bg-secondary">
       <div className="flex items-center gap-1 px-2.25 pt-2.5 pb-2">
         <div className="flex gap-1.5">
           <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/20" />
@@ -242,15 +242,15 @@ export const EmbedPreviewMockup = ({
               exit={{ opacity: 0 }}
               transition={FADE_TRANSITION}
             >
-              <div className="space-y-2 opacity-30 px-2">
-                <div className="h-2 bg-muted rounded-full w-1/4" />
-                <div className="h-1.5 bg-muted rounded-full w-full" />
-                <div className="h-1.5 bg-muted rounded-full w-4/5" />
+              <div className="space-y-2 px-2 opacity-30">
+                <div className="h-2 w-1/4 rounded-full bg-muted" />
+                <div className="h-1.5 w-full rounded-full bg-muted" />
+                <div className="h-1.5 w-4/5 rounded-full bg-muted" />
               </div>
               <div className="h-16" />
-              <div className="space-y-2 opacity-10 px-2">
-                <div className="h-1.5 bg-muted rounded-full w-full" />
-                <div className="h-1.5 bg-muted rounded-full w-11/12" />
+              <div className="space-y-2 px-2 opacity-10">
+                <div className="h-1.5 w-full rounded-full bg-muted" />
+                <div className="h-1.5 w-11/12 rounded-full bg-muted" />
               </div>
             </motion.div>
           )}
@@ -263,11 +263,11 @@ export const EmbedPreviewMockup = ({
               exit={{ opacity: 0 }}
               transition={FADE_TRANSITION}
             >
-              <div className="h-2.5 bg-muted rounded-full w-1/5" />
+              <div className="h-2.5 w-1/5 rounded-full bg-muted" />
               <div className="space-y-2">
-                <div className="h-2 bg-muted rounded-full w-full" />
-                <div className="h-2 bg-muted rounded-full w-full" />
-                <div className="h-2 bg-muted rounded-full w-3/4" />
+                <div className="h-2 w-full rounded-full bg-muted" />
+                <div className="h-2 w-full rounded-full bg-muted" />
+                <div className="h-2 w-3/4 rounded-full bg-muted" />
               </div>
             </motion.div>
           )}
@@ -277,7 +277,7 @@ export const EmbedPreviewMockup = ({
           {isPopup && darkOverlay && isPopupExpanded && (
             <motion.div
               key="dark-overlay"
-              className="absolute inset-0 bg-black/30 z-10"
+              className="absolute inset-0 z-10 bg-black/30"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -288,7 +288,7 @@ export const EmbedPreviewMockup = ({
 
         {target && (
           <motion.div
-            className="absolute bg-muted shadow-[0_2px_10px_rgba(0,0,0,0.04)]  z-20 overflow-hidden"
+            className="absolute z-20 overflow-hidden bg-muted shadow-[0_2px_10px_rgba(0,0,0,0.04)]"
             animate={target}
             transition={transition}
             onAnimationComplete={handleAnimationComplete}
@@ -299,7 +299,7 @@ export const EmbedPreviewMockup = ({
               <button
                 type="button"
                 aria-label="Close preview"
-                className="absolute top-1 right-1 z-30 h-3.5 w-3.5 rounded-full bg-muted-foreground/10 flex items-center justify-center hover:bg-muted-foreground/20 transition-colors cursor-pointer"
+                className="absolute top-1 right-1 z-30 flex h-3.5 w-3.5 cursor-pointer items-center justify-center rounded-full bg-muted-foreground/10 transition-colors hover:bg-muted-foreground/20"
                 onClick={handleCloseClick}
               >
                 <XIcon className="h-2 w-2 text-muted-foreground" />
@@ -327,7 +327,7 @@ export const EmbedPreviewMockup = ({
           <button
             type="button"
             aria-label="Open popup preview"
-            className="absolute w-[28px] h-[28px] rounded-full bg-[#e0e0e0] dark:bg-card shadow-[0_2px_10px_rgba(0,0,0,0.04)]  z-20 cursor-pointer p-0"
+            className="absolute z-20 h-[28px] w-[28px] cursor-pointer rounded-full bg-[#e0e0e0] p-0 shadow-[0_2px_10px_rgba(0,0,0,0.04)] dark:bg-card"
             style={{ left: bubblePos.left, top: bubblePos.top }}
             onMouseEnter={handleBubbleMouseEnter}
             onClick={handleBubbleClick}

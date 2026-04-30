@@ -100,7 +100,7 @@ export const StepForm = ({
         noValidate
         data-bf-field-list
         onKeyDown={autoActionButton ? handleFieldByFieldKeyDown : undefined}
-        className=" focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         {groupedItems.map((item) => {
           if (item.type === "buttonGroup") {
@@ -114,7 +114,7 @@ export const StepForm = ({
             return (
               <div
                 key={groupKey}
-                className="flex flex-row-reverse justify-between items-center w-full"
+                className="flex w-full flex-row-reverse items-center justify-between"
                 style={{ maxWidth: "var(--bf-input-width)" }}
               >
                 {actionButton && (
@@ -175,24 +175,24 @@ export const StepForm = ({
 
         {showAutoActionButton && (
           <div
-            className="flex items-center gap-3 pt-2 w-full"
+            className="flex w-full items-center gap-3 pt-2"
             style={{ maxWidth: "var(--bf-input-width)" }}
           >
             <Button
               type="submit"
               style={{ fontSize: "13px" }}
-              className="h-9 px-4 rounded-lg gap-1.5"
+              className="h-9 gap-1.5 rounded-lg px-4"
               disabled={isSubmitting}
             >
               {isSubmitting ? t("submitting") : isLastStep ? t("submit") : t("next")}
             </Button>
-            <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               press{" "}
-              <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted/50 font-medium text-foreground">
+              <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
                 Shift
               </kbd>
               +
-              <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted/50 font-medium text-foreground">
+              <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
                 Enter
               </kbd>
               <span aria-hidden="true">↵</span>
@@ -272,7 +272,7 @@ const RenderStepButton = ({
         type="button"
         onClick={onPrevious}
         style={buttonStyle}
-        className="h-8 px-2.5 rounded-lg gap-1.5"
+        className="h-8 gap-1.5 rounded-lg px-2.5"
         prefix={<ChevronLeftIcon className="size-4" />}
       >
         {buttonText}
@@ -292,7 +292,7 @@ const RenderStepButton = ({
       <Button
         type="submit"
         style={buttonStyle}
-        className="h-8 px-2.5 rounded-lg gap-1.5"
+        className="h-8 gap-1.5 rounded-lg px-2.5"
         suffix={<ChevronRightIcon className="size-4" />}
         disabled={isSubmitting}
       >
@@ -302,7 +302,7 @@ const RenderStepButton = ({
     return grouped ? (
       button
     ) : (
-      <div className="flex justify-end mb-4" style={{ maxWidth: "var(--bf-input-width)" }}>
+      <div className="mb-4 flex justify-end" style={{ maxWidth: "var(--bf-input-width)" }}>
         {button}
       </div>
     );
@@ -313,7 +313,7 @@ const RenderStepButton = ({
     <Button
       type="submit"
       style={buttonStyle}
-      className="h-8 px-2.5 rounded-lg gap-1.5"
+      className="h-8 gap-1.5 rounded-lg px-2.5"
       disabled={isSubmitting}
     >
       {isSubmitting ? t("submitting") : buttonText}

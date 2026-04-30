@@ -171,12 +171,12 @@ export const ConfigRow = ({
   variant?: "default" | "switch";
 }) => (
   <div
-    className={`bg-secondary min-h-8.5 flex gap-3 items-center overflow-clip pl-2.5 py-1.75 ${
+    className={`flex min-h-8.5 items-center gap-3 overflow-clip bg-secondary py-1.75 pl-2.5 ${
       // max-h-9.5
       variant === "switch" ? "pr-[6px]" : "pr-[3px]"
     }`}
   >
-    <div className="flex-1 min-w-0 flex flex-col gap-1">
+    <div className="flex min-w-0 flex-1 flex-col gap-1">
       <span className="text-base font-normal">{label}</span>
       {description && (
         <p className="text-sm font-normal text-wrap text-muted-foreground">{description}</p>
@@ -305,7 +305,7 @@ const CustomizeSection = ({
               max={600}
               step={1}
               unit="px"
-              className="!rounded-none !border-0 !bg-secondary !h-[34px]"
+              className="!h-[34px] !rounded-none !border-0 !bg-secondary"
             />
           )}
         </form.Field>
@@ -357,7 +357,7 @@ const CustomizeSection = ({
           {(dynamicHeight: boolean) => (
             <form.Field name="height">
               {(field: FieldRenderApi<number>) => (
-                <div className={dynamicHeight ? "opacity-40 pointer-events-none" : ""}>
+                <div className={dynamicHeight ? "pointer-events-none opacity-40" : ""}>
                   <StyleNumberInput
                     label="Height"
                     value={`${field.state.value}px`}
@@ -369,7 +369,7 @@ const CustomizeSection = ({
                     max={1000}
                     step={1}
                     unit="px"
-                    className="!rounded-none !border-0 !bg-secondary !h-[34px]"
+                    className="!h-[34px] !rounded-none !border-0 !bg-secondary"
                   />
                 </div>
               )}
@@ -617,7 +617,7 @@ const ProSection = ({
           Save, without requiring a republish. */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between px-1">
-          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          <span className="text-[11px] tracking-wider text-muted-foreground uppercase">
             Live Settings
           </span>
           <span className="text-[10px] text-muted-foreground/70">Applies on save</span>
@@ -673,12 +673,12 @@ const ProSection = ({
                   aria-label="Form slug"
                   value={draftSlug}
                   onChange={(e) => setDraftSlug(e.target.value)}
-                  className="h-6 w-32 text-xs font-mono px-2 py-0 border-none bg-transparent shadow-none"
+                  className="h-6 w-32 border-none bg-transparent px-2 py-0 font-mono text-xs shadow-none"
                   placeholder="my-form"
                 />
               </ConfigRow>
               <div className="bg-secondary px-2.5 py-1.5">
-                <p className="text-xs text-muted-foreground font-mono truncate">
+                <p className="truncate font-mono text-xs text-muted-foreground">
                   {`https://${draftSelectedDomain.domain}/${draftSlug.trim() || defaultSlug}`}
                 </p>
               </div>

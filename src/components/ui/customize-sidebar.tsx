@@ -81,14 +81,14 @@ const ColorSwatch = ({ color }: { color?: string }) => {
   if (!color) return null;
   return (
     <div
-      className="size-3 rounded-full border border-border/60 shrink-0"
+      className="size-3 shrink-0 rounded-full border border-border/60"
       style={{ backgroundColor: color }}
     />
   );
 };
 
 const ProBadge = () => (
-  <div className="bg-teal-100 dark:bg-teal-700/20 text-teal-700 dark:text-teal-400 text-[9px] px-1.5 py-px rounded-[4px] font-bold uppercase tracking-wider shadow-sm">
+  <div className="rounded-[4px] bg-teal-100 px-1.5 py-px text-[9px] font-bold tracking-wider text-teal-700 uppercase shadow-sm dark:bg-teal-700/20 dark:text-teal-400">
     Pro
   </div>
 );
@@ -273,11 +273,11 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
     <Sidebar
       side="right"
       collapsible="none"
-      className="w-full h-full border-none animate-in slide-in-from-right-[40%] duration-200 ease-out"
+      className="h-full w-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
     >
-      <SidebarHeader className="pt-2 pb-3 pl-1 shrink-0 gap-2.25 space-y-2">
+      <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-normal text-foreground pl-2.5 font-sans">Customize</h2>
+          <h2 className="pl-2.5 font-sans text-base font-normal text-foreground">Customize</h2>
           <Button
             variant="ghost"
             size="icon-xs"
@@ -291,7 +291,7 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
       </SidebarHeader>
 
       <SidebarContent>
-        <div className="p-2 space-y-3">
+        <div className="space-y-3 p-2">
           <p className="px-1 pb-1 text-[11px] text-muted-foreground/80">
             Changes apply to the public form on next publish.
           </p>
@@ -591,12 +591,12 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
 
           <SidebarSection label="Custom CSS" action={<ProBadge />}>
             <FeatureGate requiredPlan="pro" variant="block">
-              <div className="rounded-lg overflow-hidden border border-border/60 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+              <div className="overflow-hidden rounded-lg border border-border/60 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                 <Textarea
                   value={cssValue}
                   onChange={handleCssChange}
                   aria-label={`Custom CSS (${activeMode} mode)`}
-                  className="font-mono text-[11px] h-32 bg-secondary text-foreground border-0 rounded-none focus-visible:ring-2 focus-visible:ring-ring p-3"
+                  className="h-32 rounded-none border-0 bg-secondary p-3 font-mono text-[11px] text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                   placeholder=".bf-themed { ... }"
                   spellCheck={false}
                 />
@@ -604,7 +604,7 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
               <div className="flex items-center gap-1.5 px-1 pt-2">
                 <Tooltip>
                   <TooltipTrigger
-                    render={<InfoIcon className="h-3 w-3 text-muted-foreground/60 cursor-help" />}
+                    render={<InfoIcon className="h-3 w-3 cursor-help text-muted-foreground/60" />}
                   />
                   <TooltipContent side="bottom" className="max-w-[240px] text-[11px]">
                     Supports shadcn tokens: --bf-primary, --bf-background, --bf-foreground, etc.

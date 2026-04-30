@@ -354,7 +354,7 @@ export const DomainsContent = () => {
 
   if (!isOwner && !isSessionPending) {
     return (
-      <div className="text-center py-8 text-muted-foreground text-sm">
+      <div className="py-8 text-center text-sm text-muted-foreground">
         <GlobeIcon className="mx-auto mb-3 size-8 opacity-50" />
         <p>Only the organization owner can manage domains.</p>
       </div>
@@ -381,7 +381,7 @@ export const DomainsContent = () => {
         <InputGroup
           variant="borderless"
           className={cn(
-            "h-[30px] bg-secondary border-0 ring-0 overflow-clip",
+            "h-[30px] overflow-clip border-0 bg-secondary ring-0",
             canAddDomain && "pr-[3px]",
           )}
         >
@@ -412,7 +412,7 @@ export const DomainsContent = () => {
           <Loader2Icon className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : domains.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground text-sm">
+        <div className="py-8 text-center text-sm text-muted-foreground">
           <GlobeIcon className="mx-auto mb-3 size-8 opacity-50" />
           <p>No custom domains yet</p>
         </div>
@@ -432,7 +432,7 @@ export const DomainsContent = () => {
                   <div className="flex items-center gap-1.5">
                     {isConfirmingDelete ? (
                       <>
-                        <span className="text-xs text-muted-foreground mr-1">Are you sure?</span>
+                        <span className="mr-1 text-xs text-muted-foreground">Are you sure?</span>
                         <Button
                           ref={cancelDeleteButtonRef}
                           variant="outline"
@@ -509,7 +509,7 @@ export const DomainsContent = () => {
                           data-trash-for={domain.id}
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => setConfirmDeleteId(domain.id)}
                           aria-label={`Remove ${domain.domain}`}
                         >
@@ -521,7 +521,7 @@ export const DomainsContent = () => {
                 </div>
 
                 {dnsRecordsByDomainId[domain.id]?.length && domain.status !== "verified" && (
-                  <div className="border-t px-4 py-3 bg-muted/40 space-y-3">
+                  <div className="space-y-3 border-t bg-muted/40 px-4 py-3">
                     <p className="text-xs text-muted-foreground">
                       Add{" "}
                       {dnsRecordsByDomainId[domain.id].length > 1 ? "all records" : "the record"}{" "}
@@ -544,7 +544,7 @@ export const DomainsContent = () => {
                       )}
                     </p>
                     <div className="flex items-start gap-2 rounded-md border border-dashed border-foreground/25 bg-background px-3 py-2 text-xs text-muted-foreground">
-                      <AlertCircleIcon className="size-3.5 mt-0.5 shrink-0" />
+                      <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0" />
                       <span>
                         If your DNS provider offers a proxy or CDN feature on individual records,
                         keep it <strong className="text-foreground">disabled</strong> for this
@@ -568,7 +568,7 @@ export const DomainsContent = () => {
                           )}
                         >
                           <div className="border-r px-3 py-2 font-mono">{rec.type}</div>
-                          <div className="min-w-0 border-r px-3 py-2 font-mono break-all space-y-0.5">
+                          <div className="min-w-0 space-y-0.5 border-r px-3 py-2 font-mono break-all">
                             <div>{rec.name}</div>
                             {rec.shortName && (
                               <div className="text-[10px] font-normal text-muted-foreground">
@@ -577,7 +577,7 @@ export const DomainsContent = () => {
                             )}
                           </div>
                           <div className="flex min-w-0 items-center gap-1 border-r px-3 py-2">
-                            <span className="flex-1 min-w-0 font-mono break-all">{rec.value}</span>
+                            <span className="min-w-0 flex-1 font-mono break-all">{rec.value}</span>
                           </div>
                           <div className="flex items-center justify-center">
                             <CopyButton
@@ -594,7 +594,7 @@ export const DomainsContent = () => {
                 )}
 
                 {isConfiguring && (
-                  <div className="border-t px-4 py-4 space-y-5">
+                  <div className="space-y-5 border-t px-4 py-4">
                     <div className="flex flex-col gap-2">
                       <label
                         className="text-base tracking-[0.28px] text-muted-foreground"
@@ -605,7 +605,7 @@ export const DomainsContent = () => {
                       <InputGroup
                         variant="borderless"
                         className={cn(
-                          "h-[30px] bg-secondary border-0 ring-0 overflow-clip",
+                          "h-[30px] overflow-clip border-0 bg-secondary ring-0",
                           siteTitle !== (domain.siteTitle ?? "") && "pr-[3px]",
                         )}
                       >
@@ -634,7 +634,7 @@ export const DomainsContent = () => {
                     </div>
 
                     <div className="flex items-start gap-3">
-                      <div className="flex-1 flex flex-col gap-2">
+                      <div className="flex flex-1 flex-col gap-2">
                         <span className="text-base tracking-[0.28px] text-muted-foreground">
                           Favicon
                         </span>
@@ -643,7 +643,7 @@ export const DomainsContent = () => {
                             <img
                               src={faviconUrl}
                               alt="Favicon preview"
-                              className="size-8 rounded border object-contain shrink-0"
+                              className="size-8 shrink-0 rounded border object-contain"
                             />
                           )}
                           <Button
@@ -672,7 +672,7 @@ export const DomainsContent = () => {
                         </div>
                       </div>
 
-                      <div className="flex-1 flex flex-col gap-2">
+                      <div className="flex flex-1 flex-col gap-2">
                         <span className="text-base tracking-[0.28px] text-muted-foreground">
                           OG image
                         </span>
@@ -681,7 +681,7 @@ export const DomainsContent = () => {
                             <img
                               src={ogImageUrl}
                               alt="Open Graph preview"
-                              className="h-8 w-14 rounded border object-cover shrink-0"
+                              className="h-8 w-14 shrink-0 rounded border object-cover"
                             />
                           )}
                           <Button

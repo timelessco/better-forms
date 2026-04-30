@@ -64,7 +64,7 @@ const InsightsPage = () => {
     return (
       <div className="container mx-auto max-w-7xl space-y-6 p-6">
         <div className="flex items-center justify-between">
-          <h1 className="font-semibold text-2xl">Insights</h1>
+          <h1 className="text-2xl font-semibold">Insights</h1>
           <TimeRangeSelector
             value={filter}
             startDate={startDate}
@@ -73,7 +73,7 @@ const InsightsPage = () => {
           />
         </div>
         <Card className="bg-transparent ring-0">
-          <CardContent className="py-10 text-center text-muted-foreground text-sm">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
             Failed to load insights. Try a different time range or refresh.
           </CardContent>
         </Card>
@@ -88,7 +88,7 @@ const InsightsPage = () => {
   return (
     <div className="container mx-auto max-w-7xl space-y-6 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-semibold text-2xl">Insights</h1>
+        <h1 className="text-2xl font-semibold">Insights</h1>
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"

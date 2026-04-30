@@ -55,17 +55,17 @@ export const SettingsDialog = () => {
       <DialogContent
         showCloseButton={false}
         overlayClassName="bg-[rgba(0,0,0,0.36)] backdrop-blur-[4px] duration-150"
-        className="w-[calc(100vw-1rem)] h-[calc(100vh-2rem)] md:w-[740px] md:h-[min(700px,calc(100vh-80px))] rounded-5xl shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6),0px_105px_29px_0px_rgba(0,0,0,0),0px_67px_27px_0px_rgba(0,0,0,0.01),0px_38px_23px_0px_rgba(0,0,0,0.04),0px_17px_17px_0px_rgba(0,0,0,0.08),0px_4px_9px_0px_rgba(0,0,0,0.09)] overflow-clip p-0 sm:max-w-none max-w-none data-open:zoom-in-[0.98] data-closed:zoom-out-[0.98] duration-150 flex flex-col md:flex-row ring-0"
+        className="flex h-[calc(100vh-2rem)] w-[calc(100vw-1rem)] max-w-none flex-col overflow-clip rounded-5xl p-0 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6),0px_105px_29px_0px_rgba(0,0,0,0),0px_67px_27px_0px_rgba(0,0,0,0.01),0px_38px_23px_0px_rgba(0,0,0,0.04),0px_17px_17px_0px_rgba(0,0,0,0.08),0px_4px_9px_0px_rgba(0,0,0,0.09)] ring-0 duration-150 sm:max-w-none md:h-[min(700px,calc(100vh-80px))] md:w-[740px] md:flex-row data-open:zoom-in-[0.98] data-closed:zoom-out-[0.98]"
       >
         {/* Left Sidebar (top tabs on mobile) */}
-        <div className="relative w-full md:w-[180px] shrink-0 flex flex-col after:absolute after:bg-gray-100 after:left-0 after:right-0 after:bottom-0 after:h-[0.5px] md:after:top-0 md:after:left-auto md:after:w-[0.5px] md:after:h-auto">
+        <div className="relative flex w-full shrink-0 flex-col after:absolute after:right-0 after:bottom-0 after:left-0 after:h-[0.5px] after:bg-gray-100 md:w-[180px] md:after:top-0 md:after:left-auto md:after:h-auto md:after:w-[0.5px]">
           {/* Settings label */}
-          <div className="px-[18px] pt-5 pb-[12.21px] hidden md:block">
+          <div className="hidden px-[18px] pt-5 pb-[12.21px] md:block">
             <p className="text-sm font-medium tracking-[0.26px] text-muted-foreground">Settings</p>
           </div>
 
           {/* Nav items */}
-          <nav className="px-2 flex flex-row md:flex-col overflow-x-auto md:overflow-visible py-2 md:py-0">
+          <nav className="flex flex-row overflow-x-auto px-2 py-2 md:flex-col md:overflow-visible md:py-0">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.key;
@@ -83,9 +83,9 @@ export const SettingsDialog = () => {
         </div>
 
         {/* Right Content Area — entire section scrolls */}
-        <ScrollArea className="flex-1 min-h-0" hideScrollbar>
-          <div className="px-5 md:px-12.25 pt-5 md:pt-8 pb-5 md:pb-8">
-            <DialogTitle className="text-xl font-semibold text-foreground mb-4">
+        <ScrollArea className="min-h-0 flex-1" hideScrollbar>
+          <div className="px-5 pt-5 pb-5 md:px-12.25 md:pt-8 md:pb-8">
+            <DialogTitle className="mb-4 text-xl font-semibold text-foreground">
               {tabTitles[activeTab]}
             </DialogTitle>
             <TabContent tab={activeTab} />

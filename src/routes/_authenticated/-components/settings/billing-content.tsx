@@ -13,7 +13,7 @@ export const BillingContent = () => {
 
   const {
     isPro: isProPlan,
-    isBiz: isBusinessPlan,
+    isBusiness: isBusinessPlan,
     isFree: isFreePlan,
     isLoading,
   } = useUserPlan(activeOrg?.id);
@@ -53,12 +53,12 @@ export const BillingContent = () => {
 
   const handleOpenPortal = useCallback(() => openPortal(), [openPortal]);
   const handleUpgradePro = useCallback(() => handleUpgrade("Pro"), [handleUpgrade]);
-  const handleUpgradeBusiness = useCallback(() => handleUpgrade("Pro-(Yearly)"), [handleUpgrade]);
+  const handleUpgradeBusiness = useCallback(() => handleUpgrade("Business"), [handleUpgrade]);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <Loader2Icon aria-hidden="true" className="animate-spin h-8 w-8 text-muted-foreground" />
+        <Loader2Icon aria-hidden="true" className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -85,8 +85,8 @@ export const BillingContent = () => {
             <CardDescription className="text-xs">Perfect for personal projects.</CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-2xl font-bold mb-3">$0</div>
-            <ul className="space-y-1.5 text-xs text-muted-foreground mb-4">
+            <div className="mb-3 text-2xl font-bold">$0</div>
+            <ul className="mb-4 space-y-1.5 text-xs text-muted-foreground">
               <li>• 1 member</li>
               <li>• 3 forms</li>
               <li>• 100 submissions/mo</li>
@@ -108,8 +108,8 @@ export const BillingContent = () => {
             <CardDescription className="text-xs">For growing teams.</CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-2xl font-bold mb-3">$19/mo</div>
-            <ul className="space-y-1.5 text-xs text-muted-foreground mb-4">
+            <div className="mb-3 text-2xl font-bold">$19/mo</div>
+            <ul className="mb-4 space-y-1.5 text-xs text-muted-foreground">
               <li>• 5 members</li>
               <li>• Unlimited forms</li>
               <li>• 10k submissions/mo</li>
@@ -132,8 +132,8 @@ export const BillingContent = () => {
             <CardDescription className="text-xs">Enterprise-grade features.</CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-2xl font-bold mb-3">$49/mo</div>
-            <ul className="space-y-1.5 text-xs text-muted-foreground mb-4">
+            <div className="mb-3 text-2xl font-bold">$49/mo</div>
+            <ul className="mb-4 space-y-1.5 text-xs text-muted-foreground">
               <li>• Unlimited members</li>
               <li>• Custom domains</li>
               <li>• API access</li>

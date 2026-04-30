@@ -49,10 +49,10 @@ interface SummaryStatProps {
 
 const SummaryStat = ({ label, value }: SummaryStatProps) => (
   <div className="flex flex-col gap-1 px-3 py-2">
-    <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+    <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
       {label}
     </span>
-    <span className="font-semibold text-foreground text-lg tabular-nums">{value}</span>
+    <span className="text-lg font-semibold text-foreground tabular-nums">{value}</span>
   </div>
 );
 
@@ -75,7 +75,7 @@ export const DropoffFunnel = ({ dropoff }: DropoffFunnelProps) => {
           id: "step",
           header: ({ column }) => <DataGridColumnHeader column={column} title="Step" />,
           cell: (info) => (
-            <span className="text-[13px] tabular-nums text-muted-foreground">
+            <span className="text-[13px] text-muted-foreground tabular-nums">
               {info.getValue() + 1}
             </span>
           ),
@@ -160,7 +160,7 @@ export const DropoffFunnel = ({ dropoff }: DropoffFunnelProps) => {
 
   if (!dropoff || dropoff.questions.length === 0) {
     return (
-      <div className="p-6 text-center text-muted-foreground text-sm">
+      <div className="p-6 text-center text-sm text-muted-foreground">
         No drop-off data yet — multi-step / field-by-field forms only.
       </div>
     );

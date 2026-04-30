@@ -15,19 +15,19 @@ export const Tabs = ({
   <TabsPrimitive.Root
     data-slot="tabs"
     data-orientation={orientation}
-    className={cn("gap-2 group/tabs flex data-horizontal:flex-col", className)}
+    className={cn("group/tabs flex gap-2 data-horizontal:flex-col", className)}
     {...props}
   />
 );
 
 const tabsListVariants = cva(
-  "relative group/tabs-list text-muted-foreground inline-flex w-fit items-center justify-center overflow-clip group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col",
+  "group/tabs-list relative inline-flex w-fit items-center justify-center overflow-clip text-muted-foreground group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col",
   {
     variants: {
       variant: {
-        default: "bg-secondary rounded-[10px] p-px gap-1.5",
-        outline: "bg-secondary rounded-[10px] p-px gap-1.5",
-        underline: "gap-1 bg-transparent border-b border-border",
+        default: "gap-1.5 rounded-[10px] bg-secondary p-px",
+        outline: "gap-1.5 rounded-[10px] bg-secondary p-px",
+        underline: "gap-1 border-b border-border bg-transparent",
       },
       size: {
         md: "group-data-horizontal/tabs:h-[30px]",
@@ -115,7 +115,7 @@ export const TabsTrigger = ({
       <span
         className={cn(
           "inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground",
-          size === "sm" ? "min-w-4 h-4 px-1 text-[10px]" : "min-w-5 h-5 px-1.5 text-[14px]",
+          size === "sm" ? "h-4 min-w-4 px-1 text-[10px]" : "h-5 min-w-5 px-1.5 text-[14px]",
         )}
       >
         {badge}
@@ -136,7 +136,7 @@ const tabsIndicatorVariants = cva(
           "z-0 rounded-[9px] bg-primary-foreground text-foreground shadow-[0px_0px_1.5px_0px_rgba(0,0,0,0.16),0px_2px_5px_0px_rgba(0,0,0,0.14)]",
         outline:
           "z-0 rounded-[9px] bg-primary-foreground text-foreground shadow-[0px_0px_1.5px_0px_rgba(0,0,0,0.16),0px_2px_5px_0px_rgba(0,0,0,0.14)]",
-        underline: "z-0 bottom-0 h-0.5 bg-foreground rounded-full",
+        underline: "bottom-0 z-0 h-0.5 rounded-full bg-foreground",
       },
     },
     defaultVariants: {
@@ -160,7 +160,7 @@ export const TabsIndicator = ({
 export const TabsContent = ({ className, ...props }: TabsPrimitive.Panel.Props) => (
   <TabsPrimitive.Panel
     data-slot="tabs-content"
-    className={cn("text-sm flex-1 outline-none", className)}
+    className={cn("flex-1 text-sm outline-none", className)}
     {...props}
   />
 );

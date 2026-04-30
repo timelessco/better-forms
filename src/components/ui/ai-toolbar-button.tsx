@@ -21,7 +21,7 @@ export const AIToolbarButton = ({ className, ...props }: Props) => {
       className={cn("gap-1.5 px-2 text-primary", className)}
     >
       <SparklesIcon className="size-4" />
-      <span className="font-medium text-sm">Ask AI</span>
+      <span className="text-sm font-medium">Ask AI</span>
       <Kbd>⌘J</Kbd>
     </ToolbarButton>
   );

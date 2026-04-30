@@ -127,23 +127,23 @@ const CoverUpload = ({
     return (
       <div className="flex flex-col">
         <div className="flex flex-col items-center justify-center py-4">
-          <p className="text-xs text-muted-foreground mb-3">Preview</p>
-          <div className="rounded-lg border border-border overflow-hidden shadow-sm">
+          <p className="mb-3 text-xs text-muted-foreground">Preview</p>
+          <div className="overflow-hidden rounded-lg border border-border shadow-sm">
             <img
               src={previewUrl}
               alt="Preview"
               width={260}
               height={120}
-              className="max-w-[260px] max-h-[120px] object-cover"
+              className="max-h-[120px] max-w-[260px] object-cover"
             />
           </div>
         </div>
 
         {errors.length > 0 && (
-          <p className="text-destructive text-xs pb-2 text-center">{errors[0]}</p>
+          <p className="pb-2 text-center text-xs text-destructive">{errors[0]}</p>
         )}
 
-        <div className="flex items-center justify-between pb-3 pt-1">
+        <div className="flex items-center justify-between pt-1 pb-3">
           <Button variant="ghost" size="sm" onClick={resetState}>
             Back
           </Button>
@@ -168,7 +168,7 @@ const CoverUpload = ({
         {currentCover && !currentCover.startsWith("#") ? (
           <button
             type="button"
-            className="w-full rounded-lg border border-dashed border-muted-foreground/25 hover:border-muted-foreground/40 hover:bg-muted/50 flex flex-col items-center justify-center gap-2 py-4 transition-all cursor-pointer"
+            className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-muted-foreground/25 py-4 transition-all hover:border-muted-foreground/40 hover:bg-muted/50"
             onClick={openFileDialog}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
@@ -181,7 +181,7 @@ const CoverUpload = ({
               alt="Current cover"
               width={200}
               height={80}
-              className="max-w-[200px] max-h-[80px] rounded-lg object-cover"
+              className="max-h-[80px] max-w-[200px] rounded-lg object-cover"
             />
             <span className="text-xs text-muted-foreground">Click to replace</span>
           </button>
@@ -189,7 +189,7 @@ const CoverUpload = ({
           <button
             type="button"
             className={cn(
-              "w-full h-24 rounded-lg border border-dashed flex items-center justify-center gap-2.5 transition-all cursor-pointer",
+              "flex h-24 w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-dashed transition-all",
               isDragging
                 ? "border-primary bg-primary/5"
                 : "border-muted-foreground/25 hover:border-muted-foreground/40 hover:bg-muted/50",
@@ -207,15 +207,15 @@ const CoverUpload = ({
         )}
       </div>
 
-      <p className="text-xs text-muted-foreground/60 text-center pb-3">
+      <p className="pb-3 text-center text-xs text-muted-foreground/60">
         or {PASTE_HINT} to paste an image or link
       </p>
 
       {errors.length > 0 && (
-        <p className="text-destructive text-xs pb-2 text-center">{errors[0]}</p>
+        <p className="pb-2 text-center text-xs text-destructive">{errors[0]}</p>
       )}
 
-      <div className="flex items-center justify-between pb-3 pt-1 border-t border-border">
+      <div className="flex items-center justify-between border-t border-border pt-1 pb-3">
         <Button variant="ghost" size="sm" onClick={onCancel}>
           Cancel
         </Button>
@@ -291,7 +291,7 @@ const IconUploadTab = ({
 
   if (showCrop && selectedFile) {
     return (
-      <div className="w-[310px] px-3 flex flex-col">
+      <div className="flex w-[310px] flex-col px-3">
         <ImageCrop
           file={selectedFile}
           aspect={1}
@@ -300,10 +300,10 @@ const IconUploadTab = ({
             resetState();
           }}
         >
-          <div className="flex items-center justify-center py-3 overflow-hidden">
+          <div className="flex items-center justify-center overflow-hidden py-3">
             <ImageCropContent className="max-h-[250px] max-w-full rounded-lg" />
           </div>
-          <div className="flex items-center justify-between pb-3 pt-1">
+          <div className="flex items-center justify-between pt-1 pb-3">
             <ImageCropReset render={<Button variant="ghost" size="sm" />}>Reset</ImageCropReset>
             <ImageCropApply render={<Button variant="default" size="sm" />}>Save</ImageCropApply>
           </div>
@@ -314,25 +314,25 @@ const IconUploadTab = ({
 
   if (selectedFile && previewUrl) {
     return (
-      <div className="w-[310px] px-3 flex flex-col">
+      <div className="flex w-[310px] flex-col px-3">
         <div className="flex flex-col items-center justify-center py-4">
-          <p className="text-xs text-muted-foreground mb-3">Preview</p>
-          <div className="rounded-lg border border-border overflow-hidden shadow-sm">
+          <p className="mb-3 text-xs text-muted-foreground">Preview</p>
+          <div className="overflow-hidden rounded-lg border border-border shadow-sm">
             <img
               src={previewUrl}
               alt="Preview"
               width={180}
               height={180}
-              className="max-w-[180px] max-h-[180px] object-contain"
+              className="max-h-[180px] max-w-[180px] object-contain"
             />
           </div>
         </div>
 
         {errors.length > 0 && (
-          <p className="text-destructive text-xs pb-2 text-center">{errors[0]}</p>
+          <p className="pb-2 text-center text-xs text-destructive">{errors[0]}</p>
         )}
 
-        <div className="flex items-center justify-between pb-3 pt-1">
+        <div className="flex items-center justify-between pt-1 pb-3">
           <Button variant="ghost" size="sm" onClick={resetState}>
             Back
           </Button>
@@ -345,12 +345,12 @@ const IconUploadTab = ({
   }
 
   return (
-    <div className="w-[310px] px-3 flex flex-col">
+    <div className="flex w-[310px] flex-col px-3">
       <div className="py-4">
         {currentIcon ? (
           <button
             type="button"
-            className="w-full rounded-lg border border-dashed border-muted-foreground/25 hover:border-muted-foreground/40 hover:bg-muted/50 flex flex-col items-center justify-center gap-2 py-4 transition-all cursor-pointer"
+            className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-muted-foreground/25 py-4 transition-all hover:border-muted-foreground/40 hover:bg-muted/50"
             onClick={openFileDialog}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
@@ -363,7 +363,7 @@ const IconUploadTab = ({
               alt="Current icon"
               width={80}
               height={80}
-              className="max-w-[80px] max-h-[80px] rounded-lg object-contain"
+              className="max-h-[80px] max-w-[80px] rounded-lg object-contain"
             />
             <span className="text-xs text-muted-foreground">Click to replace</span>
           </button>
@@ -371,7 +371,7 @@ const IconUploadTab = ({
           <button
             type="button"
             className={cn(
-              "w-full h-24 rounded-lg border border-dashed flex items-center justify-center gap-2.5 transition-all cursor-pointer",
+              "flex h-24 w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-dashed transition-all",
               isDragging
                 ? "border-primary bg-primary/5"
                 : "border-muted-foreground/25 hover:border-muted-foreground/40 hover:bg-muted/50",
@@ -389,15 +389,15 @@ const IconUploadTab = ({
         )}
       </div>
 
-      <p className="text-xs text-muted-foreground/60 text-center pb-3">
+      <p className="pb-3 text-center text-xs text-muted-foreground/60">
         or {PASTE_HINT} to paste an image or link
       </p>
 
       {errors.length > 0 && (
-        <p className="text-destructive text-xs pb-2 text-center">{errors[0]}</p>
+        <p className="pb-2 text-center text-xs text-destructive">{errors[0]}</p>
       )}
 
-      <div className="flex items-center justify-between pb-3 pt-1 border-t border-border">
+      <div className="flex items-center justify-between border-t border-border pt-1 pb-3">
         <Button variant="ghost" size="sm" onClick={onCancel}>
           Cancel
         </Button>
@@ -419,9 +419,9 @@ const IconTabBar = ({ value, onChange }: { value: string; onChange: (v: string) 
   const pillWidth = `calc(${100 / count}% - ${6 / count}px)`;
 
   return (
-    <div className="relative bg-secondary rounded-[10px] p-[3px] flex-1 flex">
+    <div className="relative flex flex-1 rounded-[10px] bg-secondary p-[3px]">
       <div
-        className="absolute top-[3px] bottom-[3px] rounded-[8px] bg-white shadow-[0px_0px_1.5px_0px_rgba(0,0,0,0.16),0px_2px_5px_0px_rgba(0,0,0,0.14)] dark:bg-background z-0 transition-[left,width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+        className="absolute top-[3px] bottom-[3px] z-0 rounded-[8px] bg-white shadow-[0px_0px_1.5px_0px_rgba(0,0,0,0.16),0px_2px_5px_0px_rgba(0,0,0,0.14)] transition-[left,width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] dark:bg-background"
         style={{ left: pillLeft, width: pillWidth }}
       />
       {items.map((tab) => (
@@ -430,7 +430,7 @@ const IconTabBar = ({ value, onChange }: { value: string; onChange: (v: string) 
           type="button"
           onClick={() => onChange(tab.value)}
           className={cn(
-            "relative z-10 flex-1 h-7 rounded-[8px] text-sm text-center transition-colors",
+            "relative z-10 h-7 flex-1 rounded-[8px] text-center text-sm transition-colors",
             value === tab.value ? "text-foreground" : "text-muted-foreground",
           )}
         >
@@ -555,18 +555,18 @@ export const FormHeaderElement = (props: PlateElementProps) => {
     >
       <div
         contentEditable={false}
-        className="group relative w-full flex flex-col mb-4 select-none rounded-none"
+        className="group relative mb-4 flex w-full flex-col rounded-none select-none"
       >
         {hasCover && (
           <>
             <div
-              className="relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] h-[120px] sm:h-[200px] group/cover bg-muted/20"
+              className="group/cover relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] h-[120px] w-screen bg-muted/20 sm:h-[200px]"
               data-bf-cover
             >
               {cover && !cover.startsWith("#") ? (
                 <>
                   {cover.includes("tint=true") && (
-                    <div className="absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color pointer-events-none" />
+                    <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
                   )}
                   <img
                     src={cover}
@@ -574,14 +574,14 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                     width={800}
                     height={200}
                     className={cn(
-                      "w-full h-full object-cover border-0 ",
+                      "h-full w-full border-0 object-cover",
                       cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
                     )}
                   />
                 </>
               ) : (
                 <div
-                  className="w-full h-full"
+                  className="h-full w-full"
                   style={{
                     backgroundColor: cover?.startsWith("#") ? cover : "#FFE4E1",
                   }}
@@ -590,16 +590,16 @@ export const FormHeaderElement = (props: PlateElementProps) => {
             </div>
             <Popover open={coverPopoverOpen} onOpenChange={setCoverPopoverOpen}>
               <div
-                className="absolute top-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-2 z-30 opacity-0 transition-opacity group-hover:opacity-100"
                 style={{ right: "calc(var(--editor-px, 64px) * -1 + 16px)" }}
               >
-                <ButtonGroup className="bg-background/80 backdrop-blur-sm rounded-lg shadow-lg border border-border">
+                <ButtonGroup className="rounded-lg border border-border bg-background/80 shadow-lg backdrop-blur-sm">
                   <PopoverTrigger
                     render={
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-foreground/80 hover:text-foreground hover:bg-secondary text-xs border-none rounded-none rounded-l-lg"
+                        className="rounded-none rounded-l-lg border-none text-xs text-foreground/80 hover:bg-secondary hover:text-foreground"
                         onMouseDown={(e) => e.preventDefault()}
                       />
                     }
@@ -610,7 +610,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-foreground/80 hover:text-foreground hover:bg-secondary text-xs border-none rounded-none"
+                    className="rounded-none border-none text-xs text-foreground/80 hover:bg-secondary hover:text-foreground"
                     onClick={() => handleCoverChange(null)}
                     onMouseDown={(e) => e.preventDefault()}
                   >
@@ -631,7 +631,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => {
                         handleCoverChange(null);
                         setCoverPopoverOpen(false);
@@ -643,8 +643,8 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                     </Button>
                   </div>
 
-                  <TabsContent value="gallery" className="px-3 pb-3 mt-0">
-                    <p className="text-xs text-muted-foreground mb-2 mt-1">Abstract</p>
+                  <TabsContent value="gallery" className="mt-0 px-3 pb-3">
+                    <p className="mt-1 mb-2 text-xs text-muted-foreground">Abstract</p>
                     <div className="grid grid-cols-3 gap-2">
                       {COVER_GALLERY.map((item) => (
                         <button
@@ -654,23 +654,23 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                             handleCoverChange(item.src);
                             setCoverPopoverOpen(false);
                           }}
-                          className="h-16 bg-muted rounded-lg relative cursor-pointer hover:ring-2 ring-primary ring-offset-1 ring-offset-background overflow-hidden transition-all hover:scale-[1.02]"
+                          className="relative h-16 cursor-pointer overflow-hidden rounded-lg bg-muted ring-primary ring-offset-1 ring-offset-background transition-all hover:scale-[1.02] hover:ring-2"
                           aria-label={item.label}
                         >
-                          <div className="absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color pointer-events-none" />
+                          <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
                           <img
                             src={item.src}
                             alt={item.label}
                             width={200}
                             height={64}
-                            className="relative z-0 w-full h-full object-cover brightness-60 grayscale"
+                            className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
                           />
                         </button>
                       ))}
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="upload" className="px-3 pb-3 mt-0">
+                  <TabsContent value="upload" className="mt-0 px-3 pb-3">
                     <CoverUpload
                       currentCover={cover}
                       onUpload={(url) => {
@@ -685,7 +685,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
             </Popover>
           </>
         )}
-        <div className={cn("relative w-full flex flex-col")}>
+        <div className={cn("relative flex w-full flex-col")}>
           <div className="w-full">
             <Popover open={iconPopoverOpen} onOpenChange={setIconPopoverOpen}>
               {hasLogo && (
@@ -713,7 +713,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                           alt="Logo"
                           width={120}
                           height={120}
-                          className="w-[100px] h-[100px] sm:w-[120px] sm:h-[120px] rounded-md object-cover"
+                          className="h-[100px] w-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
                           data-bf-logo
                         />
                       ) : (
@@ -744,7 +744,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
 
               <div
                 className={cn(
-                  "flex gap-1 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+                  "mb-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100",
                   !hasCover && !hasLogo && "mt-8 sm:mt-12",
                   hasCover && !hasLogo && "mt-4",
                   !hasCover && hasLogo && "mt-0",
@@ -802,7 +802,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => {
                         handleIconChange(null);
                         setIconPopoverOpen(false);
@@ -845,12 +845,12 @@ export const FormHeaderElement = (props: PlateElementProps) => {
               </PopoverContent>
             </Popover>
 
-            <div className="relative group/title">
+            <div className="group/title relative">
               <textarea
                 ref={titleRef}
                 rows={1}
                 aria-label="Form title"
-                className="w-full text-[48px] font-['Timeless_Serif'] placeholder:font-['Timeless_Serif'] font-[252] leading-tight tracking-[-1.44px] border-none outline-none bg-transparent text-foreground placeholder:text-foreground/50 py-1 sm:py-2 h-auto select-text resize-none overflow-hidden"
+                className="h-auto w-full resize-none overflow-hidden border-none bg-transparent py-1 font-['Timeless_Serif'] text-[48px] leading-tight font-[252] tracking-[-1.44px] text-foreground outline-none select-text placeholder:font-['Timeless_Serif'] placeholder:text-foreground/50 sm:py-2"
                 placeholder="Create your form."
                 value={title}
                 onChange={(e) => handleTitleChange(e.target.value)}

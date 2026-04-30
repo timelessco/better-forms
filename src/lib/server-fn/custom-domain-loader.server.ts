@@ -3,7 +3,6 @@ import { and, count, eq, ne } from "drizzle-orm";
 import { customDomains, forms, formVersions, organization, submissions } from "@/db/schema";
 import { db } from "@/db";
 import { buildPublicFormSettings } from "@/types/form-settings";
-import type { PublicFormSettings } from "@/types/form-settings";
 import type { DomainMeta, ResolvedDomain } from "./custom-domain-loader";
 
 /**
@@ -103,9 +102,9 @@ export const loadFormForCustomDomain = async (
       id: forms.id,
       status: forms.status,
       lastPublishedVersionId: forms.lastPublishedVersionId,
-      // Group 4 (live) — branding is always false for custom domains anyway,
-      // analytics is still per-form
-      analytics: forms.analytics,
+      // Group 4 (live) — branding is always false for custom domains anyway;
+      // analytics lives in forms.settings JSONB.
+      liveSettings: forms.settings,
       draftTitle: forms.title,
       draftContent: forms.content,
       draftIcon: forms.icon,
@@ -123,7 +122,7 @@ export const loadFormForCustomDomain = async (
     ? await db.select().from(formVersions).where(eq(formVersions.id, form.lastPublishedVersionId))
     : [undefined];
 
-  const snapshotSettings = (version?.settings ?? {}) as Partial<PublicFormSettings>;
+  const snapshotSettings = version?.settings;
   const settings = buildPublicFormSettings(snapshotSettings, { branding: false });
 
   // --- Gating checks (same logic as getPublishedFormById) ---
@@ -183,7 +182,7 @@ export const loadFormForCustomDomain = async (
         icon: version.icon,
         cover: version.cover,
         status: form.status,
-        analytics: form.analytics,
+        analytics: form.liveSettings?.analytics ?? false,
         settings,
       },
       error: null,
@@ -202,7 +201,7 @@ export const loadFormForCustomDomain = async (
       icon: form.draftIcon,
       cover: form.draftCover,
       status: form.status,
-      analytics: form.analytics,
+      analytics: form.liveSettings?.analytics ?? false,
       settings,
     },
     error: null,

@@ -1,6 +1,7 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { customDomains, forms, organization, workspaces } from "@/db/schema";
+import { mergeFormSettings } from "@/lib/server-fn/forms";
 import { vercelDomains } from "@/lib/vercel-domains.server";
 
 type DbExecutor = typeof db;
@@ -33,14 +34,18 @@ export const applyDowngradeCleanup = async (
 
     // `customization` is intentionally preserved — UI re-gates editing on free,
     // and clearing stored values would surprise a user who later re-upgrades.
+    // Pro-gated keys are reset via a jsonb merge so the rest of `settings`
+    // (language, redirect, password, etc.) stays untouched.
     await tx
       .update(forms)
       .set({
-        analytics: false,
-        dataRetention: false,
-        dataRetentionDays: null,
-        respondentEmailNotifications: false,
-        branding: true,
+        settings: mergeFormSettings({
+          analytics: false,
+          dataRetention: false,
+          dataRetentionDays: null,
+          respondentEmailNotifications: false,
+          branding: true,
+        }),
       })
       .where(
         inArray(
@@ -69,10 +74,15 @@ export const applyDowngradeCleanup = async (
  * Re-attaches each suspended domain to the Vercel project (best-effort) so
  * SSL/routing is back in place. The account-level domain was preserved on
  * downgrade, so this typically returns verified=true without a fresh TXT.
+ *
+ * `targetPlan` defaults to "pro" for backwards compatibility with existing tests
+ * and the most common upgrade path; pass "business" when handling a Business
+ * subscription event.
  */
 export const applyUpgradeRestore = async (
   orgId: string,
   executor: DbExecutor = db,
+  targetPlan: "pro" | "business" = "pro",
 ): Promise<void> => {
   const toReattach = await executor
     .select({ domain: customDomains.domain })
@@ -82,7 +92,7 @@ export const applyUpgradeRestore = async (
   await Promise.allSettled(toReattach.map((d) => vercelDomains.add(d.domain)));
 
   await executor.transaction(async (tx) => {
-    await tx.update(organization).set({ plan: "pro" }).where(eq(organization.id, orgId));
+    await tx.update(organization).set({ plan: targetPlan }).where(eq(organization.id, orgId));
 
     // Suspended rows without a recorded previousStatus (manual DB edit)
     // fall back to 'pending' so they re-verify before serving.

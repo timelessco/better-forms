@@ -12,6 +12,7 @@ import { useResolvedTheme } from "@/components/theme-provider";
 import { EditorKit } from "@/components/editor/editor-kit";
 import { ClientOnly } from "@/components/client-only";
 import { FormSettingsSidebar } from "@/components/form-builder/form-settings-sidebar";
+import { defaultFormSettings } from "@/types/form-settings";
 import { AboutSidebar } from "@/components/ui/about-sidebar";
 import { CustomizeSidebar } from "@/components/ui/customize-sidebar";
 import { AppHeader } from "@/components/ui/app-header";
@@ -56,7 +57,7 @@ const noop = async () => {};
 const LandingEditor = () => (
   <ClientOnly
     fallback={
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex h-screen items-center justify-center">
         <Loader />
       </div>
     }
@@ -96,17 +97,17 @@ const LandingLayout = () => {
 
   return (
     <div
-      className="flex flex-col h-screen overflow-hidden"
+      className="flex h-screen flex-col overflow-hidden"
       data-resizing={isRightResizing ? "" : undefined}
     >
-      <div className="flex-1 min-h-0 overflow-hidden flex">
-        <div className={cn("flex-1 min-w-0 flex flex-col")}>
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className={cn("flex min-w-0 flex-1 flex-col")}>
           <div className="relative z-0 shrink-0">
             <AppHeader />
           </div>
           <div
             className={cn(
-              "flex-1 min-h-0 overflow-y-auto overflow-x-hidden",
+              "min-h-0 flex-1 overflow-x-hidden overflow-y-auto",
               !isRightResizing && "transition-[padding] duration-200 ease-linear",
             )}
             style={{ paddingRight: showSidebar ? rightSidebarWidth : 0 }}
@@ -126,7 +127,7 @@ const LandingLayout = () => {
 
       <div
         className={cn(
-          "fixed top-0 bottom-0 right-0 z-40 overflow-hidden bg-background",
+          "fixed top-0 right-0 bottom-0 z-40 overflow-hidden bg-background",
           !isRightResizing && "transition-[width] duration-200 ease-linear",
           "[[data-resizing]_&]:transition-none",
           showSidebar && "border-l border-border/60",
@@ -138,7 +139,7 @@ const LandingLayout = () => {
       >
         <div className="h-full w-full">
           <Suspense fallback={null}>
-            <SidebarProvider className="min-h-0 h-full">
+            <SidebarProvider className="h-full min-h-0">
               <LandingSidebar />
             </SidebarProvider>
           </Suspense>
@@ -181,10 +182,11 @@ const LocalEditorApp = () => {
           workspaceId: getLocalWorkspaceId(),
           formName: "draft",
           schemaName: "draftFormSchema",
-          isMultiStep: false,
           status: "draft" as const,
           content: [],
           title: "Draft Form",
+          settings: { ...defaultFormSettings },
+          customization: {},
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
@@ -279,7 +281,7 @@ const LocalEditorApp = () => {
         <Plate editor={editor} readOnly={false} onChange={handleChange}>
           <EditorContainer
             variant="default"
-            className="px-0 sm:px-0 max-w-full border-none shadow-none overflow-y-visible"
+            className="max-w-full overflow-y-visible border-none px-0 shadow-none sm:px-0"
           >
             <Editor variant="demo" className="rounded-none" onKeyDown={handleEditorKeyDown} />
           </EditorContainer>
@@ -306,13 +308,13 @@ const LocalPreviewMode = () => {
   return (
     <div
       className={cn(
-        "w-full h-full flex flex-col overflow-y-auto overflow-x-hidden bg-background transition-colors duration-300",
+        "flex h-full w-full flex-col overflow-x-hidden overflow-y-auto bg-background transition-colors duration-300",
         hasCustomization && "bf-themed",
         resolvedAppTheme === "dark" && "dark",
       )}
       style={hasCustomization ? themeVars : undefined}
     >
-      <div className="flex-1 w-full">
+      <div className="w-full flex-1">
         <FormPreviewFromPlate
           content={content}
           title={doc?.title ?? ""}

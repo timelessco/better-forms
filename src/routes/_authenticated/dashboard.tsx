@@ -75,12 +75,12 @@ const SyncOverlay = () => {
   const dots = ".".repeat(dotCount);
 
   return (
-    <div className="flex flex-col items-center justify-center py-20 gap-4">
+    <div className="flex flex-col items-center justify-center gap-4 py-20">
       <Loader2Icon className="h-6 w-6 animate-spin text-muted-foreground" />
       <div className="h-6 overflow-hidden">
         <p
           key={messageIndex}
-          className="text-sm text-muted-foreground animate-in slide-in-from-bottom-2 fade-in duration-300"
+          className="animate-in text-sm text-muted-foreground duration-300 fade-in slide-in-from-bottom-2"
         >
           <span>{SYNC_MESSAGES[messageIndex]}</span>
           <span className="inline-block w-5 text-left">{dots}</span>
@@ -166,7 +166,7 @@ const DashboardPage = () => {
   const handleCreateWorkspace = useCallback(async () => {
     if (!activeOrg?.id) return;
     try {
-      await createWorkspaceLocal(activeOrg.id, "New Collection");
+      await createWorkspaceLocal(activeOrg.id, "New Workspace");
       toast.success("Workspace created");
     } catch (error) {
       console.error("Failed to create workspace:", error);
@@ -302,12 +302,12 @@ const DashboardPage = () => {
   });
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen bg-background text-foreground">
-      <main className="flex-1 p-6 md:p-12 lg:p-20 max-w-6xl mx-auto w-full">
-        <div className="flex items-center justify-between mb-8">
+    <div className="flex min-h-screen flex-1 flex-col bg-background text-foreground">
+      <main className="mx-auto w-full max-w-6xl flex-1 p-6 md:p-12 lg:p-20">
+        <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Home</h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="mt-1 text-sm text-muted-foreground">
               {isLoading
                 ? "Loading..."
                 : `${orgForms.length} form${orgForms.length !== 1 ? "s" : ""} across ${orgWorkspaces.length} workspace${orgWorkspaces.length !== 1 ? "s" : ""}`}
@@ -349,7 +349,7 @@ const DashboardPage = () => {
               [1, 2, 3, 4, 5].map((i) => (
                 <div
                   key={`skeleton-${i}`}
-                  className="flex flex-col p-2 -mx-2 rounded-xl animate-pulse"
+                  className="-mx-2 flex animate-pulse flex-col rounded-xl p-2"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -367,7 +367,7 @@ const DashboardPage = () => {
                 return (
                   <Card
                     key={form.id}
-                    className={`group py-2 px-3 gap-0 ring-0 bg-transparent transition-[background-color,box-shadow] duration-200 cursor-pointer hover:bg-muted/30 ${isSelected ? "bg-muted/50" : ""}`}
+                    className={`group cursor-pointer gap-0 bg-transparent px-3 py-2 ring-0 transition-[background-color,box-shadow] duration-200 hover:bg-muted/30 ${isSelected ? "bg-muted/50" : ""}`}
                   >
                     <Link
                       to={
@@ -390,7 +390,7 @@ const DashboardPage = () => {
                               </span>
                               <Badge
                                 variant="secondary"
-                                className={`text-[10px] h-4 px-1.5 font-normal ${
+                                className={`h-4 px-1.5 text-[10px] font-normal ${
                                   form.status === "published"
                                     ? "bg-green-100 text-green-700"
                                     : "bg-muted/80 text-muted-foreground"
@@ -399,11 +399,11 @@ const DashboardPage = () => {
                                 {form.status === "published" ? "Published" : "Draft"}
                               </Badge>
                             </div>
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                               <span>
                                 {workspaceNameMap.get(form.workspaceId) || "Unknown workspace"}
                               </span>
-                              <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/30"></span>
+                              <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/30"></span>
                               <span>{formatLastEdited(form.updatedAt)}</span>
                             </div>
                           </div>
@@ -470,7 +470,7 @@ const DashboardPage = () => {
                                     aria-label={isSelected ? "Deselect form" : "Select form"}
                                     className={
                                       isSelected
-                                        ? "bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/30 border border-muted-foreground/30"
+                                        ? "border border-muted-foreground/30 bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/30"
                                         : "text-muted-foreground"
                                     }
                                     onClick={(e) => {
@@ -496,7 +496,7 @@ const DashboardPage = () => {
           </div>
 
           {!isLoading && totalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 border-t">
+            <div className="flex items-center justify-between border-t pt-4">
               <p className="text-sm text-muted-foreground">
                 Showing {startIndex + 1}-{Math.min(startIndex + FORMS_PER_PAGE, orgForms.length)} of{" "}
                 {orgForms.length} forms
@@ -538,13 +538,13 @@ const DashboardPage = () => {
           )}
 
           {!isLoading && orgForms.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 border-2 border-dashed rounded-2xl bg-muted/20">
-              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+            <div className="flex flex-col items-center justify-center space-y-4 rounded-2xl border-2 border-dashed bg-muted/20 py-20 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
                 <FileTextIcon className="h-6 w-6 text-muted-foreground" />
               </div>
               <div className="space-y-1">
                 <p>No forms yet</p>
-                <p className="text-sm text-muted-foreground max-w-xs">
+                <p className="max-w-xs text-sm text-muted-foreground">
                   Create your first form to get started.
                 </p>
               </div>
@@ -553,7 +553,7 @@ const DashboardPage = () => {
                 onClick={handleCreateForm}
                 disabled={isLoading || isCreating || orgWorkspaces.length === 0}
               >
-                {isCreating && <Loader2Icon className="h-4 w-4 animate-spin mr-2" />}
+                {isCreating && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
                 Create my first form
               </Button>
             </div>
@@ -562,10 +562,10 @@ const DashboardPage = () => {
       </main>
 
       {hasSelection && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[min(560px,90vw)] animate-in slide-in-from-bottom-4 fade-in duration-300">
-          <div className="flex items-center justify-between px-4 py-3 bg-background rounded-2xl border border-border/40 shadow-card-elevated">
+        <div className="fixed bottom-6 left-1/2 z-50 w-[min(560px,90vw)] -translate-x-1/2 animate-in duration-300 fade-in slide-in-from-bottom-4">
+          <div className="shadow-card-elevated flex items-center justify-between rounded-2xl border border-border/40 bg-background px-4 py-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex items-center justify-center h-6 w-6 rounded-md bg-foreground text-background">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-background">
                 <CheckIcon className="h-4 w-4" strokeWidth={3} />
               </div>
               <span className="text-sm font-medium">{selectedFormIds.size} selected</span>
@@ -573,7 +573,7 @@ const DashboardPage = () => {
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={handleBulkDelete}>
                 Delete
-                <span className="text-xs text-muted-foreground ml-1">
+                <span className="ml-1 text-xs text-muted-foreground">
                   {formatForDisplay(HOTKEYS.DASHBOARD_DELETE)}
                 </span>
               </Button>
@@ -585,7 +585,7 @@ const DashboardPage = () => {
               >
                 <XIcon className="h-3.5 w-3.5" />
                 Clear
-                <span className="text-xs text-muted-foreground ml-1">
+                <span className="ml-1 text-xs text-muted-foreground">
                   {formatForDisplay(HOTKEYS.DASHBOARD_CLEAR_SELECTION)}
                 </span>
               </Button>
@@ -595,11 +595,11 @@ const DashboardPage = () => {
       )}
 
       {!hasSelection && (
-        <div className="fixed bottom-6 right-6">
+        <div className="fixed right-6 bottom-6">
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 rounded-full bg-muted/50 hover:bg-secondary shadow-sm border"
+            className="h-10 w-10 rounded-full border bg-muted/50 shadow-sm hover:bg-secondary"
             aria-label="Help"
           >
             <HelpCircleIcon className="h-5 w-5 text-muted-foreground" />

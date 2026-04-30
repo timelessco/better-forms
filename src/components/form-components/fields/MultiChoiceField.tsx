@@ -22,13 +22,13 @@ const MultiChoiceField = ({ element, form }: FieldRendererProps<"MultiChoice">) 
                   type="button"
                   onClick={() => f.handleChange(isSelected ? "" : option.value)}
                   className={cn(
-                    "flex items-center gap-2 py-1 text-sm transition-colors text-left cursor-pointer",
+                    "flex cursor-pointer items-center gap-2 py-1 text-left text-sm transition-colors",
                     hasErrors && "text-destructive",
                   )}
                 >
                   <span
                     className={cn(
-                      "flex size-5 shrink-0 items-center justify-center rounded text-[11px]! font-semibold leading-none",
+                      "flex size-5 shrink-0 items-center justify-center rounded text-[11px]! leading-none font-semibold",
                       isSelected
                         ? "bg-primary text-primary-foreground"
                         : "bg-[var(--color-gray-50)] text-muted-foreground shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]",

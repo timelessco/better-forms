@@ -16,7 +16,9 @@ import { mergeDropoffMetrics } from "@/lib/analytics/merge-dropoff";
 import { mergeInsightsMetrics } from "@/lib/analytics/merge-metrics";
 import { parseUserAgent } from "@/lib/analytics/parse-user-agent";
 import { resolveTimeRange, splitTodayVsPast, toDateKey } from "@/lib/analytics/time-range";
+import { planUnlocks } from "@/lib/config/plan-gates";
 import { authForm } from "@/lib/server-fn/auth-helpers.server";
+import { isServerPlan } from "@/lib/server-fn/plan-helpers";
 import type { FormInsightsMetrics, QuestionDropoffMetrics } from "@/types/analytics";
 
 export type RecordFormVisitInput = {
@@ -61,12 +63,13 @@ export type InsightsFilterInput = {
 // yet flipped `forms.analytics`.
 export const isAnalyticsEnabled = async (formId: string): Promise<boolean> => {
   const [row] = await db
-    .select({ analytics: forms.analytics, plan: organization.plan })
+    .select({ settings: forms.settings, plan: organization.plan })
     .from(forms)
     .innerJoin(workspaces, eq(workspaces.id, forms.workspaceId))
     .innerJoin(organization, eq(organization.id, workspaces.organizationId))
     .where(eq(forms.id, formId));
-  return row?.analytics === true && row.plan !== "free";
+  if (row?.settings?.analytics !== true) return false;
+  return isServerPlan(row.plan) && planUnlocks(row.plan, "analytics");
 };
 
 export const recordFormVisitImpl = async (

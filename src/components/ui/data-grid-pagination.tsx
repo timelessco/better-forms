@@ -140,11 +140,11 @@ export const DataGridPagination = (props: DataGridPaginationProps) => {
     <div
       data-slot="data-grid-pagination"
       className={cn(
-        "flex flex-wrap flex-col sm:flex-row justify-between items-center gap-2.5 py-2.5 sm:py-0 grow",
+        "flex grow flex-col flex-wrap items-center justify-between gap-2.5 py-2.5 sm:flex-row sm:py-0",
         mergedProps?.className,
       )}
     >
-      <div className="flex flex-wrap items-center space-x-2.5 pb-2.5 sm:pb-0 order-2 sm:order-1">
+      <div className="order-2 flex flex-wrap items-center space-x-2.5 pb-2.5 sm:order-1 sm:pb-0">
         {isLoading ? (
           mergedProps?.sizesSkeleton
         ) : (
@@ -165,16 +165,16 @@ export const DataGridPagination = (props: DataGridPaginationProps) => {
           </>
         )}
       </div>
-      <div className="flex flex-col sm:flex-row justify-center sm:justify-end items-center gap-2.5 pt-2.5 sm:pt-0 order-1 sm:order-2">
+      <div className="order-1 flex flex-col items-center justify-center gap-2.5 pt-2.5 sm:order-2 sm:flex-row sm:justify-end sm:pt-0">
         {isLoading ? (
           mergedProps?.infoSkeleton
         ) : (
           <>
-            <div className="text-sm text-muted-foreground text-nowrap order-2 sm:order-1">
+            <div className="order-2 text-sm text-nowrap text-muted-foreground sm:order-1">
               {paginationInfo}
             </div>
             {pageCount > 1 && (
-              <div className="flex items-center space-x-1 order-1 sm:order-2">
+              <div className="order-1 flex items-center space-x-1 sm:order-2">
                 <Button
                   size="sm"
                   variant="ghost"

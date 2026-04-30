@@ -365,7 +365,7 @@ const AuthLayoutContent = () => {
       <SidebarInbox />
 
       <SidebarInset
-        className="overflow-hidden relative flex flex-col h-screen"
+        className="relative flex h-screen flex-col overflow-hidden"
         data-resizing={isRightResizing ? "" : undefined}
       >
         {isDistractionHeaderHidden && (
@@ -375,14 +375,14 @@ const AuthLayoutContent = () => {
             aria-hidden="true"
           />
         )}
-        <div className="relative z-20 flex-1 min-h-0 overflow-hidden flex">
+        <div className="relative z-20 flex min-h-0 flex-1 overflow-hidden">
           {/* On mobile the right sidebar is a floating overlay (a drawer),
               so we don't pad the content out — that's what made the editor
               unreadably narrow on phones. Desktop keeps the push-to-resize
               behavior users expect on wide screens. */}
           <div
             className={cn(
-              "flex-1 min-w-0 flex flex-col z-50",
+              "z-50 flex min-w-0 flex-1 flex-col",
               !isRightResizing && "transition-[padding] duration-200 ease-linear",
             )}
             style={{
@@ -392,7 +392,7 @@ const AuthLayoutContent = () => {
             <div className="relative z-0 shrink-0">
               <AppHeader isDistractionHidden={isDistractionHeaderHidden} />
             </div>
-            <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex min-h-0 flex-1 flex-col">
               <Outlet key={formId} />
             </div>
           </div>
@@ -431,7 +431,7 @@ const AuthLayoutContent = () => {
           return (
             <div
               className={cn(
-                "fixed top-0 bottom-0 right-0 z-40 overflow-hidden bg-background",
+                "fixed top-0 right-0 bottom-0 z-40 overflow-hidden bg-background",
                 !isRightResizing && "transition-[width] duration-200 ease-linear",
                 "[[data-resizing]_&]:transition-none",
                 showEditorSidebar && "border-l border-sidebar-border",
@@ -500,7 +500,7 @@ const AppSidebar = () => {
 
   return (
     <>
-      <Sidebar className="border-r-[0.5px] bg-background h-screen">
+      <Sidebar className="h-screen border-r-[0.5px] bg-background">
         {showMobileInbox ? (
           <InboxPanelBody
             onClose={closeInbox}
@@ -518,7 +518,7 @@ const AppSidebar = () => {
           />
         ) : (
           <>
-            <SidebarHeader className="h-12 pl-2 pr-2 pt-2 pb-0 flex flex-row items-center">
+            <SidebarHeader className="flex h-12 flex-row items-center pt-2 pr-2 pb-0 pl-2">
               <Tooltip>
                 <TooltipTrigger render={<LogoToggle direction="left" onClick={toggleSidebar} />} />
                 <TooltipContent side="bottom" align="start">
@@ -531,7 +531,7 @@ const AppSidebar = () => {
             </SidebarHeader>
 
             <SidebarContent className="gap-0">
-              <SidebarGroup className="pt-2 py-0">
+              <SidebarGroup className="py-0 pt-2">
                 <SidebarGroupContent className="">
                   <SidebarMenu className="gap-0">
                     <SidebarMenuItem>
@@ -557,7 +557,7 @@ const AppSidebar = () => {
                         label="Notifications"
                       >
                         {pendingCount > 0 && (
-                          <span className="text-[10px] w-4 text-center bg-primary text-primary-foreground py-0.5 rounded-full font-semibold shrink-0 tabular-nums">
+                          <span className="w-4 shrink-0 rounded-full bg-primary py-0.5 text-center text-[10px] font-semibold text-primary-foreground tabular-nums">
                             {pendingCount}
                           </span>
                         )}
@@ -579,7 +579,7 @@ const AppSidebar = () => {
               </div>
             </SidebarContent>
 
-            <SidebarFooter className="p-0 flex shrink-0 flex-col gap-4 py-3 px-2">
+            <SidebarFooter className="flex shrink-0 flex-col gap-4 p-0 px-2 py-3">
               <UserMenuMinimal onOpenTrash={handleOpenTrash} />
             </SidebarFooter>
           </>
@@ -635,7 +635,7 @@ const AppSidebar = () => {
                 <CommandItem
                   onSelect={() => {
                     if (activeOrg) {
-                      createWorkspaceLocal(activeOrg.id, "Collection")
+                      createWorkspaceLocal(activeOrg.id, "New Workspace")
                         .then((workspace) => {
                           router.navigate({
                             to: "/workspace/$workspaceId",
@@ -925,14 +925,14 @@ const TrashDialog = ({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="sm:max-w-[500px] p-0 gap-0 bg-background border-foreground/10"
+        className="gap-0 border-foreground/10 bg-background p-0 sm:max-w-[500px]"
       >
-        <div className="p-3 border-b border-foreground/5">
+        <div className="border-b border-foreground/5 p-3">
           <Input
             placeholder="Search pages in Trash"
             value={searchQuery}
             onChange={handleSearchChange}
-            className="h-9 bg-muted/30 border-0 focus-visible:ring-1 focus-visible:ring-foreground/20"
+            className="h-9 border-0 bg-muted/30 focus-visible:ring-1 focus-visible:ring-foreground/20"
             aria-label="Search trash"
           />
         </div>
@@ -940,12 +940,12 @@ const TrashDialog = ({
         <div className="max-h-[400px] overflow-y-auto">
           {archivedFormsData === undefined && isFetchingArchived ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Loader2Icon className="h-6 w-6 mb-3 animate-spin opacity-60" />
+              <Loader2Icon className="mb-3 h-6 w-6 animate-spin opacity-60" />
               <p className="text-sm">Loading trash…</p>
             </div>
           ) : archivedForms.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Trash2Icon className="h-10 w-10 mb-3 opacity-30" />
+              <Trash2Icon className="mb-3 h-10 w-10 opacity-30" />
               <p className="text-sm">Trash is empty</p>
             </div>
           ) : (
@@ -958,7 +958,7 @@ const TrashDialog = ({
                 return (
                   <div
                     key={form.id}
-                    className={`group flex items-center justify-between px-3 py-2 rounded-md transition-colors cursor-pointer ${isSelected ? "bg-muted/50" : "hover:bg-muted/50"} ${isRowBusy ? "opacity-60 pointer-events-none" : ""}`}
+                    className={`group flex cursor-pointer items-center justify-between rounded-md px-3 py-2 transition-colors ${isSelected ? "bg-muted/50" : "hover:bg-muted/50"} ${isRowBusy ? "pointer-events-none opacity-60" : ""}`}
                     onClick={() => handleToggleSelect(form.id)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") handleToggleSelect(form.id);
@@ -967,26 +967,26 @@ const TrashDialog = ({
                     aria-selected={isSelected}
                     aria-busy={isRowBusy}
                   >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="flex items-center justify-center h-5 w-5 rounded shrink-0">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded">
                         {isSelected ? (
-                          <div className="flex items-center justify-center h-5 w-5 rounded bg-foreground text-background transition-colors">
+                          <div className="flex h-5 w-5 items-center justify-center rounded bg-foreground text-background transition-colors">
                             <CheckIcon className="h-3.5 w-3.5" strokeWidth={3} />
                           </div>
                         ) : (
                           <>
                             <FileTextIcon className="h-4 w-4 text-muted-foreground group-hover:hidden" />
-                            <div className="hidden group-hover:flex items-center justify-center h-5 w-5 rounded border border-muted-foreground/30 text-muted-foreground transition-colors">
+                            <div className="hidden h-5 w-5 items-center justify-center rounded border border-muted-foreground/30 text-muted-foreground transition-colors group-hover:flex">
                               <CheckIcon className="h-3.5 w-3.5" />
                             </div>
                           </>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[13px] text-foreground truncate">
+                        <p className="truncate text-[13px] text-foreground">
                           {form.title || "Untitled"}
                         </p>
-                        <p className="text-[11px] text-muted-foreground/60 truncate">
+                        <p className="truncate text-[11px] text-muted-foreground/60">
                           {workspaceNames[form.workspaceId] || "Unknown workspace"}
                         </p>
                       </div>
@@ -1039,14 +1039,14 @@ const TrashDialog = ({
         </div>
 
         {/* Footer — switches between selection actions and info text */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-foreground/5 bg-muted/20">
+        <div className="flex items-center justify-between border-t border-foreground/5 bg-muted/20 px-4 py-3">
           {hasSelection ? (
             <>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleSelectAll}
-                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  className="cursor-pointer text-[11px] text-muted-foreground transition-colors hover:text-foreground"
                 >
                   {selectedIds.size === archivedForms.length ? "Deselect all" : "Select all"}
                 </button>
@@ -1063,7 +1063,7 @@ const TrashDialog = ({
               >
                 {isDeleting ? (
                   <>
-                    <Loader2Icon className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    <Loader2Icon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                     Deleting…
                   </>
                 ) : (
@@ -1159,16 +1159,16 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <SidebarHeader className="pt-2 pb-3 pl-1 shrink-0 gap-2.25 space-y-2">
+      <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
         <div className="flex items-center justify-between gap-1">
-          <div className="flex items-center gap-1 min-w-0">
+          <div className="flex min-w-0 items-center gap-1">
             {headerLeft}
-            <h2 className="text-base text-foreground pl-2.5 truncate">Inbox</h2>
+            <h2 className="truncate pl-2.5 text-base text-foreground">Inbox</h2>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="text-muted-foreground hover:text-foreground shrink-0"
+            className="shrink-0 text-muted-foreground hover:text-foreground"
             onClick={onClose}
             aria-label="Close"
           >
@@ -1177,12 +1177,12 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
         </div>
       </SidebarHeader>
 
-      <div className="flex-1 overflow-y-auto p-2 no-scrollbar">
-        <div className="px-1 overflow-hidden">
+      <div className="no-scrollbar flex-1 overflow-y-auto p-2">
+        <div className="overflow-hidden px-1">
           {hasNotifications && (
             <>
               <div className="mb-3 flex items-center justify-between px-2">
-                <p className="text-[10px] font-bold text-muted-foreground/30 uppercase tracking-widest">
+                <p className="text-[10px] font-bold tracking-widest text-muted-foreground/30 uppercase">
                   Submissions
                 </p>
                 {readNotificationCount > 0 ? (
@@ -1208,7 +1208,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
                     <button
                       key={notification.id}
                       type="button"
-                      className="group flex w-full min-h-8.5 items-center gap-3 bg-secondary pl-2.5 pr-[6px] py-1.75 text-left transition-colors hover:bg-muted/80"
+                      className="group flex min-h-8.5 w-full items-center gap-3 bg-secondary py-1.75 pr-[6px] pl-2.5 text-left transition-colors hover:bg-muted/80"
                       onClick={() => void openNotification(notification)}
                       disabled={readingFormId === notification.formId}
                     >
@@ -1227,7 +1227,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
                       </div>
                       <div className="flex shrink-0 items-center gap-1.5">
                         {isUnread ? (
-                          <span className="text-[11px] tabular-nums text-foreground">
+                          <span className="text-[11px] text-foreground tabular-nums">
                             {notification.unreadCount === 1
                               ? "1 new"
                               : `${notification.unreadCount} new`}
@@ -1241,7 +1241,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
                           <Button
                             variant="ghost"
                             size="icon-xs"
-                            className="h-5 w-5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity hover:text-foreground"
+                            className="h-5 w-5 text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
                             disabled={isBusy}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -1264,10 +1264,10 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
 
           {hasPendingInvitations && (
             <>
-              <p className="text-[10px] font-bold text-muted-foreground/30 uppercase tracking-widest mb-3 px-2">
+              <p className="mb-3 px-2 text-[10px] font-bold tracking-widest text-muted-foreground/30 uppercase">
                 Invitations
               </p>
-              <div className="space-y-1 mb-4">
+              <div className="mb-4 space-y-1">
                 {pendingInvitations.map((invitation) => {
                   const isProcessing =
                     (acceptMutation.isPending &&
@@ -1278,13 +1278,13 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
                   return (
                     <div
                       key={invitation.id}
-                      className="group flex flex-col gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors border border-transparent hover:border-foreground/5"
+                      className="group flex flex-col gap-2 rounded-md border border-transparent p-2 transition-colors hover:border-foreground/5 hover:bg-muted/50"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="h-8 w-8 rounded bg-foreground/5 flex items-center justify-center shrink-0">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-foreground/5">
                           <UsersIcon className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-[12px] text-foreground">
                             You've been invited to join{" "}
                             <span className="font-bold">
@@ -1295,16 +1295,16 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
                               ).organization?.name ?? "an organization"}
                             </span>
                           </p>
-                          <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+                          <p className="mt-0.5 text-[11px] text-muted-foreground/50">
                             Role: <span className="capitalize">{invitation.role}</span>
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 ml-11">
+                      <div className="ml-11 flex items-center gap-2">
                         <Button
                           size="sm"
                           variant="default"
-                          className="h-7 text-xs px-3"
+                          className="h-7 px-3 text-xs"
                           disabled={isProcessing}
                           onClick={() =>
                             acceptMutation.mutate({
@@ -1320,7 +1320,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-7 text-xs px-3"
+                          className="h-7 px-3 text-xs"
                           disabled={isProcessing}
                           onClick={() =>
                             rejectMutation.mutate({
@@ -1409,7 +1409,7 @@ const SidebarInbox = () => {
   return (
     <div
       className={cn(
-        "fixed z-40 flex w-80 flex-col bg-background select-none border-r border-foreground/5 top-0 bottom-0",
+        "fixed top-0 bottom-0 z-40 flex w-80 flex-col border-r border-foreground/5 bg-background select-none",
         "transition-[left,opacity] duration-150 ease-out [[data-resizing]_&]:transition-none",
         state === "expanded" ? "left-(--sidebar-width)" : "left-(--sidebar-width-icon)",
         applyExitClass && "opacity-0",
@@ -1728,8 +1728,8 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
           {isLoading ? (
             ["collection-skeleton-1", "collection-skeleton-2"].map((key) => (
               <div key={key} className="flex items-center gap-2 px-2 py-1.5">
-                <div className="h-4 w-4 rounded bg-muted animate-pulse" />
-                <div className="h-4 flex-1 rounded bg-muted animate-pulse" />
+                <div className="h-4 w-4 animate-pulse rounded bg-muted" />
+                <div className="h-4 flex-1 animate-pulse rounded bg-muted" />
               </div>
             ))
           ) : (
@@ -1758,7 +1758,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
                     />
                   ))}
                   {workspaces.length === 0 && (
-                    <span className="text-muted-foreground/50 text-[11px] px-2 py-1 italic">
+                    <span className="px-2 py-1 text-[11px] text-muted-foreground/50 italic">
                       No workspaces yet
                     </span>
                   )}
@@ -1801,11 +1801,11 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
             <AlertDialogAction
               onClick={handleDeleteWorkspace}
               disabled={deleteConfirmName !== workspaceToDelete?.name || isDeletingWorkspace}
-              className="bg-destructive text-white hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-destructive text-white hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isDeletingWorkspace ? (
                 <>
-                  <Loader2Icon className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  <Loader2Icon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                   Deleting…
                 </>
               ) : (
@@ -1843,7 +1843,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
             >
               {isRenamingWorkspace ? (
                 <>
-                  <Loader2Icon className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  <Loader2Icon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                   Saving…
                 </>
               ) : (
@@ -1868,11 +1868,11 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
             <AlertDialogAction
               onClick={handleConfirmDeleteForm}
               disabled={isDeletingForm}
-              className="bg-destructive text-white hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-destructive text-white hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isDeletingForm ? (
                 <>
-                  <Loader2Icon className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  <Loader2Icon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                   Deleting…
                 </>
               ) : (
@@ -2033,7 +2033,7 @@ const SortableFavoriteItem = ({
                 e.preventDefault();
                 e.stopPropagation();
               }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center size-5 rounded-md text-muted-foreground hover:text-foreground hover:bg-sidebar-active opacity-0 group-hover/row:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+              className="hover:bg-sidebar-active absolute top-1/2 right-2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 hover:text-foreground data-[state=open]:opacity-100"
             />
           }
         >
@@ -2103,7 +2103,7 @@ const FavoriteInlineRename = ({
         onKeyDown={(e) => {
           if (e.key === "Escape") onClose();
         }}
-        className="w-full bg-secondary rounded-md px-2 py-1 text-[13px] outline-hidden ring-1 ring-foreground/20"
+        className="w-full rounded-md bg-secondary px-2 py-1 text-[13px] ring-1 ring-foreground/20 outline-hidden"
         aria-label="Rename form"
       />
     </form>

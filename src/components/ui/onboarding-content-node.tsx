@@ -36,9 +36,9 @@ const OnboardingItem = ({
 }) => (
   <a
     href={href}
-    className="flex items-center gap-3 text-muted-foreground/70 hover:text-foreground transition-colors group text-sm py-0.5"
+    className="group flex items-center gap-3 py-0.5 text-sm text-muted-foreground/70 transition-colors hover:text-foreground"
   >
-    <Icon className="h-4 w-4 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" />
+    <Icon className="h-4 w-4 shrink-0 opacity-70 transition-opacity group-hover:opacity-100" />
     <span>{label}</span>
   </a>
 );
@@ -50,21 +50,21 @@ export const OnboardingContentElement = (props: PlateElementProps) => {
   return (
     <PlateElement {...props}>
       <div contentEditable={false} className="select-none">
-        <div className="max-w-[700px] mx-auto pt-8 pb-16 px-4 sm:px-16">
+        <div className="mx-auto max-w-[700px] px-4 pt-8 pb-16 sm:px-16">
           {/* Landing Hero Section */}
-          <div className="flex flex-col items-center text-center mb-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background border border-border text-sm text-muted-foreground mb-4">
+          <div className="mb-10 flex flex-col items-center text-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground">
               <SparklesIcon className="h-4 w-4" />
               <span>The next generation of forms</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+            <h2 className="mb-2 text-2xl font-bold text-foreground sm:text-3xl">
               Beautiful forms, building itself.
             </h2>
           </div>
 
           <div className="space-y-8">
             <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-3 text-muted-foreground/60 text-lg">
+              <div className="flex items-center gap-3 text-lg text-muted-foreground/60">
                 <FileTextIcon className="h-5 w-5" />
                 <span>
                   Press <span className="text-foreground/80">Enter</span> to start from scratch
@@ -73,7 +73,7 @@ export const OnboardingContentElement = (props: PlateElementProps) => {
 
               <Button
                 variant="outline"
-                className="w-fit h-10 px-4 gap-2 text-muted-foreground border-muted-foreground/20 hover:border-muted-foreground/40 hover:bg-muted/50 rounded-lg shadow-sm"
+                className="h-10 w-fit gap-2 rounded-lg border-muted-foreground/20 px-4 text-muted-foreground shadow-sm hover:border-muted-foreground/40 hover:bg-muted/50"
                 onClick={() => setTemplateModalOpen(true)}
                 onMouseDown={(e) => e.preventDefault()}
               >
@@ -82,18 +82,18 @@ export const OnboardingContentElement = (props: PlateElementProps) => {
               </Button>
             </div>
 
-            <div className="py-6 space-y-1">
+            <div className="space-y-1 py-6">
               <p className="text-lg text-muted-foreground/80">
                 {APP_NAME} is a form builder that{" "}
-                <span className="text-fuchsia-500 font-semibold px-1">works like a doc</span>.
+                <span className="px-1 font-semibold text-fuchsia-500">works like a doc</span>.
               </p>
               <p className="text-lg text-muted-foreground/80">
                 Just type{" "}
-                <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">
+                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm text-foreground">
                   /
                 </code>
                 to insert form blocks and{" "}
-                <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-fuchsia-500">
+                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm text-fuchsia-500">
                   @
                 </code>
                 to mention question answers.
@@ -102,7 +102,7 @@ export const OnboardingContentElement = (props: PlateElementProps) => {
 
             <div className="grid grid-cols-2 gap-16 pt-8">
               <div className="space-y-5">
-                <h3 className="text-sm font-bold text-foreground tracking-wider uppercase">
+                <h3 className="text-sm font-bold tracking-wider text-foreground uppercase">
                   Get started
                 </h3>
                 <div className="flex flex-col gap-3">
@@ -115,7 +115,7 @@ export const OnboardingContentElement = (props: PlateElementProps) => {
               </div>
 
               <div className="space-y-5">
-                <h3 className="text-sm font-bold text-foreground tracking-wider uppercase">
+                <h3 className="text-sm font-bold tracking-wider text-foreground uppercase">
                   How-to guides
                 </h3>
                 <div className="flex flex-col gap-3">
@@ -138,9 +138,9 @@ export const OnboardingContentElement = (props: PlateElementProps) => {
             <DialogTitle>Templates</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col items-center py-12 text-muted-foreground">
-            <LayoutIcon className="h-12 w-12 mb-4 opacity-50" />
+            <LayoutIcon className="mb-4 h-12 w-12 opacity-50" />
             <p className="text-lg">Coming soon</p>
-            <p className="text-sm mt-2">We're working on some great templates for you.</p>
+            <p className="mt-2 text-sm">We're working on some great templates for you.</p>
           </div>
         </DialogContent>
       </Dialog>

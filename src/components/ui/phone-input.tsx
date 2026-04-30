@@ -97,7 +97,7 @@ function InputComponent({ className, ...props }: React.ComponentProps<"input">) 
       className={cn(
         // Right-side "input-text" piece: white surface, full border, only the
         // right corners rounded so it butts cleanly against the country select.
-        "flex-1 rounded-l-none rounded-r-[8px] border border-border bg-background px-2.5 py-2 text-sm text-foreground tracking-[0.28px] shadow-none outline-none! ring-0! focus-visible:ring-0 aria-invalid:ring-0",
+        "flex-1 rounded-l-none rounded-r-[8px] border border-border bg-background px-2.5 py-2 text-sm tracking-[0.28px] text-foreground shadow-none ring-0! outline-none! focus-visible:ring-0 aria-invalid:ring-0",
         variant === "sm" && "h-7",
         variant === "lg" && "h-9",
         variant === "default" && "h-8",
@@ -156,7 +156,7 @@ function CountrySelect({
               // Left "input-select" piece — flag + chevron in a left-rounded
               // bordered cell. Top/left/bottom borders only; right edge butts
               // against the input-text piece's left border.
-              "flex items-center gap-[3px] rounded-l-[8px] rounded-r-none border-y border-l border-border bg-background pl-2 pr-1 py-2 shadow-none hover:bg-secondary focus:z-10 data-pressed:bg-secondary",
+              "flex items-center gap-[3px] rounded-l-[8px] rounded-r-none border-y border-l border-border bg-background py-2 pr-1 pl-2 shadow-none hover:bg-secondary focus:z-10 data-pressed:bg-secondary",
               variant === "sm" && "h-7",
               variant === "lg" && "h-9",
               variant === "default" && "h-8",
@@ -188,7 +188,7 @@ function CountrySelect({
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             showTrigger={false}
-            className="border-0 bg-transparent p-0 text-sm tracking-[0.28px] text-foreground placeholder:text-muted-foreground/70 shadow-none ring-0! outline-none! focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="border-0 bg-transparent p-0 text-sm tracking-[0.28px] text-foreground shadow-none ring-0! outline-none! placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0"
           />
         </div>
         <ComboboxSeparator className="my-1 hidden" />

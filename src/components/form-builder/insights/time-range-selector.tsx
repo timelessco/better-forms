@@ -68,22 +68,22 @@ export const TimeRangeSelector = ({
       </Select>
       {value === "custom" ? (
         <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1.5 text-muted-foreground text-xs">
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span>From</span>
             <input
               type="date"
               value={startDate ?? ""}
               onChange={handleStartDateChange}
-              className="h-8 rounded-md border border-input bg-transparent px-2 text-foreground text-xs"
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-foreground"
             />
           </label>
-          <label className="flex items-center gap-1.5 text-muted-foreground text-xs">
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span>To</span>
             <input
               type="date"
               value={endDate ?? ""}
               onChange={handleEndDateChange}
-              className="h-8 rounded-md border border-input bg-transparent px-2 text-foreground text-xs"
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-foreground"
             />
           </label>
         </div>

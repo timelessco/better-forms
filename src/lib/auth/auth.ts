@@ -8,6 +8,7 @@ import {
 } from "@/integrations/email";
 import { logger } from "@/lib/utils";
 import { APP_NAME } from "@/lib/config/app-config";
+import { PLAN_PRODUCT_IDS } from "@/lib/config/plan-config";
 import {
   handleSubscriptionDowngrade,
   handleSubscriptionUpdated,
@@ -174,18 +175,9 @@ export const auth = betterAuth({
       use: [
         checkout({
           products: [
-            {
-              productId: "398f06f7-a6f6-4f65-80b6-62e38bd2825c",
-              slug: "free",
-            },
-            {
-              productId: "0be62924-d418-4dcc-8c8c-2b4929f76695",
-              slug: "Pro-(Yearly)",
-            },
-            {
-              productId: "3662224a-d998-4a73-bf82-4957198d53ea",
-              slug: "Pro",
-            },
+            { productId: PLAN_PRODUCT_IDS.free, slug: "free" },
+            { productId: PLAN_PRODUCT_IDS.pro, slug: "Pro" },
+            { productId: PLAN_PRODUCT_IDS.business, slug: "Business" },
           ],
           successUrl:
             (process.env.APP_URL || "http://localhost:3000") +

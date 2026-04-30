@@ -40,30 +40,30 @@ ${error.stack || "No stack trace available"}
   }, [error.message, error.stack]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-destructive mb-2">Oops! Something went wrong.</h1>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md">
+        <div className="mb-8 text-center">
+          <h1 className="mb-2 text-4xl font-bold text-destructive">Oops! Something went wrong.</h1>
           <p className="text-muted-foreground">
             An unexpected error occurred. Please try refreshing the page or report this issue on
             GitHub.
           </p>
         </div>
-        <div className="bg-card border rounded-lg p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-3 text-card-foreground">Error Details</h2>
-          <p className="text-sm text-muted-foreground font-mono bg-muted p-3 rounded break-all">
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <h2 className="mb-3 text-lg font-semibold text-card-foreground">Error Details</h2>
+          <p className="rounded bg-muted p-3 font-mono text-sm break-all text-muted-foreground">
             {error.message || "Unknown error occurred"}
           </p>
           {isDev && error.stack && (
             <div className="mt-4">
-              <h2 className="text-sm font-semibold mb-2 text-card-foreground">Stack Trace</h2>
+              <h2 className="mb-2 text-sm font-semibold text-card-foreground">Stack Trace</h2>
               <div className="max-h-64 overflow-auto rounded bg-muted p-3">
-                <pre className="text-xs font-mono text-muted-foreground">{error.stack}</pre>
+                <pre className="font-mono text-xs text-muted-foreground">{error.stack}</pre>
               </div>
             </div>
           )}
         </div>
-        <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <Button onClick={() => router.invalidate()} prefix={<RefreshCwIcon className="size-4" />}>
             Reset and Try Again
           </Button>

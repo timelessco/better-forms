@@ -38,11 +38,11 @@ const maybePurgeAfterSubmissionDelete = async (formId: string) => {
   const [row] = await db
     .select({
       lastPublishedVersionId: forms.lastPublishedVersionId,
-      limitSubmissions: forms.limitSubmissions,
+      settings: forms.settings,
     })
     .from(forms)
     .where(eq(forms.id, formId));
-  if (row?.lastPublishedVersionId && row.limitSubmissions) {
+  if (row?.lastPublishedVersionId && row.settings?.limitSubmissions) {
     void purgeFormCache(formId);
   }
 };
@@ -212,7 +212,7 @@ export const getSubmissionsBootstrap = createServerFn({ method: "GET" })
             id: publishedRow.id,
             title: publishedRow.versionTitle ?? "",
             content: publishedRow.versionContent as object[],
-            settings: publishedRow.versionSettings as Record<string, object>,
+            settings: publishedRow.versionSettings,
             customization: (publishedRow.versionCustomization ?? {}) as Record<string, string>,
             icon: publishedRow.versionIcon,
             cover: publishedRow.versionCover,

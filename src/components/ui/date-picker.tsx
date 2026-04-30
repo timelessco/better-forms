@@ -49,7 +49,7 @@ export const DatePicker = ({
             type="button"
             data-empty={!date}
             className={cn(
-              "inline-flex items-center justify-start text-left font-normal w-full h-[30px] rounded-[8px] border-0 bg-[var(--color-gray-50)] pl-2.5 pr-1.5 text-sm shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]",
+              "inline-flex h-[30px] w-full items-center justify-start rounded-[8px] border-0 bg-[var(--color-gray-50)] pr-1.5 pl-2.5 text-left text-sm font-normal shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]",
               !date && "text-muted-foreground",
               className,
             )}

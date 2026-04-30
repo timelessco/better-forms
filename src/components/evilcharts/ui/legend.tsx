@@ -72,7 +72,7 @@ function ChartLegendContent({
             <div
               key={key}
               className={cn(
-                "[&>svg]:text-muted-foreground flex items-center gap-1.5 transition-opacity [&>svg]:h-3 [&>svg]:w-3",
+                "flex items-center gap-1.5 transition-opacity [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground",
                 !isSelected && "opacity-30",
                 isClickable && "cursor-pointer",
               )}

@@ -8,12 +8,12 @@ import type * as React from "react";
 const headingVariants = cva("relative", {
   variants: {
     variant: {
-      h1: "font-bold font-heading text-4xl",
-      h2: "font-heading font-semibold text-2xl",
-      h3: "font-heading font-semibold text-xl",
-      h4: "font-heading font-semibold text-lg",
-      h5: "font-semibold text-lg",
-      h6: "font-semibold text-base",
+      h1: "font-heading text-4xl font-bold",
+      h2: "font-heading text-2xl font-semibold",
+      h3: "font-heading text-xl font-semibold",
+      h4: "font-heading text-lg font-semibold",
+      h5: "text-lg font-semibold",
+      h6: "text-base font-semibold",
     },
   },
 });

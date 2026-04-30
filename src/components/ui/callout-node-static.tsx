@@ -13,7 +13,7 @@ export const CalloutElementStatic = ({ children, className, ...props }: SlateEle
   >
     <div className="flex w-full gap-2 rounded-md">
       <div
-        className="size-6 select-none text-[18px]"
+        className="size-6 text-[18px] select-none"
         style={{
           fontFamily:
             '"Apple Color Emoji", "Segoe UI Emoji", NotoColorEmoji, "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", EmojiSymbols',

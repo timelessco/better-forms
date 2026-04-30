@@ -41,9 +41,9 @@ const MetricCard = ({ label, value, Icon }: MetricCardProps) => (
     <CardContent className="flex flex-col gap-2 py-3">
       <div className="flex items-center gap-2 text-muted-foreground">
         <Icon className="size-4" aria-hidden={true} />
-        <span className="font-medium text-xs uppercase tracking-wide">{label}</span>
+        <span className="text-xs font-medium tracking-wide uppercase">{label}</span>
       </div>
-      <span className="font-semibold text-2xl text-foreground tabular-nums">{value}</span>
+      <span className="text-2xl font-semibold text-foreground tabular-nums">{value}</span>
     </CardContent>
   </Card>
 );

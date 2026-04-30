@@ -74,7 +74,7 @@ export const MediaPreviewDialog = () => {
     <div
       ref={previewMaskRef}
       className={cn(
-        "fixed top-0 left-0 z-50 h-screen w-screen select-none overscroll-contain",
+        "fixed top-0 left-0 z-50 h-screen w-screen overscroll-contain select-none",
         !isOpen && "hidden",
       )}
     >
@@ -83,7 +83,7 @@ export const MediaPreviewDialog = () => {
       <Button
         variant="ghost"
         {...maskLayerProps}
-        className="absolute inset-0 z-10 bg-transparent h-auto rounded-none hover:bg-transparent"
+        className="absolute inset-0 z-10 h-auto rounded-none bg-transparent hover:bg-transparent"
         aria-label="Close media preview"
       >
         <span className="sr-only">Close preview</span>
@@ -96,7 +96,7 @@ export const MediaPreviewDialog = () => {
             )}
           />
           <section
-            className="-translate-x-1/2 absolute bottom-0 left-1/2 z-40 flex w-fit justify-center gap-4 p-2 text-center text-white"
+            className="absolute bottom-0 left-1/2 z-40 flex w-fit -translate-x-1/2 justify-center gap-4 p-2 text-center text-white"
             aria-label="Media preview controls"
           >
             <div className="flex gap-1">

@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { customDomains, forms } from "@/db/schema";
 import { isAnalyticsEnabled } from "@/lib/server-fn/analytics.server";
+import { mergeFormSettings } from "@/lib/server-fn/forms";
 import {
   resolveCustomDomain,
   resolveDomainForSlug,
@@ -49,7 +50,10 @@ describe("plan-read-enforcement", () => {
   describe("isAnalyticsEnabled", () => {
     it("true when org is pro and forms.analytics is true", async () => {
       const form = await createTestForm(workspaceId, ownerId);
-      await db.update(forms).set({ analytics: true }).where(eq(forms.id, form.id));
+      await db
+        .update(forms)
+        .set({ settings: mergeFormSettings({ analytics: true }) })
+        .where(eq(forms.id, form.id));
 
       await expect(isAnalyticsEnabled(form.id)).resolves.toBeTruthy();
     });
@@ -61,7 +65,10 @@ describe("plan-read-enforcement", () => {
 
     it("false when org is free and forms.analytics is true (post-downgrade race)", async () => {
       const form = await createTestForm(workspaceId, ownerId);
-      await db.update(forms).set({ analytics: true }).where(eq(forms.id, form.id));
+      await db
+        .update(forms)
+        .set({ settings: mergeFormSettings({ analytics: true }) })
+        .where(eq(forms.id, form.id));
       await setOrgPlan(orgId, "free");
 
       await expect(isAnalyticsEnabled(form.id)).resolves.toBeFalsy();

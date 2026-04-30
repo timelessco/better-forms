@@ -17,7 +17,7 @@ const CheckboxField = ({ element, form }: FieldRendererProps<"Checkbox">) => (
               <label
                 key={option.value}
                 className={cn(
-                  "flex items-center gap-2 cursor-pointer",
+                  "flex cursor-pointer items-center gap-2",
                   hasErrors && "text-destructive",
                 )}
               >

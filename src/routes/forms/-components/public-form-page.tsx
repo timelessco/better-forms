@@ -107,7 +107,7 @@ const sendToParent = (event: string, payload?: Record<string, unknown>): void =>
 const FormNotFound = () => {
   const { t } = useTranslation();
   return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
       <Empty className="border-none">
         <EmptyHeader>
           <EmptyMedia variant="icon">
@@ -124,7 +124,7 @@ const FormNotFound = () => {
 const FormNotPublished = () => {
   const { t } = useTranslation();
   return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
       <Empty className="border-none">
         <EmptyHeader>
           <EmptyMedia variant="icon">
@@ -428,14 +428,14 @@ export const PublicFormPage = ({
       aria-live="polite"
     >
       {themeToggle && (
-        <div className="fixed right-4 top-4 z-50">
+        <div className="fixed top-4 right-4 z-50">
           <Button
             type="button"
             variant="ghost"
             size="icon"
             aria-label="Toggle color theme"
             onClick={() => themeToggle.onChange(themeToggle.current === "dark" ? "light" : "dark")}
-            className="rounded-full bg-background/80 backdrop-blur border border-border/60 shadow-sm"
+            className="rounded-full border border-border/60 bg-background/80 shadow-sm backdrop-blur"
           >
             {/* Render both icons; the pre-hydration script sets `.dark` on the
                 root before paint, so CSS picks the right one. Doing this in
@@ -450,7 +450,7 @@ export const PublicFormPage = ({
       {draftState.status === "prompt" && (
         <div
           role="status"
-          className="mx-auto mb-4 mt-4 flex max-w-xl items-center justify-between gap-4 rounded-md border border-border bg-muted/60 px-4 py-3 text-sm"
+          className="mx-auto mt-4 mb-4 flex max-w-xl items-center justify-between gap-4 rounded-md border border-border bg-muted/60 px-4 py-3 text-sm"
         >
           <span className="text-foreground">We restored your in-progress answers.</span>
           <div className="flex gap-2">

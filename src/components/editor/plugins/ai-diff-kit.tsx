@@ -21,7 +21,7 @@ const renderDiffWrapper: RenderNodeWrapper = ({ element }) => {
       className={cn(
         "rounded-sm",
         mark === "insert" && "bg-emerald-100/70 ring-1 ring-emerald-200/80",
-        mark === "remove" && "bg-red-100/70 ring-1 ring-red-200/80 opacity-80",
+        mark === "remove" && "bg-red-100/70 opacity-80 ring-1 ring-red-200/80",
       )}
     >
       {children}

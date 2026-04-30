@@ -11,6 +11,9 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createSelectSchema } from "drizzle-zod";
+import type { VersionedSettingsSnapshot } from "@/lib/content-hash";
+import type { FormSettings } from "@/types/form-settings";
+import { defaultFormSettings } from "@/types/form-settings";
 
 // Organization Tables (Better Auth Organization Plugin)
 export const organization = pgTable("organization", {
@@ -141,7 +144,7 @@ export const workspaces = pgTable(
     id: text().primaryKey(),
     organizationId: text().notNull(),
     createdByUserId: text().notNull(),
-    name: text().notNull().default("Collection"),
+    name: text().notNull().default("Workspace"),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -161,40 +164,14 @@ export const forms = pgTable(
     formName: text().notNull().default("draft"),
     schemaName: text().notNull().default("draftFormSchema"),
     content: jsonb().notNull().default([]),
-    settings: jsonb().notNull().default({}),
     icon: text(),
     cover: text(),
-    isMultiStep: boolean().notNull().default(false),
     status: text().notNull().default("draft"), // 'draft' | 'published' | 'archived'
     // Version history fields
     lastPublishedVersionId: text(), // FK to formVersions.id
     publishedContentHash: text(), // Hash for fast change detection
-    // --- Public form settings (merged from form_settings) ---
-    language: text().default("English").notNull(),
-    redirectOnCompletion: boolean().default(false).notNull(),
-    redirectUrl: text(),
-    redirectDelay: integer().default(0).notNull(),
-    progressBar: boolean().default(false).notNull(),
-    branding: boolean().default(true).notNull(),
-    analytics: boolean().default(false).notNull(),
-    saveAnswersForLater: boolean().default(true).notNull(),
-    presentationMode: text().default("card").notNull(),
-    selfEmailNotifications: boolean().default(false).notNull(),
-    notificationEmail: text(),
-    respondentEmailNotifications: boolean().default(false).notNull(),
-    respondentEmailSubject: text(),
-    respondentEmailBody: text(),
-    passwordProtect: boolean().default(false).notNull(),
-    password: text(),
-    closeForm: boolean().default(false).notNull(),
-    closedFormMessage: text().default("This form is now closed."),
-    closeOnDate: boolean().default(false).notNull(),
-    closeDate: text(),
-    limitSubmissions: boolean().default(false).notNull(),
-    maxSubmissions: integer(),
-    preventDuplicateSubmissions: boolean().default(false).notNull(),
-    dataRetention: boolean().default(false).notNull(),
-    dataRetentionDays: integer(),
+    // Behavioral settings (single typed group). See `FormSettings` type.
+    settings: jsonb().$type<FormSettings>().notNull().default(defaultFormSettings),
     customization: jsonb().default({}),
     slug: text(),
     customDomainId: text(),
@@ -241,7 +218,9 @@ export const formVersions = pgTable(
     formId: text().notNull(),
     version: integer().notNull(), // v1, v2, v3...
     content: jsonb().notNull(), // Plate.js JSON snapshot
-    settings: jsonb().notNull(), // Snapshot of all Group 2 form behavior settings
+    // Snapshot of versioned (Group 2) form-behavior settings; the live (Group 4)
+    // keys (`branding`, `analytics`) are excluded by `pickVersionedSettings`.
+    settings: jsonb().$type<VersionedSettingsSnapshot>().notNull(),
     customization: jsonb().default({}), // Theme customization snapshot
     title: text().notNull(),
     icon: text(), // Visual asset snapshot

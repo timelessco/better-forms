@@ -499,7 +499,7 @@ export const ElasticSlider = ({
             <div
               key={i}
               className={cn(
-                "absolute top-1/2 h-2 w-px -translate-x-1/2 rtl:translate-x-1/2 -translate-y-1/2 rounded-full transition-colors duration-200",
+                "absolute top-1/2 h-2 w-px -translate-x-1/2 -translate-y-1/2 rounded-full transition-colors duration-200 rtl:translate-x-1/2",
                 "bg-transparent group-data-[active=true]/elastic-slider:bg-(--elastic-slider-hash)",
               )}
               style={{ left: `${hashMarkPct(i)}%` }}
@@ -546,7 +546,7 @@ export const ElasticSlider = ({
           ref={labelRef}
           data-slot="elastic-slider-label"
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 start-3 inline-flex -translate-y-1/2 items-center text-sm/none font-medium text-(--elastic-slider-label) transition-colors"
+          className="pointer-events-none absolute start-3 top-1/2 inline-flex -translate-y-1/2 items-center text-sm/none font-medium text-(--elastic-slider-label) transition-colors"
         >
           {label}
         </span>
@@ -556,7 +556,7 @@ export const ElasticSlider = ({
           data-slot="elastic-slider-value"
           aria-hidden="true"
           className={cn(
-            "pointer-events-none absolute top-1/2 end-3 -translate-y-1/2 font-mono text-sm/none font-medium transition-colors",
+            "pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 font-mono text-sm/none font-medium transition-colors",
             "text-(--elastic-slider-label) group-data-[active=true]/elastic-slider:text-(--elastic-slider-focus)",
           )}
         >

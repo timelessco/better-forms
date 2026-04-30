@@ -319,7 +319,7 @@ const InlineComboboxContent = ({
       <ComboboxPopover
         className={cn(
           "z-500 w-[300px] rounded-xl bg-popover shadow-md",
-          hasPreview ? "overflow-visible" : "overflow-y-auto max-h-[288px]",
+          hasPreview ? "overflow-visible" : "max-h-[288px] overflow-y-auto",
           className,
         )}
         onKeyDownCapture={handleKeyDown}
@@ -349,7 +349,7 @@ const InlineComboboxContent = ({
 };
 
 const comboboxItemVariants = cva(
-  "relative mx-1 flex h-[28px] select-none items-center rounded-lg px-2 text-foreground text-sm outline-none [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "relative mx-1 flex h-[28px] items-center rounded-lg px-2 text-sm text-foreground outline-none select-none [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     defaultVariants: {
       interactive: true,
@@ -436,7 +436,7 @@ const InlineComboboxGroup = ({
 }: React.ComponentProps<typeof ComboboxGroup>) => (
   <ComboboxGroup
     {...props}
-    className={cn("hidden not-last:border-b py-1.5 [&:has([role=option])]:block", className)}
+    className={cn("hidden py-1.5 not-last:border-b [&:has([role=option])]:block", className)}
   />
 );
 
@@ -446,7 +446,7 @@ const InlineComboboxGroupLabel = ({
 }: React.ComponentProps<typeof ComboboxGroupLabel>) => (
   <ComboboxGroupLabel
     {...props}
-    className={cn("mt-1.5 mb-2 px-3 font-medium text-muted-foreground text-xs", className)}
+    className={cn("mt-1.5 mb-2 px-3 text-xs font-medium text-muted-foreground", className)}
   />
 );
 

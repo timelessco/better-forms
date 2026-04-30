@@ -41,7 +41,7 @@ export const TocElement = (props: PlateElementProps) => {
             </Button>
           ))
         ) : (
-          <div className="text-gray-500 text-sm">
+          <div className="text-sm text-gray-500">
             Create a heading to display the table of contents.
           </div>
         )}

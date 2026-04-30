@@ -64,11 +64,11 @@ const EmailLoginPage = () => {
     return (
       <div className="mx-auto flex min-h-dvh max-w-[300px] flex-col justify-center">
         <header className="mb-[54px] flex items-center justify-center">
-          <Logo className="w-6 h-10 text-foreground/90" />
+          <Logo className="h-10 w-6 text-foreground/90" />
         </header>
 
         <main className="flex flex-col items-center justify-center gap-4">
-          <div className="text-center space-y-2">
+          <div className="space-y-2 text-center">
             <h2 className="text-sm font-semibold text-foreground">Check your email</h2>
             <p className="text-xs text-muted-foreground">
               We sent a sign-in link to <span className="text-foreground/80">{sentEmail}</span>
@@ -93,7 +93,7 @@ const EmailLoginPage = () => {
   return (
     <div className="mx-auto flex min-h-dvh max-w-[300px] flex-col justify-center">
       <header className="mb-[54px] flex items-center justify-center">
-        <Logo className="w-6 h-10 text-foreground/90" />
+        <Logo className="h-10 w-6 text-foreground/90" />
       </header>
 
       <main className="flex flex-col items-center justify-center gap-4">
@@ -117,7 +117,7 @@ const EmailLoginPage = () => {
                         onChange={(e) => field.handleChange(e.target.value)}
                         disabled={isPending}
                         aria-invalid={isInvalid}
-                        className="rounded-xl h-9"
+                        className="h-9 rounded-xl"
                       />
                     </field.Field>
                     <field.FieldError />
@@ -129,7 +129,7 @@ const EmailLoginPage = () => {
             <Button
               type="submit"
               disabled={isPending}
-              className="w-full rounded-xl font-medium text-base font-sans"
+              className="w-full rounded-xl font-sans text-base font-medium"
               size="lg"
             >
               {isPending ? (

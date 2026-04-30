@@ -7,7 +7,7 @@ import type * as React from "react";
 import { cn } from "@/lib/utils";
 
 const editorContainerVariants = cva(
-  "relative w-full cursor-text select-text overflow-y-auto caret-foreground selection:bg-brand/25 focus-visible:outline-none [&_.slate-selection-area]:z-50 [&_.slate-selection-area]:border [&_.slate-selection-area]:border-brand/25 [&_.slate-selection-area]:bg-brand/15",
+  "selection:bg-brand/25 [&_.slate-selection-area]:border-brand/25 [&_.slate-selection-area]:bg-brand/15 relative w-full cursor-text overflow-y-auto caret-foreground select-text focus-visible:outline-none [&_.slate-selection-area]:z-50 [&_.slate-selection-area]:border",
   {
     defaultVariants: {
       variant: "default",
@@ -15,9 +15,9 @@ const editorContainerVariants = cva(
     variants: {
       variant: {
         comment: cn(
-          "flex flex-wrap justify-between gap-1   text-sm",
+          "flex flex-wrap justify-between gap-1 text-sm",
           "rounded-md border-[1.5px] border-transparent bg-transparent",
-          "has-[[data-slate-editor]:focus]:border-brand/50 has-[[data-slate-editor]:focus]:ring-2 has-[[data-slate-editor]:focus]:ring-brand/30",
+          "has-[[data-slate-editor]:focus]:border-brand/50 has-[[data-slate-editor]:focus]:ring-brand/30 has-[[data-slate-editor]:focus]:ring-2",
           "has-aria-disabled:border-input has-aria-disabled:bg-muted",
         ),
         default: "h-full",
@@ -45,9 +45,9 @@ export const EditorContainer = ({
 const editorVariants = cva(
   cn(
     "group/editor",
-    "relative w-full cursor-text select-text overflow-x-hidden whitespace-pre-wrap break-words",
+    "relative w-full cursor-text overflow-x-hidden break-words whitespace-pre-wrap select-text",
     "rounded-md ring-offset-background focus-visible:outline-none",
-    "**:data-slate-placeholder:!top-1/2 **:data-slate-placeholder:-translate-y-1/2 placeholder:text-muted-foreground/80 **:data-slate-placeholder:text-muted-foreground/80 **:data-slate-placeholder:opacity-100!",
+    "placeholder:text-muted-foreground/80 **:data-slate-placeholder:!top-1/2 **:data-slate-placeholder:-translate-y-1/2 **:data-slate-placeholder:text-muted-foreground/80 **:data-slate-placeholder:opacity-100!",
     "[&_strong]:font-bold",
   ),
   {
@@ -68,7 +68,7 @@ const editorVariants = cva(
         comment: cn("rounded-none border-none bg-transparent text-sm"),
         default: "size-full px-16 pb-72 text-base sm:px-[max(64px,calc(50%-350px))]",
         demo: "size-full px-16 pb-72 text-base sm:px-[max(64px,calc(50%-350px))]",
-        fullWidth: "size-full px-16  pb-72 text-base sm:px-24",
+        fullWidth: "size-full px-16 pb-72 text-base sm:px-24",
         none: "",
         select: "px-3 py-2 text-base data-readonly:w-fit",
       },

@@ -45,7 +45,7 @@ export const AccordionTrigger = ({
         data-icon-position={iconPosition}
         className={cn(
           "group/accordion-trigger relative flex flex-1 items-center border border-transparent transition-all outline-none",
-          "focus-visible:ring-ring/50 focus-visible:border-ring focus-visible:ring-3",
+          "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
           "aria-disabled:pointer-events-none aria-disabled:opacity-50",
           isInline
             ? "gap-1 rounded-lg py-1.5 text-start text-[13px]"
@@ -55,11 +55,11 @@ export const AccordionTrigger = ({
         {...props}
       >
         {isInline ? (
-          <span className="flex items-center gap-1 flex-1 min-w-0">
+          <span className="flex min-w-0 flex-1 items-center gap-1">
             {children}
             <ChevronDownIcon
               data-slot="accordion-trigger-icon"
-              className="size-2.5 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/accordion-trigger:-rotate-0 -rotate-90"
+              className="size-2.5 shrink-0 -rotate-90 text-muted-foreground transition-transform duration-200 group-aria-expanded/accordion-trigger:-rotate-0"
             />
           </span>
         ) : (
@@ -73,7 +73,7 @@ export const AccordionTrigger = ({
         )}
       </AccordionPrimitive.Trigger>
       {action && (
-        <div className="flex items-center gap-1 opacity-0 group-hover/accordion-header:opacity-100 transition-opacity shrink-0 mr-[0.55px]">
+        <div className="mr-[0.55px] flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/accordion-header:opacity-100">
           {action}
         </div>
       )}
@@ -93,7 +93,7 @@ export const AccordionContent = ({
   >
     <div
       className={cn(
-        "pt-0 pb-2.5 [&_a]:hover:text-foreground  [&_p:not(:last-child)]:mb-4",
+        "pt-0 pb-2.5 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
         className,
       )}
     >

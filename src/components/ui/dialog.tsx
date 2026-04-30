@@ -27,7 +27,7 @@ export const DialogOverlay = ({ className, ...props }: DialogPrimitive.Backdrop.
   <DialogPrimitive.Backdrop
     data-slot="dialog-overlay"
     className={cn(
-      "fixed inset-0 z-102 bg-black/36 backdrop-blur-sm data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 duration-100",
+      "fixed inset-0 z-102 bg-black/36 backdrop-blur-sm duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
       className,
     )}
     {...props}
@@ -49,7 +49,7 @@ export const DialogContent = ({
     <DialogPrimitive.Popup
       data-slot="dialog-content"
       className={cn(
-        "fixed top-1/2 start-1/2 z-102 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 rtl:translate-x-1/2 -translate-y-1/2 rounded-lg bg-background outline-hidden grid  p-4 text-sm sm:max-w-sm data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 duration-100",
+        "fixed start-1/2 top-1/2 z-102 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg bg-background p-4 text-sm outline-hidden duration-100 sm:max-w-sm rtl:translate-x-1/2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
         className,
       )}
       {...props}
@@ -58,7 +58,7 @@ export const DialogContent = ({
       {showCloseButton && (
         <DialogPrimitive.Close
           data-slot="dialog-close"
-          render={<Button variant="ghost" className="absolute top-2 end-2" size="icon-sm" />}
+          render={<Button variant="ghost" className="absolute end-2 top-2" size="icon-sm" />}
         >
           <XIcon />
           <span className="sr-only">Close</span>
@@ -69,7 +69,7 @@ export const DialogContent = ({
 );
 
 export const DialogHeader = ({ className, ...props }: React.ComponentProps<"div">) => (
-  <div data-slot="dialog-header" className={cn("gap-2 flex flex-col", className)} {...props} />
+  <div data-slot="dialog-header" className={cn("flex flex-col gap-2", className)} {...props} />
 );
 
 export const DialogFooter = ({
@@ -83,7 +83,7 @@ export const DialogFooter = ({
   <div
     data-slot="dialog-footer"
     className={cn(
-      "bg-muted/50 -mx-4 -mb-4 rounded-b-xl border-t p-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+      "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
       className,
     )}
     {...props}
@@ -98,7 +98,7 @@ export const DialogFooter = ({
 export const DialogTitle = ({ className, ...props }: DialogPrimitive.Title.Props) => (
   <DialogPrimitive.Title
     data-slot="dialog-title"
-    className={cn("text-lg font-semibold font-sans text-gray-900", className)}
+    className={cn("font-sans text-lg font-semibold text-gray-900", className)}
     {...props}
   />
 );
@@ -107,7 +107,7 @@ export const DialogDescription = ({ className, ...props }: DialogPrimitive.Descr
   <DialogPrimitive.Description
     data-slot="dialog-description"
     className={cn(
-      "mt-2 text-sm text-gray-600 *:[a]:hover:text-foreground *:[a]:underline *:[a]:underline-offset-3",
+      "mt-2 text-sm text-gray-600 *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
       className,
     )}
     {...props}

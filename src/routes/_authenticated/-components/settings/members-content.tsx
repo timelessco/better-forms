@@ -116,20 +116,20 @@ export const MembersContent = () => {
                 (invitation: { id: string; email: string; role: string; status: string }) => (
                   <div
                     key={invitation.id}
-                    className="bg-[var(--gray-100)] rounded-xl pl-2 pr-2.5 py-2 flex items-center gap-3"
+                    className="flex items-center gap-3 rounded-xl bg-[var(--gray-100)] py-2 pr-2.5 pl-2"
                   >
-                    <div className="size-[38px] rounded-lg bg-background flex items-center justify-center">
+                    <div className="flex size-[38px] items-center justify-center rounded-lg bg-background">
                       <MailIcon className="size-[22px] text-muted-foreground" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{invitation.email}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm">{invitation.email}</p>
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-[var(--gray-600)] capitalize">
                           {invitation.role}
                         </span>
                         <Badge
                           variant={invitation.status === "pending" ? "secondary" : "outline"}
-                          className="text-[10px] px-1.5 py-0 h-4 capitalize"
+                          className="h-4 px-1.5 py-0 text-[10px] capitalize"
                         >
                           {invitation.status === "pending" && (
                             <ClockIcon className="mr-1 h-2.5 w-2.5" />
@@ -148,7 +148,7 @@ export const MembersContent = () => {
                         }
                         disabled={cancelInvitationMutation.isPending}
                         aria-label="Cancel invitation"
-                        className="h-[30px] bg-white rounded-lg shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] px-3 text-[13px] cursor-pointer hover:bg-gray-50 transition-colors shrink-0 text-destructive"
+                        className="h-[30px] shrink-0 cursor-pointer rounded-lg bg-white px-3 text-[13px] text-destructive shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] transition-colors hover:bg-gray-50"
                       >
                         <XIcon className="size-3.5" />
                       </button>
@@ -166,26 +166,26 @@ export const MembersContent = () => {
           <p className="text-[13px] text-[var(--gray-600)]">Manage members of your organization.</p>
           <div className="flex flex-col gap-2">
             {isLoadingMembers ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">Loading members...</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">Loading members...</p>
             ) : members.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">No members yet</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">No members yet</p>
             ) : (
               members.map(
                 (member: { id: string; role: string; user: { name?: string; email?: string } }) => (
                   <div
                     key={member.id}
-                    className="bg-[var(--gray-100)] rounded-xl pl-2 pr-2.5 py-2 flex items-center gap-3"
+                    className="flex items-center gap-3 rounded-xl bg-[var(--gray-100)] py-2 pr-2.5 pl-2"
                   >
-                    <div className="size-[38px] rounded-lg bg-background flex items-center justify-center text-sm font-bold">
+                    <div className="flex size-[38px] items-center justify-center rounded-lg bg-background text-sm font-bold">
                       {member.user.name?.charAt(0)?.toUpperCase() || "U"}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{member.user.name}</p>
-                      <p className="text-sm text-[var(--gray-600)] truncate">{member.user.email}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm">{member.user.name}</p>
+                      <p className="truncate text-sm text-[var(--gray-600)]">{member.user.email}</p>
                     </div>
                     <Badge
                       variant={member.role === "owner" ? "default" : "outline"}
-                      className="text-[10px] px-1.5 py-0 h-4 capitalize shrink-0"
+                      className="h-4 shrink-0 px-1.5 py-0 text-[10px] capitalize"
                     >
                       {member.role}
                     </Badge>
@@ -199,7 +199,7 @@ export const MembersContent = () => {
                         }
                         disabled={removeMemberMutation.isPending}
                         aria-label="Remove member"
-                        className="h-[30px] bg-white rounded-lg shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] px-3 text-[13px] cursor-pointer hover:bg-gray-50 transition-colors shrink-0"
+                        className="h-[30px] shrink-0 cursor-pointer rounded-lg bg-white px-3 text-[13px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] transition-colors hover:bg-gray-50"
                       >
                         <Trash2Icon className="size-3.5 text-destructive" />
                       </button>

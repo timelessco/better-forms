@@ -261,7 +261,7 @@ const AIInputPopoverBody = ({ state }: { state: AIInputState }) => {
       >
         <div
           className={cn(
-            "rounded-xl bg-background ring-1 ring-foreground/10 shadow-[0_0_1px_0_rgba(0,0,0,0.19),0_1px_2px_0_rgba(0,0,0,0.07),0_6px_15px_-5px_rgba(0,0,0,0.11)] transition-colors animate-in fade-in-0 zoom-in-95 duration-150",
+            "animate-in rounded-xl bg-background shadow-[0_0_1px_0_rgba(0,0,0,0.19),0_1px_2px_0_rgba(0,0,0,0.07),0_6px_15px_-5px_rgba(0,0,0,0.11)] ring-1 ring-foreground/10 transition-colors duration-150 fade-in-0 zoom-in-95",
             error && "ring-destructive",
           )}
         >
@@ -285,7 +285,7 @@ const AIInputPopoverBody = ({ state }: { state: AIInputState }) => {
               {attachedImages.map((img, i) => (
                 <div
                   key={img.url}
-                  className="group relative inline-flex items-center gap-1.5 rounded-full border bg-muted/40 py-0.5 pl-0.5 pr-2 text-xs text-foreground"
+                  className="group relative inline-flex items-center gap-1.5 rounded-full border bg-muted/40 py-0.5 pr-2 pl-0.5 text-xs text-foreground"
                   title={img.name}
                 >
                   <img src={img.url} alt="" className="size-5 shrink-0 rounded-full object-cover" />
@@ -340,7 +340,7 @@ const AIInputPopoverBody = ({ state }: { state: AIInputState }) => {
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 pl-4 pr-1.5">
+            <div className="flex items-center gap-2 pr-1.5 pl-4">
               <textarea
                 ref={inputRef}
                 value={input}

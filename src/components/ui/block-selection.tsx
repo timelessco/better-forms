@@ -8,7 +8,7 @@ import type { PlateElementProps } from "platejs/react";
 // render as Notion-style pills with a uniform --bf-block-margin visible
 // gap, regardless of the larger layout spacing around labels.
 export const blockSelectionVariants = cva(
-  "pointer-events-none absolute inset-0 z-1 bg-[rgba(32,117,224,0.13)] dark:bg-[rgba(64,119,189,0.2)] rounded-lg transition-opacity",
+  "pointer-events-none absolute inset-0 z-1 rounded-lg bg-[rgba(32,117,224,0.13)] transition-opacity dark:bg-[rgba(64,119,189,0.2)]",
   {
     defaultVariants: {
       active: true,

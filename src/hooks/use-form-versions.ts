@@ -48,9 +48,7 @@ export const useHasUnpublishedChanges = (formId: string | undefined) => {
 
   return useMemo(() => {
     if (!formId || !form) return false;
-    const flat = form as unknown as Record<string, unknown>;
-    const publishedHash = flat.publishedContentHash as string | null | undefined;
-    if (!flat.lastPublishedVersionId || !publishedHash) return false;
+    if (!form.lastPublishedVersionId || !form.publishedContentHash) return false;
 
     const currentHash = computeContentHash({
       content: form.content,
@@ -58,9 +56,9 @@ export const useHasUnpublishedChanges = (formId: string | undefined) => {
       title: form.title,
       icon: form.icon,
       cover: form.cover,
-      settings: flat,
+      settings: form.settings,
     });
-    return currentHash !== publishedHash;
+    return currentHash !== form.publishedContentHash;
   }, [formId, form]);
 };
 
@@ -90,14 +88,13 @@ export const publishForm = (formId: string) => {
       // Optimistically align publishedContentHash with the about-to-be-saved
       // snapshot so useHasUnpublishedChanges flips to "no changes" immediately,
       // without waiting for the server roundtrip + refetch.
-      const flat = draft as unknown as Record<string, unknown>;
-      flat.publishedContentHash = computeContentHash({
+      draft.publishedContentHash = computeContentHash({
         content: draft.content,
         customization: draft.customization,
         title: draft.title,
         icon: draft.icon,
         cover: draft.cover,
-        settings: flat,
+        settings: draft.settings,
       });
       draft.updatedAt = new Date().toISOString();
     });

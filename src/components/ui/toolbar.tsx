@@ -21,7 +21,7 @@ export const Toolbar = ({
   ...props
 }: React.ComponentProps<typeof ToolbarPrimitive.Root>) => (
   <ToolbarPrimitive.Root
-    className={cn("relative flex select-none items-center", className)}
+    className={cn("relative flex items-center select-none", className)}
     {...props}
   />
 );
@@ -52,7 +52,7 @@ export const ToolbarSeparator = ({
 
 // From toggleVariants
 const toolbarButtonVariants = cva(
-  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm outline-none transition-[color,box-shadow] hover:bg-muted hover:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-pressed:bg-accent aria-pressed:text-accent-foreground aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+  "inline-flex cursor-pointer items-center justify-center gap-2 rounded-md text-sm whitespace-nowrap transition-[color,box-shadow] outline-none hover:bg-muted hover:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 aria-pressed:bg-accent aria-pressed:text-accent-foreground dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     defaultVariants: {
       size: "default",
@@ -75,7 +75,7 @@ const toolbarButtonVariants = cva(
 
 const dropdownArrowVariants = cva(
   cn(
-    "inline-flex items-center justify-center rounded-r-md text-foreground text-sm transition-colors disabled:pointer-events-none disabled:opacity-50",
+    "inline-flex items-center justify-center rounded-r-md text-sm text-foreground transition-colors disabled:pointer-events-none disabled:opacity-50",
   ),
   {
     defaultVariants: {
@@ -92,7 +92,7 @@ const dropdownArrowVariants = cva(
         default:
           "bg-transparent hover:bg-muted hover:text-muted-foreground aria-pressed:bg-accent aria-pressed:text-accent-foreground",
         outline:
-          "border border-input border-l-0 bg-transparent hover:bg-accent hover:text-accent-foreground",
+          "border border-l-0 border-input bg-transparent hover:bg-accent hover:text-accent-foreground",
       },
     },
   },
@@ -271,7 +271,7 @@ export const ToolbarGroup = ({ children, className }: React.ComponentProps<"div"
   <div className={cn("group/toolbar-group", "relative hidden has-[button]:flex", className)}>
     <div className="flex items-center">{children}</div>
 
-    <div className="group-last/toolbar-group:hidden! mx-1.5 py-0.5">
+    <div className="mx-1.5 py-0.5 group-last/toolbar-group:hidden!">
       <Separator orientation="vertical" />
     </div>
   </div>
@@ -301,7 +301,7 @@ export const ToolbarMenuGroup = ({
     >
       {label && (
         <DropdownMenuGroup>
-          <DropdownMenuLabel className="select-none font-semibold text-muted-foreground text-xs">
+          <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground select-none">
             {label}
           </DropdownMenuLabel>
         </DropdownMenuGroup>

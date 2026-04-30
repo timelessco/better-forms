@@ -359,12 +359,12 @@ function EvilBrush({
 
       {/* Dim overlay – left */}
       <motion.div
-        className="bg-background/70 pointer-events-none absolute inset-y-0 start-0 rounded-s-md"
+        className="pointer-events-none absolute inset-y-0 start-0 rounded-s-md bg-background/70"
         style={{ width: leftOverlayWidth }}
       />
       {/* Dim overlay – right */}
       <motion.div
-        className="bg-background/70 pointer-events-none absolute inset-y-0 end-0 rounded-e-md"
+        className="pointer-events-none absolute inset-y-0 end-0 rounded-e-md bg-background/70"
         style={{ width: rightOverlayWidth }}
       />
 
@@ -422,14 +422,14 @@ function BrushHandle({
       >
         <div
           className={cn(
-            "bg-muted-foreground group-hover:bg-foreground relative flex h-4 w-1.5 items-center justify-center rounded-md transition-colors",
+            "relative flex h-4 w-1.5 items-center justify-center rounded-md bg-muted-foreground transition-colors group-hover:bg-foreground",
             isLeft ? "-start-[5.5px]" : "-end-[5.5px]",
           )}
         >
           <div className="flex flex-col gap-[2px]">
-            <div className="bg-background/70 h-[2px] w-[2px] rounded-full" />
-            <div className="bg-background/70 h-[2px] w-[2px] rounded-full" />
-            <div className="bg-background/70 h-[2px] w-[2px] rounded-full" />
+            <div className="h-[2px] w-[2px] rounded-full bg-background/70" />
+            <div className="h-[2px] w-[2px] rounded-full bg-background/70" />
+            <div className="h-[2px] w-[2px] rounded-full bg-background/70" />
           </div>
         </div>
       </div>
@@ -437,7 +437,7 @@ function BrushHandle({
       {label && (
         <div
           className={cn(
-            "bg-foreground text-background pointer-events-none absolute -bottom-3 -translate-y-1/2 rounded-[3px] px-1 py-px text-[8px] leading-tight font-medium whitespace-nowrap opacity-0 group-hover:opacity-100",
+            "pointer-events-none absolute -bottom-3 -translate-y-1/2 rounded-[3px] bg-foreground px-1 py-px text-[8px] leading-tight font-medium whitespace-nowrap text-background opacity-0 group-hover:opacity-100",
             isLeft ? "start-1.5" : "end-1.5",
           )}
         >

@@ -32,19 +32,20 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
     resolvedAppTheme,
   );
   const content = (doc?.content as Value) || [];
+  const docSettings = doc?.settings;
   const previewSettings = useMemo<PublicFormSettings>(
     () =>
-      buildPublicFormSettings(doc as Partial<PublicFormSettings> | null | undefined, {
-        branding: Boolean(doc?.branding ?? true),
+      buildPublicFormSettings(docSettings, {
+        branding: Boolean(docSettings?.branding ?? true),
       }),
-    [doc],
+    [docSettings],
   );
 
   const search = useSearch({ strict: false });
   const embedType = (search.embedType as EmbedType) ?? "fullpage";
   const hideTitle = (search.embedHideTitle as boolean) ?? false;
   const transparentBackground = (search.embedTransparent as boolean) ?? false;
-  const branding = (search.embedBranding as boolean) ?? doc?.branding ?? true;
+  const branding = (search.embedBranding as boolean) ?? docSettings?.branding ?? true;
   const height = (search.embedHeight as number) ?? 558;
   const dynamicHeight = (search.embedDynamicHeight as boolean) ?? true;
   const popupPosition = (search.embedPopupPosition as string) ?? "bottom-right";
@@ -66,10 +67,10 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
 
   if (!isLoading && savedDocs !== undefined && savedDocs.length === 0) {
     return (
-      <div className="h-full w-full flex items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <div className="text-center">
-          <h2 className="text-lg mb-2">Form Not Found</h2>
-          <p className="text-sm text-muted-foreground mb-4">
+          <h2 className="mb-2 text-lg">Form Not Found</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
             This form does not exist or has been deleted.
           </p>
           <Link to="/workspace/$workspaceId" params={{ workspaceId }}>
@@ -81,7 +82,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
   }
 
   if (isLoading || !doc) {
-    return <div className="h-full w-full flex items-center justify-center">Loading...</div>;
+    return <div className="flex h-full w-full items-center justify-center">Loading...</div>;
   }
 
   return (
@@ -90,7 +91,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
         className={cn(
           hasCustomization && "bf-themed",
           resolvedAppTheme === "dark" && "dark",
-          "w-full h-full flex flex-col transition-colors duration-300 bg-background text-foreground overflow-hidden",
+          "flex h-full w-full flex-col overflow-hidden bg-background text-foreground transition-colors duration-300",
         )}
         style={{
           ...(hasCustomization ? themeVars : undefined),
@@ -98,54 +99,54 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
         }}
       >
         {embedType !== "fullpage" && (
-          <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col scrollbar-hide">
-            <div className="flex-1 relative p-4 lg:p-0">
-              <div className="max-w-[1000px] mx-auto pt-4 px-4 lg:px-8 space-y-8">
+          <div className="scrollbar-hide flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+            <div className="relative flex-1 p-4 lg:p-0">
+              <div className="mx-auto max-w-[1000px] space-y-8 px-4 pt-4 lg:px-8">
                 <div className="flex items-center pt-2">
-                  <span className="text-muted-foreground/40 font-bold text-[10px] uppercase tracking-widest">
+                  <span className="text-[10px] font-bold tracking-widest text-muted-foreground/40 uppercase">
                     Live Preview
                   </span>
                 </div>
 
                 <div className="space-y-4 opacity-40">
-                  <div className="w-20 h-4 bg-muted/50 border border-border/50 rounded-sm" />
-                  <div className="flex justify-between items-end border-b border-border/30 pb-3">
+                  <div className="h-4 w-20 rounded-sm border border-border/50 bg-muted/50" />
+                  <div className="flex items-end justify-between border-b border-border/30 pb-3">
                     <div className="flex gap-4 lg:gap-6">
-                      <div className="w-8 lg:w-10 h-1.5 bg-muted/50 rounded-full" />
-                      <div className="w-8 lg:w-10 h-1.5 bg-muted/50 rounded-full" />
+                      <div className="h-1.5 w-8 rounded-full bg-muted/50 lg:w-10" />
+                      <div className="h-1.5 w-8 rounded-full bg-muted/50 lg:w-10" />
                     </div>
-                    <div className="w-12 lg:w-14 h-6 bg-muted/30 border border-border/30 rounded-md" />
+                    <div className="h-6 w-12 rounded-md border border-border/30 bg-muted/30 lg:w-14" />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-12 gap-4 lg:gap-8 pt-2">
-                  <div className="hidden lg:block col-span-3 space-y-5 opacity-30">
-                    <div className="w-full h-6 bg-muted/40 rounded-sm" />
+                <div className="grid grid-cols-12 gap-4 pt-2 lg:gap-8">
+                  <div className="col-span-3 hidden space-y-5 opacity-30 lg:block">
+                    <div className="h-6 w-full rounded-sm bg-muted/40" />
                     <div className="space-y-2">
-                      <div className="w-full h-1.5 bg-muted/50 rounded-full" />
-                      <div className="w-4/5 h-1.5 bg-muted/50 rounded-full" />
+                      <div className="h-1.5 w-full rounded-full bg-muted/50" />
+                      <div className="h-1.5 w-4/5 rounded-full bg-muted/50" />
                     </div>
-                    <div className="w-full h-24 bg-muted/20 border border-dashed border-border/50 rounded-xl" />
+                    <div className="h-24 w-full rounded-xl border border-dashed border-border/50 bg-muted/20" />
                   </div>
 
-                  <div className="col-span-12 lg:col-span-9 space-y-6">
+                  <div className="col-span-12 space-y-6 lg:col-span-9">
                     <div className="space-y-3 opacity-40">
-                      <div className="w-2/3 h-5 bg-muted/50 border border-border/50 rounded-sm" />
+                      <div className="h-5 w-2/3 rounded-sm border border-border/50 bg-muted/50" />
                       <div className="space-y-1.5">
-                        <div className="w-full h-1.5 bg-muted/50 rounded-full" />
-                        <div className="w-full h-1.5 bg-muted/50 rounded-full" />
+                        <div className="h-1.5 w-full rounded-full bg-muted/50" />
+                        <div className="h-1.5 w-full rounded-full bg-muted/50" />
                       </div>
                     </div>
 
                     {embedType === "standard" && (
-                      <div className="relative group/embed">
-                        <div className="absolute -top-5 right-0 text-[8px] font-bold text-muted-foreground/30 uppercase tracking-widest pointer-events-none">
+                      <div className="group/embed relative">
+                        <div className="pointer-events-none absolute -top-5 right-0 text-[8px] font-bold tracking-widest text-muted-foreground/30 uppercase">
                           Embedded State
                         </div>
 
                         <div
                           className={cn(
-                            "w-full transition-all duration-500 border-2 border-dashed border-border rounded-lg overflow-hidden",
+                            "w-full overflow-hidden rounded-lg border-2 border-dashed border-border transition-all duration-500",
                             transparentBackground
                               ? "bg-[repeating-conic-gradient(#e8e8e8_0%_25%,white_0%_50%)] bg-[length:12px_12px]"
                               : "bg-background",
@@ -156,9 +157,9 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
                         >
                           <div
                             className={cn(
-                              "w-full h-full overflow-x-hidden",
+                              "h-full w-full overflow-x-hidden",
                               !dynamicHeight &&
-                                "overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20",
+                                "scrollbar-thin scrollbar-thumb-muted-foreground/20 overflow-y-auto",
                               alignLeft ? "max-w-[600px]" : "",
                             )}
                             style={
@@ -184,8 +185,8 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
                     )}
 
                     <div className="space-y-2 pt-4 opacity-20">
-                      <div className="w-full h-1.5 bg-muted/50 rounded-full" />
-                      <div className="w-3/4 h-1.5 bg-muted/50 rounded-full" />
+                      <div className="h-1.5 w-full rounded-full bg-muted/50" />
+                      <div className="h-1.5 w-3/4 rounded-full bg-muted/50" />
                     </div>
 
                     {branding && <BrandingBadge />}
@@ -194,11 +195,11 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
               </div>
 
               {embedType === "popup" && (
-                <div className="absolute inset-0 flex flex-col pointer-events-none">
+                <div className="pointer-events-none absolute inset-0 flex flex-col">
                   {darkOverlay && isPopupOpen && (
                     <button
                       type="button"
-                      className="absolute inset-0 bg-black/40 z-10 transition-opacity duration-300 pointer-events-auto w-full h-full border-none cursor-default"
+                      className="pointer-events-auto absolute inset-0 z-10 h-full w-full cursor-default border-none bg-black/40 transition-opacity duration-300"
                       onClick={handleClosePopup}
                       aria-label="Close preview"
                     />
@@ -206,7 +207,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
 
                   {isPopupOpen && (
                     <div
-                      className="absolute bg-background rounded-2xl shadow-[0_30px_60px_rgba(0,0,0,0.15)] border border-border overflow-hidden flex flex-col z-20 pointer-events-auto transition-[top,left,transform] duration-300 ease-out"
+                      className="pointer-events-auto absolute z-20 flex flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-[0_30px_60px_rgba(0,0,0,0.15)] transition-[top,left,transform] duration-300 ease-out"
                       style={{
                         width: popupWidth,
                         ...(popupPosition === "center"
@@ -224,11 +225,11 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
                               }),
                       }}
                     >
-                      <div className="absolute top-4 right-4 z-30 pointer-events-auto">
+                      <div className="pointer-events-auto absolute top-4 right-4 z-30">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 hover:bg-muted text-muted-foreground bg-background/50 backdrop-blur-sm rounded-full shadow-sm"
+                          className="h-8 w-8 rounded-full bg-background/50 text-muted-foreground shadow-sm backdrop-blur-sm hover:bg-muted"
                           onClick={handleClosePopup}
                           aria-label="Close"
                         >
@@ -239,8 +240,8 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
                       <div
                         className={
                           previewSettings.presentationMode === "field-by-field"
-                            ? "overflow-hidden h-[650px]"
-                            : "overflow-y-auto overflow-x-hidden max-h-[650px]"
+                            ? "h-[650px] overflow-hidden"
+                            : "max-h-[650px] overflow-x-hidden overflow-y-auto"
                         }
                       >
                         <FormPreviewFromPlate
@@ -258,7 +259,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
                       </div>
 
                       {branding && (
-                        <div className="py-3 flex justify-center bg-muted/60 border-t border-border shrink-0">
+                        <div className="flex shrink-0 justify-center border-t border-border bg-muted/60 py-3">
                           <div className="flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
                             <span>Made with</span>
                             <SparklesIcon className="h-3 w-3 fill-muted-foreground text-muted-foreground" />
@@ -274,7 +275,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
                       type="button"
                       onClick={handleOpenPopup}
                       aria-label="Open form preview"
-                      className="absolute z-20 pointer-events-auto w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-[0_4px_20px_rgba(0,0,0,0.15)] flex items-center justify-center hover:scale-105 active:scale-95 transition-[inset] duration-300 ease-out cursor-pointer"
+                      className="pointer-events-auto absolute z-20 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_4px_20px_rgba(0,0,0,0.15)] transition-[inset] duration-300 ease-out hover:scale-105 active:scale-95"
                       style={
                         popupPosition === "bottom-left"
                           ? { bottom: 24, left: 24, right: "auto" }
@@ -282,12 +283,12 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
                       }
                     >
                       {showEmoji && doc.icon && iconMap.has(doc.icon) ? (
-                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
                           <use href={`${SPRITE_PATH}#${doc.icon}`} />
                         </svg>
                       ) : (
                         <svg
-                          className="w-6 h-6"
+                          className="h-6 w-6"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -309,7 +310,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
         {embedType === "fullpage" && (
           <div
             className={cn(
-              "relative flex-1 flex flex-col transition-colors duration-300 overflow-hidden",
+              "relative flex flex-1 flex-col overflow-hidden transition-colors duration-300",
               transparentBackground ? "bg-transparent" : "bg-background",
             )}
           >
@@ -320,9 +321,9 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
             )}
             <div
               className={cn(
-                "flex-1 w-full h-full min-h-0",
+                "h-full min-h-0 w-full flex-1",
                 previewSettings.presentationMode !== "field-by-field" &&
-                  "overflow-y-auto overflow-x-hidden",
+                  "overflow-x-hidden overflow-y-auto",
                 previewSettings.presentationMode !== "field-by-field" && branding && "pb-16",
               )}
             >
@@ -360,21 +361,21 @@ const FieldByFieldCoverBackground = ({ cover }: { cover: string }) => {
           alt=""
           aria-hidden="true"
           className={cn(
-            "absolute inset-0 z-0 h-full w-full object-cover pointer-events-none",
+            "pointer-events-none absolute inset-0 z-0 h-full w-full object-cover",
             hasTint && "brightness-60 grayscale",
           )}
         />
       ) : (
         <div
           aria-hidden="true"
-          className="absolute inset-0 z-0 pointer-events-none"
+          className="pointer-events-none absolute inset-0 z-0"
           style={{ backgroundColor: cover }}
         />
       )}
       {hasTint && (
         <div
           aria-hidden="true"
-          className="absolute inset-0 z-0 bg-primary opacity-50 mix-blend-color pointer-events-none"
+          className="pointer-events-none absolute inset-0 z-0 bg-primary opacity-50 mix-blend-color"
         />
       )}
     </>
@@ -382,7 +383,7 @@ const FieldByFieldCoverBackground = ({ cover }: { cover: string }) => {
 };
 
 const BrandingBadge = () => (
-  <div className="absolute bottom-0 left-0 right-0 z-50 py-3 flex justify-center bg-muted/60 backdrop-blur border-t border-border">
+  <div className="absolute right-0 bottom-0 left-0 z-50 flex justify-center border-t border-border bg-muted/60 py-3 backdrop-blur">
     <span className="flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
       <span>Made with</span>
       <SparklesIcon className="h-3 w-3 fill-muted-foreground text-muted-foreground" />

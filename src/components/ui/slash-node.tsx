@@ -420,7 +420,7 @@ export const SlashInputElement = (props: PlateElementProps<TComboboxInputElement
         </div>
         <div className="mt-2">
           <div className="text-sm font-medium">{item.label ?? item.value}</div>
-          <div className="text-xs text-muted-foreground line-clamp-1">{item.description}</div>
+          <div className="line-clamp-1 text-xs text-muted-foreground">{item.description}</div>
         </div>
       </div>
     );

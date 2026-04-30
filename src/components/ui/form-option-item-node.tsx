@@ -161,24 +161,24 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
     <PlateElement
       attributes={{ ...attributes, "data-bf-input": "true" }}
       className={cn(
-        "relative w-full max-w-[464px] cursor-text caret-current rounded-md before:left-[30px] before:top-[14px] before:-translate-y-1/2 before:text-sm",
+        "relative w-full max-w-[464px] cursor-text rounded-md caret-current before:top-[14px] before:left-[30px] before:-translate-y-1/2 before:text-sm",
         colorStyle && cn(colorStyle.bg, colorStyle.text),
       )}
       element={element}
       {...rest}
     >
-      <div className="flex h-7 items-center gap-2 pl-[2px] pr-6">
-        <span contentEditable={false} className="shrink-0 select-none pointer-events-none">
+      <div className="flex h-7 items-center gap-2 pr-6 pl-[2px]">
+        <span contentEditable={false} className="pointer-events-none shrink-0 select-none">
           <OptionIcon variant={variant} index={optionIndex} />
         </span>
-        <span className="flex-1 min-w-0 outline-none text-sm">{children}</span>
+        <span className="min-w-0 flex-1 text-sm outline-none">{children}</span>
       </div>
 
       {showGhost && (
         <div
           contentEditable={false}
           data-bf-drag-ignore="true"
-          className="absolute left-0 right-0 top-[calc(100%+4px)] flex h-7 items-center gap-2 pl-[2px] opacity-40 select-none pointer-events-none"
+          className="pointer-events-none absolute top-[calc(100%+4px)] right-0 left-0 flex h-7 items-center gap-2 pl-[2px] opacity-40 select-none"
         >
           <OptionIcon variant={variant} index={optionIndex + 1} />
           <span className="text-sm text-muted-foreground">Add option</span>

@@ -38,7 +38,7 @@ const RootDocument = ({ children }: { children: React.ReactNode }) => (
     </head>
     <body
       suppressHydrationWarning
-      className="min-h-screen bg-background text-foreground antialiased font-sans"
+      className="min-h-screen bg-background font-sans text-foreground antialiased"
     >
       <HotkeysProvider defaultOptions={{ hotkey: { preventDefault: true } }}>
         <ThemeProvider defaultTheme="system">

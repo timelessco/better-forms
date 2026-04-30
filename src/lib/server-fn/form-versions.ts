@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { forms, formVersions, user } from "@/db/schema";
+import { mergeFormSettings } from "@/lib/server-fn/forms";
 import { db } from "@/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { computeContentHash, pickVersionedSettings } from "@/lib/content-hash";
@@ -18,7 +19,6 @@ const serializeVersion = (version: typeof formVersions.$inferSelect) => ({
   publishedAt: version.publishedAt.toISOString(),
   createdAt: version.createdAt.toISOString(),
   content: version.content as object[],
-  settings: version.settings as Record<string, object>,
   customization: (version.customization ?? {}) as Record<string, string>,
 });
 
@@ -50,13 +50,13 @@ export const publishFormVersion = createServerFn({ method: "POST" })
       const nextVersionNumber = (lastVersion?.version ?? 0) + 1;
       const now = new Date();
 
-      // Snapshot Group 2 behavior settings (flat columns) into the version's
-      // settings jsonb so the public endpoint can read them from the snapshot
-      // instead of the live forms row. Group 4 (slug, customDomainId, branding)
-      // is intentionally excluded — those stay live. `pickVersionedSettings`
-      // is the same helper that drives the client-side hash, so the snapshot,
-      // the hash, and the listings query stay in lockstep.
-      const settingsSnapshot = pickVersionedSettings(form as unknown as Record<string, unknown>);
+      // Snapshot Group 2 behavior settings into the version's settings jsonb
+      // so the public endpoint can read them from the snapshot instead of the
+      // live forms.settings. Group 4 (slug, customDomainId, branding,
+      // analytics) is intentionally excluded — those stay live.
+      // `pickVersionedSettings` is the same helper that drives the client-side
+      // hash, so the snapshot, the hash, and the listings query stay in lockstep.
+      const settingsSnapshot = pickVersionedSettings(form.settings);
 
       const contentHash = computeContentHash({
         content: form.content,
@@ -92,7 +92,6 @@ export const publishFormVersion = createServerFn({ method: "POST" })
         .set({
           content: form.content,
           title: form.title,
-          settings: form.settings,
           status: "published",
           lastPublishedVersionId: versionId,
           publishedContentHash: contentHash,
@@ -222,7 +221,7 @@ export const restoreFormVersion = createServerFn({ method: "POST" })
       success: true,
       version: {
         content: version.content as object[],
-        settings: version.settings as Record<string, object>,
+        settings: version.settings,
         title: version.title,
       },
     };
@@ -249,7 +248,7 @@ export const discardFormChanges = createServerFn({ method: "POST" })
     }
 
     const version = result.version;
-    const snapshotSettings = (version.settings ?? {}) as Record<string, unknown>;
+    const snapshotSettings = version.settings ?? {};
 
     const contentHash = computeContentHash({
       content: version.content,
@@ -260,9 +259,10 @@ export const discardFormChanges = createServerFn({ method: "POST" })
       settings: snapshotSettings,
     });
 
-    // Reset every versioned field (Groups 1-3) on the live draft back to the
-    // snapshot. Group 4 (slug, customDomainId, branding) intentionally left
-    // untouched — those are live and never versioned.
+    // Reset every versioned field on the live draft back to the snapshot via a
+    // jsonb concat — `forms.settings || snapshot` keeps the live-only keys
+    // (branding, analytics) and overwrites the versioned ones. Group 4 (slug,
+    // customDomainId) is on top-level columns and intentionally left untouched.
     const [updatedForm] = await db
       .update(forms)
       .set({
@@ -271,32 +271,7 @@ export const discardFormChanges = createServerFn({ method: "POST" })
         customization: version.customization ?? {},
         icon: version.icon,
         cover: version.cover,
-        progressBar: (snapshotSettings.progressBar as boolean) ?? false,
-        presentationMode: (snapshotSettings.presentationMode as string) ?? "card",
-        saveAnswersForLater: (snapshotSettings.saveAnswersForLater as boolean) ?? true,
-        redirectOnCompletion: (snapshotSettings.redirectOnCompletion as boolean) ?? false,
-        redirectUrl: (snapshotSettings.redirectUrl as string | null) ?? null,
-        redirectDelay: (snapshotSettings.redirectDelay as number) ?? 0,
-        language: (snapshotSettings.language as string) ?? "English",
-        passwordProtect: (snapshotSettings.passwordProtect as boolean) ?? false,
-        password: (snapshotSettings.password as string | null) ?? null,
-        closeForm: (snapshotSettings.closeForm as boolean) ?? false,
-        closedFormMessage:
-          (snapshotSettings.closedFormMessage as string | null) ?? "This form is now closed.",
-        closeOnDate: (snapshotSettings.closeOnDate as boolean) ?? false,
-        closeDate: (snapshotSettings.closeDate as string | null) ?? null,
-        limitSubmissions: (snapshotSettings.limitSubmissions as boolean) ?? false,
-        maxSubmissions: (snapshotSettings.maxSubmissions as number | null) ?? null,
-        preventDuplicateSubmissions:
-          (snapshotSettings.preventDuplicateSubmissions as boolean) ?? false,
-        selfEmailNotifications: (snapshotSettings.selfEmailNotifications as boolean) ?? false,
-        notificationEmail: (snapshotSettings.notificationEmail as string | null) ?? null,
-        respondentEmailNotifications:
-          (snapshotSettings.respondentEmailNotifications as boolean) ?? false,
-        respondentEmailSubject: (snapshotSettings.respondentEmailSubject as string | null) ?? null,
-        respondentEmailBody: (snapshotSettings.respondentEmailBody as string | null) ?? null,
-        dataRetention: (snapshotSettings.dataRetention as boolean) ?? false,
-        dataRetentionDays: (snapshotSettings.dataRetentionDays as number | null) ?? null,
+        settings: mergeFormSettings(snapshotSettings),
         publishedContentHash: contentHash,
         updatedAt: new Date(),
       })
@@ -308,14 +283,13 @@ export const discardFormChanges = createServerFn({ method: "POST" })
       form: {
         ...updatedForm,
         content: updatedForm.content as object[],
-        settings: (updatedForm.settings ?? {}) as Record<string, object>,
         customization: (updatedForm.customization ?? {}) as Record<string, string>,
         updatedAt: updatedForm.updatedAt.toISOString(),
         createdAt: updatedForm.createdAt.toISOString(),
       },
       version: {
         content: version.content as object[],
-        settings: version.settings as Record<string, object>,
+        settings: version.settings,
         title: version.title,
       },
     };

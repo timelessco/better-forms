@@ -16,11 +16,11 @@ export const FormSettingsSidebar = ({ formId, isLocal }: FormSettingsSidebarProp
     <Sidebar
       side="right"
       collapsible="none"
-      className="w-full h-full border-none animate-in slide-in-from-right-[40%] duration-200 ease-out"
+      className="h-full w-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
     >
-      <SidebarHeader className="pt-2 pb-3 pl-1 shrink-0 gap-2.25 space-y-2">
+      <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-normal text-foreground pl-2.5">Settings</h2>
+          <h2 className="pl-2.5 text-base font-normal text-foreground">Settings</h2>
           <Button
             variant="ghost"
             size="icon-xs"

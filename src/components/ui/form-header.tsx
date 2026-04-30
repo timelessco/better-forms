@@ -58,7 +58,7 @@ const CoverUpload = ({ onFileChange }: { onFileChange: (url: string) => void }) 
     <div className="flex flex-col gap-4">
       <button
         className={cn(
-          "group/cover-upload relative h-32 w-full cursor-pointer overflow-hidden rounded-md border-2 border-dashed transition-colors flex items-center justify-center",
+          "group/cover-upload relative flex h-32 w-full cursor-pointer items-center justify-center overflow-hidden rounded-md border-2 border-dashed transition-colors",
           isDragging
             ? "border-primary bg-primary/5"
             : "border-muted-foreground/25 hover:border-muted-foreground/20 hover:bg-muted/50",
@@ -77,7 +77,7 @@ const CoverUpload = ({ onFileChange }: { onFileChange: (url: string) => void }) 
           <span className="text-xs">Max 5MB</span>
         </div>
       </button>
-      {errors.length > 0 && <div className="text-destructive text-sm">{errors[0]}</div>}
+      {errors.length > 0 && <div className="text-sm text-destructive">{errors[0]}</div>}
     </div>
   );
 };
@@ -91,11 +91,11 @@ const FormHeaderCover = () => {
   const setCoverUrl = (url: string | null) => onCoverChange(url);
 
   return (
-    <div className="relative w-full h-[120px] sm:h-[200px] group/cover bg-muted/20">
+    <div className="group/cover relative h-[120px] w-full bg-muted/20 sm:h-[200px]">
       {cover && !cover.startsWith("#") ? (
         <>
           {cover.includes("tint=true") && (
-            <div className="absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color pointer-events-none" />
+            <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
           )}
           <img
             src={cover}
@@ -103,27 +103,27 @@ const FormHeaderCover = () => {
             width={800}
             height={200}
             className={cn(
-              "w-full h-full object-cover",
+              "h-full w-full object-cover",
               cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
             )}
           />
         </>
       ) : (
         <div
-          className="w-full h-full"
+          className="h-full w-full"
           style={{
             backgroundColor: cover?.startsWith("#") ? cover : "#FFE4E1",
           }}
         />
       )}{" "}
-      <div className="absolute bottom-2 right-2 opacity-0 group-hover/cover:opacity-100 transition-opacity flex gap-2">
+      <div className="absolute right-2 bottom-2 flex gap-2 opacity-0 transition-opacity group-hover/cover:opacity-100">
         <Dialog>
           <DialogTrigger
             render={
               <Button
                 variant="secondary"
                 size="sm"
-                className="bg-white/80 hover:bg-white text-xs h-7"
+                className="h-7 bg-white/80 text-xs hover:bg-white"
               />
             }
           >
@@ -146,16 +146,16 @@ const FormHeaderCover = () => {
                       "https://images.unsplash.com/photo-1604076850742-4c7221f3101b?w=800&q=80&tint=true",
                     )
                   }
-                  className="h-16 bg-muted rounded relative cursor-pointer hover:ring-2 ring-primary overflow-hidden transition-[opacity,transform]"
+                  className="relative h-16 cursor-pointer overflow-hidden rounded bg-muted ring-primary transition-[opacity,transform] hover:ring-2"
                   aria-label="Abstract mesh"
                 >
-                  <div className="absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color pointer-events-none" />
+                  <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
                   <img
                     src="https://images.unsplash.com/photo-1604076850742-4c7221f3101b?w=800&q=80&tint=true"
                     alt="Abstract mesh"
                     width={200}
                     height={64}
-                    className="relative z-0 w-full h-full object-cover brightness-60 grayscale"
+                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -165,16 +165,16 @@ const FormHeaderCover = () => {
                       "https://images.unsplash.com/photo-1574169208507-84376144848b?w=800&q=80&tint=true",
                     )
                   }
-                  className="h-16 bg-muted rounded relative cursor-pointer hover:ring-2 ring-primary overflow-hidden transition-[opacity,transform]"
+                  className="relative h-16 cursor-pointer overflow-hidden rounded bg-muted ring-primary transition-[opacity,transform] hover:ring-2"
                   aria-label="Abstract gradient"
                 >
-                  <div className="absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color pointer-events-none" />
+                  <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
                   <img
                     src="https://images.unsplash.com/photo-1574169208507-84376144848b?w=800&q=80&tint=true"
                     alt="Abstract gradient"
                     width={200}
                     height={64}
-                    className="relative z-0 w-full h-full object-cover brightness-60 grayscale"
+                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -184,16 +184,16 @@ const FormHeaderCover = () => {
                       "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=800&q=80&tint=true",
                     )
                   }
-                  className="h-16 bg-muted rounded relative cursor-pointer hover:ring-2 ring-primary overflow-hidden transition-[opacity,transform]"
+                  className="relative h-16 cursor-pointer overflow-hidden rounded bg-muted ring-primary transition-[opacity,transform] hover:ring-2"
                   aria-label="Abstract geometric"
                 >
-                  <div className="absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color pointer-events-none" />
+                  <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
                   <img
                     src="https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=800&q=80&tint=true"
                     alt="Abstract geometric"
                     width={200}
                     height={64}
-                    className="relative z-0 w-full h-full object-cover brightness-60 grayscale"
+                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -203,16 +203,16 @@ const FormHeaderCover = () => {
                       "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80&tint=true",
                     )
                   }
-                  className="h-16 bg-muted rounded relative cursor-pointer hover:ring-2 ring-primary overflow-hidden transition-[opacity,transform]"
+                  className="relative h-16 cursor-pointer overflow-hidden rounded bg-muted ring-primary transition-[opacity,transform] hover:ring-2"
                   aria-label="Abstract liquid"
                 >
-                  <div className="absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color pointer-events-none" />
+                  <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
                   <img
                     src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80&tint=true"
                     alt="Abstract liquid"
                     width={200}
                     height={64}
-                    className="relative z-0 w-full h-full object-cover brightness-60 grayscale"
+                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -222,16 +222,16 @@ const FormHeaderCover = () => {
                       "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?w=800&q=80&tint=true",
                     )
                   }
-                  className="h-16 bg-muted rounded relative cursor-pointer hover:ring-2 ring-primary overflow-hidden transition-[opacity,transform]"
+                  className="relative h-16 cursor-pointer overflow-hidden rounded bg-muted ring-primary transition-[opacity,transform] hover:ring-2"
                   aria-label="3D shapes"
                 >
-                  <div className="absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color pointer-events-none" />
+                  <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
                   <img
                     src="https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?w=800&q=80&tint=true"
                     alt="3D shapes"
                     width={200}
                     height={64}
-                    className="relative z-0 w-full h-full object-cover brightness-60 grayscale"
+                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -241,16 +241,16 @@ const FormHeaderCover = () => {
                       "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80&tint=true",
                     )
                   }
-                  className="h-16 bg-muted rounded relative cursor-pointer hover:ring-2 ring-primary overflow-hidden transition-[opacity,transform]"
+                  className="relative h-16 cursor-pointer overflow-hidden rounded bg-muted ring-primary transition-[opacity,transform] hover:ring-2"
                   aria-label="Gradient curves"
                 >
-                  <div className="absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color pointer-events-none" />
+                  <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
                   <img
                     src="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80&tint=true"
                     alt="Gradient curves"
                     width={200}
                     height={64}
-                    className="relative z-0 w-full h-full object-cover brightness-60 grayscale"
+                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -260,16 +260,16 @@ const FormHeaderCover = () => {
                       "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=800&q=80&tint=true",
                     )
                   }
-                  className="h-16 bg-muted rounded relative cursor-pointer hover:ring-2 ring-primary overflow-hidden transition-[opacity,transform]"
+                  className="relative h-16 cursor-pointer overflow-hidden rounded bg-muted ring-primary transition-[opacity,transform] hover:ring-2"
                   aria-label="Geometric waves"
                 >
-                  <div className="absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color pointer-events-none" />
+                  <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
                   <img
                     src="https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=800&q=80&tint=true"
                     alt="Geometric waves"
                     width={200}
                     height={64}
-                    className="relative z-0 w-full h-full object-cover brightness-60 grayscale"
+                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -279,23 +279,23 @@ const FormHeaderCover = () => {
                       "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=800&q=80&tint=true",
                     )
                   }
-                  className="h-16 bg-muted rounded relative cursor-pointer hover:ring-2 ring-primary overflow-hidden transition-[opacity,transform]"
+                  className="relative h-16 cursor-pointer overflow-hidden rounded bg-muted ring-primary transition-[opacity,transform] hover:ring-2"
                   aria-label="Abstract paint"
                 >
-                  <div className="absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color pointer-events-none" />
+                  <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
                   <img
                     src="https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=800&q=80&tint=true"
                     alt="Abstract paint"
                     width={200}
                     height={64}
-                    className="relative z-0 w-full h-full object-cover brightness-60 grayscale"
+                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
                   />
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setCoverUrl(null)}
-                  className="col-span-4 mt-2 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors py-2 border rounded-md hover:bg-muted/50"
+                  className="col-span-4 mt-2 flex items-center justify-center gap-2 rounded-md border py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-destructive"
                 >
                   <XIcon className="h-4 w-4" /> Remove cover
                 </button>
@@ -305,7 +305,7 @@ const FormHeaderCover = () => {
                 <button
                   type="button"
                   onClick={() => setCoverUrl(null)}
-                  className="w-full mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors py-2 border rounded-md hover:bg-muted/50"
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-destructive"
                 >
                   <XIcon className="h-4 w-4" /> Remove cover
                 </button>
@@ -335,7 +335,7 @@ const FormHeaderIcon = () => {
       <Dialog>
         <DialogTrigger
           render={
-            <div className="w-[60px] h-[60px] sm:w-[80px] sm:h-[80px] rounded-full overflow-hidden shadow-sm bg-background cursor-pointer hover:ring-2 hover:ring-muted-foreground/20 transition-all group/logo" />
+            <div className="group/logo h-[60px] w-[60px] cursor-pointer overflow-hidden rounded-full bg-background shadow-sm transition-all hover:ring-2 hover:ring-muted-foreground/20 sm:h-[80px] sm:w-[80px]" />
           }
         >
           {icon && icon !== "default-icon" ? (
@@ -344,12 +344,12 @@ const FormHeaderIcon = () => {
               alt="Logo"
               width={80}
               height={80}
-              className="w-full h-full object-cover"
+              className="h-full w-full object-cover"
             />
           ) : (
-            <div className="w-full h-full bg-black flex items-center justify-center text-white">
+            <div className="flex h-full w-full items-center justify-center bg-black text-white">
               <svg
-                className="w-6 h-6 sm:w-10 sm:h-10"
+                className="h-6 w-6 sm:h-10 sm:w-10"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -374,7 +374,7 @@ const FormHeaderIcon = () => {
             </TabsList>
             <TabsContent
               value="emoji"
-              className="h-[200px] flex flex-col items-center justify-center text-muted-foreground gap-4"
+              className="flex h-[200px] flex-col items-center justify-center gap-4 text-muted-foreground"
             >
               <span className="text-sm">Emoji picker placeholder</span>
               <Button
@@ -386,7 +386,7 @@ const FormHeaderIcon = () => {
                 <XIcon className="mr-2 h-4 w-4" /> Remove icon
               </Button>
             </TabsContent>
-            <TabsContent value="upload" className="pt-4 flex flex-col items-center">
+            <TabsContent value="upload" className="flex flex-col items-center pt-4">
               <AvatarUpload
                 onFileChange={(file) => {
                   if (file?.preview) {
@@ -398,7 +398,7 @@ const FormHeaderIcon = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => setLogoUrl(null)}
-                className="mt-4 text-destructive hover:text-destructive hover:bg-destructive/10"
+                className="mt-4 text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 Remove icon
               </Button>
@@ -414,14 +414,14 @@ const FormHeaderTitle = () => {
   const { title, onTitleChange } = useFormHeaderContext();
 
   return (
-    <div className="relative group/title">
+    <div className="group/title relative">
       <input
         type="text"
         placeholder="Form title"
         value={title}
         onChange={(e) => onTitleChange(e.target.value)}
         aria-label="Form title"
-        className="w-full text-2xl sm:text-4xl font-bold border-none outline-none bg-transparent placeholder:text-muted-foreground/50 py-1 sm:py-2 h-auto focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-auto w-full border-none bg-transparent py-1 text-2xl font-bold outline-none placeholder:text-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-ring sm:py-2 sm:text-4xl"
       />
     </div>
   );
@@ -435,7 +435,7 @@ const ActionButtons = () => {
   return (
     <div
       className={cn(
-        "flex gap-1 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+        "mb-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100",
         !hasCover && !hasLogo && "mt-8 sm:mt-12",
         hasCover && !hasLogo && "mt-4",
         !hasCover && hasLogo && "mt-0",
@@ -445,7 +445,7 @@ const ActionButtons = () => {
         <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground h-6 px-2 text-xs hover:bg-muted"
+          className="h-6 px-2 text-xs text-muted-foreground hover:bg-muted"
           onClick={handleAddIcon}
         >
           <SmileIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -456,7 +456,7 @@ const ActionButtons = () => {
         <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground h-6 px-2 text-xs hover:bg-muted"
+          className="h-6 px-2 text-xs text-muted-foreground hover:bg-muted"
           onClick={handleAddCover}
         >
           <ImageIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -505,14 +505,14 @@ const FormHeaderRoot = ({
 
   return (
     <FormHeaderContext value={contextValue}>
-      <div className="group relative w-full flex flex-col mb-4">
+      <div className="group relative mb-4 flex w-full flex-col">
         {children ?? (
           <>
             <FormHeaderCover />
             <div
-              className={cn("relative px-4 sm:px-14 max-w-[900px] mx-auto w-full flex flex-col")}
+              className={cn("relative mx-auto flex w-full max-w-[900px] flex-col px-4 sm:px-14")}
             >
-              <div className="w-full  sm:px-[max(10px,calc(50%-350px))]">
+              <div className="w-full sm:px-[max(10px,calc(50%-350px))]">
                 <FormHeaderIcon />
                 <ActionButtons />
                 <FormHeaderTitle />

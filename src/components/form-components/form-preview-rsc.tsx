@@ -107,11 +107,11 @@ const DefaultThankYou = ({ onReset }: { onReset?: () => void }) => {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
         {SuccessCheckmarkIcon}
       </div>
-      <h2 className="text-2xl font-bold mb-2">{t("thankYou")}</h2>
-      <p className="text-muted-foreground mb-6">{t("responseSubmitted")}</p>
+      <h2 className="mb-2 text-2xl font-bold">{t("thankYou")}</h2>
+      <p className="mb-6 text-muted-foreground">{t("responseSubmitted")}</p>
       {onReset && (
         <Button type="button" onClick={onReset} variant="outline" size="sm" className="rounded-lg">
           {t("submitAnother")}
@@ -144,7 +144,7 @@ const StepButton = ({
         type="button"
         onClick={onPrevious}
         style={buttonStyle}
-        className="h-8 px-2.5 rounded-lg gap-1.5"
+        className="h-8 gap-1.5 rounded-lg px-2.5"
         prefix={<ChevronLeftIcon className="size-4" />}
       >
         {buttonText}
@@ -164,7 +164,7 @@ const StepButton = ({
       <Button
         type="submit"
         style={buttonStyle}
-        className="h-8 px-2.5 rounded-lg gap-1.5"
+        className="h-8 gap-1.5 rounded-lg px-2.5"
         suffix={<ChevronRightIcon className="size-4" />}
         disabled={isSubmitting}
       >
@@ -174,7 +174,7 @@ const StepButton = ({
     return grouped ? (
       button
     ) : (
-      <div className="flex justify-end mb-4" style={{ maxWidth: "var(--bf-input-width)" }}>
+      <div className="mb-4 flex justify-end" style={{ maxWidth: "var(--bf-input-width)" }}>
         {button}
       </div>
     );
@@ -186,7 +186,7 @@ const StepButton = ({
     <Button
       type="submit"
       style={buttonStyle}
-      className="h-8 px-2.5 rounded-lg gap-1.5"
+      className="h-8 gap-1.5 rounded-lg px-2.5"
       disabled={isSubmitting}
     >
       {buttonText}
@@ -268,7 +268,7 @@ const StepFormRSC = ({
 
       return (
         <div
-          className="flex flex-row-reverse justify-between items-center w-full"
+          className="flex w-full flex-row-reverse items-center justify-between"
           style={{ maxWidth: "var(--bf-input-width)" }}
         >
           {action && (
@@ -305,7 +305,7 @@ const StepFormRSC = ({
         ref={formRef}
         noValidate
         data-bf-field-list
-        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         <TypedComposite src={stepRSC.src} Field={FieldSlot} ButtonGroup={ButtonGroupSlot} />
       </form.Form>
@@ -357,11 +357,11 @@ const FormPreviewRSCContent = ({
       <div className="w-full">
         {header ? <TypedComposite src={header} /> : null}
         <div
-          className="w-full mx-auto px-4"
+          className="mx-auto w-full px-4"
           style={{ maxWidth: PAGE_MAX_WIDTH }}
           data-bf-form-container
         >
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="animate-in duration-300 fade-in slide-in-from-bottom-2">
             {thankYou ? (
               <div data-bf-field-list className="space-y-4">
                 <TypedComposite src={thankYou} />
@@ -383,7 +383,7 @@ const FormPreviewRSCContent = ({
               <DefaultThankYou onReset={reset} />
             )}
             {redirectCountdown !== null && (
-              <p className="text-muted-foreground text-center mt-4">
+              <p className="mt-4 text-center text-muted-foreground">
                 {t("redirecting", {
                   n: redirectCountdown,
                   s: redirectCountdown !== 1 ? "s" : "",
@@ -405,7 +405,7 @@ const FormPreviewRSCContent = ({
 
       {settings?.progressBar && totalSteps > 1 && (
         <div
-          className="mb-6 mx-auto px-4"
+          className="mx-auto mb-6 px-4"
           style={{ maxWidth: PAGE_MAX_WIDTH }}
           data-bf-form-container
         >
@@ -417,7 +417,7 @@ const FormPreviewRSCContent = ({
         <div
           key={currentStep}
           className={cn(
-            "w-full animate-in fade-in duration-200",
+            "w-full animate-in duration-200 fade-in",
             direction >= 0 ? "slide-in-from-right-2" : "slide-in-from-left-2",
           )}
         >
@@ -449,20 +449,20 @@ export const FormPreviewRSC = ({
 }: FormPreviewRSCProps) => {
   if (steps.length === 0 || stepCount === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8">
-        <div className="text-muted-foreground mb-4">{NoContentPlaceholderIcon}</div>
-        <h3 className="text-lg mb-2">No Content Yet</h3>
-        <p className="text-sm text-muted-foreground max-w-md">
+      <div className="flex min-h-[300px] flex-col items-center justify-center p-8 text-center">
+        <div className="mb-4 text-muted-foreground">{NoContentPlaceholderIcon}</div>
+        <h3 className="mb-2 text-lg">No Content Yet</h3>
+        <p className="max-w-md text-sm text-muted-foreground">
           Add content to the editor to see the preview.
         </p>
       </div>
     );
   }
 
-  // RSC variant only handles page-break presentation; field-by-field renders
-  // through FormPreviewFromPlate. Mode is `page-break` for multi-step forms,
+  // RSC variant only handles card-mode presentation; field-by-field renders
+  // through FormPreviewFromPlate. Mode is `card` for multi-step forms,
   // `null` for single-page (disables question-progress tracking).
-  const trackingMode: PublicFormTracking["mode"] = stepCount > 1 ? "page-break" : null;
+  const trackingMode: PublicFormTracking["mode"] = stepCount > 1 ? "card" : null;
   const tracking: PublicFormTracking | null =
     trackingBase && formId
       ? {

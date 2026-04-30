@@ -32,8 +32,7 @@ import {
   selectTriggerCls,
 } from "@/components/form-builder/embed-config-panel";
 
-const { customization: _c, ...settingsDefaults } = defaultFormSettings;
-const settingsKeys = Object.keys(settingsDefaults);
+const settingsDefaults = defaultFormSettings;
 
 const selectRedirectOnCompletion = (state: { values: { redirectOnCompletion: unknown } }) =>
   state.values.redirectOnCompletion;
@@ -81,9 +80,9 @@ export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?:
   const formResult = isLocal ? localFormResult : cloudForm;
   const formDoc = formResult.data?.[0] ?? null;
   const hasEmailField = useMemo(() => {
-    const content = (formDoc as Record<string, unknown> | null)?.content;
+    const content = formDoc?.content;
     if (!Array.isArray(content)) return false;
-    return content.some((node: { type?: string }) => node.type === "formEmail");
+    return content.some((node) => (node as { type?: string }).type === "formEmail");
   }, [formDoc]);
   const collection = (isLocal ? localFormCollection : getFormListings()) as ReturnType<
     typeof getFormListings
@@ -137,24 +136,15 @@ export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?:
   };
 
   const form = useAppForm({
-    defaultValues: formDoc
-      ? (Object.fromEntries(
-          settingsKeys.map((key) => [
-            key,
-            (formDoc as Record<string, unknown>)[key] ??
-              (settingsDefaults as Record<string, unknown>)[key],
-          ]),
-        ) as typeof settingsDefaults)
-      : settingsDefaults,
+    defaultValues: { ...settingsDefaults, ...(formDoc?.settings ?? {}) },
     validationLogic: revalidateLogic(),
     listeners: {
       onChange: ({ formApi }) => {
-        if (formDoc?.id) {
-          collection.update(formDoc.id, (draft) => {
-            Object.assign(draft, formApi.state.values);
-            draft.updatedAt = new Date().toISOString();
-          });
-        }
+        if (!formDoc?.id) return;
+        collection.update(formDoc.id, (draft) => {
+          draft.settings = { ...(draft.settings ?? settingsDefaults), ...formApi.state.values };
+          draft.updatedAt = new Date().toISOString();
+        });
       },
       onChangeDebounceMs: 500,
     },
@@ -165,7 +155,7 @@ export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?:
   return (
     <div className="space-y-3 pb-8">
       <form.AppForm>
-        <form.Form className="p-0 gap-3">
+        <form.Form className="gap-3 p-0">
           <SidebarSection label="General" className="pb-2.75" action={<></>}>
             <ConfigCard>
               <ConfigRow label="Language" description="Language for default buttons, errors, etc.">
@@ -254,7 +244,7 @@ export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?:
                 <div className="flex items-center gap-1.5">
                   <Badge
                     variant="secondary"
-                    className="bg-teal-100 text-teal-600 border-none text-[9px] h-4 px-1.5"
+                    className="h-4 border-none bg-teal-100 px-1.5 text-[9px] text-teal-600"
                   >
                     Pro
                   </Badge>
@@ -281,7 +271,7 @@ export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?:
                 <div className="flex items-center gap-1.5">
                   <Badge
                     variant="secondary"
-                    className="bg-teal-100 text-teal-600 border-none text-[9px] h-4 px-1.5"
+                    className="h-4 border-none bg-teal-100 px-1.5 text-[9px] text-teal-600"
                   >
                     Pro
                   </Badge>
@@ -409,7 +399,7 @@ export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?:
                 <div className="flex items-center gap-1.5">
                   <Badge
                     variant="secondary"
-                    className="bg-teal-100 text-teal-600 border-none text-[9px] h-4 px-1.5"
+                    className="h-4 border-none bg-teal-100 px-1.5 text-[9px] text-teal-600"
                   >
                     Pro
                   </Badge>
@@ -449,14 +439,14 @@ export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?:
                         </form.AppField>
                       </ConfigRow>
                       <div className="bg-secondary px-[10px] py-[7px]">
-                        <span className="text-sm mb-1.5 block">Body</span>
+                        <span className="mb-1.5 block text-sm">Body</span>
                         <form.AppField name="respondentEmailBody">
                           {(field) => (
                             <Textarea
                               placeholder="Thank you for filling out our form."
                               value={(field.state.value as string) || ""}
                               onChange={(e) => field.handleChange(e.target.value || null)}
-                              className="w-full min-h-[60px] text-sm !rounded-md !bg-background border-border/60"
+                              className="min-h-[60px] w-full !rounded-md border-border/60 !bg-background text-sm"
                               aria-label="Email body"
                             />
                           )}
@@ -526,14 +516,14 @@ export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?:
                 {(closeForm) =>
                   closeForm ? (
                     <div className="bg-secondary px-[10px] py-[7px]">
-                      <span className="text-sm mb-1.5 block">Closed message</span>
+                      <span className="mb-1.5 block text-sm">Closed message</span>
                       <form.AppField name="closedFormMessage">
                         {(field) => (
                           <Textarea
                             placeholder="This form is now closed."
                             value={(field.state.value as string) || ""}
                             onChange={(e) => field.handleChange(e.target.value)}
-                            className="w-full min-h-[50px] text-sm !rounded-md !bg-background border-border/60"
+                            className="min-h-[50px] w-full !rounded-md border-border/60 !bg-background text-sm"
                             aria-label="Closed message"
                           />
                         )}
@@ -673,14 +663,14 @@ const PasswordInput = ({ value, onChange }: { value: string; onChange: (val: str
         placeholder="Enter password"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full text-sm rounded-lg !border-none pr-8"
+        className="w-full rounded-lg !border-none pr-8 text-sm"
         aria-label="Form password"
         variant="primary"
       />
       <button
         type="button"
         onClick={() => setShow(!show)}
-        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         aria-label="Toggle password visibility"
       >
         {show ? <EyeOffIcon className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}

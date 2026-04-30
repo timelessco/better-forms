@@ -209,7 +209,7 @@ const useFilterContext = () => useContext(FilterContext);
 
 const filterInputVariants = cva(
   [
-    "transition shrink-0 outline-none text-foreground relative flex items-center",
+    "relative flex shrink-0 items-center text-foreground transition outline-none",
     "has-[[data-slot=filters-input]:focus-visible]:ring-ring/30",
     "has-[[data-slot=filters-input]:focus-visible]:border-ring",
     "has-[[data-slot=filters-input]:focus-visible]:outline-none",
@@ -226,12 +226,12 @@ const filterInputVariants = cva(
     variants: {
       variant: {
         solid: "border-0 bg-secondary",
-        outline: "bg-background border border-border",
+        outline: "border border-border bg-background",
       },
       size: {
-        lg: "h-10 text-sm px-2.5 has-[[data-slot=filters-prefix]]:ps-0 has-[[data-slot=filters-suffix]]:pe-0",
-        md: "h-9 text-sm px-2 has-[[data-slot=filters-prefix]]:ps-0 has-[[data-slot=filters-suffix]]:pe-0",
-        sm: "h-8 text-xs px-1.5 has-[[data-slot=filters-prefix]]:ps-0 has-[[data-slot=filters-suffix]]:pe-0",
+        lg: "h-10 px-2.5 text-sm has-[[data-slot=filters-prefix]]:ps-0 has-[[data-slot=filters-suffix]]:pe-0",
+        md: "h-9 px-2 text-sm has-[[data-slot=filters-prefix]]:ps-0 has-[[data-slot=filters-suffix]]:pe-0",
+        sm: "h-8 px-1.5 text-xs has-[[data-slot=filters-prefix]]:ps-0 has-[[data-slot=filters-suffix]]:pe-0",
       },
       cursorPointer: {
         true: "cursor-pointer",
@@ -248,13 +248,13 @@ const filterInputVariants = cva(
 
 const filterRemoveButtonVariants = cva(
   [
-    "inline-flex items-center shrink-0 justify-center transition shrink-0 text-muted-foreground hover:text-foreground",
+    "inline-flex shrink-0 items-center justify-center text-muted-foreground transition hover:text-foreground",
   ],
   {
     variants: {
       variant: {
         solid: "bg-secondary",
-        outline: "border border-border border-s-0 hover:bg-secondary",
+        outline: "border border-s-0 border-border hover:bg-secondary",
       },
       size: {
         lg: "h-10 w-10 [&_svg:not([class*=size-])]:size-4",
@@ -281,7 +281,7 @@ const filterRemoveButtonVariants = cva(
 
 const filterAddButtonVariants = cva(
   [
-    "inline-flex items-center shrink-0 justify-center transition shrink-0 text-foreground shadow-xs shadow-black/5",
+    "inline-flex shrink-0 items-center justify-center text-foreground shadow-xs shadow-black/5 transition",
     "[&_svg:not([role=img]):not([class*=text-]):not([class*=opacity-])]:opacity-60",
   ],
   {
@@ -291,9 +291,9 @@ const filterAddButtonVariants = cva(
         outline: "border border-border hover:bg-secondary",
       },
       size: {
-        lg: "h-10 px-4 text-sm gap-1.5 [&_svg:not([class*=size-])]:size-4",
-        md: "h-9 px-3 gap-1.5 text-sm [&_svg:not([class*=size-])]:size-4",
-        sm: "h-8 px-2.5 gap-1.25 text-xs [&_svg:not([class*=size-])]:size-3.5",
+        lg: "h-10 gap-1.5 px-4 text-sm [&_svg:not([class*=size-])]:size-4",
+        md: "h-9 gap-1.5 px-3 text-sm [&_svg:not([class*=size-])]:size-4",
+        sm: "h-8 gap-1.25 px-2.5 text-xs [&_svg:not([class*=size-])]:size-3.5",
       },
       radius: {
         md: "rounded-md",
@@ -314,19 +314,19 @@ const filterAddButtonVariants = cva(
 
 const filterOperatorVariants = cva(
   [
-    "transition text-muted-foreground hover:text-foreground data-[state=open]:text-foreground shrink-0 flex items-center relative focus-visible:z-1",
+    "relative flex shrink-0 items-center text-muted-foreground transition hover:text-foreground focus-visible:z-1 data-[state=open]:text-foreground",
   ],
   {
     variants: {
       variant: {
         solid: "bg-secondary",
         outline:
-          "bg-background border border-border border-e-0 hover:bg-secondary data-[state=open]:bg-secondary [&+[data-slot=filters-remove]]:border-s",
+          "border border-e-0 border-border bg-background hover:bg-secondary data-[state=open]:bg-secondary [&+[data-slot=filters-remove]]:border-s",
       },
       size: {
-        lg: "h-10 px-4 text-sm gap-1.5",
-        md: "h-9 px-3 text-sm gap-1.25",
-        sm: "h-8 px-2.5 text-xs gap-1",
+        lg: "h-10 gap-1.5 px-4 text-sm",
+        md: "h-9 gap-1.25 px-3 text-sm",
+        sm: "h-8 gap-1 px-2.5 text-xs",
       },
       cursorPointer: {
         true: "cursor-pointer",
@@ -343,19 +343,19 @@ const filterOperatorVariants = cva(
 
 const filterFieldLabelVariants = cva(
   [
-    "flex gap-1.5 shrink-0 px-1.5 py-1 items-center text-foreground",
-    "[&_svg:not([class*=size-])]:size-3.5 [&_svg:not([class*=opacity-])]:opacity-60",
+    "flex shrink-0 items-center gap-1.5 px-1.5 py-1 text-foreground",
+    "[&_svg:not([class*=opacity-])]:opacity-60 [&_svg:not([class*=size-])]:size-3.5",
   ],
   {
     variants: {
       variant: {
         solid: "bg-secondary",
-        outline: "border border-border border-e-0",
+        outline: "border border-e-0 border-border",
       },
       size: {
-        lg: "h-10 px-4 text-sm gap-1.5 [&_svg:not([class*=size-])]:size-4",
-        md: "h-9 px-3 gap-1.5 text-sm [&_svg:not([class*=size-])]:size-4",
-        sm: "h-8 px-2.5 gap-1.25 text-xs [&_svg:not([class*=size-])]:size-3.5",
+        lg: "h-10 gap-1.5 px-4 text-sm [&_svg:not([class*=size-])]:size-4",
+        md: "h-9 gap-1.5 px-3 text-sm [&_svg:not([class*=size-])]:size-4",
+        sm: "h-8 gap-1.25 px-2.5 text-xs [&_svg:not([class*=size-])]:size-3.5",
       },
       radius: {
         md: "rounded-s-md",
@@ -370,18 +370,18 @@ const filterFieldLabelVariants = cva(
 );
 
 const filterFieldValueVariants = cva(
-  "text-foreground transition shrink-0 flex items-center gap-1 relative focus-visible:z-1",
+  "relative flex shrink-0 items-center gap-1 text-foreground transition focus-visible:z-1",
   {
     variants: {
       variant: {
         solid: "bg-secondary",
         outline:
-          "bg-background border border-border hover:bg-secondary has-[[data-slot=switch]]:hover:bg-transparent",
+          "border border-border bg-background hover:bg-secondary has-[[data-slot=switch]]:hover:bg-transparent",
       },
       size: {
-        lg: "h-10 px-4 text-sm gap-1.5 [&_svg:not([class*=size-])]:size-4",
-        md: "h-9 px-3 gap-1.5 text-sm [&_svg:not([class*=size-])]:size-4",
-        sm: "h-8 px-2.5 gap-1.25 text-xs [&_svg:not([class*=size-])]:size-3.5",
+        lg: "h-10 gap-1.5 px-4 text-sm [&_svg:not([class*=size-])]:size-4",
+        md: "h-9 gap-1.5 px-3 text-sm [&_svg:not([class*=size-])]:size-4",
+        sm: "h-8 gap-1.25 px-2.5 text-xs [&_svg:not([class*=size-])]:size-3.5",
       },
       cursorPointer: {
         true: "cursor-pointer has-[[data-slot=switch]]:cursor-default",
@@ -396,7 +396,7 @@ const filterFieldValueVariants = cva(
   },
 );
 
-const filterFieldAddonVariants = cva("text-foreground shrink-0 flex items-center justify-center", {
+const filterFieldAddonVariants = cva("flex shrink-0 items-center justify-center text-foreground", {
   variants: {
     variant: {
       solid: "",
@@ -414,11 +414,11 @@ const filterFieldAddonVariants = cva("text-foreground shrink-0 flex items-center
   },
 });
 
-const filterFieldBetweenVariants = cva("text-muted-foreground shrink-0 flex items-center", {
+const filterFieldBetweenVariants = cva("flex shrink-0 items-center text-muted-foreground", {
   variants: {
     variant: {
       solid: "bg-secondary",
-      outline: "bg-background border border-border border-x-0",
+      outline: "border border-x-0 border-border bg-background",
     },
     size: {
       lg: "h-10 px-4 text-sm",
@@ -575,7 +575,7 @@ const FilterInput = <T = unknown>({
         </div>
       )}
 
-      <div className="w-full flex items-stretch">
+      <div className="flex w-full items-stretch">
         <input
           className="w-full outline-none"
           aria-invalid={!isValid}
@@ -592,7 +592,7 @@ const FilterInput = <T = unknown>({
           <Tooltip>
             <TooltipTrigger
               render={
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center" />
+                <div className="absolute top-1/2 right-2 flex -translate-y-1/2 items-center" />
               }
             >
               <AlertCircleIcon className="size-3.5 text-destructive" />
@@ -939,7 +939,7 @@ const FilterOperatorDropdown = <T = unknown>({
           >
             <span>{op.label}</span>
             <CheckIcon
-              className={`text-primary ms-auto ${op.value === operator ? "opacity-100" : "opacity-0"}`}
+              className={`ms-auto text-primary ${op.value === operator ? "opacity-100" : "opacity-0"}`}
             />
           </DropdownMenuItem>
         ))}
@@ -1007,7 +1007,7 @@ const SelectOptionsPopover = <T = unknown>({
                 {selectedOptions.map((option) => (
                   <CommandItem
                     key={String(option.value)}
-                    className="group flex gap-2 items-center"
+                    className="group flex items-center gap-2"
                     onSelect={() => {
                       if (isMultiSelect) {
                         const next = effectiveValues.filter((v) => v !== option.value);
@@ -1026,8 +1026,8 @@ const SelectOptionsPopover = <T = unknown>({
                     }}
                   >
                     {option.icon}
-                    <span className="text-accent-foreground truncate">{option.label}</span>
-                    <CheckIcon className="text-primary ms-auto" />
+                    <span className="truncate text-accent-foreground">{option.label}</span>
+                    <CheckIcon className="ms-auto text-primary" />
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -1040,7 +1040,7 @@ const SelectOptionsPopover = <T = unknown>({
                   {unselectedOptions.map((option) => (
                     <CommandItem
                       key={String(option.value)}
-                      className="group flex gap-2 items-center"
+                      className="group flex items-center gap-2"
                       value={option.label}
                       onSelect={() => {
                         if (isMultiSelect) {
@@ -1064,8 +1064,8 @@ const SelectOptionsPopover = <T = unknown>({
                       }}
                     >
                       {option.icon}
-                      <span className="text-accent-foreground truncate">{option.label}</span>
-                      <CheckIcon className="text-primary ms-auto opacity-0" />
+                      <span className="truncate text-accent-foreground">{option.label}</span>
+                      <CheckIcon className="ms-auto text-primary opacity-0" />
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -1094,14 +1094,14 @@ const SelectOptionsPopover = <T = unknown>({
           cursorPointer: context.cursorPointer,
         })}
       >
-        <div className="flex gap-1.5 items-center">
+        <div className="flex items-center gap-1.5">
           {field.customValueRenderer ? (
             field.customValueRenderer(values, field.options || [])
           ) : (
             <>
               {selectedOptions.length > 0 && (
                 <div
-                  className={cn("-space-x-1.5 flex items-center", field.selectedOptionsClassName)}
+                  className={cn("flex items-center -space-x-1.5", field.selectedOptionsClassName)}
                 >
                   {selectedOptions.slice(0, 3).map((option) => (
                     <div key={String(option.value)}>{option.icon}</div>
@@ -1135,7 +1135,7 @@ const SelectOptionsPopover = <T = unknown>({
                 {selectedOptions.map((option) => (
                   <CommandItem
                     key={String(option.value)}
-                    className="group flex gap-2 items-center"
+                    className="group flex items-center gap-2"
                     onSelect={() => {
                       if (isMultiSelect) {
                         onChange(values.filter((v) => v !== option.value));
@@ -1149,8 +1149,8 @@ const SelectOptionsPopover = <T = unknown>({
                     }}
                   >
                     {option.icon}
-                    <span className="text-accent-foreground truncate">{option.label}</span>
-                    <CheckIcon className="text-primary ms-auto" />
+                    <span className="truncate text-accent-foreground">{option.label}</span>
+                    <CheckIcon className="ms-auto text-primary" />
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -1163,7 +1163,7 @@ const SelectOptionsPopover = <T = unknown>({
                   {unselectedOptions.map((option) => (
                     <CommandItem
                       key={String(option.value)}
-                      className="group flex gap-2 items-center"
+                      className="group flex items-center gap-2"
                       value={option.label}
                       onSelect={() => {
                         if (isMultiSelect) {
@@ -1180,8 +1180,8 @@ const SelectOptionsPopover = <T = unknown>({
                       }}
                     >
                       {option.icon}
-                      <span className="text-accent-foreground truncate">{option.label}</span>
-                      <CheckIcon className="text-primary ms-auto opacity-0" />
+                      <span className="truncate text-accent-foreground">{option.label}</span>
+                      <CheckIcon className="ms-auto text-primary opacity-0" />
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -1534,7 +1534,7 @@ const FilterValueSelector = <T = unknown>({
           cursorPointer: context.cursorPointer,
         })}
       >
-        <div className="flex gap-1.5 items-center">
+        <div className="flex items-center gap-1.5">
           {field.customValueRenderer ? (
             field.customValueRenderer(values, field.options || [])
           ) : (
@@ -1573,7 +1573,7 @@ const FilterValueSelector = <T = unknown>({
                 {selectedOptions.map((option) => (
                   <CommandItem
                     key={String(option.value)}
-                    className="group flex gap-2 items-center"
+                    className="group flex items-center gap-2"
                     onSelect={() => {
                       if (isMultiSelect) {
                         onChange(values.filter((v) => v !== option.value));
@@ -1584,8 +1584,8 @@ const FilterValueSelector = <T = unknown>({
                     }}
                   >
                     {option.icon}
-                    <span className="text-accent-foreground truncate">{option.label}</span>
-                    <CheckIcon className="text-primary ms-auto" />
+                    <span className="truncate text-accent-foreground">{option.label}</span>
+                    <CheckIcon className="ms-auto text-primary" />
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -1598,7 +1598,7 @@ const FilterValueSelector = <T = unknown>({
                   {unselectedOptions.map((option) => (
                     <CommandItem
                       key={String(option.value)}
-                      className="group flex gap-2 items-center"
+                      className="group flex items-center gap-2"
                       value={option.label}
                       onSelect={() => {
                         if (isMultiSelect) {
@@ -1614,8 +1614,8 @@ const FilterValueSelector = <T = unknown>({
                       }}
                     >
                       {option.icon}
-                      <span className="text-accent-foreground truncate">{option.label}</span>
-                      <CheckIcon className="text-primary ms-auto opacity-0" />
+                      <span className="truncate text-accent-foreground">{option.label}</span>
+                      <CheckIcon className="ms-auto text-primary opacity-0" />
                     </CommandItem>
                   ))}
                 </CommandGroup>

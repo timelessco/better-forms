@@ -92,7 +92,7 @@ export const PageBreakElement = (props: PlateElementProps) => {
         role="presentation"
         className={cn(
           "relative my-6 flex items-center justify-center select-none",
-          selected && focused && "ring-2 ring-ring ring-offset-2 rounded",
+          selected && focused && "rounded ring-2 ring-ring ring-offset-2",
         )}
       >
         <div className="flex-1 border-t-2 border-dashed border-muted-foreground/30" />
@@ -104,7 +104,7 @@ export const PageBreakElement = (props: PlateElementProps) => {
             <div className="flex items-center gap-2">
               <Label
                 htmlFor={`thank-you-toggle-${String(element.id || pageNumber)}`}
-                className="text-xs text-muted-foreground cursor-pointer"
+                className="cursor-pointer text-xs text-muted-foreground"
               >
                 'Thank you' page
               </Label>

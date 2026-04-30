@@ -44,12 +44,12 @@ const RankingField = ({ element, form }: FieldRendererProps<"Ranking">) => (
                   type="button"
                   onClick={() => handleRankClick(option.value)}
                   className={cn(
-                    "flex items-center gap-2 py-1 text-sm transition-colors text-left cursor-pointer",
+                    "flex cursor-pointer items-center gap-2 py-1 text-left text-sm transition-colors",
                     hasErrors && "text-destructive",
                   )}
                 >
                   {isRanked ? (
-                    <span className="flex size-4 shrink-0 items-center justify-center rounded-[4px] bg-primary text-[9px] font-semibold leading-none text-primary-foreground">
+                    <span className="flex size-4 shrink-0 items-center justify-center rounded-[4px] bg-primary text-[9px] leading-none font-semibold text-primary-foreground">
                       {rankIndex + 1}
                     </span>
                   ) : (

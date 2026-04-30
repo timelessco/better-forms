@@ -3,6 +3,7 @@ import * as schema from "@/db/schema";
 import { db } from "@/db";
 import { auth } from "@/lib/auth/auth";
 import type { ServerPlan } from "@/lib/server-fn/plan-helpers";
+import { defaultFormSettings } from "@/types/form-settings";
 
 interface TestHelpers {
   createUser: (overrides?: Record<string, unknown>) => { id: string; [key: string]: unknown };
@@ -80,7 +81,7 @@ export const createTestForm = async (workspaceId: string, creatorId: string) => 
       formName: "draft",
       schemaName: "draftFormSchema",
       content: [],
-      settings: {},
+      settings: defaultFormSettings,
       status: "draft",
       createdAt: now,
       updatedAt: now,

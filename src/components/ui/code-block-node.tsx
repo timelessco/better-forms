@@ -29,7 +29,7 @@ export const CodeBlockElement = (props: PlateElementProps) => {
         </pre>
 
         <div
-          className="absolute top-1 right-1 z-10 flex select-none gap-0.5"
+          className="absolute top-1 right-1 z-10 flex gap-0.5 select-none"
           contentEditable={false}
         >
           {isLangSupported(element.lang as string | undefined) && (
@@ -49,7 +49,7 @@ export const CodeBlockElement = (props: PlateElementProps) => {
           <CopyButton
             size="icon"
             variant="ghost"
-            className="size-6 gap-1 text-muted-foreground text-xs"
+            className="size-6 gap-1 text-xs text-muted-foreground"
             value={() => NodeApi.string(element)}
           />
         </div>

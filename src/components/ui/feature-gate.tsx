@@ -20,15 +20,15 @@ type FeatureGateProps = {
 
 const PLAN_LABEL: Record<RequiredPlan, string> = {
   pro: "Pro",
-  biz: "Business",
+  business: "Business",
 };
 
 const openBilling = () => settingsDialogStore.open("billing");
 
 export const useHasPlan = (requiredPlan: RequiredPlan): boolean => {
-  const { isPro, isBiz } = useUserPlan();
-  if (requiredPlan === "biz") return isBiz;
-  return isPro || isBiz;
+  const { isPro, isBusiness } = useUserPlan();
+  if (requiredPlan === "business") return isBusiness;
+  return isPro || isBusiness;
 };
 
 export const FeatureGate = ({
@@ -48,16 +48,16 @@ export const FeatureGate = ({
   if (variant === "block") {
     return (
       <div className="relative">
-        <div className="opacity-60 pointer-events-none select-none" aria-disabled="true">
+        <div className="pointer-events-none opacity-60 select-none" aria-disabled="true">
           {children}
         </div>
         <button
           type="button"
           onClick={openBilling}
-          className="absolute inset-0 flex items-center justify-center text-xs font-medium text-foreground hover:text-primary transition-colors"
+          className="absolute inset-0 flex items-center justify-center text-xs font-medium text-foreground transition-colors hover:text-primary"
           aria-label={`Upgrade to ${label}`}
         >
-          <span className="rounded-md bg-background/90 border border-border px-2.5 py-1 shadow-sm underline underline-offset-2">
+          <span className="rounded-md border border-border bg-background/90 px-2.5 py-1 underline underline-offset-2 shadow-sm">
             Upgrade to {label}
           </span>
         </button>
@@ -70,7 +70,7 @@ export const FeatureGate = ({
       <TooltipTrigger
         render={
           <div
-            className="inline-flex items-center gap-1.5 opacity-60 cursor-not-allowed pointer-events-none"
+            className="pointer-events-none inline-flex cursor-not-allowed items-center gap-1.5 opacity-60"
             aria-disabled="true"
           >
             {children}

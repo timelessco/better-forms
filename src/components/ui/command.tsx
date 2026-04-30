@@ -16,7 +16,7 @@ export const Command = ({ className, ...props }: React.ComponentProps<typeof Com
   <CommandPrimitive
     data-slot="command"
     className={cn(
-      "bg-popover text-popover-foreground rounded-2xl flex size-full flex-col overflow-hidden",
+      "flex size-full flex-col overflow-hidden rounded-2xl bg-popover text-popover-foreground",
       className,
     )}
     {...props}
@@ -43,7 +43,7 @@ export const CommandDialog = ({
       <DialogDescription>{description}</DialogDescription>
     </DialogHeader>
     <DialogContent
-      className={cn("rounded-lg top-1/3 translate-y-0 overflow-hidden p-0", className)}
+      className={cn("top-1/3 translate-y-0 overflow-hidden rounded-lg p-0", className)}
       showCloseButton={showCloseButton}
     >
       {children}
@@ -61,7 +61,7 @@ export const CommandInput = ({
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(
-          "min-w-0 flex-1 bg-transparent border-0 p-0 outline-none text-base text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+          "min-w-0 flex-1 border-0 bg-transparent p-0 text-base text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
           className,
         )}
         {...props}
@@ -77,7 +77,7 @@ export const CommandList = ({
   <CommandPrimitive.List
     data-slot="command-list"
     className={cn(
-      "no-scrollbar max-h-72 scroll-py-1 outline-none overflow-x-hidden overflow-y-auto",
+      "no-scrollbar max-h-72 scroll-py-1 overflow-x-hidden overflow-y-auto outline-none",
       className,
     )}
     {...props}
@@ -102,7 +102,7 @@ export const CommandGroup = ({
   <CommandPrimitive.Group
     data-slot="command-group"
     className={cn(
-      "text-foreground **:[[cmdk-group-heading]]:text-muted-foreground overflow-hidden p-1 **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs",
+      "overflow-hidden p-1 text-foreground **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:text-muted-foreground",
       className,
     )}
     {...props}
@@ -115,7 +115,7 @@ export const CommandSeparator = ({
 }: React.ComponentProps<typeof CommandPrimitive.Separator>) => (
   <CommandPrimitive.Separator
     data-slot="command-separator"
-    className={cn("bg-border -mx-1 h-px", className)}
+    className={cn("-mx-1 h-px bg-border", className)}
     {...props}
   />
 );
@@ -128,7 +128,7 @@ export const CommandItem = ({
   <CommandPrimitive.Item
     data-slot="command-item"
     className={cn(
-      "data-selected:bg-(--color-gray-alpha-100) data-selected:text-foreground data-selected:*:[svg]:text-foreground relative flex cursor-default items-center gap-1.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none in-data-[slot=dialog-content]:rounded-lg! [&_svg:not([class*='size-'])]:size-4 group/command-item data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 hover:bg-(--color-gray-alpha-100) hover:text-foreground",
+      "group/command-item relative flex cursor-default items-center gap-1.5 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none hover:bg-(--color-gray-alpha-100) hover:text-foreground in-data-[slot=dialog-content]:rounded-lg! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-(--color-gray-alpha-100) data-selected:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-selected:*:[svg]:text-foreground",
       className,
     )}
     {...props}
@@ -142,7 +142,7 @@ export const CommandShortcut = ({ className, ...props }: React.ComponentProps<"s
   <span
     data-slot="command-shortcut"
     className={cn(
-      "text-muted-foreground group-data-selected/command-item:text-foreground ms-auto text-xs tracking-widest",
+      "ms-auto text-xs tracking-widest text-muted-foreground group-data-selected/command-item:text-foreground",
       className,
     )}
     {...props}

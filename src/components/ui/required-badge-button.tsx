@@ -117,7 +117,7 @@ export const RequiredBadgeButton = ({
 
   return (
     <RequiredBadge
-      className="right-2 top-1/2 -translate-y-1/2"
+      className="top-1/2 right-2 -translate-y-1/2"
       onToggle={toggle}
       required={required}
     />
@@ -171,7 +171,7 @@ export const LabelRequiredBadge = ({ labelElement }: { labelElement: TElement })
 
   return (
     <RequiredBadge
-      className="right-0 top-1/2 -translate-y-1/2"
+      className="top-1/2 right-0 -translate-y-1/2"
       onToggle={toggle}
       required={next.required}
     />

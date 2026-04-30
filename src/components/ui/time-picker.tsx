@@ -521,7 +521,7 @@ function TimePickerLabel(props: TimePickerLabelProps) {
       {...labelProps}
       htmlFor={labelId}
       className={cn(
-        "font-medium text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+        "text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
         className,
       )}
     />
@@ -694,7 +694,7 @@ function TimePickerInputGroup(props: DivProps) {
             data-invalid={invalid ? "" : undefined}
             {...inputGroupProps}
             className={cn(
-              "flex h-10 w-full cursor-text items-center gap-0.5 rounded-md border border-input bg-card px-3 py-2 shadow-xs outline-none transition-shadow",
+              "flex h-10 w-full cursor-text items-center gap-0.5 rounded-md border border-input bg-card px-3 py-2 shadow-xs transition-shadow outline-none",
               "has-[input:focus]:border-ring has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50",
               invalid && "border-destructive ring-destructive/20",
               disabled && "cursor-not-allowed opacity-50",
@@ -1355,7 +1355,7 @@ function TimePickerInput(props: TimePickerInputProps) {
       disabled={isDisabled}
       readOnly={isReadOnly}
       className={cn(
-        "inline-flex h-full items-center justify-center border-0 bg-transparent text-center text-sm tabular-nums outline-none transition-colors focus:bg-transparent disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex h-full items-center justify-center border-0 bg-transparent text-center text-sm tabular-nums transition-colors outline-none focus:bg-transparent disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       style={{ width: segmentWidth, ...style }}
@@ -1515,7 +1515,7 @@ function TimePickerContent(props: TimePickerContentProps) {
         sideOffset={sideOffset}
         anchor={inputGroupRef}
         {...contentProps}
-        className={cn("!flex-row w-auto gap-0 p-0", className)}
+        className={cn("w-auto !flex-row gap-0 p-0", className)}
       >
         {children}
       </PopoverContent>
@@ -1616,7 +1616,7 @@ function TimePickerColumn(props: TimePickerColumnProps) {
         ref={composedRef}
         data-slot="time-picker-column"
         {...columnProps}
-        className={cn("flex flex-col gap-1 not-last:border-e p-1", className)}
+        className={cn("flex flex-col gap-1 p-1 not-last:border-e", className)}
       >
         {children}
       </div>
@@ -1740,7 +1740,7 @@ function TimePickerColumnItem(props: TimePickerColumnItemProps) {
       ref={composedRef}
       data-selected={selected ? "" : undefined}
       className={cn(
-        "w-full rounded px-3 py-1.5 text-start text-sm hover:bg-accent hover:text-accent-foreground focus:border-ring focus:outline-none focus:ring-[3px] focus:ring-ring/50",
+        "w-full rounded px-3 py-1.5 text-start text-sm hover:bg-accent hover:text-accent-foreground focus:border-ring focus:ring-[3px] focus:ring-ring/50 focus:outline-none",
         "data-selected:bg-primary data-selected:text-primary-foreground data-selected:hover:bg-primary data-selected:hover:text-primary-foreground",
         className,
       )}
@@ -2072,7 +2072,7 @@ function TimePickerClear(props: ButtonProps) {
       disabled={isDisabled}
       {...clearProps}
       className={cn(
-        "inline-flex items-center justify-center rounded-sm font-medium text-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center rounded-sm text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50",
         className,
       )}
       onClick={onClick}

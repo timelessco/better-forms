@@ -9,7 +9,7 @@ export const ProgressBar = ({ currentStep, totalSteps }: ProgressBarProps) => {
 
   return (
     <div
-      className="w-full h-1 bg-muted rounded-full overflow-hidden"
+      className="h-1 w-full overflow-hidden rounded-full bg-muted"
       role="progressbar"
       aria-valuenow={percentage}
       aria-valuemin={0}

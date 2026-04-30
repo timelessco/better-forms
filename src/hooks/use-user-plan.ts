@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { auth, useSession } from "@/lib/auth/auth-client";
-import { PRO_PRODUCT_IDS } from "@/lib/config/plan-config";
+import { planForProductId } from "@/lib/config/plan-config";
+import type { Plan } from "@/lib/config/plan-config";
 
-export type UserPlan = "free" | "pro" | "biz";
+export type UserPlan = Plan;
 
 export type UseUserPlanResult = {
   isPro: boolean;
-  isBiz: boolean;
+  isBusiness: boolean;
   isFree: boolean;
   isLoading: boolean;
   plan: UserPlan;
@@ -31,11 +32,13 @@ export const useUserPlan = (orgIdOverride?: string): UseUserPlanResult => {
   });
 
   const items = (data as SubscriptionsListResult | undefined)?.result?.items ?? [];
-  const productId = items[0]?.productId ?? "";
-  const isPro = PRO_PRODUCT_IDS.includes(productId as (typeof PRO_PRODUCT_IDS)[number]);
-  const isBiz = false;
-  const isFree = !(isPro || isBiz);
-  const plan: UserPlan = isBiz ? "biz" : isPro ? "pro" : "free";
+  const plan = planForProductId(items[0]?.productId);
 
-  return { isPro, isBiz, isFree, isLoading, plan };
+  return {
+    isPro: plan === "pro",
+    isBusiness: plan === "business",
+    isFree: plan === "free",
+    isLoading,
+    plan,
+  };
 };

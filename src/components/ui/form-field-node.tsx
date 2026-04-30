@@ -61,20 +61,20 @@ export const FormFieldElement = (allProps: PlateElementProps) => {
     <PlateElement
       attributes={{ ...attributes, placeholder, "data-bf-input": "true" }}
       className={cn(
-        "relative flex h-7 w-full max-w-[464px] items-center gap-[4px] rounded-[8px] border-0 bg-[var(--color-gray-50)] pl-[10px] pr-[8px] text-sm shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)] cursor-text caret-current",
-        isSelected && focused && "ring-ring/50 ring-[3px]",
+        "relative flex h-7 w-full max-w-[464px] cursor-text items-center gap-[4px] rounded-[8px] border-0 bg-[var(--color-gray-50)] pr-[8px] pl-[10px] text-sm caret-current shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]",
+        isSelected && focused && "ring-[3px] ring-ring/50",
       )}
       element={element}
       {...rest}
     >
-      <span className="flex-1 min-w-0 outline-none text-muted-foreground/50 line-clamp-1 break-all">
+      <span className="line-clamp-1 min-w-0 flex-1 break-all text-muted-foreground/50 outline-none">
         {children}
       </span>
       <Tooltip>
         <TooltipTrigger
           render={
             <span
-              className="shrink-0 flex items-center justify-center text-muted-foreground select-none ml-1"
+              className="ml-1 flex shrink-0 items-center justify-center text-muted-foreground select-none"
               contentEditable={false}
             />
           }

@@ -7,6 +7,7 @@ import { createFormListingCollection } from "@/collections/query/form-listing";
 import type { FormListing } from "@/collections/query/form-listing";
 import { db } from "@/db";
 import { forms, formVersions, user } from "@/db/schema";
+import { pickVersionedSettings } from "@/lib/content-hash";
 import {
   getTestUtils,
   createTestOrg,
@@ -26,7 +27,7 @@ const createTestVersion = async (formId: string, publishedByUserId: string, vers
       formId,
       version,
       content: [{ type: "p", children: [{ text: `Version ${version}` }] }],
-      settings: {},
+      settings: pickVersionedSettings(null),
       customization: {},
       title: `Form v${version}`,
       publishedByUserId,
@@ -71,7 +72,6 @@ const fetchFormListings = async (formId: string): Promise<FormListing[]> => {
       status: f.status,
       workspaceId: f.workspaceId,
       content: f.content as unknown[],
-      settings: f.settings as Record<string, unknown>,
       customization: (f.customization ?? {}) as Record<string, unknown>,
       formName: f.formName,
       schemaName: f.schemaName,

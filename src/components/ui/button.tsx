@@ -23,15 +23,15 @@ const buttonVariants = cva(buttonBaseClasses.join(" "), {
   variants: {
     variant: {
       default:
-        "bg-primary text-primary-foreground [a]:hover:bg-primary/80 border-none shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)]",
+        "border-none bg-primary text-primary-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] [a]:hover:bg-primary/80",
       outline:
-        "border-border bg-background hover:bg-(--color-gray-alpha-100) hover:text-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 aria-expanded:bg-muted aria-expanded:text-foreground",
+        "border-border bg-background hover:bg-(--color-gray-alpha-100) hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
       secondary:
-        "bg-secondary hover:bg-secondary/80 aria-expanded:bg-secondary border-none shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)]  text-secondary-foreground",
+        "border-none bg-secondary text-secondary-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] hover:bg-secondary/80 aria-expanded:bg-secondary",
       ghost:
-        "hover:bg-secondary hover:text-secondary-foreground dark:hover:bg-muted/50 aria-expanded:bg-muted aria-expanded:text-foreground",
+        "hover:bg-secondary hover:text-secondary-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
       destructive:
-        "bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30",
+        "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
       link: "text-primary underline-offset-4 hover:underline",
       tab: "bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground data-[active=true]:bg-accent data-[active=true]:text-foreground",
     },
@@ -42,11 +42,11 @@ const buttonVariants = cva(buttonBaseClasses.join(" "), {
       sm: "h-7 gap-1.5 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pe-1.5 has-data-[icon=inline-start]:ps-1.5 [&_svg:not([class*='size-'])]:size-4.5",
       lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pe-3 has-data-[icon=inline-start]:ps-3",
       md: "h-7.5 gap-1.5 px-2.5 has-data-[icon=inline-end]:pe-2 has-data-[icon=inline-start]:ps-2",
-      icon: "size-7 [&_svg:not([class*='size-'])]:size-4.5 cursor-pointer",
+      icon: "size-7 cursor-pointer [&_svg:not([class*='size-'])]:size-4.5",
       "icon-xs":
-        "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3.5 cursor-pointer",
+        "size-6 cursor-pointer rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3.5",
       "icon-sm":
-        "size-6.5 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg cursor-pointer [&_svg:not([class*='size-'])]:size-4",
+        "size-6.5 cursor-pointer rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-4",
       "icon-lg": "size-9.5 cursor-pointer",
     },
   },
@@ -78,7 +78,7 @@ export const Button = ({
     {prefix && (
       <span
         data-icon="inline-start"
-        className="relative inline-flex items-center justify-center shrink-0 [&_svg:not([class*='size-'])]:size-4"
+        className="relative inline-flex shrink-0 items-center justify-center [&_svg:not([class*='size-'])]:size-4"
       >
         {prefix}
       </span>
@@ -87,7 +87,7 @@ export const Button = ({
     {suffix && (
       <span
         data-icon="inline-end"
-        className="relative inline-flex items-center justify-center shrink-0 [&_svg:not([class*='size-'])]:size-[1em]"
+        className="relative inline-flex shrink-0 items-center justify-center [&_svg:not([class*='size-'])]:size-[1em]"
       >
         {suffix}
       </span>

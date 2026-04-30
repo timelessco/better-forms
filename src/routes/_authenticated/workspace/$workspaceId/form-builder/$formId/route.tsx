@@ -18,8 +18,8 @@ const FormLayout = () => {
   const isEditRoute = pathname.includes("/form-builder/") && pathname.includes("/edit");
   if (isEditRoute) {
     return (
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-background">
-        <main className="flex-1 min-h-0 min-w-0 overflow-hidden relative flex flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+        <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <Outlet key={formId} />
         </main>
       </div>
@@ -27,8 +27,8 @@ const FormLayout = () => {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-background">
-      <main className="flex-1 min-h-0 min-w-0 overflow-auto relative">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      <main className="relative min-h-0 min-w-0 flex-1 overflow-auto">
         <Outlet key={formId} />
       </main>
     </div>

@@ -122,7 +122,7 @@ export const BlockDraggable: RenderNodeWrapper = (props) => {
     // opacity:0 and pointer-events:none ensures no interaction
     // We avoid display:none to prevent potential selection issues if cursor is forced there
     return (innerProps) => (
-      <div className="opacity-0 pointer-events-none h-0 overflow-hidden" aria-hidden="true">
+      <div className="pointer-events-none h-0 overflow-hidden opacity-0" aria-hidden="true">
         {innerProps.children}
       </div>
     );
@@ -338,7 +338,7 @@ const Draggable = (props: PlateElementProps) => {
           <div
             className={cn(
               "slate-blockToolbarWrapper",
-              "flex items-center gap-0 pointer-events-auto mr-1",
+              "pointer-events-auto mr-1 flex items-center gap-0",
               isInColumn && "h-4",
             )}
             onKeyDownCapture={(e) => {
@@ -364,7 +364,7 @@ const Draggable = (props: PlateElementProps) => {
                       variant="ghost"
                       size="icon"
                       tabIndex={-1}
-                      className="h-auto w-auto rounded-lg has-[>svg]:px-1 has-[>svg]:py-1.5 border border-transparent"
+                      className="h-auto w-auto rounded-lg border border-transparent has-[>svg]:px-1 has-[>svg]:py-1.5"
                       onClick={handleAddBlock}
                       data-plate-prevent-deselect
                     />
@@ -395,7 +395,7 @@ const Draggable = (props: PlateElementProps) => {
       )}
       <div
         ref={previewRef}
-        className={cn("left-0 absolute hidden w-full")}
+        className={cn("absolute left-0 hidden w-full")}
         style={{ top: `${-previewTop}px` }}
         contentEditable={false}
       />
@@ -423,7 +423,7 @@ const Gutter = ({
       {...props}
       className={cn(
         "slate-gutterLeft",
-        "-translate-x-full absolute h-full z-50 flex cursor-text hover:opacity-100",
+        "absolute z-50 flex h-full -translate-x-full cursor-text hover:opacity-100",
         gutterPosition === "top" ? "top-0 items-start" : "top-0 items-center",
         !selected && "sm:opacity-0",
         getPluginByType(editor, element.type)?.node.isContainer
@@ -571,7 +571,7 @@ const DragHandle = React.memo(function DragHandle({
           <button
             type="button"
             tabIndex={-1}
-            className="flex items-center justify-center h-auto w-auto overflow-hidden rounded-lg hover:bg-accent has-[>svg]:px-1 has-[>svg]:py-1.5"
+            className="flex h-auto w-auto items-center justify-center overflow-hidden rounded-lg hover:bg-accent has-[>svg]:px-1 has-[>svg]:py-1.5"
             onClick={handleClick}
             onMouseDown={handleMouseDown}
             onMouseEnter={handleMouseEnter}
@@ -645,7 +645,7 @@ const DropLine = React.memo(function DropLine({
       className={cn(
         "slate-dropLine pointer-events-none",
         "absolute inset-x-0 h-1 opacity-100",
-        "bg-primary rounded-full",
+        "rounded-full bg-primary",
         "animate-[drop-line-pulse_1s_ease-in-out_infinite]",
         dropLine === "top" && "-top-0.5",
         dropLine === "bottom" && "-bottom-0.5",

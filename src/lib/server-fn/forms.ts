@@ -1,35 +1,36 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
-import { and, count, eq, inArray, ne } from "drizzle-orm";
+import { and, count, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { customDomains, forms, member, submissions, workspaces } from "@/db/schema";
 import { RESERVED_SLUGS } from "@/lib/config/plan-config";
+import { planUnlocks } from "@/lib/config/plan-gates";
 import { db } from "@/db";
 import { authMiddleware, formProSettingsMiddleware } from "@/lib/auth/middleware";
-import { VERSIONED_SETTINGS_KEYS } from "@/lib/content-hash";
 import { purgeFormCache, purgeFormCacheBatch } from "@/lib/server-fn/cdn-cache";
+import type { VersionedSettingsSnapshot } from "@/lib/content-hash";
+import type { FormSettings } from "@/types/form-settings";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm, authFormsBulk } from "./auth-helpers.server";
 import { getOrgPlan } from "./plan-helpers.server";
-
-// Columns the listings query must always return so client-side change detection
-// (`useHasUnpublishedChanges`) keeps working after a refetch wipes the locally
-// enriched record. The heavy `content` JSONB stays out and loads on demand
-// via `enrichFormDetail`. Driven by `VERSIONED_SETTINGS_KEYS`
-// so adding a new versioned column auto-flows here — no second list to keep
-// in sync.
-const versionedSettingColumns = Object.fromEntries(
-  VERSIONED_SETTINGS_KEYS.map((key) => [key, forms[key as keyof typeof forms.$inferSelect]]),
-) as { [K in (typeof VERSIONED_SETTINGS_KEYS)[number]]: (typeof forms)[K] };
 
 const serializeForm = (form: typeof forms.$inferSelect) => ({
   ...form,
   createdAt: form.createdAt.toISOString(),
   updatedAt: form.updatedAt.toISOString(),
   content: form.content as object[],
-  settings: form.settings as Record<string, object>,
   customization: (form.customization ?? {}) as Record<string, object>,
 });
+
+/**
+ * Drizzle SQL fragment that shallow-merges a settings patch into the existing
+ * `forms.settings` JSONB. Used by every UPDATE that mutates a subset of
+ * behavioral keys without replacing the full settings object — accepts both
+ * a live `Partial<FormSettings>` patch and a stored `VersionedSettingsSnapshot`
+ * (used by the discard-changes / restore-version flow).
+ */
+export const mergeFormSettings = (patch: Partial<FormSettings> | VersionedSettingsSnapshot) =>
+  sql`${forms.settings} || ${JSON.stringify(patch)}::jsonb`;
 
 export const createForm = createServerFn({ method: "POST" })
   .middleware([authMiddleware, formProSettingsMiddleware])
@@ -41,36 +42,10 @@ export const createForm = createServerFn({ method: "POST" })
       formName: z.string().optional(),
       schemaName: z.string().optional(),
       content: z.array(z.unknown()).optional(),
-      settings: z.unknown().optional(),
       icon: z.string().nullable().optional(),
       cover: z.string().nullable().optional(),
-      isMultiStep: z.boolean().optional(),
       status: z.enum(["draft", "published", "archived"]).optional(),
-      language: z.string().optional(),
-      redirectOnCompletion: z.boolean().optional(),
-      redirectUrl: z.string().nullable().optional(),
-      redirectDelay: z.number().optional(),
-      progressBar: z.boolean().optional(),
-      presentationMode: z.enum(["card", "field-by-field"]).optional(),
-      branding: z.boolean().optional(),
-      analytics: z.boolean().optional(),
-      saveAnswersForLater: z.boolean().optional(),
-      selfEmailNotifications: z.boolean().optional(),
-      notificationEmail: z.string().nullable().optional(),
-      respondentEmailNotifications: z.boolean().optional(),
-      respondentEmailSubject: z.string().nullable().optional(),
-      respondentEmailBody: z.string().nullable().optional(),
-      passwordProtect: z.boolean().optional(),
-      password: z.string().nullable().optional(),
-      closeForm: z.boolean().optional(),
-      closedFormMessage: z.string().nullable().optional(),
-      closeOnDate: z.boolean().optional(),
-      closeDate: z.string().nullable().optional(),
-      limitSubmissions: z.boolean().optional(),
-      maxSubmissions: z.number().nullable().optional(),
-      preventDuplicateSubmissions: z.boolean().optional(),
-      dataRetention: z.boolean().optional(),
-      dataRetentionDays: z.number().nullable().optional(),
+      settings: z.custom<FormSettings>().optional(),
       customization: z.record(z.string(), z.unknown()).optional(),
       sortIndex: z.string().nullable().optional(),
     }),
@@ -87,36 +62,10 @@ export const createForm = createServerFn({ method: "POST" })
         formName: data.formName ?? "draft",
         schemaName: data.schemaName ?? "draftFormSchema",
         content: data.content ?? [],
-        settings: data.settings ?? {},
         icon: data.icon,
         cover: data.cover,
-        isMultiStep: data.isMultiStep ?? false,
         status: data.status ?? "draft",
-        language: data.language,
-        redirectOnCompletion: data.redirectOnCompletion,
-        redirectUrl: data.redirectUrl,
-        redirectDelay: data.redirectDelay,
-        progressBar: data.progressBar,
-        presentationMode: data.presentationMode,
-        branding: data.branding,
-        analytics: data.analytics,
-        saveAnswersForLater: data.saveAnswersForLater,
-        selfEmailNotifications: data.selfEmailNotifications,
-        notificationEmail: data.notificationEmail,
-        respondentEmailNotifications: data.respondentEmailNotifications,
-        respondentEmailSubject: data.respondentEmailSubject,
-        respondentEmailBody: data.respondentEmailBody,
-        passwordProtect: data.passwordProtect,
-        password: data.password,
-        closeForm: data.closeForm,
-        closedFormMessage: data.closedFormMessage,
-        closeOnDate: data.closeOnDate,
-        closeDate: data.closeDate,
-        limitSubmissions: data.limitSubmissions,
-        maxSubmissions: data.maxSubmissions,
-        preventDuplicateSubmissions: data.preventDuplicateSubmissions,
-        dataRetention: data.dataRetention,
-        dataRetentionDays: data.dataRetentionDays,
+        ...(data.settings ? { settings: data.settings } : {}),
         customization: data.customization,
         sortIndex: data.sortIndex,
         createdAt: now,
@@ -137,43 +86,17 @@ export const updateForm = createServerFn({ method: "POST" })
       formName: z.string().optional(),
       schemaName: z.string().optional(),
       content: z.array(z.unknown()).optional(),
-      settings: z.unknown().optional(),
       icon: z.string().nullable().optional(),
       cover: z.string().nullable().optional(),
-      isMultiStep: z.boolean().optional(),
       status: z.enum(["draft", "published", "archived"]).optional(),
       updatedAt: z.string().optional(),
-      language: z.string().optional(),
-      redirectOnCompletion: z.boolean().optional(),
-      redirectUrl: z.string().nullable().optional(),
-      redirectDelay: z.number().optional(),
-      progressBar: z.boolean().optional(),
-      presentationMode: z.enum(["card", "field-by-field"]).optional(),
-      branding: z.boolean().optional(),
-      analytics: z.boolean().optional(),
-      saveAnswersForLater: z.boolean().optional(),
-      selfEmailNotifications: z.boolean().optional(),
-      notificationEmail: z.string().nullable().optional(),
-      respondentEmailNotifications: z.boolean().optional(),
-      respondentEmailSubject: z.string().nullable().optional(),
-      respondentEmailBody: z.string().nullable().optional(),
-      passwordProtect: z.boolean().optional(),
-      password: z.string().nullable().optional(),
-      closeForm: z.boolean().optional(),
-      closedFormMessage: z.string().nullable().optional(),
-      closeOnDate: z.boolean().optional(),
-      closeDate: z.string().nullable().optional(),
-      limitSubmissions: z.boolean().optional(),
-      maxSubmissions: z.number().nullable().optional(),
-      preventDuplicateSubmissions: z.boolean().optional(),
-      dataRetention: z.boolean().optional(),
-      dataRetentionDays: z.number().nullable().optional(),
+      settings: z.custom<Partial<FormSettings>>().optional(),
       customization: z.record(z.string(), z.unknown()).optional(),
       sortIndex: z.string().nullable().optional(),
     }),
   )
   .handler(async ({ data, context }) => {
-    const { id, updatedAt: clientUpdatedAt, ...updateData } = data;
+    const { id, updatedAt: clientUpdatedAt, settings: settingsPatch, ...updateData } = data;
     const orgId = getActiveOrgId(context.session);
     await authForm(id, context.session.user.id, orgId);
 
@@ -181,6 +104,7 @@ export const updateForm = createServerFn({ method: "POST" })
       .update(forms)
       .set({
         ...updateData,
+        ...(settingsPatch ? { settings: mergeFormSettings(settingsPatch) } : {}),
         updatedAt: clientUpdatedAt ? new Date(clientUpdatedAt) : new Date(),
       })
       .where(eq(forms.id, id))
@@ -192,7 +116,7 @@ export const updateForm = createServerFn({ method: "POST" })
     // Skip the purge if the form was never published — there's no edge cache
     // for `form:$id` in that case, just a never-cached 404.
     const liveFieldChanged =
-      updateData.branding !== undefined || updateData.analytics !== undefined;
+      settingsPatch?.branding !== undefined || settingsPatch?.analytics !== undefined;
     const statusChanged = updateData.status !== undefined;
     if ((liveFieldChanged || statusChanged) && form?.lastPublishedVersionId) {
       void purgeFormCache(id);
@@ -274,14 +198,11 @@ export const getFormListings = createServerFn({ method: "GET" })
         // refetch after publish would otherwise wipe them off the local record.
         publishedContentHash: forms.publishedContentHash,
         lastPublishedVersionId: forms.lastPublishedVersionId,
-        // Live (non-versioned) settings the share sidebar reads.
-        branding: forms.branding,
-        analytics: forms.analytics,
         slug: forms.slug,
         customDomainId: forms.customDomainId,
-        // Every versioned settings column — needed so the client hash matches
-        // the server hash even after the listings query refetches.
-        ...versionedSettingColumns,
+        // Full settings JSONB — covers both the share-sidebar live reads
+        // (branding, analytics) and the versioned keys the client hashes.
+        settings: forms.settings,
       })
       .from(forms)
       .innerJoin(workspaces, eq(forms.workspaceId, workspaces.id))
@@ -465,7 +386,7 @@ export const assignFormDomain = createServerFn({ method: "POST" })
 
     if (customDomainId !== null) {
       const plan = await getOrgPlan(orgId);
-      if (plan === "free") {
+      if (!planUnlocks(plan, "customDomains")) {
         throw new Error("Custom domains require a Pro subscription. Please upgrade to continue.");
       }
 

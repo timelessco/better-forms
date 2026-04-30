@@ -161,7 +161,7 @@ const SubmissionCell = ({
       return (
         <a
           href={`mailto:${text}`}
-          className="text-[13px] truncate max-w-[300px] block text-primary hover:underline"
+          className="block max-w-[300px] truncate text-[13px] text-primary hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
           {text}
@@ -173,7 +173,7 @@ const SubmissionCell = ({
           href={text.startsWith("http") ? text : `https://${text}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[13px] truncate max-w-[300px] block text-primary hover:underline"
+          className="block max-w-[300px] truncate text-[13px] text-primary hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
           {text}
@@ -181,7 +181,7 @@ const SubmissionCell = ({
       );
     case "Date":
       return (
-        <span className="text-[13px] truncate max-w-[300px] block tabular-nums">
+        <span className="block max-w-[300px] truncate text-[13px] tabular-nums">
           {(() => {
             try {
               return new Date(text).toLocaleDateString();
@@ -194,7 +194,7 @@ const SubmissionCell = ({
     case "Time":
     case "Phone":
     case "Number":
-      return <span className="text-[13px] truncate max-w-[300px] block tabular-nums">{text}</span>;
+      return <span className="block max-w-[300px] truncate text-[13px] tabular-nums">{text}</span>;
     case "Checkbox":
     case "MultiChoice":
     case "MultiSelect":
@@ -202,11 +202,11 @@ const SubmissionCell = ({
     default: {
       const items = Array.isArray(value) ? value : null;
       if (!items) {
-        return <span className="text-[13px] truncate max-w-[300px] block">{labelFor(value)}</span>;
+        return <span className="block max-w-[300px] truncate text-[13px]">{labelFor(value)}</span>;
       }
       const useColors = fieldType === "MultiSelect" && options;
       return (
-        <div className="flex flex-wrap gap-1 max-w-[300px]">
+        <div className="flex max-w-[300px] flex-wrap gap-1">
           {items.map((item) => {
             const colorIdx = useColors ? options.findIndex((o) => o.value === String(item)) : -1;
             const color =
@@ -230,7 +230,7 @@ const SubmissionCell = ({
       // Legacy: bare string filename from old submissions
       if (typeof value === "string") {
         return (
-          <span className="text-[13px] text-muted-foreground italic truncate max-w-[180px] block">
+          <span className="block max-w-[180px] truncate text-[13px] text-muted-foreground italic">
             {value}
           </span>
         );
@@ -248,7 +248,7 @@ const SubmissionCell = ({
             onPreview?.(file);
           }}
           title={`${file.name} • ${formatBytes(file.size)}`}
-          className="flex w-full items-center justify-center gap-2 max-w-[180px] group cursor-pointer"
+          className="group flex w-full max-w-[180px] cursor-pointer items-center justify-center gap-2"
         >
           {isImage ? (
             <Image
@@ -258,13 +258,13 @@ const SubmissionCell = ({
               height={32}
               layout="fixed"
               loading="lazy"
-              className="h-8 w-auto max-w-[64px] rounded object-contain border border-border/40 shrink-0"
+              className="h-8 w-auto max-w-[64px] shrink-0 rounded border border-border/40 object-contain"
             />
           ) : (
             <FileTypeIcon type={file.type} className="h-4 w-4 shrink-0" />
           )}
           {!isImage && (
-            <span className="text-[13px] truncate text-muted-foreground group-hover:text-foreground">
+            <span className="truncate text-[13px] text-muted-foreground group-hover:text-foreground">
               {file.name}
             </span>
           )}
@@ -438,9 +438,9 @@ const SubmissionsPage = () => {
         columnHelper.accessor("createdAt", {
           header: ({ column }) => <DataGridColumnHeader column={column} title="Submitted at" />,
           cell: (info) => (
-            <div className="flex items-center justify-between gap-2 group/row min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-[13px] truncate min-w-0">
+            <div className="group/row flex min-w-0 items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="min-w-0 truncate text-[13px]">
                   {new Intl.DateTimeFormat(undefined, {
                     month: "short",
                     day: "numeric",
@@ -449,12 +449,12 @@ const SubmissionsPage = () => {
                   }).format(new Date(info.getValue()))}
                 </span>
                 {!info.row.original.isCompleted && (
-                  <span className="shrink-0 rounded-sm border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                  <span className="shrink-0 rounded-sm border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-amber-700 uppercase dark:text-amber-400">
                     Drop-off
                   </span>
                 )}
               </div>
-              <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
+              <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -702,8 +702,8 @@ const SubmissionsPage = () => {
   });
 
   return (
-    <div className="flex flex-col h-full min-h-0 min-w-0 bg-background">
-      <div className="shrink-0 px-5 pb-4.5 pt-2.5  border-border">
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-background">
+      <div className="shrink-0 border-border px-5 pt-2.5 pb-4.5">
         <div className="flex items-center justify-between">
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -711,7 +711,7 @@ const SubmissionsPage = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-2 font-normal bg-accent/60 hover:bg-accent rounded-lg"
+                  className="gap-2 rounded-lg bg-accent/60 font-normal hover:bg-accent"
                 />
               }
             >
@@ -723,7 +723,7 @@ const SubmissionsPage = () => {
                     ? completedCount
                     : partialCount}
               </span>
-              <ChevronDownIcon className="size-2.5 shrink-0  text-muted-foreground" />
+              <ChevronDownIcon className="size-2.5 shrink-0 text-muted-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-36">
               <DropdownMenuItem onClick={handleSetActiveTabAll} className="gap-2">
@@ -744,12 +744,12 @@ const SubmissionsPage = () => {
           </DropdownMenu>
 
           <div className="flex items-center gap-1.5">
-            <ButtonGroup className="w-[180px] focus-within:w-[240px] transition-[width] border-none duration-200 ease-out rounded-lg">
-              <ButtonGroupText className="h-7 w-full rounded-lg px-2.5 gap-1.5 text-[13px] bg-accent/60 border border-transparent">
+            <ButtonGroup className="w-[180px] rounded-lg border-none transition-[width] duration-200 ease-out focus-within:w-[240px]">
+              <ButtonGroupText className="h-7 w-full gap-1.5 rounded-lg border border-transparent bg-accent/60 px-2.5 text-[13px]">
                 <Search className="size-4" strokeWidth={2} color="var(--color-gray-alpha-600)" />
                 <input
                   placeholder="Search responses..."
-                  className="min-w-0 flex-1  bg-transparent border-0 p-0 outline-none text-[13px] placeholder:text-(--color-gray-alpha-600) placeholder:text-normal placeholder:text-[0.8rem]"
+                  className="placeholder:text-normal min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] outline-none placeholder:text-[0.8rem] placeholder:text-(--color-gray-alpha-600)"
                   value={globalFilter}
                   onChange={handleGlobalFilterChange}
                   aria-label="Search responses"
@@ -771,7 +771,7 @@ const SubmissionsPage = () => {
                     />
                   }
                   suffix={<ChevronDownIcon className="size-2.5 shrink-0 text-muted-foreground" />}
-                  className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-accent/60 hover:bg-accent text-(--color-gray-alpha-600) transition-colors cursor-pointer text-normal text-[0.8rem] rounded-lg"
+                  className="text-normal inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg rounded-md bg-accent/60 px-2.5 text-[0.8rem] text-(--color-gray-alpha-600) transition-colors hover:bg-accent"
                 >
                   Columns
                 </Button>
@@ -784,7 +784,7 @@ const SubmissionsPage = () => {
               prefix={
                 <Download strokeWidth={2} color="var(--color-gray-alpha-600)" className="size-4" />
               }
-              className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-accent/60 hover:bg-accent text-(--color-gray-alpha-600) transition-colors cursor-pointer text-normal text-[0.8rem] rounded-lg"
+              className="text-normal inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg rounded-md bg-accent/60 px-2.5 text-[0.8rem] text-(--color-gray-alpha-600) transition-colors hover:bg-accent"
               onClick={handleDownloadCSV}
             >
               Download CSV
@@ -796,13 +796,13 @@ const SubmissionsPage = () => {
       <Dialog open={previewFile !== null} onOpenChange={(open) => !open && closePreview()}>
         <DialogContent
           showCloseButton={false}
-          className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden p-0 rounded-lg"
+          className="flex max-h-[90vh] max-w-4xl flex-col overflow-hidden rounded-lg p-0"
         >
           {previewFile && (
             <>
-              <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/60 shrink-0">
+              <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-4 py-2.5">
                 <FileTypeIcon type={previewFile.type} className="h-4 w-4 shrink-0" />
-                <span className="text-sm font-medium truncate flex-1 min-w-0">
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">
                   {previewFile.name}
                 </span>
                 <a
@@ -812,7 +812,7 @@ const SubmissionsPage = () => {
                   className="shrink-0"
                 >
                   <Button variant="ghost" size="sm">
-                    <ExternalLink className="h-4 w-4 mr-1.5" />
+                    <ExternalLink className="mr-1.5 h-4 w-4" />
                     Open in new tab
                   </Button>
                 </a>
@@ -824,12 +824,12 @@ const SubmissionsPage = () => {
                   className="shrink-0"
                 >
                   <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-1.5" />
+                    <Download className="mr-1.5 h-4 w-4" />
                     Download
                   </Button>
                 </a>
               </div>
-              <div className="flex-1 min-h-0 flex items-center justify-center bg-muted/30 rounded-md overflow-auto">
+              <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-md bg-muted/30">
                 {previewFile.type.startsWith("image/") ? (
                   <Image
                     src={previewFile.url}
@@ -837,7 +837,7 @@ const SubmissionsPage = () => {
                     width={1600}
                     height={1200}
                     layout="constrained"
-                    className="max-w-full max-h-[70vh] object-contain"
+                    className="max-h-[70vh] max-w-full object-contain"
                   />
                 ) : previewFile.type === "application/pdf" ? (
                   // <object> falls back to its children if the browser/extension
@@ -847,11 +847,11 @@ const SubmissionsPage = () => {
                     data={previewFile.url}
                     type="application/pdf"
                     aria-label={previewFile.name}
-                    className="w-full h-[70vh]"
+                    className="h-[70vh] w-full"
                   >
                     <div className="flex flex-col items-center gap-3 py-12 text-center">
                       <FileTypeIcon type={previewFile.type} className="h-16 w-16" />
-                      <p className="text-sm text-muted-foreground max-w-sm">
+                      <p className="max-w-sm text-sm text-muted-foreground">
                         Your browser blocked the inline preview. Use the buttons above to open or
                         download the file.
                       </p>
@@ -871,35 +871,35 @@ const SubmissionsPage = () => {
         </DialogContent>
       </Dialog>
 
-      <div className="flex-1 flex flex-col min-h-0 min-w-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {Object.keys(rowSelection).length > 0 && (
-          <div className="fixed bottom-6 left-1/2  -translate-x-1/2 z-50 w-[min(560px,90vw)] animate-in slide-in-from-bottom-4 fade-in duration-300">
-            <div className="flex items-center justify-between  px-2.75 py-2.25 bg-background rounded-xl shadow-md">
+          <div className="fixed bottom-6 left-1/2 z-50 w-[min(560px,90vw)] -translate-x-1/2 animate-in duration-300 fade-in slide-in-from-bottom-4">
+            <div className="flex items-center justify-between rounded-xl bg-background px-2.75 py-2.25 shadow-md">
               <div className="flex items-center gap-1">
                 <Checkbox
                   checked={true}
-                  className="border-foreground data-[state=checked]:bg-foreground data-[state=checked]:border-foreground size-5"
+                  className="size-5 border-foreground data-[state=checked]:border-foreground data-[state=checked]:bg-foreground"
                 />
                 <span className="text-sm">{Object.keys(rowSelection).length} selected</span>
               </div>
-              <div className="flex items-center gap-1 h-6.5">
+              <div className="flex h-6.5 items-center gap-1">
                 <Button variant="ghost" size="sm" onClick={handleExportSelected}>
                   <Download className="h-3.5 w-3.5" />
                   Export
-                  <span className="text-xs text-muted-foreground ml-1">
+                  <span className="ml-1 text-xs text-muted-foreground">
                     {formatForDisplay(HOTKEYS.SUBMISSIONS_EXPORT)}
                   </span>
                 </Button>
                 <Button variant="ghost" size="sm" onClick={handleBulkDelete}>
                   Delete
-                  <span className="text-xs text-muted-foreground ml-1">
+                  <span className="ml-1 text-xs text-muted-foreground">
                     {formatForDisplay(HOTKEYS.SUBMISSIONS_DELETE)}
                   </span>
                 </Button>
                 <Button variant="secondary" size="sm" onClick={handleClearSelection}>
                   <XIcon className="h-3.5 w-3.5" />
                   Clear
-                  <span className="text-xs text-muted-foreground ml-1">
+                  <span className="ml-1 text-xs text-muted-foreground">
                     {formatForDisplay(HOTKEYS.SUBMISSIONS_CLEAR_SELECTION)}
                   </span>
                 </Button>
@@ -925,7 +925,7 @@ const SubmissionsPage = () => {
           }}
           emptyMessage={
             <div className="flex flex-col items-center justify-center space-y-3 py-16 opacity-50">
-              <div className="p-3 bg-muted rounded-full">
+              <div className="rounded-full bg-muted p-3">
                 <FilterIcon className="h-6 w-6" />
               </div>
               <div className="space-y-1 text-center">
@@ -939,10 +939,10 @@ const SubmissionsPage = () => {
             </div>
           }
         >
-          <div className="w-full flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
             <DataGridContainer
               border={false}
-              className="flex-1 min-h-0 border-b border-border overflow-x-auto overflow-y-hidden content-start"
+              className="min-h-0 flex-1 content-start overflow-x-auto overflow-y-hidden border-b border-border"
             >
               <DataGridVirtualTable
                 onFetchMore={fetchNextPage}

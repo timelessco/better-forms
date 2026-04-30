@@ -33,7 +33,7 @@ export const createWorkspace = createServerFn({ method: "POST" })
   .inputValidator(
     workspaceSchema.pick({ organizationId: true, name: true }).extend({
       id: z.uuid().optional(),
-      name: workspaceSchema.shape.name.optional().default("Collection"),
+      name: workspaceSchema.shape.name.optional().default("Workspace"),
     }),
   )
   .handler(async ({ data, context }) => {

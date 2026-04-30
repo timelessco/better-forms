@@ -2,6 +2,7 @@ import { createCollection } from "@tanstack/db";
 import type { InsertMutationFn, UpdateMutationFn, DeleteMutationFn } from "@tanstack/db";
 import type { QueryClient } from "@tanstack/query-core";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
+import type { FormSettings } from "@/types/form-settings";
 
 export type FormListing = {
   id: string;
@@ -15,12 +16,16 @@ export type FormListing = {
   sortIndex?: string | null;
   customization?: Record<string, unknown> | null;
   submissionCount: number;
+  settings?: FormSettings;
+  slug?: string | null;
+  customDomainId?: string | null;
+  publishedContentHash?: string | null;
+  lastPublishedVersionId?: string | null;
   // Heavy fields — populated on-demand when editor opens a form (enrichment)
   content?: unknown[];
-  settings?: Record<string, unknown>;
   schemaName?: string | null;
   cover?: string | null;
-  [key: string]: unknown;
+  createdByUserId?: string | null;
 };
 
 export type FormFavorite = {

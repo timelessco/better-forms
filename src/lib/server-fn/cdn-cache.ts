@@ -1,7 +1,5 @@
 import { setResponseHeader } from "@tanstack/react-start/server";
-
-const VERCEL_API = "https://api.vercel.com";
-
+import { vercel, vercelProjectId, vercelTeamId } from "@/integrations/vercel";
 // Public forms are immutable per published version. We serve a year-long
 // edge cache with stale-while-revalidate, and invalidate the cache tag
 // when the form republishes, its branding changes, or it gets deleted.
@@ -52,34 +50,33 @@ export const applyFormCacheHeaders = (formId: string, { gated }: { gated: boolea
 // Vercel deployments (env vars absent).
 export const purgeFormCache = (formId: string): Promise<void> => purgeFormCacheBatch([formId]);
 
-// Vercel accepts a comma-separated tag list so any batch (bulk delete,
-// daily cron) can ride a single API call.
+// Invalidates Vercel's Edge Cache by tag via the typed Vercel SDK
+// (`vercel.edgeCache.invalidateByTags`). The SDK accepts a single tag string
+// or an array, so any batch (bulk delete, daily cron) can ride one call.
 export const purgeFormCacheBatch = async (formIds: string[]): Promise<void> => {
   if (formIds.length === 0) return;
 
-  const token = process.env.VERCEL_TOKEN;
-  const projectId = process.env.VERCEL_PROJECT_ID;
-  if (!(token && projectId)) return;
+  const projectId = vercelProjectId();
+  if (!(process.env.VERCEL_TOKEN && projectId)) return;
 
-  const teamId = process.env.VERCEL_TEAM_ID;
-  const url = new URL(`${VERCEL_API}/v1/purge`);
-  url.searchParams.set("projectIdOrName", projectId);
-  url.searchParams.set("tag", formIds.map(formCacheTag).join(","));
-  if (teamId) url.searchParams.set("teamId", teamId);
+  // Skip in non-production environments — there's no Edge Cache to purge in
+  // local dev, and the API call would just be log noise on every publish.
+  // Set FORCE_CDN_PURGE=1 to override (e.g. when testing the purge path
+  // against a real Vercel project from a local branch).
+  if (process.env.NODE_ENV !== "production" && process.env.FORCE_CDN_PURGE !== "1") {
+    return;
+  }
 
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+    await vercel.edgeCache.invalidateByTags({
+      projectIdOrName: projectId,
+      teamId: vercelTeamId(),
+      requestBody: { tags: formIds.map(formCacheTag) },
     });
-    if (!res.ok) {
-      // Don't throw — purge failures must not break publish/update flows.
-      // The 60s browser max-age plus human behaviour (refresh on "didn't
-      // see my change") is an acceptable fallback.
-      const body = await res.text().catch(() => "");
-      console.warn(`[cdn-cache] purge failed for ${formIds.length} tag(s): ${res.status} ${body}`);
-    }
   } catch (err) {
-    console.warn(`[cdn-cache] purge error for ${formIds.length} tag(s):`, err);
+    // Don't throw — purge failures must not break publish/update flows. The
+    // 60s browser max-age plus human behaviour (refresh on "didn't see my
+    // change") is an acceptable fallback.
+    console.warn(`[cdn-cache] purge failed for ${formIds.length} tag(s):`, err);
   }
 };

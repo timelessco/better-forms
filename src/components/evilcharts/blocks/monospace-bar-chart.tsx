@@ -48,26 +48,26 @@ export function EvilMonospaceBarChart() {
       <div className="flex flex-row justify-between">
         <div className="flex flex-row">
           <div className="flex flex-col gap-2">
-            <span className="text-muted-foreground font-mono text-xs">{"[$] Total Sales"}</span>
-            <span className="text-primary font-mono text-3xl">
-              <span className="text-muted-foreground text-xl font-normal">$</span>
+            <span className="font-mono text-xs text-muted-foreground">{"[$] Total Sales"}</span>
+            <span className="font-mono text-3xl text-primary">
+              <span className="text-xl font-normal text-muted-foreground">$</span>
               <span className="tracking-tighter">14,340</span>
             </span>
           </div>
           <hr className="mx-4 h-full border-s border-dashed" />
           <div className="flex flex-col gap-2">
-            <span className="text-muted-foreground font-mono text-xs">{"[⬆] Top Month"}</span>
-            <span className="text-primary font-mono text-3xl">
+            <span className="font-mono text-xs text-muted-foreground">{"[⬆] Top Month"}</span>
+            <span className="font-mono text-3xl text-primary">
               <span className="tracking-tighter">June</span>
             </span>
           </div>
         </div>
         <div className="flex flex-col justify-end gap-1">
-          <span className="text-muted-foreground font-mono text-[10px]">
+          <span className="font-mono text-[10px] text-muted-foreground">
             {"// X-AXIS: "}
             <span className="text-primary">MONTHS</span>
           </span>
-          <span className="text-muted-foreground font-mono text-[10px]">
+          <span className="font-mono text-[10px] text-muted-foreground">
             {"// Y-AXIS: "}
             <span className="text-primary">SALES</span>
           </span>

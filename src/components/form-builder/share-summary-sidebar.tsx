@@ -45,12 +45,10 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
   const [codeDialogOpen, setCodeDialogOpen] = useState(false);
   const handleOpenCodeDialog = useCallback(() => setCodeDialogOpen(true), []);
 
+  const docSettings = doc?.settings;
+
   const form = useTanstackForm({
-    defaultValues: searchToFormValues(
-      search,
-      doc?.icon,
-      Boolean((doc as { branding?: unknown } | undefined)?.branding ?? true),
-    ),
+    defaultValues: searchToFormValues(search, doc?.icon, Boolean(docSettings?.branding ?? true)),
     listeners: {
       onChange: ({ formApi }) => {
         const v = formApi.state.values;
@@ -67,68 +65,63 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
     },
   });
 
-  // Persist Reform Branding toggle (Pro, server-controlled) to forms.branding
-  // so every embed reflects the change immediately via form settings.
-  const docPresentationMode =
-    (doc as { presentationMode?: PresentationMode } | undefined)?.presentationMode ?? "card";
-  const docProgressBar = Boolean((doc as { progressBar?: boolean } | undefined)?.progressBar);
-  const docBranding = Boolean((doc as { branding?: unknown } | undefined)?.branding ?? true);
-  const docAnalytics = Boolean((doc as { analytics?: boolean } | undefined)?.analytics);
+  // Persist toggles into the single `settings` JSONB so every embed reflects
+  // the change immediately via form settings.
+  const docPresentationMode: PresentationMode = docSettings?.presentationMode ?? "card";
+  const docProgressBar = Boolean(docSettings?.progressBar);
+  const docBranding = Boolean(docSettings?.branding ?? true);
+  const docAnalytics = Boolean(docSettings?.analytics);
 
-  const handlePresentationModeChange = useCallback(
-    (value: PresentationMode) => {
-      if (!doc?.id || docPresentationMode === value) return;
+  const updateSettings = useCallback(
+    (patch: Record<string, unknown>) => {
+      if (!doc?.id) return;
       const collection = getFormListings();
       collection.update(
         doc.id,
-        (draft: { presentationMode?: PresentationMode; updatedAt?: string }) => {
-          draft.presentationMode = value;
+        (draft: { settings?: Record<string, unknown>; updatedAt?: string }) => {
+          draft.settings = { ...(draft.settings ?? {}), ...patch };
           draft.updatedAt = new Date().toISOString();
         },
       );
     },
-    [doc?.id, docPresentationMode],
+    [doc?.id],
+  );
+
+  const handlePresentationModeChange = useCallback(
+    (value: PresentationMode) => {
+      if (docPresentationMode === value) return;
+      updateSettings({ presentationMode: value });
+    },
+    [docPresentationMode, updateSettings],
   );
 
   const handleProgressBarChange = useCallback(
     (value: boolean) => {
-      if (!doc?.id || docProgressBar === value) return;
-      const collection = getFormListings();
-      collection.update(doc.id, (draft: { progressBar?: boolean; updatedAt?: string }) => {
-        draft.progressBar = value;
-        draft.updatedAt = new Date().toISOString();
-      });
+      if (docProgressBar === value) return;
+      updateSettings({ progressBar: value });
     },
-    [doc?.id, docProgressBar],
+    [docProgressBar, updateSettings],
   );
 
   const handleBrandingChange = useCallback(
     (value: boolean) => {
-      if (!doc?.id || docBranding === value) return;
-      const collection = getFormListings();
-      collection.update(doc.id, (draft: { branding?: boolean; updatedAt?: string }) => {
-        draft.branding = value;
-        draft.updatedAt = new Date().toISOString();
-      });
+      if (docBranding === value) return;
+      updateSettings({ branding: value });
       form.setFieldValue("branding", value);
     },
-    [doc?.id, docBranding, form],
+    [docBranding, updateSettings, form],
   );
 
   const handleAnalyticsChange = useCallback(
     (value: boolean) => {
-      if (!doc?.id || docAnalytics === value) return;
-      const collection = getFormListings();
-      collection.update(doc.id, (draft: { analytics?: boolean; updatedAt?: string }) => {
-        draft.analytics = value;
-        draft.updatedAt = new Date().toISOString();
-      });
+      if (docAnalytics === value) return;
+      updateSettings({ analytics: value });
     },
-    [doc?.id, docAnalytics],
+    [docAnalytics, updateSettings],
   );
 
-  const docCustomDomainId = (doc as { customDomainId?: string | null } | undefined)?.customDomainId;
-  const docSlug = (doc as { slug?: string | null } | undefined)?.slug;
+  const docCustomDomainId = doc?.customDomainId;
+  const docSlug = doc?.slug;
 
   const [domainState, setDomainState] = useState<{
     domainId: string | null;
@@ -175,11 +168,11 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
     <Sidebar
       side="right"
       collapsible="none"
-      className="w-full h-full border-none animate-in slide-in-from-right-[40%] duration-200 ease-out"
+      className="h-full w-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
     >
-      <SidebarHeader className="pt-2 pb-3 pl-1 shrink-0 gap-2.25 space-y-2">
+      <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
         <div className="flex items-center justify-between">
-          <h2 className="text-base text-foreground pl-2.5">Share</h2>
+          <h2 className="pl-2.5 text-base text-foreground">Share</h2>
           <Button
             variant="ghost"
             size="icon-xs"
@@ -224,7 +217,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
                     <TabsTrigger
                       key={tab.value}
                       value={tab.value}
-                      className={"tracking-[0.21px] text-base font-medium"}
+                      className={"text-base font-medium tracking-[0.21px]"}
                     >
                       {tab.label}
                     </TabsTrigger>
@@ -238,7 +231,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
       </SidebarHeader>
 
       <SidebarContent>
-        <div className="px-3 space-y-3">
+        <div className="space-y-3 px-3">
           <SidebarSection label="Presentation" className="pb-2.75" action={<></>}>
             <ConfigCard>
               <ConfigRow
@@ -250,10 +243,10 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
                   onValueChange={(v) => handlePresentationModeChange(v as PresentationMode)}
                 >
                   <TabsList className="h-7">
-                    <TabsTrigger value="card" className="text-xs px-2">
+                    <TabsTrigger value="card" className="px-2 text-xs">
                       Card
                     </TabsTrigger>
-                    <TabsTrigger value="field-by-field" className="text-xs px-2">
+                    <TabsTrigger value="field-by-field" className="px-2 text-xs">
                       Field by field
                     </TabsTrigger>
                     <TabsIndicator />
@@ -277,9 +270,9 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
           </SidebarSection>
 
           {isDraft ? (
-            <div className="flex flex-col items-center justify-center py-10 px-4 text-center space-y-6 bg-muted/20 border-2 border-dashed rounded-2xl">
-              <div className="p-3 bg-primary/10 rounded-full text-primary">
-                <RocketIcon className="h-8 w-8 animate-bounce-subtle" />
+            <div className="flex flex-col items-center justify-center space-y-6 rounded-2xl border-2 border-dashed bg-muted/20 px-4 py-10 text-center">
+              <div className="rounded-full bg-primary/10 p-3 text-primary">
+                <RocketIcon className="animate-bounce-subtle h-8 w-8" />
               </div>
               <div className="space-y-2">
                 <h3 className="font-bold">Ready to go live?</h3>
@@ -287,7 +280,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
                   Your form is currently in draft. Publish it to start collecting responses.
                 </p>
               </div>
-              <Button size="sm" onClick={handlePublish} className="w-full font-semibold gap-2">
+              <Button size="sm" onClick={handlePublish} className="w-full gap-2 font-semibold">
                 Publish Now
               </Button>
             </div>
@@ -358,15 +351,15 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
 
       {!isDraft && (
         <SidebarFooter className="px-2 py-2">
-          <div className="flex items-center gap-[6px] rounded-lg bg-gray-100 pl-[10px] pr-[3px] py-[3px] h-[30px]">
-            <span className="flex-1 min-w-0 truncate text-sm text-(--color-gray-alpha-600) font-normal font-case">
+          <div className="flex h-[30px] items-center gap-[6px] rounded-lg bg-gray-100 py-[3px] pr-[3px] pl-[10px]">
+            <span className="min-w-0 flex-1 truncate font-case text-sm font-normal text-(--color-gray-alpha-600)">
               {shareUrl}
             </span>
             <CopyButton
               text={shareUrl}
               variant="ghost"
               size="sm"
-              className="h-6 shrink-0 rounded-[5px] bg-(--color-gray-0) shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] px-2 gap-1 text-sm  text-gray-600 border-none hover:bg-(--color-gray-0) [&_svg]:size-[13px]"
+              className="h-6 shrink-0 gap-1 rounded-[5px] border-none bg-(--color-gray-0) px-2 text-sm text-gray-600 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-(--color-gray-0) [&_svg]:size-[13px]"
             >
               Copy
             </CopyButton>

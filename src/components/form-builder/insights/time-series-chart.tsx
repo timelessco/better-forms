@@ -51,7 +51,7 @@ const formatDateLabel = (value: string): string => {
 export const TimeSeriesChart = ({ dailyData }: TimeSeriesChartProps) => {
   if (!dailyData || dailyData.length === 0) {
     return (
-      <div className="flex h-[260px] items-center justify-center text-muted-foreground text-sm">
+      <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">
         No data for this range
       </div>
     );

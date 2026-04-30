@@ -163,7 +163,7 @@ const PreviewFormHeader = ({
       return (
         <div className={cn(coverClass, "overflow-hidden bg-muted")} data-bf-cover>
           {cover.includes("tint=true") && (
-            <div className="absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color pointer-events-none" />
+            <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
           )}
           <img
             src={cover}
@@ -171,7 +171,7 @@ const PreviewFormHeader = ({
             width={1200}
             height={200}
             className={cn(
-              "w-full h-full object-cover",
+              "h-full w-full object-cover",
               cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
             )}
             onError={handleImageError}
@@ -213,7 +213,7 @@ const PreviewFormHeader = ({
             alt="Form icon"
             width={120}
             height={120}
-            className="w-[100px] h-[100px] sm:w-[120px] sm:h-[120px] rounded-md object-cover"
+            className="h-[100px] w-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
             data-bf-logo
             onError={handleIconError}
           />
@@ -239,7 +239,7 @@ const PreviewFormHeader = ({
 
   if (layout === "editor") {
     return (
-      <div ref={headerRef} className="mb-4 sm:mb-8 w-full">
+      <div ref={headerRef} className="mb-4 w-full sm:mb-8">
         {hasCover && renderCover()}
         <div
           className="mx-auto w-full px-8 md:px-0"
@@ -250,7 +250,7 @@ const PreviewFormHeader = ({
           {/* Spacer matching the editor's hover toolbar (Customize / Add icon / Add cover buttons + margin) */}
           <div
             className={cn(
-              "flex gap-1 mb-2",
+              "mb-2 flex gap-1",
               !hasCover && !hasIcon && "mt-8 sm:mt-12",
               hasCover && !hasIcon && "mt-4",
               !hasCover && hasIcon && "mt-0",
@@ -262,7 +262,7 @@ const PreviewFormHeader = ({
             <h1
               data-bf-title
               style={{ textWrap: "pretty" }}
-              className="text-4xl sm:text-[48px] font-serif font-light -tracking-[0.03em] text-foreground"
+              className="font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px]"
             >
               {title}
             </h1>
@@ -274,7 +274,7 @@ const PreviewFormHeader = ({
 
   // For public layout, no negative margin tricks needed
   return (
-    <div ref={headerRef} className="mb-4 sm:mb-8 w-full">
+    <div ref={headerRef} className="mb-4 w-full sm:mb-8">
       {hasCover && renderCover()}
 
       <div
@@ -288,7 +288,7 @@ const PreviewFormHeader = ({
             <h1
               data-bf-title
               style={{ textWrap: "pretty" }}
-              className={`text-4xl sm:text-[48px] font-serif font-light -tracking-[0.03em] text-foreground ${hasIcon ? "mt-3 sm:mt-4" : "mt-6 sm:mt-8"}`}
+              className={`font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px] ${hasIcon ? "mt-3 sm:mt-4" : "mt-6 sm:mt-8"}`}
             >
               {title}
             </h1>
@@ -304,17 +304,17 @@ const PreviewFormHeader = ({
  * thank-you page so respondents can pass the form along.
  */
 const ShareWithOthers = ({ shareUrl }: { shareUrl: string }) => (
-  <div className="flex flex-col items-center gap-2 pt-4 w-full max-w-sm mx-auto">
+  <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-2 pt-4">
     <p className="text-sm text-muted-foreground">Share with others</p>
-    <div className="flex items-center gap-[6px] w-full rounded-lg bg-muted/60 pl-[10px] pr-[3px] py-[3px] h-[30px]">
-      <span className="flex-1 min-w-0 truncate text-sm text-muted-foreground font-normal">
+    <div className="flex h-[30px] w-full items-center gap-[6px] rounded-lg bg-muted/60 py-[3px] pr-[3px] pl-[10px]">
+      <span className="min-w-0 flex-1 truncate text-sm font-normal text-muted-foreground">
         {shareUrl}
       </span>
       <CopyButton
         text={shareUrl}
         variant="ghost"
         size="sm"
-        className="h-6 shrink-0 rounded-[5px] bg-background shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] px-2 gap-1 text-sm text-foreground border-none [&_svg]:size-[13px]"
+        className="h-6 shrink-0 gap-1 rounded-[5px] border-none bg-background px-2 text-sm text-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] [&_svg]:size-[13px]"
       >
         Copy
       </CopyButton>
@@ -360,11 +360,11 @@ const DefaultThankYou = ({ onReset, shareUrl }: { onReset?: () => void; shareUrl
   const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
         {SuccessCheckmarkIcon}
       </div>
-      <h2 className="text-2xl font-bold mb-2">{t("thankYou")}</h2>
-      <p className="text-muted-foreground mb-6">{t("responseSubmitted")}</p>
+      <h2 className="mb-2 text-2xl font-bold">{t("thankYou")}</h2>
+      <p className="mb-6 text-muted-foreground">{t("responseSubmitted")}</p>
       {onReset && (
         <Button type="button" onClick={onReset} variant="outline" size="sm" className="rounded-lg">
           {t("submitAnother")}
@@ -438,10 +438,10 @@ export const FormPreviewFromPlate = ({
 
   if (steps.length === 0 || steps.flat().length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[300px] text-center p-8">
-        <div className="text-muted-foreground mb-4">{NoContentPlaceholderIcon}</div>
-        <h3 className="text-lg mb-2">No Content Yet</h3>
-        <p className="text-sm text-muted-foreground max-w-md">
+      <div className="flex min-h-[300px] flex-col items-center justify-center p-8 text-center">
+        <div className="mb-4 text-muted-foreground">{NoContentPlaceholderIcon}</div>
+        <h3 className="mb-2 text-lg">No Content Yet</h3>
+        <p className="max-w-md text-sm text-muted-foreground">
           Add content to the editor to see the preview.
         </p>
       </div>
@@ -454,7 +454,7 @@ export const FormPreviewFromPlate = ({
   const trackingMode: PublicFormTracking["mode"] = isFieldByField
     ? "field-by-field"
     : steps.length > 1
-      ? "page-break"
+      ? "card"
       : null;
   const tracking: PublicFormTracking | null =
     trackingBase && formId
@@ -597,7 +597,7 @@ const FormPreviewContent = ({
         <DefaultThankYou onReset={reset} shareUrl={shareUrl} />
       )}
       {redirectCountdown !== null && (
-        <p className="text-muted-foreground text-center mt-4">
+        <p className="mt-4 text-center text-muted-foreground">
           {t("redirecting", {
             n: redirectCountdown,
             s: redirectCountdown !== 1 ? "s" : "",
@@ -623,7 +623,7 @@ const FormPreviewContent = ({
           isPopup={isPopup}
         />
         <div
-          className={cn("w-full mx-auto", layout === "editor" ? "px-8 md:px-0" : "px-4")}
+          className={cn("mx-auto w-full", layout === "editor" ? "px-8 md:px-0" : "px-4")}
           style={{ maxWidth: PAGE_MAX_WIDTH[layout] }}
           data-bf-form-container
         >
@@ -643,10 +643,10 @@ const FormPreviewContent = ({
     return (
       <div
         className={cn(
-          "relative w-full flex flex-col h-full overflow-hidden",
+          "relative flex h-full w-full flex-col overflow-hidden",
           layout === "public"
             ? isPopup
-              ? "min-h-full max-h-full"
+              ? "max-h-full min-h-full"
               : "min-h-screen"
             : "min-h-[600px]",
         )}
@@ -666,7 +666,7 @@ const FormPreviewContent = ({
         {hasTint && (
           <div
             aria-hidden="true"
-            className="absolute inset-0 z-0 bg-primary opacity-50 mix-blend-color pointer-events-none"
+            className="pointer-events-none absolute inset-0 z-0 bg-primary opacity-50 mix-blend-color"
           />
         )}
 
@@ -697,7 +697,7 @@ const FormPreviewContent = ({
                   alt=""
                   width={80}
                   height={80}
-                  className="h-20 w-20 rounded-md object-cover flex-shrink-0"
+                  className="h-20 w-20 flex-shrink-0 rounded-md object-cover"
                   data-bf-logo
                 />
               ) : (
@@ -717,7 +717,7 @@ const FormPreviewContent = ({
                 data-bf-title
                 style={{ textWrap: "pretty" }}
                 className={cn(
-                  "font-serif font-light -tracking-[0.03em] text-foreground leading-none",
+                  "font-serif leading-none font-light -tracking-[0.03em] text-foreground",
                   isPopup ? "text-2xl sm:text-3xl" : "text-6xl sm:text-[48px]",
                 )}
               >
@@ -728,7 +728,7 @@ const FormPreviewContent = ({
         )}
 
         <div
-          className="relative z-10 mx-auto flex w-full min-h-0 flex-1 flex-col justify-center overflow-hidden px-4 pb-12 sm:px-6"
+          className="relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col justify-center overflow-hidden px-4 pb-12 sm:px-6"
           style={{
             maxWidth: PAGE_MAX_WIDTH[layout],
             ...(layout === "editor"
@@ -791,7 +791,7 @@ const FormPreviewContent = ({
 
       {settings?.progressBar && totalSteps > 1 && (
         <div
-          className={cn("mb-6 mx-auto", layout === "editor" ? "w-full px-8 md:px-0" : "px-4")}
+          className={cn("mx-auto mb-6", layout === "editor" ? "w-full px-8 md:px-0" : "px-4")}
           style={{ maxWidth: PAGE_MAX_WIDTH[layout] }}
           data-bf-form-container
         >

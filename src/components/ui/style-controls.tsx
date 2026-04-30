@@ -79,8 +79,8 @@ export const StyleNumberInput = ({
         "[--elastic-slider-bg:var(--background)]",
         "[--elastic-slider-fill:var(--secondary)]",
         "[--elastic-slider-fill-active:var(--secondary)]",
-        "[&_[data-slot=elastic-slider-label]]:text-base [&_[data-slot=elastic-slider-label]]:font-normal [&_[data-slot=elastic-slider-label]]:start-2",
-        "[&_[data-slot=elastic-slider-value]]:text-[13px] [&_[data-slot=elastic-slider-value]]:tabular-nums [&_[data-slot=elastic-slider-value]]:end-[11px]",
+        "[&_[data-slot=elastic-slider-label]]:start-2 [&_[data-slot=elastic-slider-label]]:text-base [&_[data-slot=elastic-slider-label]]:font-normal",
+        "[&_[data-slot=elastic-slider-value]]:end-[11px] [&_[data-slot=elastic-slider-value]]:text-[13px] [&_[data-slot=elastic-slider-value]]:tabular-nums",
         className,
       )}
       trackClassName={cn("border border-border/60", className)}
@@ -125,14 +125,14 @@ export const StyleColorPicker = ({
   return (
     <div
       className={cn(
-        "bg-secondary min-h-8.5 flex gap-3 items-center overflow-clip pl-2.5 py-1.75 pr-[3px]",
+        "flex min-h-8.5 items-center gap-3 overflow-clip bg-secondary py-1.75 pr-[3px] pl-2.5",
         className,
       )}
     >
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <span className="text-base font-normal">{label}</span>
       </div>
-      <div className="flex-none px-2 h-full flex items-center gap-2">
+      <div className="flex h-full flex-none items-center gap-2 px-2">
         <input
           ref={textInputRef}
           type="text"
@@ -144,11 +144,11 @@ export const StyleColorPicker = ({
               onChange(val);
             }
           }}
-          className="w-[60px] text-right bg-transparent outline-none tabular-nums font-mono text-muted-foreground uppercase text-[11px]"
+          className="w-[60px] bg-transparent text-right font-mono text-[11px] text-muted-foreground uppercase tabular-nums outline-none"
           maxLength={7}
         />
         <div
-          className="relative w-[18px] h-[18px] rounded-[4px] border border-border/60 overflow-hidden shrink-0 cursor-pointer"
+          className="relative h-[18px] w-[18px] shrink-0 cursor-pointer overflow-hidden rounded-[4px] border border-border/60"
           style={{ backgroundColor: hexColor }}
         >
           <input
@@ -156,7 +156,7 @@ export const StyleColorPicker = ({
             value={hexColor}
             aria-label={`${label} color picker`}
             onChange={(e) => onChange(e.target.value)}
-            className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
           />
         </div>
       </div>
@@ -257,21 +257,21 @@ export const StyleSelect = ({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "w-full flex items-center justify-between rounded-lg border border-border/60 bg-transparent h-[34px] px-3 text-[13px] hover:bg-accent/50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-          isOpen && "bg-accent/50 border-border/80",
+          "flex h-[34px] w-full items-center justify-between rounded-lg border border-border/60 bg-transparent px-3 text-[13px] transition-colors hover:bg-accent/50 focus:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+          isOpen && "border-border/80 bg-accent/50",
         )}
       >
         <span className="text-muted-foreground">{label}</span>
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           {selectedOption?.swatchColor && (
             <div
-              className="w-3.5 h-3.5 rounded-full border border-border/60 shrink-0"
+              className="h-3.5 w-3.5 shrink-0 rounded-full border border-border/60"
               style={{ backgroundColor: selectedOption.swatchColor }}
             />
           )}
           <span className="text-foreground">{selectedOption?.label ?? value}</span>
           <motion.svg
-            className="w-3.5 h-3.5 text-muted-foreground"
+            className="h-3.5 w-3.5 text-muted-foreground"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -293,7 +293,7 @@ export const StyleSelect = ({
             {isOpen && pos && (
               <motion.div
                 ref={dropdownRef}
-                className="bg-background/95 backdrop-blur-md rounded-lg border border-border/60 shadow-lg overflow-hidden z-9999"
+                className="z-9999 overflow-hidden rounded-lg border border-border/60 bg-background/95 shadow-lg backdrop-blur-md"
                 initial={{ opacity: 0, y: pos.above ? 8 : -8, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: pos.above ? 8 : -8, scale: 0.95 }}
@@ -311,7 +311,7 @@ export const StyleSelect = ({
                     : { top: pos.top, transformOrigin: "top" }),
                 }}
               >
-                <div className="p-1 flex flex-col overflow-y-auto max-h-[312px] custom-scrollbar">
+                <div className="custom-scrollbar flex max-h-[312px] flex-col overflow-y-auto p-1">
                   {options.map((option) => {
                     const isSelected = option.value === value;
                     return (
@@ -319,7 +319,7 @@ export const StyleSelect = ({
                         key={option.value}
                         type="button"
                         className={cn(
-                          "w-full text-left rounded-md transition-colors flex items-center justify-between group shrink-0",
+                          "group flex w-full shrink-0 items-center justify-between rounded-md text-left transition-colors",
                           hasDescriptions ? "px-3 py-2.5" : "px-2 py-1.5",
                           isSelected
                             ? "bg-primary/10 text-primary"
@@ -330,17 +330,17 @@ export const StyleSelect = ({
                           setIsOpen(false);
                         }}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex min-w-0 items-center gap-2.5">
                           {option.swatchColor && (
                             <div
-                              className="w-5 h-5 rounded-full border border-border/60 shrink-0"
+                              className="h-5 w-5 shrink-0 rounded-full border border-border/60"
                               style={{ backgroundColor: option.swatchColor }}
                             />
                           )}
                           <div className="min-w-0">
                             <div className="text-[13px] capitalize">{option.label}</div>
                             {option.description && (
-                              <div className="text-[11px] text-muted-foreground mt-0.5">
+                              <div className="mt-0.5 text-[11px] text-muted-foreground">
                                 {option.description}
                               </div>
                             )}
@@ -348,7 +348,7 @@ export const StyleSelect = ({
                         </div>
                         {isSelected && (
                           <svg
-                            className="w-3.5 h-3.5 shrink-0 ml-2"
+                            className="ml-2 h-3.5 w-3.5 shrink-0"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -408,18 +408,18 @@ export const StyleToggle = ({
   return (
     <div
       className={cn(
-        "flex items-center justify-between rounded-lg border border-border/60 bg-transparent h-[34px] pl-4 pr-1",
+        "flex h-[34px] items-center justify-between rounded-lg border border-border/60 bg-transparent pr-1 pl-4",
         className,
       )}
     >
-      <span className="text-muted-foreground text-[13px]">{label}</span>
+      <span className="text-[13px] text-muted-foreground">{label}</span>
       <div
         ref={containerRef}
-        className="relative flex rounded-md  isolation-auto h-[26px] items-center"
+        className="relative isolation-auto flex h-[26px] items-center rounded-md"
       >
         {pillStyle && (
           <motion.div
-            className="absolute top-0.5 bottom-0.5 bg-white/10 rounded z-0"
+            className="absolute top-0.5 bottom-0.5 z-0 rounded bg-white/10"
             style={{ left: pillStyle.left, width: pillStyle.width }}
             animate={{ left: pillStyle.left, width: pillStyle.width }}
             transition={
@@ -439,7 +439,7 @@ export const StyleToggle = ({
           type="button"
           onClick={() => onChange(false)}
           className={cn(
-            "relative z-10 px-3 h-full rounded text-[11px] font-semibold transition-colors cursor-pointer flex items-center justify-center min-w-[34px]",
+            "relative z-10 flex h-full min-w-[34px] cursor-pointer items-center justify-center rounded px-3 text-[11px] font-semibold transition-colors",
             !value ? "text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -452,7 +452,7 @@ export const StyleToggle = ({
           type="button"
           onClick={() => onChange(true)}
           className={cn(
-            "relative z-10 px-3 h-full rounded text-[11px] font-semibold transition-colors cursor-pointer flex items-center justify-center min-w-[34px]",
+            "relative z-10 flex h-full min-w-[34px] cursor-pointer items-center justify-center rounded px-3 text-[11px] font-semibold transition-colors",
             value ? "text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -498,20 +498,20 @@ export const StyleAlignToggle = ({
   return (
     <div
       className={cn(
-        "flex items-center rounded-lg overflow-hidden border border-border/60 bg-transparent h-[32px] text-[13px]",
+        "flex h-[32px] items-center overflow-hidden rounded-lg border border-border/60 bg-transparent text-[13px]",
         className,
       )}
     >
-      <div className="bg-transparent px-3 h-full flex items-center text-muted-foreground flex-1 select-none border-r border-border/60">
+      <div className="flex h-full flex-1 items-center border-r border-border/60 bg-transparent px-3 text-muted-foreground select-none">
         {label}
       </div>
       <div
         ref={containerRef}
-        className="flex-none flex items-center h-full px-1 gap-1 relative isolation-auto"
+        className="relative isolation-auto flex h-full flex-none items-center gap-1 px-1"
       >
         {pillStyle && (
           <motion.div
-            className="absolute top-1.5 bottom-1.5 bg-background border border-border/40 rounded z-0"
+            className="absolute top-1.5 bottom-1.5 z-0 rounded border border-border/40 bg-background"
             style={{ left: pillStyle.left, width: pillStyle.width }}
             animate={{ left: pillStyle.left, width: pillStyle.width }}
             transition={
@@ -532,11 +532,11 @@ export const StyleAlignToggle = ({
           onClick={() => onChange("left")}
           aria-label="Align left"
           className={cn(
-            "relative z-10 p-1.5 rounded flex items-center justify-center transition-colors border border-transparent",
+            "relative z-10 flex items-center justify-center rounded border border-transparent p-1.5 transition-colors",
             value === "left" ? "text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
-          <AlignLeftIcon className="w-[14px] h-[14px]" />
+          <AlignLeftIcon className="h-[14px] w-[14px]" />
         </button>
         <button
           ref={(el) => {
@@ -546,11 +546,11 @@ export const StyleAlignToggle = ({
           onClick={() => onChange("center")}
           aria-label="Align center"
           className={cn(
-            "relative z-10 p-1.5 rounded flex items-center justify-center transition-colors border border-transparent",
+            "relative z-10 flex items-center justify-center rounded border border-transparent p-1.5 transition-colors",
             value === "center" ? "text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
-          <AlignCenterIcon className="w-[14px] h-[14px]" />
+          <AlignCenterIcon className="h-[14px] w-[14px]" />
         </button>
         <button
           ref={(el) => {
@@ -560,11 +560,11 @@ export const StyleAlignToggle = ({
           onClick={() => onChange("right")}
           aria-label="Align right"
           className={cn(
-            "relative z-10 p-1.5 rounded flex items-center justify-center transition-colors border border-transparent",
+            "relative z-10 flex items-center justify-center rounded border border-transparent p-1.5 transition-colors",
             value === "right" ? "text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
-          <AlignRightIcon className="w-[14px] h-[14px]" />
+          <AlignRightIcon className="h-[14px] w-[14px]" />
         </button>
       </div>
     </div>

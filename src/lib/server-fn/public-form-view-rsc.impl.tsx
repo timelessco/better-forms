@@ -45,7 +45,7 @@ const RequiredBadge = () => (
     title="Required"
     className={cn(
       "flex size-4 shrink-0 items-center justify-center rounded-[8px] bg-destructive/15 text-destructive",
-      "ml-auto mr-1",
+      "mr-1 ml-auto",
     )}
   >
     <svg width="10" height="10" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -95,7 +95,7 @@ const ServerFieldLabel = ({
     <label
       htmlFor={htmlFor}
       data-slot="label"
-      className="gap-2 text-sm flex items-center select-none w-full py-2.5"
+      className="flex w-full items-center gap-2 py-2.5 text-sm select-none"
     >
       <span className="flex-1">{text}</span>
       {badge}
@@ -264,14 +264,14 @@ export const renderHeaderComponent = async ({
   const tinted = !!cover && cover.includes("tint=true");
 
   return createCompositeComponent(() => (
-    <div className="mb-4 sm:mb-8 w-full">
+    <div className="mb-4 w-full sm:mb-8">
       {coverIsHex && cover && (
         <div className={coverClass} data-bf-cover style={{ backgroundColor: cover }} />
       )}
       {coverIsUrl && cover && (
         <div className={cn(coverClass, "overflow-hidden bg-muted")} data-bf-cover>
           {tinted && (
-            <div className="absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color pointer-events-none" />
+            <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
           )}
           <img
             src={vercelImg(cover, 1200)}
@@ -282,7 +282,7 @@ export const renderHeaderComponent = async ({
             height={200}
             decoding="async"
             className={cn(
-              "w-full h-full object-cover",
+              "h-full w-full object-cover",
               tinted && "relative z-0 brightness-60 grayscale",
             )}
           />
@@ -300,7 +300,7 @@ export const renderHeaderComponent = async ({
                 width={120}
                 height={120}
                 decoding="async"
-                className="w-[100px] h-[100px] sm:w-[120px] sm:h-[120px] rounded-md object-cover"
+                className="h-[100px] w-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
                 data-bf-logo
               />
             </div>
@@ -324,7 +324,7 @@ export const renderHeaderComponent = async ({
               data-bf-title
               style={{ textWrap: "pretty" }}
               className={cn(
-                "text-4xl sm:text-[48px] font-serif font-light -tracking-[0.03em] text-foreground",
+                "font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px]",
                 hasIcon ? "mt-3 sm:mt-4" : "mt-6 sm:mt-8",
               )}
             >

@@ -18,8 +18,8 @@ export const EmptyState = ({ hasData }: EmptyStateProps) => {
           <BarChart3 className="size-6 text-muted-foreground" aria-hidden="true" />
         </div>
         <div className="space-y-1">
-          <h3 className="font-semibold text-base">No visits yet</h3>
-          <p className="max-w-sm text-muted-foreground text-sm">
+          <h3 className="text-base font-semibold">No visits yet</h3>
+          <p className="max-w-sm text-sm text-muted-foreground">
             Share your form to start collecting visits. Once people view or submit it, your insights
             will appear here.
           </p>

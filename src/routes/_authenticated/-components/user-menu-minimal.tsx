@@ -88,19 +88,19 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
     "size-4 shrink-0 text-foreground/80 [&_path]:stroke-[1.6] [&_path]:stroke-current";
 
   return (
-    <div className="bg-background transition-colors hover:bg-sidebar-active">
+    <div className="hover:bg-sidebar-active bg-background transition-colors">
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger
           render={
             <Button
               variant="ghost"
               size="md"
-              className="flex w-full min-w-0 gap-2 rounded-lg overflow-hidden px-1 py-[7px] transition-colors cursor-pointer items-center justify-start"
+              className="flex w-full min-w-0 cursor-pointer items-center justify-start gap-2 overflow-hidden rounded-lg px-1 py-[7px] transition-colors"
               aria-label="Toggle user menu"
             />
           }
         >
-          <div className="size-6 rounded-full overflow-hidden bg-sidebar-active flex items-center justify-center text-[10px] font-bold shrink-0">
+          <div className="bg-sidebar-active flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold">
             {session?.user?.image ? (
               <img
                 src={session.user.image}
@@ -111,10 +111,10 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
               getInitials(displayName)
             )}
           </div>
-          <p className="min-w-0 truncate text-left text-sm text-sidebar-foreground font-case">
+          <p className="min-w-0 truncate text-left font-case text-sm text-sidebar-foreground">
             {displayName}
           </p>
-          <div className="shrink-0 flex items-center">
+          <div className="flex shrink-0 items-center">
             <ChevronDownIcon
               className={cn(
                 "size-3 text-muted-foreground transition-transform duration-200",
@@ -132,8 +132,8 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
           className="w-[calc(var(--anchor-width)-16px)]"
         >
           {/* User info header */}
-          <div className="px-2 py-1.5 flex items-start gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-sidebar-active flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">
+          <div className="flex items-start gap-2.5 px-2 py-1.5">
+            <div className="bg-sidebar-active flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg text-sm font-bold">
               {session?.user?.image ? (
                 <img
                   src={session.user.image}
@@ -144,8 +144,8 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
                 getInitials(displayName)
               )}
             </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-[13px] text-foreground truncate">{displayName}</span>
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-[13px] text-foreground">{displayName}</span>
               <span className="text-[11px] text-muted-foreground">Free Plan</span>
             </div>
           </div>
@@ -154,7 +154,7 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
 
           {/* Account section */}
           <div className="flex flex-col">
-            <div className="px-2 py-1.5 rounded-lg text-xs text-muted-foreground">Account</div>
+            <div className="rounded-lg px-2 py-1.5 text-xs text-muted-foreground">Account</div>
             {accountMenuItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -162,7 +162,7 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
                   key={item.key}
                   type="button"
                   onClick={item.action}
-                  className="h-[26px] px-2 py-[5.5px] rounded-lg inline-flex items-center gap-1.5 overflow-hidden text-[13px] transition-colors text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                  className="inline-flex h-[26px] cursor-pointer items-center gap-1.5 overflow-hidden rounded-lg px-2 py-[5.5px] text-[13px] text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   <Icon className={menuItemIconClass} />
                   <span className="flex-1 text-left">{item.label}</span>
@@ -180,7 +180,7 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
               signOutMutation.mutate({});
               setIsOpen(false);
             }}
-            className="h-[26px] px-2 py-[5.5px] rounded-lg inline-flex items-center gap-1.5 overflow-hidden text-[13px] transition-colors text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer"
+            className="inline-flex h-[26px] cursor-pointer items-center gap-1.5 overflow-hidden rounded-lg px-2 py-[5.5px] text-[13px] text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             <LogOutIcon className={menuItemIconClass} />
             <span className="flex-1 text-left">Log out</span>

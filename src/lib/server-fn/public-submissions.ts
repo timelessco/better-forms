@@ -12,10 +12,12 @@ import {
   workspaces,
 } from "@/db/schema";
 import { db } from "@/db";
+import { planUnlocks } from "@/lib/config/plan-gates";
 import {
   getEditableFields,
   transformPlateStateToFormElements,
 } from "@/lib/editor/transform-plate-to-form";
+import { isServerPlan } from "./plan-helpers";
 import { recordOwnerSubmissionNotification } from "./notifications-helpers.server";
 
 type VersionSettings = {
@@ -71,16 +73,17 @@ const getAllowedFieldNames = (versionId: string | null, content: Value): Set<str
 /**
  * Public submission endpoint (no authentication).
  *
- * Two modes:
- *   - **Draft**: `isCompleted: false` + `draftId`. Upserts on (formId, draftId).
+ * Two modes (Submission states — see CONTEXT.md):
+ *   - **Incomplete**: `isCompleted: false` + `draftId`. Upserts on (formId, draftId).
  *     Shape-only validation (unknown fields rejected, types coerced), no
- *     required/format checks. Rate-limited per draftId.
- *   - **Final**: `isCompleted: true`. Full validation via published schema.
- *     If a draft row exists for the same (formId, draftId), it's updated in
+ *     required/format checks. Rate-limited per draftId. The `draftId` is a
+ *     client-generated identifier for the autosave session — not a state label.
+ *   - **Completed**: `isCompleted: true`. Full validation via published schema.
+ *     If an incomplete row exists for the same (formId, draftId), it's updated in
  *     place. Refuses to downgrade an already-completed row.
  *
- * Gating + email settings are read from the published version snapshot so the
- * live draft's unpublished changes don't take effect until the user republishes.
+ * Gating + email settings are read from the published Form Version snapshot so
+ * the Form's unpublished changes don't take effect until the user republishes.
  */
 export const createPublicSubmission = createServerFn({ method: "POST" })
   .inputValidator(
@@ -94,8 +97,8 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    // Payload size guard for drafts. Final submits trust the published schema
-    // to reject unreasonable payloads via field validators.
+    // Payload size guard for incomplete submissions. Completed submits trust
+    // the published schema to reject unreasonable payloads via field validators.
     if (!data.isCompleted) {
       const payloadSize = JSON.stringify(data.data).length;
       if (payloadSize > MAX_DRAFT_PAYLOAD_BYTES) {
@@ -158,7 +161,7 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
       throw new Error("This form is no longer accepting responses");
     }
     if (vSettings.limitSubmissions && vSettings.maxSubmissions) {
-      // Only count completed rows toward the submission cap — drafts shouldn't
+      // Only count completed rows toward the submission cap — incomplete ones shouldn't
       // exhaust the quota of a form with e.g. maxSubmissions = 100.
       const [{ value: submissionCount }] = await db
         .select({ value: count() })
@@ -194,7 +197,7 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
       : [];
     const existingRow = existing[0];
 
-    // Defense in depth: never downgrade a completed row back to draft, even if
+    // Defense in depth: never downgrade a completed row back to incomplete, even if
     // an out-of-order debounced save arrives after submit.
     if (existingRow?.isCompleted && !data.isCompleted) {
       return { submissionId: existingRow.id, success: true, noop: true };
@@ -246,7 +249,9 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
           notificationEmail: vSettings.notificationEmail ?? null,
           // Pro-only — defense in depth for the post-downgrade webhook race.
           respondentEmailNotifications:
-            (vSettings.respondentEmailNotifications ?? false) && form.orgPlan !== "free",
+            (vSettings.respondentEmailNotifications ?? false) &&
+            isServerPlan(form.orgPlan) &&
+            planUnlocks(form.orgPlan, "respondentEmailNotifications"),
           respondentEmailSubject: vSettings.respondentEmailSubject ?? null,
           respondentEmailBody: vSettings.respondentEmailBody ?? null,
         },
@@ -256,7 +261,7 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
         sanitizedData,
       ).catch((err) => console.error("[Email] Notification error:", err));
 
-      // Attribute the submission to its visit row. For draft → completed flows,
+      // Attribute the submission to its visit row. For incomplete → completed flows,
       // the same draftId may have produced multiple visits across sessions; the
       // current tab's visitId wins (most-recent-session attribution for v1).
       if (data.visitId) {

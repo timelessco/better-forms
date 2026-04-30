@@ -12,6 +12,8 @@
  * cannot produce spurious mismatches.
  */
 
+import type { FormSettings } from "@/types/form-settings";
+
 export const VERSIONED_SETTINGS_KEYS = [
   "progressBar",
   "presentationMode",
@@ -36,7 +38,15 @@ export const VERSIONED_SETTINGS_KEYS = [
   "respondentEmailBody",
   "dataRetention",
   "dataRetentionDays",
-] as const;
+] as const satisfies readonly (keyof FormSettings)[];
+
+export type VersionedSettingKey = (typeof VERSIONED_SETTINGS_KEYS)[number];
+
+/** Snapshot shape stored in `formVersions.settings` — every versioned key
+ * is present (with the source value or `null`), live-only keys excluded. */
+export type VersionedSettingsSnapshot = {
+  [K in VersionedSettingKey]: FormSettings[K] | null;
+};
 
 export type VersionedSnapshotInput = {
   content: unknown;
@@ -44,14 +54,20 @@ export type VersionedSnapshotInput = {
   title: unknown;
   icon: unknown;
   cover: unknown;
-  /** Flat source of versioned settings — only the keys in VERSIONED_SETTINGS_KEYS are read. */
-  settings: Record<string, unknown>;
+  /** Source of versioned settings. The helper only reads keys named in
+   * `VERSIONED_SETTINGS_KEYS`, so callers can pass a live `FormSettings`,
+   * a stored `VersionedSettingsSnapshot`, or any partial — extra keys are
+   * ignored, missing ones default to null. */
+  settings: Partial<FormSettings> | VersionedSettingsSnapshot | null | undefined;
 };
 
-export const pickVersionedSettings = (src: Record<string, unknown>): Record<string, unknown> => {
-  const out: Record<string, unknown> = {};
+export const pickVersionedSettings = (
+  src: Partial<FormSettings> | VersionedSettingsSnapshot | null | undefined,
+): VersionedSettingsSnapshot => {
+  const obj: Partial<Record<VersionedSettingKey, unknown>> = src ?? {};
+  const out = {} as VersionedSettingsSnapshot;
   for (const key of VERSIONED_SETTINGS_KEYS) {
-    out[key] = src[key] ?? null;
+    (out as Record<string, unknown>)[key] = obj[key] ?? null;
   }
   return out;
 };

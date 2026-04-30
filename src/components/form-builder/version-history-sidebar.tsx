@@ -104,11 +104,11 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
   return (
     <Sidebar
       collapsible="none"
-      className="w-full h-full border-none animate-in slide-in-from-right-[40%] duration-200 ease-out"
+      className="h-full w-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
     >
-      <SidebarHeader className="pt-2 pb-3 pl-1 shrink-0 gap-2.25 space-y-2">
+      <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-normal text-foreground pl-2.5">Version History</h2>
+          <h2 className="pl-2.5 text-base font-normal text-foreground">Version History</h2>
           <Button
             variant="ghost"
             size="icon-xs"
@@ -121,7 +121,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 pt-[10px] relative">
+      <SidebarContent className="relative px-2 pt-[10px]">
         {/* Vertical timeline line */}
         {versionList.length > 1 && (
           <div
@@ -145,7 +145,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                 key={version.id}
                 onClick={() => selectVersion(version.id)}
                 className={cn(
-                  "flex gap-1.5 h-auto items-start pl-2 py-2 rounded-lg w-full text-left relative cursor-pointer",
+                  "relative flex h-auto w-full cursor-pointer items-start gap-1.5 rounded-lg py-2 pl-2 text-left",
                   isSelected ? "bg-accent" : "hover:bg-accent/50",
                 )}
               >
@@ -153,18 +153,18 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                 <div className="shrink-0">
                   <Avatar className="size-5 rounded-full">
                     <AvatarImage src={publisher.image} alt={publisher.name} />
-                    <AvatarFallback className="text-[13px] bg-muted text-muted-foreground rounded-full">
+                    <AvatarFallback className="rounded-full bg-muted text-[13px] text-muted-foreground">
                       {publisher.initial}
                     </AvatarFallback>
                   </Avatar>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 min-w-0 flex flex-col gap-1">
-                  <p className="text-base leading-[16px] text-foreground font-medium truncate">
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <p className="truncate text-base leading-[16px] font-medium text-foreground">
                     {publisher.name}
                   </p>
-                  <p className="text-sm leading-[15px] font-normal text-muted-foreground tracking-[0.13px]">
+                  <p className="text-sm leading-[15px] font-normal tracking-[0.13px] text-muted-foreground">
                     {version.version} change{version.version !== 1 ? "s" : ""} ·{" "}
                     {isCurrent ? "Current" : "Published"}
                   </p>
@@ -178,7 +178,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                         render={
                           <button
                             type="button"
-                            className="inline-flex items-center justify-center size-[26px] rounded-lg hover:bg-accent cursor-pointer bg-transparent border-0 p-0"
+                            className="inline-flex size-[26px] cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 hover:bg-accent"
                             onClick={stopPropagation}
                             onKeyDown={(e) => e.stopPropagation()}
                             aria-label="Version actions"
@@ -191,22 +191,22 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                         side="bottom"
                         align="end"
                         sideOffset={4}
-                        className="min-w-[151px] rounded-xl p-1 flex flex-col gap-0.5"
+                        className="flex min-w-[151px] flex-col gap-0.5 rounded-xl p-1"
                       >
                         <DropdownMenuItem
-                          className="h-[26px] px-2 rounded-lg text-[13px]"
+                          className="h-[26px] rounded-lg px-2 text-[13px]"
                           disabled={isRestoring}
                           onClick={() => setRestoreConfirmVersionId(version.id)}
                         >
                           {isRestoring ? (
-                            <Loader2Icon className="size-3.5 mr-1.5 animate-spin" />
+                            <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
                           ) : null}
                           Restore this version
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="h-[26px] px-2 rounded-lg text-[13px]">
+                        <DropdownMenuItem className="h-[26px] rounded-lg px-2 text-[13px]">
                           Publish this version
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="h-[26px] px-2 rounded-lg text-[13px]">
+                        <DropdownMenuItem className="h-[26px] rounded-lg px-2 text-[13px]">
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -214,7 +214,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                   </div>
                 ) : (
                   <div className="shrink-0 pt-0.5">
-                    <span className="text-[13px] text-muted-foreground px-2">
+                    <span className="px-2 text-[13px] text-muted-foreground">
                       {formatRelativeTime(version.publishedAt)}
                     </span>
                   </div>

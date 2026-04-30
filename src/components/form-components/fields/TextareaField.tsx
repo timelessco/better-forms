@@ -23,7 +23,7 @@ const TextareaField = ({ element, form }: FieldRendererProps<"Textarea">) => (
             aria-invalid={hasErrors}
             aria-label={getAriaLabelFallback(element)}
             className={cn(
-              "form-input min-h-24 pl-[10px] pr-[8px]",
+              "min-h-24 form-input pr-[8px] pl-[10px]",
               hasErrors && "form-input-error",
             )}
           />

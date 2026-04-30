@@ -12,12 +12,12 @@ export const FormLabelElement = ({ children, ...props }: PlateElementProps) => {
 
   return (
     <PlateElement
-      className="m-0 px-0  text-sm text-foreground relative cursor-text caret-current"
+      className="relative m-0 cursor-text px-0 text-sm text-foreground caret-current"
       {...props}
     >
       <div className="flex items-center gap-1">
         {isEmpty && placeholder && isSelected && (
-          <span className="absolute text-muted-foreground/90 pointer-events-none select-none">
+          <span className="pointer-events-none absolute text-muted-foreground/90 select-none">
             {placeholder}
           </span>
         )}

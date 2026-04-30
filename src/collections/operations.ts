@@ -2,7 +2,8 @@ import { createTransaction } from "@tanstack/react-db";
 import { createVersionContentCollection, createVersionListCollection } from "./query/version";
 import type { FormListing } from "./query/form-listing";
 import type { WorkspaceSummary } from "./query/workspace";
-import { DEFAULT_FORM_CONTENT, DEFAULT_FORM_SETTINGS } from "./local/form";
+import { defaultFormSettings } from "@/types/form-settings";
+import { DEFAULT_FORM_CONTENT } from "./local/form";
 import type { Form } from "./local/form";
 import { getInit, state, stripNulls } from "./_state";
 
@@ -68,26 +69,10 @@ export const createFormLocal = (
     formName: "draft",
     schemaName: "draftFormSchema",
     content: DEFAULT_FORM_CONTENT,
-    settings: DEFAULT_FORM_SETTINGS,
     icon: null,
     cover: null,
-    isMultiStep: false,
     status: "draft",
-    language: "English",
-    redirectOnCompletion: false,
-    redirectDelay: 0,
-    progressBar: false,
-    presentationMode: "card",
-    branding: true,
-    saveAnswersForLater: true,
-    selfEmailNotifications: false,
-    respondentEmailNotifications: false,
-    passwordProtect: false,
-    closeForm: false,
-    closeOnDate: false,
-    limitSubmissions: false,
-    preventDuplicateSubmissions: false,
-    dataRetention: false,
+    settings: defaultFormSettings,
     customization: {},
     createdAt: now,
     updatedAt: now,
@@ -121,7 +106,6 @@ export const duplicateFormById = (formId: string): { form: Form; persisted: Prom
     id,
     title,
     content: structuredClone(sourceForm.content),
-    settings: structuredClone(sourceForm.settings),
     status: "draft",
     lastPublishedVersionId: null,
     publishedContentHash: null,
@@ -233,7 +217,7 @@ export const bulkPermanentDeleteFormsLocal = async (ids: string[]) => {
 
 export const createWorkspaceLocal = async (
   organizationId: string,
-  name = "Collection",
+  name = "Workspace",
 ): Promise<WorkspaceSummary> => {
   const { workspaces } = getInit();
   const id = crypto.randomUUID();

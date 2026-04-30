@@ -8,6 +8,11 @@ export type EmbedType = "standard" | "popup" | "fullPage";
 
 export type PresentationMode = "card" | "field-by-field";
 
+/**
+ * Canonical shape of `forms.settings` JSONB column. The single typed group
+ * for all behavioral configuration of a Form. `customization` (theme tokens)
+ * lives in `forms.customization`, not here.
+ */
 export interface FormSettings {
   language: string;
   redirectOnCompletion: boolean;
@@ -16,6 +21,7 @@ export interface FormSettings {
   progressBar: boolean;
   presentationMode: PresentationMode;
   branding: boolean;
+  analytics: boolean;
   dataRetention: boolean;
   dataRetentionDays: number | null;
 
@@ -36,25 +42,6 @@ export interface FormSettings {
   preventDuplicateSubmissions: boolean;
 
   saveAnswersForLater: boolean;
-
-  /**
-   * Theme customization — flat `Record<string, string>`.
-   *
-   * Recognized keys:
-   * - **Style**: `preset` (vega|nova|maia|lyra|mira|custom) — visual feel preset
-   * - **Mode**: `mode` (light|dark) — form-scoped color mode
-   * - **Simple**: `baseColor`, `themeColor`, `font`, `radius`, `spacing`
-   * - **Layout**: `pageWidth`, `coverHeight`, `logoWidth`, `logoHeight`, `inputWidth`
-   * - **Typography**: `baseFontSize`, `letterSpacing`
-   * - **Advanced token overrides**: `primary`, `primary-foreground`, `secondary`, `secondary-foreground`,
-   *   `accent`, `accent-foreground`, `background`, `foreground`, `destructive`, `destructive-foreground`,
-   *   `input`, `border`, `muted`, `muted-foreground`, `ring`
-   * - **Custom CSS**: `customCss`
-   */
-  customization: Record<string, string> | null;
-
-  createdAt: Date | string;
-  updatedAt: Date | string;
 }
 
 export interface PublicFormSettings {
@@ -98,25 +85,27 @@ export const defaultPublicFormSettings: PublicFormSettings = {
 
 /**
  * Merge a partial source of PublicFormSettings fields (typically a
- * version-snapshot jsonb or a live form doc) with the defaults. Any `null` or
- * `undefined` field in `source` falls back to the default.
+ * version-snapshot jsonb or a live form doc) with the defaults. Accepts both
+ * `Partial<PublicFormSettings>` (live shape, undefined for missing) and a
+ * versioned snapshot (every key present, `null` for missing). Either flavour
+ * falls back to the default for missing fields.
  */
 export const buildPublicFormSettings = (
-  source: Partial<PublicFormSettings> | null | undefined,
+  source: { [K in keyof PublicFormSettings]?: PublicFormSettings[K] | null } | null | undefined,
   overrides: Partial<PublicFormSettings> = {},
 ): PublicFormSettings => {
   const merged = { ...defaultPublicFormSettings };
   if (source) {
     for (const key of Object.keys(merged) as (keyof PublicFormSettings)[]) {
-      if (source[key] !== undefined) {
-        (merged as Record<string, unknown>)[key] = source[key];
-      }
+      const value = source[key];
+      if (value === undefined || value === null) continue;
+      (merged as Record<string, unknown>)[key] = value;
     }
   }
   return { ...merged, ...overrides };
 };
 
-export const defaultFormSettings: Omit<FormSettings, "createdAt" | "updatedAt"> = {
+export const defaultFormSettings: FormSettings = {
   language: "English",
   redirectOnCompletion: false,
   redirectUrl: null,
@@ -124,6 +113,7 @@ export const defaultFormSettings: Omit<FormSettings, "createdAt" | "updatedAt"> 
   progressBar: false,
   presentationMode: "card",
   branding: true,
+  analytics: false,
   dataRetention: false,
   dataRetentionDays: null,
   selfEmailNotifications: false,
@@ -141,5 +131,4 @@ export const defaultFormSettings: Omit<FormSettings, "createdAt" | "updatedAt"> 
   maxSubmissions: null,
   preventDuplicateSubmissions: false,
   saveAnswersForLater: true,
-  customization: null,
 };

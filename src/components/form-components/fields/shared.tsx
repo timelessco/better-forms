@@ -46,7 +46,7 @@ const RequiredBadge = () => (
           aria-label="Required field"
           className={cn(
             "flex size-4 shrink-0 items-center justify-center rounded-[8px] bg-destructive/15 text-destructive",
-            "ml-auto mr-1",
+            "mr-1 ml-auto",
           )}
         >
           <svg
@@ -86,7 +86,7 @@ export const FieldLabelText = ({
   if (labelType === "h1") {
     return (
       <div className="flex w-full items-center py-2.5">
-        <h1 className="flex-1 font-bold font-heading text-4xl">{text}</h1>
+        <h1 className="font-heading flex-1 text-4xl font-bold">{text}</h1>
         {badge}
       </div>
     );
@@ -94,7 +94,7 @@ export const FieldLabelText = ({
   if (labelType === "h2") {
     return (
       <div className="flex w-full items-center py-2.5">
-        <h2 className="flex-1 font-heading font-semibold text-2xl">{text}</h2>
+        <h2 className="font-heading flex-1 text-2xl font-semibold">{text}</h2>
         {badge}
       </div>
     );
@@ -102,7 +102,7 @@ export const FieldLabelText = ({
   if (labelType === "h3") {
     return (
       <div className="flex w-full items-center py-2.5">
-        <h3 className="flex-1 font-heading font-semibold text-xl">{text}</h3>
+        <h3 className="font-heading flex-1 text-xl font-semibold">{text}</h3>
         {badge}
       </div>
     );

@@ -101,7 +101,7 @@ export default function AvatarUpload({
             size="icon"
             variant="outline"
             onClick={handleRemove}
-            className="size-6 absolute end-0 top-0 rounded-full"
+            className="absolute end-0 top-0 size-6 rounded-full"
             aria-label="Remove avatar"
           >
             <XIcon className="size-3.5" />
@@ -110,7 +110,7 @@ export default function AvatarUpload({
       </div>
 
       {/* Upload Instructions */}
-      <div className="text-center space-y-0.5">
+      <div className="space-y-0.5 text-center">
         <p className="text-sm">{currentFile ? "Avatar uploaded" : "Upload avatar"}</p>
         <p className="text-xs text-muted-foreground">PNG, JPG up to {formatBytes(maxSize)}</p>
       </div>

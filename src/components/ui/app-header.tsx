@@ -314,11 +314,11 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     <>
       <header
         className={cn(
-          "group/header flex h-10 w-full items-center justify-between bg-background px-2 text-[13px] -z-10 shrink-0 select-none transition-opacity duration-150",
-          isDistractionHidden && "opacity-0 pointer-events-none",
+          "group/header -z-10 flex h-10 w-full shrink-0 items-center justify-between bg-background px-2 text-[13px] transition-opacity duration-150 select-none",
+          isDistractionHidden && "pointer-events-none opacity-0",
         )}
       >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           {isLandingPage && <LogoToggle static className="-ml-1" />}
           {/* Logo doubles as the sidebar trigger on mobile (always visible)
               and on desktop when the sidebar is collapsed. The primary open
@@ -346,21 +346,21 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
             </Tooltip>
           )}
           {isFormBuilder && savedDocs?.[0] && (
-            <nav aria-label="Breadcrumb" className="flex items-center text-sm min-w-0 flex-1">
+            <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center text-sm">
               {workspace && (
                 <>
                   <Link
                     to="/dashboard"
                     className={cn(
                       buttonVariants({ variant: "ghost", size: "sm" }),
-                      "hidden md:inline-flex font-normal text-muted-foreground hover:text-foreground hover:bg-accent/60 truncate max-w-[150px] px-1.5 shrink",
+                      "hidden max-w-[150px] shrink truncate px-1.5 font-normal text-muted-foreground hover:bg-accent/60 hover:text-foreground md:inline-flex",
                     )}
                   >
                     <span className="truncate">{workspace.name}</span>
                   </Link>
                   <span
                     aria-hidden="true"
-                    className="text-muted-foreground/40 px-0.5 hidden md:inline shrink-0"
+                    className="hidden shrink-0 px-0.5 text-muted-foreground/40 md:inline"
                   >
                     /
                   </span>
@@ -372,7 +372,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                   params={{ workspaceId, formId }}
                   className={cn(
                     buttonVariants({ variant: "ghost", size: "sm" }),
-                    "min-w-0 max-w-[140px] sm:max-w-[200px] font-normal text-foreground hover:bg-accent/60 px-1.5 justify-start shrink",
+                    "max-w-[140px] min-w-0 shrink justify-start px-1.5 font-normal text-foreground hover:bg-accent/60 sm:max-w-[200px]",
                   )}
                 >
                   <span className="truncate">{savedDocs?.[0].title || "Untitled"}</span>
@@ -381,7 +381,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                 <span
                   className={cn(
                     buttonVariants({ variant: "ghost", size: "sm" }),
-                    "min-w-0 max-w-[140px] sm:max-w-[200px] font-normal cursor-default px-1.5 justify-start hover:bg-transparent shrink",
+                    "max-w-[140px] min-w-0 shrink cursor-default justify-start px-1.5 font-normal hover:bg-transparent sm:max-w-[200px]",
                   )}
                 >
                   <span className="truncate">{savedDocs?.[0].title || "Untitled"}</span>
@@ -391,14 +391,14 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                 <>
                   <span
                     aria-hidden="true"
-                    className="text-muted-foreground/40 px-0.5 hidden lg:inline shrink-0"
+                    className="hidden shrink-0 px-0.5 text-muted-foreground/40 lg:inline"
                   >
                     /
                   </span>
                   <span
                     className={cn(
                       buttonVariants({ variant: "ghost", size: "sm" }),
-                      "font-normal text-muted-foreground cursor-default px-1.5 hidden lg:inline-flex hover:bg-transparent shrink-0",
+                      "hidden shrink-0 cursor-default px-1.5 font-normal text-muted-foreground hover:bg-transparent lg:inline-flex",
                     )}
                   >
                     {breadcrumbLabel}
@@ -409,12 +409,12 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
           )}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex shrink-0 items-center gap-1">
           {isFormBuilder && savedDocs?.[0]?.updatedAt && !isLoadingSavedDocs && (
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <span className="mr-1 hidden md:inline-flex h-7 items-center whitespace-nowrap rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] font-normal text-muted-foreground/70" />
+                  <span className="mr-1 hidden h-7 items-center rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] font-normal whitespace-nowrap text-muted-foreground/70 md:inline-flex" />
                 }
               >
                 Edited{" "}
@@ -451,8 +451,8 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               variant="ghost"
               size="sm"
               className={cn(
-                "px-2.5 text-muted-foreground hover:text-foreground font-normal",
-                activeSidebar === "about" && "text-foreground bg-accent/50",
+                "px-2.5 font-normal text-muted-foreground hover:text-foreground",
+                activeSidebar === "about" && "bg-accent/50 text-foreground",
               )}
               onClick={() => toggleEditorSidebar("about")}
             >
@@ -469,8 +469,8 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                       variant="ghost"
                       size="sm"
                       className={cn(
-                        "px-2.5 text-muted-foreground hover:text-foreground font-normal",
-                        previewMode && "text-foreground bg-accent/50",
+                        "px-2.5 font-normal text-muted-foreground hover:text-foreground",
+                        previewMode && "bg-accent/50 text-foreground",
                       )}
                       onClick={togglePreview}
                     />
@@ -489,8 +489,8 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "px-2.5 text-muted-foreground hover:text-foreground font-normal",
-                  activeSidebar === "about" && "text-foreground bg-accent/50",
+                  "px-2.5 font-normal text-muted-foreground hover:text-foreground",
+                  activeSidebar === "about" && "bg-accent/50 text-foreground",
                 )}
                 onClick={() => toggleEditorSidebar("about")}
               >
@@ -499,7 +499,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground hover:text-foreground rounded-lg"
+                className="rounded-lg text-muted-foreground hover:text-foreground"
                 onClick={() => toggleEditorSidebar("settings")}
                 aria-label="Settings"
               >
@@ -536,7 +536,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               </DropdownMenu>
               <Button
                 size="sm"
-                className="pl-2.5 pr-2 py-1.5 ml-1 text-[14px] transition-all rounded-[8px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] border-none bg-black hover:bg-stone-800 text-white dark:bg-white dark:text-black dark:hover:bg-stone-200"
+                className="ml-1 rounded-[8px] border-none bg-black py-1.5 pr-2 pl-2.5 text-[14px] text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
                 onClick={() => navigate({ to: "/login" })}
               >
                 Publish
@@ -553,7 +553,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="hidden md:inline-flex h-7 w-7 text-muted-foreground hover:text-foreground"
+                        className="hidden h-7 w-7 text-muted-foreground hover:text-foreground md:inline-flex"
                         onClick={() => setActiveDialog("discard")}
                         disabled={isDiscarding}
                       />
@@ -580,8 +580,8 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                           variant="ghost"
                           size="sm"
                           className={cn(
-                            "px-2.5 text-muted-foreground hover:text-foreground font-normal",
-                            previewMode && "text-foreground bg-accent/50",
+                            "px-2.5 font-normal text-muted-foreground hover:text-foreground",
+                            previewMode && "bg-accent/50 text-foreground",
                           )}
                           onClick={togglePreview}
                         />
@@ -603,8 +603,8 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                     variant="ghost"
                     size="sm"
                     className={cn(
-                      "hidden md:inline-flex px-2.5 text-muted-foreground hover:text-foreground font-normal",
-                      isShareSidebarOpen && "text-foreground bg-accent/50",
+                      "hidden px-2.5 font-normal text-muted-foreground hover:text-foreground md:inline-flex",
+                      isShareSidebarOpen && "bg-accent/50 text-foreground",
                     )}
                     onClick={() => toggleShareSidebar()}
                   >
@@ -615,7 +615,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden md:inline-flex text-muted-foreground hover:text-foreground"
+                  className="hidden text-muted-foreground hover:text-foreground md:inline-flex"
                   aria-label="Settings"
                   onClick={() => toggleSettingsSidebar()}
                 >
@@ -631,7 +631,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="p-[5px] mr-1 rounded-lg overflow-hidden hover:bg-sidebar-active text-muted-foreground hover:text-foreground"
+                        className="hover:bg-sidebar-active mr-1 overflow-hidden rounded-lg p-[5px] text-muted-foreground hover:text-foreground"
                         aria-label="More options"
                       />
                     }
@@ -658,10 +658,10 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                       <Button
                         size="sm"
                         className={cn(
-                          "pl-2 pr-2 py-1.5 ml-1 text-[14px] transition-all rounded-[8px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] border-none",
+                          "ml-1 rounded-[8px] border-none py-1.5 pr-2 pl-2 text-[14px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all",
                           !isLoadingSavedDocs &&
                             (hasUnpublishedChanges || savedDocs?.[0]?.status !== "published")
-                            ? "bg-black hover:bg-stone-800 text-white dark:bg-white dark:text-black dark:hover:bg-stone-200"
+                            ? "bg-black text-white hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
                             : "bg-muted text-muted-foreground hover:bg-muted/80",
                         )}
                         onClick={handlePublish}
@@ -699,7 +699,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                           aria-label="Edit form"
                           className={cn(
                             buttonVariants({ size: "sm" }),
-                            "ml-1 text-base transition-all rounded-lg shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] border-none bg-black hover:bg-stone-800 text-white dark:bg-white dark:text-black dark:hover:bg-stone-200",
+                            "ml-1 rounded-lg border-none bg-black text-base text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200",
                           )}
                         />
                       }

@@ -27,7 +27,7 @@ export const SidebarSection = ({
   const defaultAction = (
     <Button
       variant="ghost"
-      className="size-[26px] p-[5px] rounded-lg overflow-hidden hover:bg-sidebar-active text-muted-foreground hover:text-foreground"
+      className="hover:bg-sidebar-active size-[26px] overflow-hidden rounded-lg p-[5px] text-muted-foreground hover:text-foreground"
       aria-label="Section actions"
     >
       <MoreHorizontalIcon className="size-4" />
@@ -36,13 +36,13 @@ export const SidebarSection = ({
 
   return (
     <Accordion defaultValue={initialOpen ? [SECTION_VALUE] : []} className="flex flex-col">
-      <AccordionItem value={SECTION_VALUE} className="border-none ">
+      <AccordionItem value={SECTION_VALUE} className="border-none">
         <AccordionTrigger
           iconPosition="inline"
           action={action ?? defaultAction}
-          className="h-7.5 px-1 py-1.5 rounded-lg overflow-hidden cursor-pointer ml-[0.55px]"
+          className="ml-[0.55px] h-7.5 cursor-pointer overflow-hidden rounded-lg px-1 py-1.5"
         >
-          <span className="text-[13px] text-muted-foreground truncate tracking-4 font-case font-medium">
+          <span className="truncate font-case text-[13px] font-medium tracking-4 text-muted-foreground">
             {label}
           </span>
         </AccordionTrigger>

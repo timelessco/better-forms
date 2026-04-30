@@ -7,6 +7,7 @@ import {
   jsonb,
   boolean,
   index,
+  uniqueIndex,
   unique,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -73,6 +74,7 @@ export const customDomains = pgTable(
     updatedAt: timestamp({ withTimezone: true })
       .default(sql`now()`)
       .notNull(),
+    previousStatus: text(),
   },
   (table) => [
     index("custom_domains_domain_idx").using("btree", table.domain.asc().nullsLast()),
@@ -350,7 +352,6 @@ export const forms = pgTable(
     cover: text(),
     isMultiStep: boolean().default(false).notNull(),
     status: text().default("draft").notNull(),
-    deletedAt: timestamp({ withTimezone: true }),
     lastPublishedVersionId: text(),
     publishedContentHash: text(),
     language: text().default("English").notNull(),
@@ -387,6 +388,7 @@ export const forms = pgTable(
     customDomainId: text(),
     sortIndex: text(),
     presentationMode: text().default("card").notNull(),
+    analytics: boolean().default(false).notNull(),
   },
   (table) => [
     index("idx_forms_id_created_by").using(
@@ -457,6 +459,7 @@ export const organization = pgTable(
     createdAt: timestamp({ withTimezone: true })
       .default(sql`now()`)
       .notNull(),
+    plan: text().default("free").notNull(),
   },
   (table) => [unique("organization_slug_key").on(table.slug)],
 );
@@ -495,6 +498,8 @@ export const submissions = pgTable(
     updatedAt: timestamp({ withTimezone: true })
       .default(sql`now()`)
       .notNull(),
+    draftId: text(),
+    lastStepReached: integer(),
   },
   (table) => [
     index("idx_submissions_form_id").using("btree", table.formId.asc().nullsLast()),
@@ -504,6 +509,9 @@ export const submissions = pgTable(
       table.createdAt.asc().nullsLast(),
       table.id.asc().nullsLast(),
     ),
+    uniqueIndex("uniq_submissions_form_id_draft_id")
+      .using("btree", table.formId.asc().nullsLast(), table.draftId.asc().nullsLast())
+      .where(sql`("draftId" IS NOT NULL)`),
   ],
 );
 

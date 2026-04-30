@@ -160,7 +160,7 @@ const ThemeSelect = () => {
     <Select value={theme} onValueChange={handleThemeChange}>
       <SelectTrigger
         size="md"
-        className="shrink-0  bg-gray-50 border-0 rounded-lg shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] outline-1 -outline-offset-1 outline-transparent pl-3 pr-2.5 text-sm text-foreground capitalize"
+        className="shrink-0 rounded-lg border-0 bg-gray-50 pr-2.5 pl-3 text-sm text-foreground capitalize shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] outline-1 -outline-offset-1 outline-transparent"
       >
         <SelectValue />
       </SelectTrigger>
@@ -292,7 +292,7 @@ export const AccountSettingsContent = () => {
   if (isSessionPending) {
     return (
       <div className="flex items-center justify-center p-12">
-        <Loader2Icon aria-hidden="true" className="animate-spin h-8 w-8 text-muted-foreground" />
+        <Loader2Icon aria-hidden="true" className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -305,15 +305,15 @@ export const AccountSettingsContent = () => {
             variant="ghost"
             onClick={handleOpenFileDialog}
             aria-label="Change avatar"
-            className="relative group cursor-pointer p-0 h-auto rounded-full"
+            className="group relative h-auto cursor-pointer rounded-full p-0"
           >
             <Avatar className="size-[46px]">
               <AvatarImage src={user?.image || ""} />
-              <AvatarFallback className="text-base bg-indigo-600 text-white">
+              <AvatarFallback className="bg-indigo-600 text-base text-white">
                 {user?.name?.charAt(0) || "V"}
               </AvatarFallback>
             </Avatar>
-            <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
               <Camera className="h-4 w-4 text-white" />
             </div>
           </Button>
@@ -339,7 +339,7 @@ export const AccountSettingsContent = () => {
               <Button
                 variant="secondary"
                 size="sm"
-                className="h-[30px] px-2.5 rounded-lg"
+                className="h-[30px] rounded-lg px-2.5"
                 onClick={handleRemoveAvatar}
               >
                 Remove
@@ -351,7 +351,7 @@ export const AccountSettingsContent = () => {
         <div className="flex items-start gap-3">
           <profileForm.AppField name="displayName">
             {(field) => (
-              <div className="flex-1 flex flex-col gap-2">
+              <div className="flex flex-1 flex-col gap-2">
                 <label
                   className="text-base tracking-[0.28px] text-muted-foreground"
                   htmlFor={displayNameId}
@@ -360,7 +360,7 @@ export const AccountSettingsContent = () => {
                 </label>
                 <InputGroup
                   variant="borderless"
-                  className={`h-[30px] bg-secondary border-0 ring-0  overflow-clip${displayNameChanged ? " pr-[3px]" : ""}`}
+                  className={`h-[30px] border-0 bg-secondary ring-0 overflow-clip${displayNameChanged ? " pr-[3px]" : ""}`}
                 >
                   <InputGroupInput
                     id={displayNameId}
@@ -400,7 +400,7 @@ export const AccountSettingsContent = () => {
           </profileForm.AppField>
           <profileForm.AppField name="username">
             {(field) => (
-              <div className="flex-1 flex flex-col gap-2">
+              <div className="flex flex-1 flex-col gap-2">
                 <label
                   className="text-base tracking-[0.28px] text-muted-foreground"
                   htmlFor={usernameId}
@@ -409,7 +409,7 @@ export const AccountSettingsContent = () => {
                 </label>
                 <InputGroup
                   variant="borderless"
-                  className={`h-[30px] bg-secondary border-0 ring-0 overflow-clip${usernameChanged ? " pr-[3px]" : ""}`}
+                  className={`h-[30px] border-0 bg-secondary ring-0 overflow-clip${usernameChanged ? " pr-[3px]" : ""}`}
                 >
                   <InputGroupInput
                     id={usernameId}
@@ -453,13 +453,13 @@ export const AccountSettingsContent = () => {
 
         <section className="flex flex-col gap-[10px]">
           <h3 className="text-base font-medium text-foreground">Email</h3>
-          <div className="bg-secondary rounded-2xl pl-2 pr-2.5 py-2 flex items-center gap-3">
-            <div className="flex flex-1 gap-2 items-start min-w-0">
-              <div className="size-[38px] rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-3 rounded-2xl bg-secondary py-2 pr-2.5 pl-2">
+            <div className="flex min-w-0 flex-1 items-start gap-2">
+              <div className="flex size-[38px] shrink-0 items-center justify-center overflow-hidden rounded-lg">
                 <MailIcon className="size-[22px] text-muted-foreground" />
               </div>
               <div className="flex flex-col gap-1">
-                <p className="text-base font-medium text-foreground truncate">
+                <p className="truncate text-base font-medium text-foreground">
                   {user?.email || ""}
                 </p>
                 <p className="text-base text-muted-foreground">Current email</p>
@@ -469,7 +469,7 @@ export const AccountSettingsContent = () => {
               variant="secondary"
               size="sm"
               onClick={emailChange.toggle}
-              className="h-[30px] rounded-lg bg-gray-50 px-3 font-medium font-sans text-sm text-gray-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-gray-200"
+              className="h-[30px] rounded-lg bg-gray-50 px-3 font-sans text-sm font-medium text-gray-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-gray-200"
             >
               Change email
             </Button>
@@ -479,7 +479,7 @@ export const AccountSettingsContent = () => {
               {(field) => (
                 <InputGroup
                   variant="borderless"
-                  className="h-[30px] bg-secondary border-0 ring-0 overflow-clip pr-[3px]"
+                  className="h-[30px] overflow-clip border-0 bg-secondary pr-[3px] ring-0"
                 >
                   <InputGroupInput
                     type="email"
@@ -487,7 +487,7 @@ export const AccountSettingsContent = () => {
                     onChange={(e) => field.handleChange(e.target.value)}
                     placeholder="Enter new email address"
                     aria-label="New email address"
-                    className="h-[30px] text-base text-foreground pl-2.5 pr-1.5"
+                    className="h-[30px] pr-1.5 pl-2.5 text-base text-foreground"
                   />
                   <InputGroupButton
                     variant="default"
@@ -508,13 +508,13 @@ export const AccountSettingsContent = () => {
 
         <section className="flex flex-col gap-[10px]">
           <h3 className="text-base font-medium text-foreground">Appearance</h3>
-          <div className="bg-secondary rounded-2xl pl-2 pr-2.5 py-2 flex items-center gap-3">
-            <div className="flex flex-1 gap-2 items-center min-w-0">
-              <div className="size-[38px] rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-3 rounded-2xl bg-secondary py-2 pr-2.5 pl-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="flex size-[38px] shrink-0 items-center justify-center overflow-hidden rounded-lg">
                 <TeleVisionIcon className="size-[22px] text-muted-foreground" />
               </div>
               <div className="flex flex-col justify-center">
-                <p className="text-base font-medium text-foreground font-sans">
+                <p className="font-sans text-base font-medium text-foreground">
                   Choose light/dark mode
                 </p>
               </div>
@@ -525,9 +525,9 @@ export const AccountSettingsContent = () => {
 
         <section className="flex flex-col gap-[10px]">
           <h3 className="text-base font-medium text-foreground">Connected account</h3>
-          <div className="bg-secondary rounded-2xl pl-2 pr-2.5 py-2 flex items-center gap-3">
-            <div className="flex flex-1 gap-2 items-start min-w-0">
-              <div className="size-[38px] rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-3 rounded-2xl bg-secondary py-2 pr-2.5 pl-2">
+            <div className="flex min-w-0 flex-1 items-start gap-2">
+              <div className="flex size-[38px] shrink-0 items-center justify-center overflow-hidden rounded-lg">
                 <svg viewBox="0 0 24 24" width="20" height="20" className="size-5">
                   <title>Google logo</title>
                   <path
@@ -549,7 +549,7 @@ export const AccountSettingsContent = () => {
                 </svg>
               </div>
               <div className="flex flex-col gap-1">
-                <p className="text-base font-medium text-foreground truncate">
+                <p className="truncate text-base font-medium text-foreground">
                   {accounts.find((a) => a.providerId === "google")
                     ? user?.email || "Google account"
                     : "Google"}
@@ -583,7 +583,7 @@ export const AccountSettingsContent = () => {
           </div>
           {accounts.find((a) => a.providerId === "google") && (
             <div className="flex items-center gap-2">
-              <AlertCircleIcon className="size-[18px] text-muted-foreground shrink-0" />
+              <AlertCircleIcon className="size-[18px] shrink-0 text-muted-foreground" />
               <p className="text-sm leading-[1.5] text-muted-foreground">
                 You have logged in with your Google account.
               </p>
@@ -601,14 +601,14 @@ export const AccountSettingsContent = () => {
             size="md"
             onClick={handleDeleteAccount}
             disabled={deleteAccountMutation.isPending}
-            className="w-full bg-secondary rounded-lg px-2.5 py-[7px] flex items-center justify-center gap-1.5 cursor-pointer hover:bg-accent transition-colors disabled:opacity-50"
+            className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-secondary px-2.5 py-[7px] transition-colors hover:bg-accent disabled:opacity-50"
           >
             {deleteAccountMutation.isPending ? (
-              <Loader2Icon className="animate-spin size-3 text-destructive" />
+              <Loader2Icon className="size-3 animate-spin text-destructive" />
             ) : (
               <TriangleAlertIcon className="size-3 text-destructive" />
             )}
-            <span className="text-destructive text-sm">Delete my account</span>
+            <span className="text-sm text-destructive">Delete my account</span>
           </Button>
         </section>
 
@@ -633,7 +633,7 @@ export const AccountSettingsContent = () => {
 
                   <div className="flex justify-between">
                     <ImageCropReset render={<Button variant="outline" size="sm" />}>
-                      <RotateCcwIcon className="h-4 w-4 mr-2" />
+                      <RotateCcwIcon className="mr-2 h-4 w-4" />
                       Reset
                     </ImageCropReset>
 
@@ -647,7 +647,7 @@ export const AccountSettingsContent = () => {
                     >
                       {avatarUpload.isUploading ? (
                         <>
-                          <Loader2Icon className="animate-spin mr-2 h-4 w-4" />
+                          <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
                           Uploading...
                         </>
                       ) : (

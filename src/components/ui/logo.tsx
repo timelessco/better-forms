@@ -76,7 +76,7 @@ export const LogoToggle = ({
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className={cn(
-          "absolute text-foreground opacity-0 scale-75 transition-all duration-200 ease-out group-hover/logo:scale-100 group-hover/logo:opacity-100",
+          "absolute scale-75 text-foreground opacity-0 transition-all duration-200 ease-out group-hover/logo:scale-100 group-hover/logo:opacity-100",
           direction === "right" && "scale-x-[-1] group-hover/logo:scale-x-[-1]",
         )}
       >

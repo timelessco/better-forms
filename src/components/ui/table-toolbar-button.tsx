@@ -244,7 +244,7 @@ const TablePicker = () => {
   return (
     <Button
       variant="ghost"
-      className="flex! m-0 flex-col p-0 h-auto hover:bg-transparent"
+      className="m-0 flex! h-auto flex-col p-0 hover:bg-transparent"
       onClick={handleInsertTable}
       onKeyDown={handleKeyDown}
       onKeyUp={handleKeyUp}
@@ -268,7 +268,7 @@ const TablePicker = () => {
         )}
       </div>
 
-      <div className="text-center text-current text-xs">
+      <div className="text-center text-xs text-current">
         {tablePicker.size.rowCount} x {tablePicker.size.colCount}
       </div>
     </Button>

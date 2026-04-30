@@ -4,8 +4,9 @@ import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
 import { forms, formVersions, organization, submissions, workspaces } from "@/db/schema";
 import { db } from "@/db";
+import { planUnlocks } from "@/lib/config/plan-gates";
+import { isServerPlan } from "@/lib/server-fn/plan-helpers";
 import { buildPublicFormSettings } from "@/types/form-settings";
-import type { PublicFormSettings } from "@/types/form-settings";
 
 /**
  * Public server functions for viewing a form and verifying its password.
@@ -29,10 +30,9 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
         id: forms.id,
         status: forms.status,
         lastPublishedVersionId: forms.lastPublishedVersionId,
-        // Group 4 (live): branding + analytics toggles, plus draft fallbacks
-        // for forms without versions
-        branding: forms.branding,
-        analytics: forms.analytics,
+        // Group 4 (live): branding + analytics live in forms.settings JSONB.
+        // Plus draft fallbacks for forms without versions.
+        liveSettings: forms.settings,
         orgPlan: organization.plan,
         draftTitle: forms.title,
         draftContent: forms.content,
@@ -53,8 +53,12 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
       ? await db.select().from(formVersions).where(eq(formVersions.id, form.lastPublishedVersionId))
       : [undefined];
 
-    const snapshotSettings = (version?.settings ?? {}) as Partial<PublicFormSettings>;
-    const effectiveBranding = form.orgPlan === "free" ? true : form.branding;
+    const snapshotSettings = version?.settings;
+    const canDisableBranding =
+      isServerPlan(form.orgPlan) && planUnlocks(form.orgPlan, "disableBranding");
+    const liveBranding = form.liveSettings?.branding ?? true;
+    const liveAnalytics = form.liveSettings?.analytics ?? false;
+    const effectiveBranding = canDisableBranding ? liveBranding : true;
     const settings = buildPublicFormSettings(snapshotSettings, { branding: effectiveBranding });
 
     // --- Gating checks (based on snapshot settings — changes here require republish) ---
@@ -116,7 +120,7 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
           icon: version.icon,
           cover: version.cover,
           status: form.status,
-          analytics: form.analytics,
+          analytics: liveAnalytics,
           settings,
         },
         error: null,
@@ -135,7 +139,7 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
         icon: form.draftIcon,
         cover: form.draftCover,
         status: form.status,
-        analytics: form.analytics,
+        analytics: liveAnalytics,
         settings,
       },
       error: null,
@@ -150,7 +154,7 @@ export const verifyFormPassword = createServerFn({ method: "POST" })
   .inputValidator(z.object({ formId: z.uuid(), password: z.string() }))
   .handler(async ({ data }) => {
     const [formRow] = await db
-      .select({ password: forms.password })
+      .select({ settings: forms.settings })
       .from(forms)
       .where(eq(forms.id, data.formId));
 
@@ -158,5 +162,5 @@ export const verifyFormPassword = createServerFn({ method: "POST" })
       return { valid: false };
     }
 
-    return { valid: formRow.password === data.password };
+    return { valid: formRow.settings?.password === data.password };
   });

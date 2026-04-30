@@ -1,9 +1,4 @@
-import { VercelCore } from "@vercel/sdk/core.js";
-import { domainsDeleteDomain } from "@vercel/sdk/funcs/domainsDeleteDomain.js";
-import { projectsAddProjectDomain } from "@vercel/sdk/funcs/projectsAddProjectDomain.js";
-import { projectsGetProjectDomain } from "@vercel/sdk/funcs/projectsGetProjectDomain.js";
-import { projectsRemoveProjectDomain } from "@vercel/sdk/funcs/projectsRemoveProjectDomain.js";
-import { projectsVerifyProjectDomain } from "@vercel/sdk/funcs/projectsVerifyProjectDomain.js";
+import { requireVercelProjectId, vercel, vercelTeamId } from "@/integrations/vercel";
 
 export interface VercelDomainVerification {
   type: string;
@@ -15,25 +10,6 @@ export interface VercelDomainStatus {
   verified: boolean;
   verification?: VercelDomainVerification[];
 }
-
-let cachedClient: VercelCore | undefined;
-const getClient = (): VercelCore => {
-  if (!cachedClient) {
-    cachedClient = new VercelCore({ bearerToken: process.env.VERCEL_TOKEN });
-  }
-  return cachedClient;
-};
-
-let cachedProjectId: string | undefined;
-const getProjectId = (): string => {
-  if (cachedProjectId) return cachedProjectId;
-  const id = process.env.VERCEL_PROJECT_ID;
-  if (!id) throw new Error("VERCEL_PROJECT_ID is not set");
-  cachedProjectId = id;
-  return id;
-};
-
-const teamId = (): string | undefined => process.env.VERCEL_TEAM_ID || undefined;
 
 const NOT_FOUND_RE = /not.?found|404/i;
 
@@ -68,58 +44,58 @@ const errorMessage = (error: unknown, fallback: string): string => {
 
 export const vercelDomains = {
   async add(domain: string): Promise<VercelDomainStatus & { domain: string }> {
-    const result = await projectsAddProjectDomain(getClient(), {
-      idOrName: getProjectId(),
-      teamId: teamId(),
-      requestBody: { name: domain },
-    });
-
-    if (!result.ok) {
+    try {
+      const value = await vercel.projects.addProjectDomain({
+        idOrName: requireVercelProjectId(),
+        teamId: vercelTeamId(),
+        requestBody: { name: domain },
+      });
+      return {
+        domain: value.name ?? domain,
+        verified: value.verified ?? false,
+        verification: value.verification,
+      };
+    } catch (error) {
       // Vercel returns the verification challenge inline when a domain is
       // already attached to another team — surface it instead of throwing so
       // the UI can render TXT _vercel instructions.
-      const verification = extractVerificationFromError(result.error);
+      const verification = extractVerificationFromError(error);
       if (verification?.length) {
         return { domain, verified: false, verification };
       }
-      throw new Error(errorMessage(result.error, "Failed to add domain to Vercel"));
+      throw new Error(errorMessage(error, "Failed to add domain to Vercel"));
     }
-
-    const { value } = result;
-    return {
-      domain: value.name ?? domain,
-      verified: value.verified ?? false,
-      verification: value.verification,
-    };
   },
 
   async check(domain: string): Promise<VercelDomainStatus> {
-    const result = await projectsGetProjectDomain(getClient(), {
-      idOrName: getProjectId(),
-      teamId: teamId(),
-      domain,
-    });
-    if (!result.ok) {
-      throw new Error(errorMessage(result.error, "Failed to check domain status"));
+    try {
+      const value = await vercel.projects.getProjectDomain({
+        idOrName: requireVercelProjectId(),
+        teamId: vercelTeamId(),
+        domain,
+      });
+      return {
+        verified: value.verified ?? false,
+        verification: value.verification,
+      };
+    } catch (error) {
+      throw new Error(errorMessage(error, "Failed to check domain status"));
     }
-    return {
-      verified: result.value.verified ?? false,
-      verification: result.value.verification,
-    };
   },
 
   async verify(domain: string): Promise<VercelDomainStatus> {
-    const result = await projectsVerifyProjectDomain(getClient(), {
-      idOrName: getProjectId(),
-      teamId: teamId(),
-      domain,
-    });
-    if (!result.ok) {
-      throw new Error(errorMessage(result.error, "Failed to verify domain"));
+    try {
+      const value = await vercel.projects.verifyProjectDomain({
+        idOrName: requireVercelProjectId(),
+        teamId: vercelTeamId(),
+        domain,
+      });
+      // The verify endpoint only reports verified; callers needing the TXT
+      // challenge should fall back to check().
+      return { verified: value.verified ?? false };
+    } catch (error) {
+      throw new Error(errorMessage(error, "Failed to verify domain"));
     }
-    // The verify endpoint only reports verified; callers needing the TXT
-    // challenge should fall back to check().
-    return { verified: result.value.verified ?? false };
   },
 
   /**
@@ -128,15 +104,16 @@ export const vercelDomains = {
    * skips re-verification. Use for downgrade/suspend flows.
    */
   async detach(domain: string): Promise<void> {
-    const result = await projectsRemoveProjectDomain(getClient(), {
-      idOrName: getProjectId(),
-      teamId: teamId(),
-      domain,
-    });
-    if (!result.ok) {
-      // The SDK doesn't expose a status code on the Result error directly;
-      // tolerate "not found" by message inspection.
-      const message = errorMessage(result.error, "Failed to detach domain from project");
+    try {
+      await vercel.projects.removeProjectDomain({
+        idOrName: requireVercelProjectId(),
+        teamId: vercelTeamId(),
+        domain,
+      });
+    } catch (error) {
+      // The SDK doesn't expose a status code on errors directly; tolerate
+      // "not found" by message inspection.
+      const message = errorMessage(error, "Failed to detach domain from project");
       if (NOT_FOUND_RE.test(message)) return;
       throw new Error(message);
     }
@@ -148,13 +125,13 @@ export const vercelDomains = {
    */
   async remove(domain: string): Promise<void> {
     await this.detach(domain);
-
-    const result = await domainsDeleteDomain(getClient(), {
-      domain,
-      teamId: teamId(),
-    });
-    if (!result.ok) {
-      const message = errorMessage(result.error, "Failed to delete domain from account");
+    try {
+      await vercel.domains.deleteDomain({
+        domain,
+        teamId: vercelTeamId(),
+      });
+    } catch (error) {
+      const message = errorMessage(error, "Failed to delete domain from account");
       if (NOT_FOUND_RE.test(message)) return;
       throw new Error(message);
     }

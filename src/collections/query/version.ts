@@ -14,12 +14,14 @@ export type VersionListItem = {
   };
 };
 
+import type { VersionedSettingsSnapshot } from "@/lib/content-hash";
+
 export type VersionContent = {
   id: string;
   formId: string;
   version: number;
   content: object[];
-  settings: Record<string, unknown>;
+  settings: VersionedSettingsSnapshot;
   customization: Record<string, string>;
   title: string | null;
   icon: string | null;

@@ -43,13 +43,13 @@ const LoginPage = () => {
   return (
     <div className="mx-auto flex min-h-dvh max-w-[300px] flex-col justify-center">
       <header className="mb-[54px] flex items-center justify-center">
-        <Logo className="w-6 h-10 text-foreground/90" />
+        <Logo className="h-10 w-6 text-foreground/90" />
       </header>
 
       <main className="flex flex-col items-center justify-center gap-4">
         <Button
           variant="secondary"
-          className="w-full rounded-xl font-medium text-base text-primary font-sans"
+          className="w-full rounded-xl font-sans text-base font-medium text-primary"
           size="lg"
           onClick={() =>
             navigate({
@@ -64,7 +64,7 @@ const LoginPage = () => {
 
         <Button
           variant="secondary"
-          className="w-full rounded-xl font-medium text-base text-primary font-sans"
+          className="w-full rounded-xl font-sans text-base font-medium text-primary"
           size="lg"
           prefix={
             socialSignInMutation.isPending ? (

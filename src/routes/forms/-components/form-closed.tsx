@@ -15,7 +15,7 @@ interface FormClosedProps {
 export const FormClosed = ({ message }: FormClosedProps) => {
   const { t } = useTranslation();
   return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
       <Empty className="border-none">
         <EmptyHeader>
           <EmptyMedia variant="icon">
@@ -32,7 +32,7 @@ export const FormClosed = ({ message }: FormClosedProps) => {
 export const AlreadySubmitted = () => {
   const { t } = useTranslation();
   return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
       <Empty className="border-none">
         <EmptyHeader>
           <EmptyMedia variant="icon">

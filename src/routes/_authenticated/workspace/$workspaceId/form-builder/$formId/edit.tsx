@@ -43,11 +43,11 @@ const DesignPage = () => {
   const versionCustomization = versionData?.customization as Record<string, unknown> | undefined;
 
   return (
-    <div className="flex flex-1 min-h-0 overflow-hidden">
-      <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative bg-background flex flex-col">
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+      <main className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto bg-background">
         {isViewingVersion && (
-          <div className="bg-accent/50 border-b border-accent/20 px-4 py-2 flex items-center justify-between shrink-0">
-            <span className="text-sm text-accent-800">
+          <div className="flex shrink-0 items-center justify-between border-b border-accent/20 bg-accent/50 px-4 py-2">
+            <span className="text-accent-800 text-sm">
               {isLoadingVersionContent ? (
                 <span className="flex items-center gap-2">
                   <Loader2Icon className="h-4 w-4 animate-spin" />
@@ -78,14 +78,14 @@ const DesignPage = () => {
           {previewMode ? (
             <PreviewMode formId={formId} workspaceId={workspaceId} />
           ) : isViewingVersion && isLoadingVersionContent ? (
-            <div className="h-full w-full flex items-center justify-center">
+            <div className="flex h-full w-full items-center justify-center">
               <Loader2Icon className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
             <Suspense
               fallback={
-                <div className="flex items-center justify-center h-full">
-                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+                <div className="flex h-full items-center justify-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                 </div>
               }
             >

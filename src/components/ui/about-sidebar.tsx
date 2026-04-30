@@ -9,8 +9,8 @@ interface AboutSidebarProps {
 }
 
 export const AboutSidebar = ({ onClose }: AboutSidebarProps) => (
-  <div className="flex h-full flex-col bg-background animate-in slide-in-from-right-[40%] duration-200 ease-out">
-    <div className="flex h-10 items-center justify-between border-b border-border/40 px-3 shrink-0">
+  <div className="flex h-full animate-in flex-col bg-background duration-200 ease-out slide-in-from-right-[40%]">
+    <div className="flex h-10 shrink-0 items-center justify-between border-b border-border/40 px-3">
       <span className="text-[13px]">About</span>
       <Button
         variant="ghost"
@@ -24,7 +24,7 @@ export const AboutSidebar = ({ onClose }: AboutSidebarProps) => (
     </div>
     <ScrollArea className="flex-1">
       <div className="p-6">
-        <h2 className="text-xl font-bold mb-6">Got questions?</h2>
+        <h2 className="mb-6 text-xl font-bold">Got questions?</h2>
         <div className="flex flex-col">
           <FAQItem
             question="How do I embed my form in a Notion page?"

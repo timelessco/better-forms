@@ -49,7 +49,7 @@ export const EquationElement = (props: PlateElementProps<TEquationElement>) => {
             <Button
               variant="ghost"
               className={cn(
-                "group flex cursor-pointer select-none items-center justify-center rounded-sm hover:bg-primary/10 data-[selected=true]:bg-primary/10 h-auto",
+                "group flex h-auto cursor-pointer items-center justify-center rounded-sm select-none hover:bg-primary/10 data-[selected=true]:bg-primary/10",
                 props.element.texExpression.length === 0 ? "bg-muted p-3 pr-9" : "px-2 py-1",
               )}
               data-selected={selected}
@@ -59,7 +59,7 @@ export const EquationElement = (props: PlateElementProps<TEquationElement>) => {
           {props.element.texExpression.length > 0 ? (
             <span ref={katexRef} />
           ) : (
-            <div className="flex h-7 w-full items-center gap-2 whitespace-nowrap text-muted-foreground text-sm">
+            <div className="flex h-7 w-full items-center gap-2 text-sm whitespace-nowrap text-muted-foreground">
               <RadicalIcon className="size-6 text-muted-foreground/80" />
               <div>Add a Tex equation</div>
             </div>
@@ -109,7 +109,7 @@ export const InlineEquationElement = (props: PlateElementProps<TEquationElement>
   return (
     <PlateElement
       {...props}
-      className={cn("mx-1 inline-block select-none rounded-sm [&_.katex-display]:my-0!")}
+      className={cn("mx-1 inline-block rounded-sm select-none [&_.katex-display]:my-0!")}
     >
       <Popover open={effectiveOpen} onOpenChange={setOpen} modal={false}>
         <PopoverTrigger
@@ -117,7 +117,7 @@ export const InlineEquationElement = (props: PlateElementProps<TEquationElement>
           render={
             <div
               className={cn(
-                'after:-top-0.5 after:-left-1 after:absolute after:inset-0 after:z-1 after:h-[calc(100%+4px)] after:w-[calc(100%+8px)] after:rounded-sm after:content-[""]',
+                'after:absolute after:inset-0 after:-top-0.5 after:-left-1 after:z-1 after:h-[calc(100%+4px)] after:w-[calc(100%+8px)] after:rounded-sm after:content-[""]',
                 "h-6",
                 ((element.texExpression.length > 0 && effectiveOpen) || selected) &&
                   "after:bg-brand/15",
@@ -185,7 +185,7 @@ const EquationPopoverContent = ({
   };
 
   return (
-    <PopoverContent className="flex gap-2 w-72 p-4 border" contentEditable={false}>
+    <PopoverContent className="flex w-72 gap-2 border p-4" contentEditable={false}>
       <EquationInput
         className={cn("max-h-[50vh] grow resize-none p-2 text-sm", className)}
         state={{ isInline, open, onClose }}

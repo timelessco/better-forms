@@ -24,7 +24,6 @@ const fetchFormListings = async (formId: string): Promise<FormListing[]> => {
       status: f.status,
       workspaceId: f.workspaceId,
       content: f.content as unknown[],
-      settings: f.settings as Record<string, unknown>,
       customization: (f.customization ?? {}) as Record<string, unknown>,
       formName: f.formName,
       schemaName: f.schemaName,

@@ -23,9 +23,9 @@ export const MutationIndicator = () => {
   return (
     <div
       aria-hidden
-      className="fixed top-1 left-1 z-50 flex items-center gap-1.5 rounded-full bg-plain-reverse px-2.5 py-2 text-xs text-plain"
+      className="bg-plain-reverse text-plain fixed top-1 left-1 z-50 flex items-center gap-1.5 rounded-full px-2.5 py-2 text-xs"
     >
-      <span className="size-4 animate-pulse rounded-full bg-plain" />
+      <span className="bg-plain size-4 animate-pulse rounded-full" />
       Saving {pendingMutations.length}...
     </div>
   );

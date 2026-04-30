@@ -1,8 +1,9 @@
 import { redirect } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
 import { getCookie, getRequestHeaders, getRequestUrl } from "@tanstack/react-start/server";
+import { planUnlocks } from "@/lib/config/plan-gates";
 import { getActiveOrgId } from "@/lib/server-fn/auth-helpers";
-import { requiresProForFormSettings } from "@/lib/server-fn/plan-helpers";
+import { formSettingsFeatureGates } from "@/lib/server-fn/plan-helpers";
 import type { FormProSettingsInput } from "@/lib/server-fn/plan-helpers";
 
 // `auth` is lazy-imported inside the server body. A static import here would
@@ -38,11 +39,13 @@ export const formProSettingsMiddleware = createMiddleware({ type: "function" })
   .middleware([authMiddleware])
   .server(async ({ next, data, context }) => {
     const input = data as unknown as FormProSettingsInput;
-    if (!requiresProForFormSettings(input)) return next();
+    const gates = formSettingsFeatureGates(input);
+    if (gates.length === 0) return next();
 
     const { getOrgPlan } = await import("@/lib/server-fn/plan-helpers.server");
     const plan = await getOrgPlan(getActiveOrgId(context.session));
-    if (plan === "free") {
+    const blocked = gates.find((gate) => !planUnlocks(plan, gate));
+    if (blocked) {
       throw new Error("This feature requires a Pro subscription. Please upgrade to continue.");
     }
     return next();

@@ -160,8 +160,8 @@ export const BlockSuggestionCard = ({
             <AvatarImage alt={userInfo?.name} src={userInfo?.avatarUrl} />
             <AvatarFallback>{userInfo?.name?.[0]}</AvatarFallback>
           </Avatar>
-          <h4 className="mx-2 font-semibold text-sm">{userInfo?.name}</h4>
-          <div className="text-muted-foreground/80 text-xs">
+          <h4 className="mx-2 text-sm font-semibold">{userInfo?.name}</h4>
+          <div className="text-xs text-muted-foreground/80">
             <span className="mr-1">{formatCommentDate(new Date(suggestion.createdAt))}</span>
           </div>
         </div>
@@ -171,7 +171,7 @@ export const BlockSuggestionCard = ({
             {suggestion.type === "remove" &&
               removeLines.map(({ key, text }) => (
                 <div key={key} className="flex items-center gap-2">
-                  <span className="text-muted-foreground text-sm">Delete:</span>
+                  <span className="text-sm text-muted-foreground">Delete:</span>
 
                   <span className="text-sm">{text}</span>
                 </div>
@@ -180,7 +180,7 @@ export const BlockSuggestionCard = ({
             {suggestion.type === "insert" &&
               insertLines.map(({ key, text }) => (
                 <div key={key} className="flex items-center gap-2">
-                  <span className="text-muted-foreground text-sm">Add:</span>
+                  <span className="text-sm text-muted-foreground">Add:</span>
 
                   <span className="text-sm">{text || "line breaks"}</span>
                 </div>
@@ -189,7 +189,7 @@ export const BlockSuggestionCard = ({
             {suggestion.type === "replace" && (
               <div className="flex flex-col gap-2">
                 {replaceNewLines.map(({ key, text }) => (
-                  <div key={key} className="flex items-start gap-2 text-brand/80">
+                  <div key={key} className="text-brand/80 flex items-start gap-2">
                     <span className="text-sm">with:</span>
                     <span className="text-sm">{text || "line breaks"}</span>
                   </div>
@@ -197,7 +197,7 @@ export const BlockSuggestionCard = ({
 
                 {replaceOldLines.map(({ key, text }, index) => (
                   <div key={key} className="flex items-start gap-2">
-                    <span className="text-muted-foreground text-sm">
+                    <span className="text-sm text-muted-foreground">
                       {index === 0 ? "Replace:" : "Delete:"}
                     </span>
                     <span className="text-sm">{text || "line breaks"}</span>
@@ -208,7 +208,7 @@ export const BlockSuggestionCard = ({
 
             {suggestion.type === "update" && (
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-sm">
+                <span className="text-sm text-muted-foreground">
                   {Object.keys(suggestion.properties).map((key) => (
                     <span key={key}>Un{key}</span>
                   ))}

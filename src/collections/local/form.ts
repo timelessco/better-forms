@@ -5,6 +5,8 @@
 import { createCollection, localStorageCollectionOptions } from "@tanstack/react-db";
 import { z } from "zod";
 import { createFormHeaderNode } from "@/lib/form-schema/form-header-factory";
+import { defaultFormSettings } from "@/types/form-settings";
+import type { FormSettings } from "@/types/form-settings";
 
 /** Parse Postgres timestamp (no TZ) as UTC before converting to ISO. */
 const parseAsUTC = (val: string): string => {
@@ -17,21 +19,6 @@ const timestampField = z
   .optional()
   .transform((val) => (val ? parseAsUTC(val) : new Date().toISOString()));
 
-const SettingsSchema = z.object({
-  defaultRequiredValidation: z.boolean().default(true),
-  numericInput: z.boolean().default(false),
-  focusOnError: z.boolean().default(true),
-  validationMethod: z.enum(["onChange", "onBlur", "onDynamic"]).default("onDynamic"),
-  asyncValidation: z.number().min(0).max(10000).default(500),
-  activeTab: z.enum(["builder", "template", "settings", "generate"]).default("builder"),
-  preferredSchema: z.enum(["zod", "valibot", "arktype"]).default("zod"),
-  preferredFramework: z.enum(["react", "vue", "angular", "solid"]).default("react"),
-  preferredPackageManager: z.enum(["pnpm", "npm", "yarn", "bun"]).default("pnpm"),
-  isCodeSidebarOpen: z.boolean().default(false),
-});
-
-export type FormBuilderSettings = z.infer<typeof SettingsSchema>;
-
 export const FormSchema = z.object({
   id: z.uuid(),
   createdByUserId: z.string().optional(),
@@ -40,37 +27,12 @@ export const FormSchema = z.object({
   formName: z.string().default("draft"),
   schemaName: z.string().default("draftFormSchema"),
   content: z.array(z.any()).default([]),
-  settings: SettingsSchema.optional(),
   icon: z.string().nullable().optional(),
   cover: z.string().nullable().optional(),
-  isMultiStep: z.boolean().default(false),
   status: z.enum(["draft", "published", "archived"]).default("draft"),
   lastPublishedVersionId: z.string().nullable().optional(),
   publishedContentHash: z.string().nullable().optional(),
-  language: z.string().default("English"),
-  redirectOnCompletion: z.coerce.boolean().default(false),
-  redirectUrl: z.string().nullable().optional(),
-  redirectDelay: z.coerce.number().default(0),
-  progressBar: z.coerce.boolean().default(false),
-  presentationMode: z.enum(["card", "field-by-field"]).default("card"),
-  branding: z.coerce.boolean().default(true),
-  saveAnswersForLater: z.coerce.boolean().default(true),
-  selfEmailNotifications: z.coerce.boolean().default(false),
-  notificationEmail: z.string().nullable().optional(),
-  respondentEmailNotifications: z.coerce.boolean().default(false),
-  respondentEmailSubject: z.string().nullable().optional(),
-  respondentEmailBody: z.string().nullable().optional(),
-  passwordProtect: z.coerce.boolean().default(false),
-  password: z.string().nullable().optional(),
-  closeForm: z.coerce.boolean().default(false),
-  closedFormMessage: z.string().nullable().optional(),
-  closeOnDate: z.coerce.boolean().default(false),
-  closeDate: z.string().nullable().optional(),
-  limitSubmissions: z.coerce.boolean().default(false),
-  maxSubmissions: z.coerce.number().nullable().optional(),
-  preventDuplicateSubmissions: z.coerce.boolean().default(false),
-  dataRetention: z.coerce.boolean().default(false),
-  dataRetentionDays: z.coerce.number().nullable().optional(),
+  settings: z.custom<FormSettings>().default(() => defaultFormSettings),
   customization: z.record(z.string(), z.any()).default({}),
   createdAt: timestampField,
   updatedAt: timestampField,
@@ -94,16 +56,3 @@ export const DEFAULT_FORM_CONTENT = [
     type: "p",
   },
 ];
-
-export const DEFAULT_FORM_SETTINGS: FormBuilderSettings = {
-  defaultRequiredValidation: true,
-  numericInput: false,
-  focusOnError: true,
-  validationMethod: "onDynamic",
-  asyncValidation: 500,
-  activeTab: "builder",
-  preferredSchema: "zod",
-  preferredFramework: "react",
-  preferredPackageManager: "pnpm",
-  isCodeSidebarOpen: false,
-};

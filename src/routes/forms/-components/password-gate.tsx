@@ -64,20 +64,20 @@ export const PasswordGate = ({ formId, children }: PasswordGateProps) => {
   return (
     <div className="relative min-h-screen overflow-hidden">
       {/* Blurred form behind — clipped to viewport so it doesn't cause scroll */}
-      <div className="pointer-events-none select-none h-screen overflow-hidden" aria-hidden="true">
-        <div className="blur-md opacity-50">{children}</div>
+      <div className="pointer-events-none h-screen overflow-hidden select-none" aria-hidden="true">
+        <div className="opacity-50 blur-md">{children}</div>
       </div>
 
       {/* Password overlay — fixed to viewport */}
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-        <div className="w-full max-w-sm mx-4 rounded-lg border border-border bg-card text-card-foreground p-6 shadow-lg">
+        <div className="mx-4 w-full max-w-sm rounded-lg border border-border bg-card p-6 text-card-foreground shadow-lg">
           <div className="space-y-4">
             <div className="flex justify-center">
               <div className="rounded-full bg-muted p-3">
                 <LockIcon className="h-8 w-8 text-muted-foreground" />
               </div>
             </div>
-            <div className="text-center space-y-1">
+            <div className="space-y-1 text-center">
               <h2 className="text-lg font-semibold">{t("passwordProtected")}</h2>
               <p className="text-sm text-muted-foreground">{t("passwordDescription")}</p>
             </div>
@@ -104,7 +104,7 @@ export const PasswordGate = ({ formId, children }: PasswordGateProps) => {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label="Toggle password visibility"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? (
                     <EyeOffIcon className="h-4 w-4" />

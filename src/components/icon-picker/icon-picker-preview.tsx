@@ -118,7 +118,7 @@ export const ThemedFormIcon = ({
       <img
         src={icon}
         alt=""
-        className="rounded-full object-cover shrink-0"
+        className="shrink-0 rounded-full object-cover"
         style={{ width: `${size}px`, height: `${size}px` }}
       />
     );

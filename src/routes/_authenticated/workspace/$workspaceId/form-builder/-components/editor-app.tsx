@@ -65,12 +65,12 @@ const EditorApp = ({
     // Collection ready but form not found → genuinely doesn't exist
     if (isFormReady) {
       return (
-        <div className="h-full w-full flex items-center justify-center">Loading editor...</div>
+        <div className="flex h-full w-full items-center justify-center">Loading editor...</div>
       );
     }
     // Still syncing → show spinner
     return (
-      <div className="h-full w-full flex items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <Loader2Icon className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -295,7 +295,7 @@ const EditorAppInner = ({
         <Plate editor={editor} readOnly={readOnly} onChange={handleChange}>
           <EditorContainer
             variant="default"
-            className="px-0 sm:px-0 max-w-full border-none shadow-none overflow-y-visible"
+            className="max-w-full overflow-y-visible border-none px-0 shadow-none sm:px-0"
           >
             <Editor variant="demo" className="rounded-none" onKeyDown={handleEditorKeyDown} />
           </EditorContainer>

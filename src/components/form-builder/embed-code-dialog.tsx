@@ -154,10 +154,10 @@ const CodeBlock = ({
   }
 
   return (
-    <div className="relative group mt-3 w-full min-w-0 max-w-full overflow-hidden">
+    <div className="group relative mt-3 w-full max-w-full min-w-0 overflow-hidden">
       <pre
         className={cn(
-          "w-full min-w-0 max-w-full bg-muted/30 border border-border/50 rounded-xl p-4 pr-12 text-[12px] font-mono text-foreground/90 whitespace-pre-wrap [word-break:break-word] [overflow-wrap:anywhere] [tab-size:2]",
+          "w-full max-w-full min-w-0 rounded-xl border border-border/50 bg-muted/30 p-4 pr-12 font-mono text-[12px] [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap text-foreground/90 [tab-size:2]",
           hljsClassName,
         )}
       >
@@ -195,13 +195,13 @@ export const EmbedCodeDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-background border-border p-0 [&>button]:text-muted-foreground">
-        <div className="p-6 space-y-5 min-w-0">
+      <DialogContent className="max-h-[90vh] overflow-y-auto border-border bg-background p-0 sm:max-w-2xl [&>button]:text-muted-foreground">
+        <div className="min-w-0 space-y-5 p-6">
           <DialogHeader className="text-left">
             <DialogTitle className="text-xl font-bold text-foreground">
               Add to your website
             </DialogTitle>
-            <p className="text-muted-foreground text-[13px] mt-1.5">
+            <p className="mt-1.5 text-[13px] text-muted-foreground">
               {embedType === "popup"
                 ? `Drop a single script on your site. ${APP_NAME} auto-renders a floating bubble at the position you configured; clicking it opens the form.`
                 : "Integrate this form seamlessly into your website using the snippet below."}
@@ -212,16 +212,16 @@ export const EmbedCodeDialog = ({
             {embedType === "standard" ? (
               <div className="space-y-5">
                 <div>
-                  <h3 className="text-foreground font-semibold text-[13px] mb-2.5">Embed code</h3>
-                  <p className="text-muted-foreground text-[12px] mb-3.5">
+                  <h3 className="mb-2.5 text-[13px] font-semibold text-foreground">Embed code</h3>
+                  <p className="mb-3.5 text-[12px] text-muted-foreground">
                     Paste this HTML code snippet on the page where you want the embed to appear.
                   </p>
                   <CodeBlock code={embedCode} language="html" />
                 </div>
 
                 <div>
-                  <h3 className="text-foreground font-semibold text-[13px] mb-2.5">Direct link</h3>
-                  <p className="text-muted-foreground text-[12px] mb-3.5">
+                  <h3 className="mb-2.5 text-[13px] font-semibold text-foreground">Direct link</h3>
+                  <p className="mb-3.5 text-[12px] text-muted-foreground">
                     Alternatively, paste this link in a no-code tool (Notion, Ghost, Canva, etc).
                   </p>
                   <div className="mb-4">
@@ -235,13 +235,13 @@ export const EmbedCodeDialog = ({
               </div>
             ) : embedType === "popup" ? (
               <div>
-                <p className="text-muted-foreground text-[12px] mb-4">
+                <p className="mb-4 text-[12px] text-muted-foreground">
                   Paste this{" "}
-                  <strong className="text-foreground font-semibold">single script tag</strong> into
+                  <strong className="font-semibold text-foreground">single script tag</strong> into
                   your site's{" "}
-                  <code className="text-foreground font-mono bg-muted px-1.5 py-0.5 rounded text-[11px] border border-border/50">{`<head>`}</code>
+                  <code className="rounded border border-border/50 bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground">{`<head>`}</code>
                   . All popup settings are read from{" "}
-                  <code className="text-foreground font-mono bg-muted px-1.5 py-0.5 rounded text-[11px] border border-border/50">
+                  <code className="rounded border border-border/50 bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground">
                     data-*
                   </code>{" "}
                   attributes on the script itself — no separate button required.
@@ -256,7 +256,7 @@ export const EmbedCodeDialog = ({
 ></script>`}
                   language="html"
                 />
-                <p className="text-muted-foreground text-[12px] mt-6 mb-2">
+                <p className="mt-6 mb-2 text-[12px] text-muted-foreground">
                   The script auto-renders a floating bubble at the configured position, preloads the
                   form in the background, and expands into the popup when the bubble is clicked. The
                   bubble uses your form's icon automatically.
@@ -265,10 +265,10 @@ export const EmbedCodeDialog = ({
             ) : (
               /* Full page */
               <div>
-                <h3 className="text-foreground font-semibold text-[13px] mb-2.5">
+                <h3 className="mb-2.5 text-[13px] font-semibold text-foreground">
                   Full page redirect
                 </h3>
-                <p className="text-muted-foreground text-[12px] mb-3.5">
+                <p className="mb-3.5 text-[12px] text-muted-foreground">
                   Use a meta redirect or link to send visitors directly to your form.
                 </p>
                 <CodeBlock code={embedCode} language="html" />
@@ -278,28 +278,28 @@ export const EmbedCodeDialog = ({
               </div>
             )}
 
-            <div className="pt-8 border-t border-border">
+            <div className="border-t border-border pt-8">
               <Accordion>
                 <AccordionItem value="save" className="border-b border-border/50">
                   <AccordionTrigger
                     iconPosition="end"
-                    className="py-5 px-0 text-[14px] font-semibold text-foreground group-hover:text-brand transition-colors hover:no-underline"
+                    className="group-hover:text-brand px-0 py-5 text-[14px] font-semibold text-foreground transition-colors hover:no-underline"
                   >
                     Save website page and query parameters
                   </AccordionTrigger>
-                  <AccordionContent className="pb-8 space-y-4 text-muted-foreground text-[12px]">
+                  <AccordionContent className="space-y-4 pb-8 text-[12px] text-muted-foreground">
                     <p>
                       Your page's URL and query parameters are automatically forwarded to the{" "}
                       {embedType === "popup" ? "popup" : "form"} and saved via hidden fields.
                     </p>
-                    <div className="bg-muted p-3.5 rounded-lg border border-border/50 text-[11px] break-all font-mono">
+                    <div className="rounded-lg border border-border/50 bg-muted p-3.5 font-mono text-[11px] break-all">
                       https://company.com/register?ref=downloads&email=alice@example.com
                     </div>
                     {embedType === "popup" && (
                       <div className="pt-2">
                         <p className="mb-3">
                           Any extra{" "}
-                          <code className="text-foreground font-mono bg-muted px-1 rounded">
+                          <code className="rounded bg-muted px-1 font-mono text-foreground">
                             data-*
                           </code>{" "}
                           attribute on the script tag (other than the known config keys) is
@@ -323,11 +323,11 @@ export const EmbedCodeDialog = ({
                 <AccordionItem value="js" className="border-b border-border/50">
                   <AccordionTrigger
                     iconPosition="end"
-                    className="py-5 px-0 text-[14px] font-semibold text-foreground group-hover:text-brand transition-colors hover:no-underline"
+                    className="group-hover:text-brand px-0 py-5 text-[14px] font-semibold text-foreground transition-colors hover:no-underline"
                   >
                     Use JavaScript
                   </AccordionTrigger>
-                  <AccordionContent className="pb-8 space-y-5 text-muted-foreground text-[12px]">
+                  <AccordionContent className="space-y-5 pb-8 text-[12px] text-muted-foreground">
                     <p className="opacity-80">Share these instructions with your developers.</p>
 
                     {embedType === "standard" ? (
@@ -347,7 +347,7 @@ Reform.loadEmbeds();`}
                         <p>
                           The script auto-renders its own bubble trigger and handles opening the
                           popup on click. You can also open or close it programmatically via{" "}
-                          <code className="text-foreground font-mono bg-muted px-1 rounded">
+                          <code className="rounded bg-muted px-1 font-mono text-foreground">
                             window.Reform
                           </code>
                           .
@@ -363,7 +363,7 @@ Reform.close();`}
                         <p className="pt-2">
                           All popup configuration (position, width, dark overlay, hidden fields,
                           etc.) is read from{" "}
-                          <code className="text-foreground font-mono bg-muted px-1 rounded">
+                          <code className="rounded bg-muted px-1 font-mono text-foreground">
                             data-*
                           </code>{" "}
                           attributes on the script tag when the page loads — there's nothing to pass
