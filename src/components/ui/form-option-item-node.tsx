@@ -25,7 +25,7 @@ const OptionIcon = ({ variant, index }: { variant: OptionVariant; index: number 
     case "multiChoice": {
       const letter = LETTER_LABELS[index % LETTER_LABELS.length];
       return (
-        <span className="flex size-5 shrink-0 items-center justify-center rounded bg-[var(--color-gray-50)] text-[11px] font-semibold text-muted-foreground shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]">
+        <span className="flex size-5 shrink-0 items-center justify-center rounded bg-[var(--form-input-bg,var(--color-gray-50))] text-[11px] font-semibold text-muted-foreground shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]">
           {letter}
         </span>
       );

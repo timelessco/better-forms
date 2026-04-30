@@ -8,7 +8,7 @@ Reform is a TanStack Start (Router + Vite) + React 19 app with TanStack DB colle
 - **Check**: `bun x ultracite check`
 - **Lint**: `bun lint` (oxlint --type-aware + knip)
 - **Typecheck**: `bun typecheck`
-- **Tests**: `bun test` (Vitest)
+- **Tests**: `bun run test` (runs Vitest via the package script). Do **not** use `bun test` — that invokes Bun's built-in runner, which doesn't implement parts of the Vitest API the suite uses (`vi.stubGlobal`, `vi.unstubAllGlobals`, etc.) and silently fails those tests. To run a single file, use `bun x vitest run path/to/file.test.ts`.
 - **Dev server**: `bun dev` (or `bun dev:auto` to pick a free port)
 
 Ultracite (Oxlint + Oxfmt) enforces formatting, type safety, accessibility, security, and most code-quality rules automatically. Run `bun x ultracite fix` before committing — focus your judgement on what the linter can't check: business logic, naming, architecture, edge cases, UX.
@@ -45,6 +45,7 @@ Ultracite (Oxlint + Oxfmt) enforces formatting, type safety, accessibility, secu
 
 - Vitest. Assertions inside `it()` / `test()`. Use async/await, not done callbacks. No `.only` / `.skip` committed.
 - Match the current typed `vi.mock` signature — don't regress to older shapes.
+- Always run via `bun run test` (or `bun x vitest run <file>` for a single file). `bun test` is a different runner — it skips/fails Vitest-only APIs without warning.
 
 ## Agent skills
 

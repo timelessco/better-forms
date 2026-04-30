@@ -70,6 +70,40 @@ export const themeTokensSchema = z.object(themeTokensShape);
 
 export const RADIUS_OPTIONS = ["none", "small", "medium", "large"] as const;
 
+// Limited set the AI may pick from on free plans — mirrors the Customize
+// sidebar's basic Theme section so the server-side gate accepts the write.
+export const FREE_THEME_COLOR_OPTIONS = [
+  "neutral",
+  "zinc",
+  "rose",
+  "blue",
+  "green",
+  "amber",
+  "orange",
+  "violet",
+  "emerald",
+  "cyan",
+  "indigo",
+  "pink",
+  "red",
+] as const;
+
+export const FREE_BASE_COLOR_OPTIONS = ["neutral", "zinc", "slate", "stone", "gray"] as const;
+
+export const FREE_DEFAULT_MODE_OPTIONS = ["light", "dark", "system"] as const;
+
+// Schema the AI emits for free plans — only keys in FREE_CUSTOMIZATION_KEYS
+// (server-side gate). No light:*/dark:* token overrides, no custom CSS, etc.
+export const freeThemeSchema = z.object({
+  themeColor: z.enum(FREE_THEME_COLOR_OPTIONS),
+  baseColor: z.enum(FREE_BASE_COLOR_OPTIONS),
+  font: z.string(),
+  radius: z.enum(RADIUS_OPTIONS),
+  defaultMode: z.enum(FREE_DEFAULT_MODE_OPTIONS),
+});
+
+export type FreeThemeArgs = z.infer<typeof freeThemeSchema>;
+
 export const setThemeOp = z.object({
   type: z.literal("set-theme"),
   // Object is optional, but if present all 30 keys must be filled — forces the

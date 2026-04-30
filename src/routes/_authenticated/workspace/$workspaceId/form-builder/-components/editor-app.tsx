@@ -10,6 +10,7 @@ import { EditorThemeProvider } from "@/contexts/editor-theme-context";
 import { getFormListings } from "@/collections";
 import type { Form } from "@/collections";
 import { useFormCustomization } from "@/hooks/use-form-customization";
+import { useFormThemeContextValue } from "@/hooks/use-form-theme";
 import { useForm } from "@/hooks/use-live-hooks";
 import { useResolvedTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
@@ -272,15 +273,12 @@ const EditorAppInner = ({
     [formId],
   );
 
-  const themeCtx = useMemo(
-    () => ({
-      themeVars,
-      hasCustomization: Boolean(hasCustomization),
-      customization,
-      updateThemeColor: hasCustomization ? updateThemeColor : undefined,
-    }),
-    [themeVars, hasCustomization, customization, updateThemeColor],
-  );
+  const themeCtx = useFormThemeContextValue({
+    themeVars,
+    hasCustomization,
+    customization,
+    updateThemeColor,
+  });
 
   return (
     <EditorThemeProvider value={themeCtx}>
