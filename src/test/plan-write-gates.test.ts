@@ -79,9 +79,41 @@ describe("plan-write-gates", () => {
       expect(requiresProForFormSettings({ analytics: true })).toBeTruthy();
     });
 
-    it("true when customization is non-empty", () => {
+    it("true when customization carries a Pro-tier key (light/dark token override)", () => {
       expect(
-        requiresProForFormSettings({ customization: { primaryColor: "#abcdef" } }),
+        requiresProForFormSettings({ customization: { "light:primary": "#abcdef" } }),
+      ).toBeTruthy();
+    });
+
+    it("true when customization carries a non-free key (e.g. customCss)", () => {
+      expect(
+        requiresProForFormSettings({ customization: { customCss: ".x { color: red }" } }),
+      ).toBeTruthy();
+    });
+
+    it("false when customization only contains basic Theme keys (preset / themeColor / baseColor / font / radius / defaultMode)", () => {
+      expect(
+        requiresProForFormSettings({
+          customization: {
+            preset: "custom",
+            themeColor: "blue",
+            baseColor: "neutral",
+            font: "Inter",
+            radius: "medium",
+            defaultMode: "system",
+          },
+        }),
+      ).toBeFalsy();
+    });
+
+    it("true when basic Theme keys are mixed with a Pro-tier key", () => {
+      expect(
+        requiresProForFormSettings({
+          customization: {
+            themeColor: "blue",
+            "light:primary": "#abcdef",
+          },
+        }),
       ).toBeTruthy();
     });
 
@@ -89,7 +121,7 @@ describe("plan-write-gates", () => {
       expect(
         requiresProForFormSettings({
           branding: false,
-          customization: { primaryColor: "#abcdef" },
+          customization: { customCss: ".x {}" },
         }),
       ).toBeTruthy();
     });

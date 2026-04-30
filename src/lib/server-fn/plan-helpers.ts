@@ -13,6 +13,27 @@ export type FormProSettingsInput = {
   customization?: Record<string, unknown> | null;
 };
 
+// Customization keys available to every plan (basic Theme controls in the
+// editor's Customize sidebar). Anything outside this set — light:/dark:
+// per-mode color overrides, layout numbers, typography, custom CSS — is
+// Pro-only and triggers the customization gate.
+export const FREE_CUSTOMIZATION_KEYS: ReadonlySet<string> = new Set([
+  "preset",
+  "themeColor",
+  "baseColor",
+  "font",
+  "radius",
+  "defaultMode",
+]);
+
+const customizationRequiresPro = (value: unknown): boolean => {
+  if (value == null || typeof value !== "object") return false;
+  for (const key of Object.keys(value as Record<string, unknown>)) {
+    if (!FREE_CUSTOMIZATION_KEYS.has(key)) return true;
+  }
+  return false;
+};
+
 // Maps each FormProSettingsInput field to the FeatureGate it triggers, with
 // the predicate that decides when the field is "on" (gating-eligible).
 const FORM_INPUT_GATES: ReadonlyArray<{
@@ -31,7 +52,7 @@ const FORM_INPUT_GATES: ReadonlyArray<{
   {
     field: "customization",
     gate: "customization",
-    isActive: (v) => v != null && Object.keys(v as Record<string, unknown>).length > 0,
+    isActive: customizationRequiresPro,
   },
 ];
 

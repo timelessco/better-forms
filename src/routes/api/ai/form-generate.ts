@@ -2,15 +2,34 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, generateText, streamObject, tool } from "ai";
 import type { UIMessage } from "ai";
+import { getRequestHeaders } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { apiAuthMiddleware } from "@/lib/auth/middleware";
-import { formGenSchema, RADIUS_OPTIONS, themeTokensSchema } from "@/lib/ai/ops-schema";
+import {
+  formGenSchema,
+  freeThemeSchema,
+  RADIUS_OPTIONS,
+  themeTokensSchema,
+} from "@/lib/ai/ops-schema";
 import {
   FORM_APPEND_SYSTEM_PROMPT,
   FORM_EDIT_SYSTEM_PROMPT,
   FORM_GEN_SYSTEM_PROMPT,
-  FORM_THEME_SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompts";
+import {
+  flattenFreeThemeArgs,
+  flattenProThemeArgs,
+  pickThemePromptForPlan,
+} from "@/lib/ai/theme-route-helpers";
+import { getActiveOrgId } from "@/lib/server-fn/auth-helpers";
+import { getOrgPlanWithPolarSync } from "@/lib/server-fn/plan-helpers.server";
+import {
+  AI_DAILY_LIMIT_ERROR,
+  checkAiQuota,
+  incrementAiCount,
+} from "@/lib/server-fn/ai-quota.server";
+import type { ServerPlan } from "@/lib/server-fn/plan-helpers";
+import { logger } from "@/lib/utils";
 
 const getModel = async () => {
   const provider = process.env.AI_PROVIDER ?? "openai";
@@ -54,9 +73,82 @@ export const Route = createFileRoute("/api/ai/form-generate")({
         const model = await getModel();
 
         const mode = body.mode ?? "create";
+
+        // Resolve plan + active org up front for every mode. Used by:
+        // 1. Theme mode → pickThemePromptForPlan (full vs limited tool).
+        // 2. All modes → AI rate-limit check (free=5/day, pro/business=∞).
+        let resolvedPlan: ServerPlan = "free";
+        let resolvedOrgId: string | null = null;
+        let planLookupError: string | null = null;
+        try {
+          const { auth } = await import("@/lib/auth/auth");
+          const session = await auth.api.getSession({ headers: getRequestHeaders() });
+          logger("[ai-plan] session present?", Boolean(session), {
+            userId: (session as { user?: { id?: string } } | null)?.user?.id ?? null,
+            activeOrganizationId:
+              (session as { session?: { activeOrganizationId?: string } } | null)?.session
+                ?.activeOrganizationId ?? null,
+          });
+          if (session) {
+            resolvedOrgId = getActiveOrgId(session as never);
+            const userEmail =
+              (session as { user?: { email?: string } } | null)?.user?.email ?? null;
+            // Self-heal: if the DB column is stale (webhook missed), Polar
+            // is consulted with the user's email; on drift the column is
+            // rewritten to the real plan. Fast path (column already paid)
+            // skips the Polar round-trip.
+            resolvedPlan = await getOrgPlanWithPolarSync(resolvedOrgId, userEmail);
+            logger("[ai-plan] resolved", {
+              mode,
+              orgId: resolvedOrgId,
+              plan: resolvedPlan,
+              note: "plan is read from organization.plan DB column (Polar webhook syncs it; route falls back to Polar API on cached='free')",
+            });
+          } else {
+            logger("[ai-plan] no session — defaulting to free, orgId=null");
+          }
+        } catch (e) {
+          planLookupError = e instanceof Error ? e.message : String(e);
+          logger("[ai-plan] lookup threw — falling back to free", planLookupError);
+          // Fall through with resolvedPlan="free", resolvedOrgId=null;
+          // null orgId skips quota tracking but still gates with free path.
+        }
+
+        // Rate-limit check. Pro/business get null limit → always allowed.
+        if (resolvedOrgId) {
+          const quota = await checkAiQuota(resolvedOrgId, resolvedPlan);
+          logger("[ai-quota] check", {
+            orgId: resolvedOrgId,
+            plan: resolvedPlan,
+            allowed: quota.allowed,
+            used: quota.used,
+            limit: quota.limit,
+          });
+          if (!quota.allowed) {
+            return new Response(
+              JSON.stringify({
+                error: AI_DAILY_LIMIT_ERROR,
+                used: quota.used,
+                limit: quota.limit,
+                plan: quota.plan,
+                message: `Daily AI limit reached (${quota.used}/${quota.limit}). Upgrade to Pro for unlimited generations.`,
+              }),
+              { status: 429, headers: { "Content-Type": "application/json" } },
+            );
+          }
+        }
+
+        const themePick = pickThemePromptForPlan(resolvedPlan);
+        logger("[ai-plan] tool pick", {
+          mode,
+          plan: resolvedPlan,
+          toolName: themePick.toolName,
+          isPro: themePick.isPro,
+        });
+
         const basePrompt =
           mode === "theme"
-            ? FORM_THEME_SYSTEM_PROMPT
+            ? themePick.prompt
             : mode === "replace"
               ? FORM_EDIT_SYSTEM_PROMPT
               : mode === "append"
@@ -90,15 +182,61 @@ export const Route = createFileRoute("/api/ai/form-generate")({
 
         // ── Theme mode: tool-call (one-shot, non-streaming) ─────────────────
         // Theme is atomic — no benefit to streaming, and tool-call gives the
-        // model a clear contract (call setFormTheme exactly once with full args).
+        // model a clear contract. Pro plans get the full-fidelity tool with
+        // 30 light:/dark: token overrides; free plans get the limited tool
+        // whose output stays inside the gate-allowed customization keys.
         if (mode === "theme") {
-          const setFormThemeArgs = z.object({
-            tokens: themeTokensSchema,
-            font: z.string(),
-            radius: z.enum(RADIUS_OPTIONS),
-          });
+          if (themePick.isPro) {
+            const setFormThemeArgs = z.object({
+              tokens: themeTokensSchema,
+              font: z.string(),
+              radius: z.enum(RADIUS_OPTIONS),
+            });
 
-          let captured: z.infer<typeof setFormThemeArgs> | null = null;
+            let captured: z.infer<typeof setFormThemeArgs> | null = null;
+
+            await generateText({
+              model,
+              system: systemWithContext,
+              messages: modelMessages,
+              toolChoice: "required",
+              tools: {
+                [themePick.toolName]: tool({
+                  description:
+                    "Apply a complete visual theme to the form (colors, font, radius). Call exactly once with all 30 token values, font, and radius.",
+                  inputSchema: setFormThemeArgs,
+                  execute: async (args) => {
+                    captured = args;
+                    return { ok: true };
+                  },
+                }),
+              },
+            });
+
+            // Re-bind to a const so TS narrows after the null check (the
+            // assignment lives in a closure, so flow analysis can't reach it
+            // through the original `let`).
+            const captured2 = captured as z.infer<typeof setFormThemeArgs> | null;
+            if (!captured2) {
+              return new Response(JSON.stringify({ error: "model_did_not_emit_theme" }), {
+                status: 502,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
+
+            const theme = flattenProThemeArgs(captured2);
+            if (resolvedOrgId)
+              void incrementAiCount(resolvedOrgId).catch((e) =>
+                logger("[ai-quota] increment failed", e),
+              );
+            return new Response(JSON.stringify({ theme }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+
+          // Free plan: limited tool — themeColor + baseColor + font + radius + defaultMode.
+          let captured: z.infer<typeof freeThemeSchema> | null = null;
 
           await generateText({
             model,
@@ -106,10 +244,10 @@ export const Route = createFileRoute("/api/ai/form-generate")({
             messages: modelMessages,
             toolChoice: "required",
             tools: {
-              setFormTheme: tool({
+              [themePick.toolName]: tool({
                 description:
-                  "Apply a complete visual theme to the form (colors, font, radius). Call exactly once with all 30 token values, font, and radius.",
-                inputSchema: setFormThemeArgs,
+                  "Apply a basic theme available on the free plan. Call exactly once with themeColor, baseColor, font, radius, and defaultMode — each value must be from the allowed list in the system prompt.",
+                inputSchema: freeThemeSchema,
                 execute: async (args) => {
                   captured = args;
                   return { ok: true };
@@ -118,14 +256,20 @@ export const Route = createFileRoute("/api/ai/form-generate")({
             },
           });
 
-          if (!captured) {
+          const capturedFree = captured as z.infer<typeof freeThemeSchema> | null;
+          if (!capturedFree) {
             return new Response(JSON.stringify({ error: "model_did_not_emit_theme" }), {
               status: 502,
               headers: { "Content-Type": "application/json" },
             });
           }
 
-          return new Response(JSON.stringify({ theme: captured }), {
+          const theme = flattenFreeThemeArgs(capturedFree);
+          if (resolvedOrgId)
+            void incrementAiCount(resolvedOrgId).catch((e) =>
+              logger("[ai-quota] increment failed", e),
+            );
+          return new Response(JSON.stringify({ theme }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           });
@@ -139,6 +283,13 @@ export const Route = createFileRoute("/api/ai/form-generate")({
           messages: modelMessages,
         });
 
+        // Streaming hands the response off to the client; we increment once
+        // we know the model accepted the request. If the stream errors out
+        // mid-way, that still counts as a generation (work was performed).
+        if (resolvedOrgId)
+          void incrementAiCount(resolvedOrgId).catch((e) =>
+            logger("[ai-quota] increment failed", e),
+          );
         return result.toTextStreamResponse();
       },
     },

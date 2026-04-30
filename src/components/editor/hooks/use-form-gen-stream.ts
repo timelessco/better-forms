@@ -8,16 +8,22 @@ import type { PlateEditor } from "platejs/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AI_DIFF_KEY } from "@/components/editor/plugins/ai-diff-kit";
+import { toast } from "sonner";
 import { applyOp, canLiveUpdate, liveUpdateOp } from "@/lib/editor/apply-op";
 import type { AppliedOp, ApplyContext } from "@/lib/editor/apply-op";
+import { mergeThemeIntoCustomization } from "@/lib/editor/merge-theme";
+import { settingsDialogStore } from "@/hooks/use-settings-dialog";
+import { FREE_CUSTOMIZATION_KEYS } from "@/lib/server-fn/plan-helpers";
+import { AI_DAILY_LIMIT_ERROR } from "@/lib/server-fn/ai-quota.server";
 import { formGenSchema, isOpReady } from "@/lib/ai/ops-schema";
 import type { FormGenResult, Op, PartialOp, SetThemeOp } from "@/lib/ai/ops-schema";
 
-type ThemePayload = {
-  tokens: Record<string, string>;
-  font: string;
-  radius: "none" | "small" | "medium" | "large";
-};
+// Flat customization dict the server returns for theme-mode. For Pro plans
+// it carries the full `light:*`/`dark:*` token overrides plus `font`/`radius`;
+// for free plans it carries only the basic Theme keys (themeColor/baseColor/
+// font/radius/defaultMode). The client treats both the same — spread into
+// formDoc.customization.
+type ThemePayload = Record<string, string>;
 
 type UseObjectReturn = {
   object: Partial<FormGenResult> | undefined;
@@ -236,31 +242,68 @@ export const useFormGenStream = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
-      if (!res.ok) throw new Error(`theme request failed: ${res.status}`);
+      if (!res.ok) {
+        // Surface the rate-limit toast with an Upgrade-to-Pro CTA — the
+        // server returns 429 with a structured body when the daily AI
+        // quota is exhausted.
+        if (res.status === 429) {
+          const body = (await res.json().catch(() => null)) as {
+            message?: string;
+            limit?: number;
+          } | null;
+          toast.error(body?.message || "Daily AI limit reached. Upgrade to Pro for unlimited.", {
+            action: {
+              label: "Upgrade to Pro",
+              onClick: () => settingsDialogStore.open("billing"),
+            },
+          });
+          throw new Error(body?.message || AI_DAILY_LIMIT_ERROR);
+        }
+        throw new Error(`theme request failed: ${res.status}`);
+      }
       const data = (await res.json()) as { theme?: ThemePayload };
       if (!data.theme) throw new Error("no theme in response");
       return data.theme;
     },
-    onSuccess: (theme) => {
-      const themeOp: Op = {
-        type: "set-theme",
-        tokens: theme.tokens,
-        font: theme.font,
-        radius: theme.radius,
-      } as Op;
-      const ctx: ApplyContext = {
-        editor,
-        initialPathRef,
-        firstOpRef,
-        editMode: false,
-        createMode: false,
-        nextInsertPathRef,
-        formId,
-        insertedCountRef,
-        thankYouEmittedRef,
-        firstContentSeenRef,
+    onSuccess: async (theme) => {
+      if (!formId) {
+        onFinish?.();
+        return;
+      }
+      // Apply the customization dict directly to the form collection. The
+      // shape is plan-aware (Pro: light:/dark: tokens + font + radius; Free:
+      // themeColor/baseColor/font/radius/defaultMode), but the merge logic
+      // is the same — spread on top of existing customization with preset
+      // marked "custom" so the editor's preset selector reflects the change.
+      const collectionsModule = await import("@/collections");
+      const localModule = await import("@/collections/local/form");
+
+      const updateDraft = (draft: { customization?: unknown; updatedAt?: string }) => {
+        const current = (draft.customization ?? {}) as Record<string, string>;
+        draft.customization = mergeThemeIntoCustomization(current, theme);
+        draft.updatedAt = new Date().toISOString();
       };
-      applyOp(themeOp, ctx);
+
+      const cloud = collectionsModule.getFormListings();
+      if (cloud.get(formId)) {
+        cloud.update(formId, updateDraft as never);
+      } else if (localModule.localFormCollection.get(formId)) {
+        localModule.localFormCollection.update(formId, updateDraft as never);
+      }
+
+      // Detect a free-tier theme response (every key is a free-plan key)
+      // and prompt the user to upgrade for full color customization. Pro
+      // responses include `light:*`/`dark:*` tokens — those skip the toast.
+      const isFreeTierResponse = Object.keys(theme).every((k) => FREE_CUSTOMIZATION_KEYS.has(k));
+      if (isFreeTierResponse) {
+        toast("Theme applied. For full per-mode color customization, upgrade to Pro.", {
+          action: {
+            label: "Upgrade to Pro",
+            onClick: () => settingsDialogStore.open("billing"),
+          },
+        });
+      }
+
       onFinish?.();
     },
     onError: (err: Error) => {
@@ -376,7 +419,20 @@ export const useFormGenStream = ({
     },
     onError: (err: Error) => {
       rollback();
-      onError?.(err.message || "Generation failed. Changes have been rolled back.");
+      // Surface daily-limit toasts for the streaming path too. The server
+      // returns 429 before streaming starts; the AI SDK passes the body
+      // text through in `err.message`. We sniff for the canonical token
+      // we set server-side rather than the brittle message text.
+      const msg = err.message ?? "";
+      if (msg.includes(AI_DAILY_LIMIT_ERROR) || msg.includes("Daily AI limit")) {
+        toast.error("Daily AI limit reached. Upgrade to Pro for unlimited generations.", {
+          action: {
+            label: "Upgrade to Pro",
+            onClick: () => settingsDialogStore.open("billing"),
+          },
+        });
+      }
+      onError?.(msg || "Generation failed. Changes have been rolled back.");
     },
   }) as unknown as UseObjectReturn;
 

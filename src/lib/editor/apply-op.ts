@@ -167,21 +167,11 @@ const applySetTheme = (op: SetThemeOp, ctx: ApplyContext): AppliedOp | null => {
   void (async () => {
     const collectionsModule = await import("@/collections");
     const localModule = await import("@/collections/local/form");
+    const { mergeSetThemeOpIntoCustomization } = await import("@/lib/editor/merge-theme");
 
     const updateDraft = (draft: { customization?: unknown; updatedAt?: string }) => {
       const current = (draft.customization ?? {}) as Record<string, string>;
-      const next: Record<string, string> = {
-        ...current,
-        preset: "custom",
-      };
-      if (op.tokens) {
-        for (const [key, value] of Object.entries(op.tokens)) {
-          next[key] = value;
-        }
-      }
-      if (op.font) next.font = op.font;
-      if (op.radius) next.radius = op.radius;
-      draft.customization = next;
+      draft.customization = mergeSetThemeOpIntoCustomization(current, op);
       draft.updatedAt = new Date().toISOString();
     };
 

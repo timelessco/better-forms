@@ -767,6 +767,25 @@ export const uploadRateLimits = pgTable("upload_rate_limits", {
   count: integer("count").notNull().default(0),
 });
 
+// Tracks AI form-generate calls per org per UTC day. Read by the rate-limit
+// check in /api/ai/form-generate, written on every successful generation.
+// `id` format: `${organizationId}:${YYYY-MM-DD}` so a single upsert handles
+// the per-day bucket without a composite-PK migration.
+export const aiGenerationCounts = pgTable(
+  "ai_generation_counts",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    periodDay: text("period_day").notNull(), // YYYY-MM-DD (UTC)
+    count: integer("count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_ai_generation_counts_org_day").on(t.organizationId, t.periodDay)],
+);
+
 export const FormZod = createSelectSchema(forms);
 export const FormVersionZod = createSelectSchema(formVersions);
 export const SubmissionZod = createSelectSchema(submissions);

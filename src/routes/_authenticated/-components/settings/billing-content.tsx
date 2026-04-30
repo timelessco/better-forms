@@ -1,12 +1,30 @@
-import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { auth, authClient } from "@/lib/auth/auth-client";
+import { authClient } from "@/lib/auth/auth-client";
 import { useLoaderData } from "@tanstack/react-router";
 import { Loader2Icon } from "@/components/ui/icons";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { openOrgBillingPortal } from "@/lib/server-fn/billing";
+import { PLAN_RANK } from "@/lib/config/plan-gates";
+import type { Plan } from "@/lib/config/plan-config";
+
+type TierAction = "Current" | "Upgrade" | "Downgrade";
+type ButtonVariant = "default" | "outline" | "ghost";
+
+const tierActionLabel = (currentPlan: Plan, tier: Plan): TierAction => {
+  if (currentPlan === tier) return "Current";
+  return PLAN_RANK[tier] > PLAN_RANK[currentPlan] ? "Upgrade" : "Downgrade";
+};
+
+// Visual weight follows action: Upgrade is the CTA (filled), Downgrade is
+// a soft secondary (ghost), Current is shown as a disabled outline marker.
+const tierActionVariant = (action: TierAction): ButtonVariant => {
+  if (action === "Upgrade") return "default";
+  if (action === "Current") return "outline";
+  return "ghost";
+};
 
 export const BillingContent = () => {
   const { activeOrg } = useLoaderData({ from: "/_authenticated" });
@@ -16,12 +34,40 @@ export const BillingContent = () => {
     isBusiness: isBusinessPlan,
     isFree: isFreePlan,
     isLoading,
+    plan: currentPlan,
   } = useUserPlan(activeOrg?.id);
+
+  const freeLabel = tierActionLabel(currentPlan, "free");
+  const proLabel = tierActionLabel(currentPlan, "pro");
+  const businessLabel = tierActionLabel(currentPlan, "business");
+  const freeVariant = tierActionVariant(freeLabel);
+  const proVariant = tierActionVariant(proLabel);
+  const businessVariant = tierActionVariant(businessLabel);
+
+  const handleOpenPortal = useCallback(async () => {
+    if (!activeOrg) {
+      toast.error("Please select an organization first");
+      return;
+    }
+    try {
+      const { url } = await openOrgBillingPortal({ data: { orgId: activeOrg.id } });
+      window.location.href = url;
+    } catch (error: unknown) {
+      toast.error((error as Error).message || "Failed to open billing portal");
+    }
+  }, [activeOrg]);
 
   const handleUpgrade = useCallback(
     async (planSlug: string) => {
       if (!activeOrg) {
         toast.error("Please select an organization first");
+        return;
+      }
+      // Polar's checkout creates a *new* subscription and rejects customers
+      // who already have an active one. Route existing paid customers through
+      // the customer portal, which supports plan switching with proration.
+      if (!isFreePlan) {
+        await handleOpenPortal();
         return;
       }
       try {
@@ -39,19 +85,9 @@ export const BillingContent = () => {
         toast.error((error as Error).message || "Failed to initiate checkout");
       }
     },
-    [activeOrg],
+    [activeOrg, isFreePlan, handleOpenPortal],
   );
 
-  const { data: portalData, refetch: openPortal } = useQuery({
-    ...auth.customer.portal.queryOptions(),
-    enabled: false,
-  });
-
-  if ((portalData as { url?: string })?.url) {
-    window.location.href = (portalData as { url: string }).url;
-  }
-
-  const handleOpenPortal = useCallback(() => openPortal(), [openPortal]);
   const handleUpgradePro = useCallback(() => handleUpgrade("Pro"), [handleUpgrade]);
   const handleUpgradeBusiness = useCallback(() => handleUpgrade("Business"), [handleUpgrade]);
 
@@ -93,11 +129,12 @@ export const BillingContent = () => {
             </ul>
             <Button
               className="w-full"
-              variant={isFreePlan ? "outline" : "ghost"}
+              variant={freeVariant}
               size="sm"
+              onClick={isFreePlan ? undefined : handleOpenPortal}
               disabled={isFreePlan}
             >
-              {isFreePlan ? "Current" : "Downgrade"}
+              {freeLabel}
             </Button>
           </CardContent>
         </Card>
@@ -116,12 +153,12 @@ export const BillingContent = () => {
             </ul>
             <Button
               className="w-full"
-              variant={isProPlan ? "outline" : "default"}
+              variant={proVariant}
               size="sm"
               onClick={handleUpgradePro}
               disabled={isProPlan}
             >
-              {isProPlan ? "Current" : "Upgrade"}
+              {proLabel}
             </Button>
           </CardContent>
         </Card>
@@ -140,12 +177,12 @@ export const BillingContent = () => {
             </ul>
             <Button
               className="w-full"
-              variant={isBusinessPlan ? "outline" : "default"}
+              variant={businessVariant}
               size="sm"
               onClick={handleUpgradeBusiness}
               disabled={isBusinessPlan}
             >
-              {isBusinessPlan ? "Current" : "Upgrade"}
+              {businessLabel}
             </Button>
           </CardContent>
         </Card>
