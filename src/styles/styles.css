@@ -633,10 +633,14 @@
    spec from Figma (gray/50 fill, 8px radius, hairline drop shadow) in both
    light and dark. Uses !important to override the underlying <Input>
    component's cva variants (bg-card, dark:border, etc.), since this utility
-   is the canonical form-field style. */
+   is the canonical form-field style.
+
+   The fill is driven by --form-input-bg with a gray/50 fallback; .bf-themed
+   binds it to --bf-input so the customize-sidebar Input token actually
+   reaches every input widget. */
 @utility form-input {
   @apply w-full text-foreground placeholder:text-muted-foreground/50;
-  background-color: var(--color-gray-50) !important;
+  background-color: var(--form-input-bg, var(--color-gray-50)) !important;
   border-radius: 8px !important;
   box-shadow: 0 0 1px rgba(0, 0, 0, 0.54), 0 1px 1px rgba(0, 0, 0, 0.06) !important;
   border: 0 !important;
@@ -789,6 +793,37 @@
 /* Input width: editor input nodes */
 .bf-themed [data-bf-input] {
   max-width: var(--bf-input-width);
+}
+
+/* Input fill: drive the form-input utility from the Input token so all
+   text-input widgets (Input/Email/Number/Link/Textarea/Time/Date/Phone/
+   FileUpload) honor the customize-sidebar Input color. */
+.bf-themed {
+  --form-input-bg: var(--bf-input);
+}
+
+/* Components that bypass the form-input utility (phone input parts,
+   unchecked checkbox surfaces) get the same Input token via [data-bf-
+   input-fill] markers in their JSX, plus the existing data-slot the
+   checkbox primitive ships with. Multi-choice option letter badges
+   already consume --form-input-bg via the bg-[var(...)] arbitrary value.
+   Note: the [data-slot="checkbox"]:not([data-checked]) selector is
+   coupled to base-ui's internal attributes — verify these selectors
+   still match when upgrading @base-ui/react. */
+.bf-themed [data-bf-input-fill],
+.bf-themed [data-slot="checkbox"]:not([data-checked]) {
+  background-color: var(--bf-input) !important;
+}
+
+/* Popup surfaces inside themed forms — date-picker calendar, multi-select
+   dropdown, etc. — bypass `--bf-popover` (which derives from the base
+   preset, typically white) and route through `--bf-input` so popups feel
+   like an extension of the input/trigger they expand from. The
+   `--color-popover` override is needed for Tailwind v4's bg-popover utility,
+   which resolves through the @theme color scale rather than the raw token. */
+.bf-themed {
+  --popover: var(--bf-input);
+  --color-popover: var(--bf-input);
 }
 
 /* Typography bridge */

@@ -61,7 +61,7 @@ export const FormFieldElement = (allProps: PlateElementProps) => {
     <PlateElement
       attributes={{ ...attributes, placeholder, "data-bf-input": "true" }}
       className={cn(
-        "relative flex h-7 w-full max-w-[464px] cursor-text items-center gap-[4px] rounded-[8px] border-0 bg-[var(--color-gray-50)] pr-[8px] pl-[10px] text-sm caret-current shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]",
+        "relative flex h-7 w-full max-w-[464px] cursor-text items-center gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-[8px] pl-[10px] text-sm caret-current shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]",
         isSelected && focused && "ring-[3px] ring-ring/50",
       )}
       element={element}

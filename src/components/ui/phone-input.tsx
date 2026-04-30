@@ -94,9 +94,12 @@ function InputComponent({ className, ...props }: React.ComponentProps<"input">) 
 
   return (
     <InputGroupInput
+      data-bf-input-fill
       className={cn(
-        // Right-side "input-text" piece: white surface, full border, only the
-        // right corners rounded so it butts cleanly against the country select.
+        // Right-side "input-text" piece: full border, only the right corners
+        // rounded so it butts cleanly against the country select. Surface
+        // color is bg-background by default; .bf-themed overrides via
+        // [data-bf-input-fill] so the Input token applies.
         "flex-1 rounded-l-none rounded-r-[8px] border border-border bg-background px-2.5 py-2 text-sm tracking-[0.28px] text-foreground shadow-none ring-0! outline-none! focus-visible:ring-0 aria-invalid:ring-0",
         variant === "sm" && "h-7",
         variant === "lg" && "h-9",
@@ -152,6 +155,7 @@ function CountrySelect({
             variant="ghost"
             size={variant}
             aria-label="Select country"
+            data-bf-input-fill
             className={cn(
               // Left "input-select" piece — flag + chevron in a left-rounded
               // bordered cell. Top/left/bottom borders only; right edge butts

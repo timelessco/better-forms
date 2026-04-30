@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useEditorTheme } from "@/contexts/editor-theme-context";
+import { useReanchorThemeProps } from "@/hooks/use-form-theme";
 import {
   FILE_SUBTYPES,
   FILE_TYPE_CATEGORY_LABELS,
@@ -189,7 +189,7 @@ const FileExtensionToggleRow = ({ category, selected, onToggle }: FileExtensionT
 export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
   const { api, editor } = useEditorPlugin(BlockMenuPlugin);
   const openId = usePluginOption(BlockMenuPlugin, "openId");
-  const { themeVars, hasCustomization } = useEditorTheme();
+  const themeReanchor = useReanchorThemeProps("w-[288px] p-1");
   const isOpen = openId === BLOCK_CONTEXT_MENU_ID;
 
   const position = usePluginOption(BlockMenuPlugin, "position");
@@ -687,8 +687,8 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
       <DropdownMenu open={isOpen} onOpenChange={handleOpenChange} modal={false}>
         <DropdownMenuContent
           anchor={virtualAnchor}
-          className={cn("w-[288px] p-1", hasCustomization && "bf-themed")}
-          style={hasCustomization ? themeVars : undefined}
+          className={themeReanchor.className}
+          style={themeReanchor.style}
           align="start"
           sideOffset={8}
         >

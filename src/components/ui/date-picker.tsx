@@ -4,6 +4,7 @@ import { CalendarIcon } from "@/components/ui/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { useReanchorThemeProps } from "@/hooks/use-form-theme";
 
 interface DatePickerProps {
   value?: string | null;
@@ -41,6 +42,10 @@ export const DatePicker = ({
 
   const displayText = date ? format(date, "MMM d, yyyy") : placeholder;
 
+  // PopoverContent portals to document.body, which breaks CSS-var inheritance
+  // from the form's .bf-themed wrapper. Re-anchor the theme on the popup.
+  const themeReanchor = useReanchorThemeProps("w-auto p-0");
+
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger
@@ -49,7 +54,7 @@ export const DatePicker = ({
             type="button"
             data-empty={!date}
             className={cn(
-              "inline-flex h-[30px] w-full items-center justify-start rounded-[8px] border-0 bg-[var(--color-gray-50)] pr-1.5 pl-2.5 text-left text-sm font-normal shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]",
+              "inline-flex h-[30px] w-full items-center justify-start rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-1.5 pl-2.5 text-left text-sm font-normal shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]",
               !date && "text-muted-foreground",
               className,
             )}
@@ -59,7 +64,7 @@ export const DatePicker = ({
           </button>
         }
       />
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className={themeReanchor.className} style={themeReanchor.style} align="start">
         <Calendar mode="single" selected={date} onSelect={handleDateSelect} />
       </PopoverContent>
     </Popover>
