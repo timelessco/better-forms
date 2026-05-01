@@ -25,7 +25,7 @@ export const authMiddleware = createMiddleware().server(async ({ next }) => {
     });
   }
 
-  return await next({
+  return next({
     context: {
       session,
     },
@@ -67,7 +67,7 @@ export const apiAuthMiddleware = createMiddleware().server(async ({ next }) => {
     });
   }
 
-  return await next({ context: { session } });
+  return next({ context: { session } });
 });
 
 export const guestMiddleware = createMiddleware().server(async ({ next }) => {
@@ -80,7 +80,7 @@ export const guestMiddleware = createMiddleware().server(async ({ next }) => {
     throw redirect({ to: "/dashboard" });
   }
 
-  return await next({
+  return next({
     context: {
       session: null,
     },

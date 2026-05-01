@@ -234,14 +234,14 @@ const initCollectionsOnClient = createClientOnlyFn((queryClient: QueryClient) =>
         ),
       };
     },
-    getFormListings: async () => await getFormListingsServer(),
+    getFormListings: () => getFormListingsServer(),
     getFormDetail: async (formId: string) => {
       const { getFormbyIdQueryOption } = await import("@/lib/server-fn/forms");
       const result = await queryClient.ensureQueryData(getFormbyIdQueryOption(formId));
       // oxlint-disable-next-line typescript-eslint/no-explicit-any -- server type bridge
       return (result as { form?: any })?.form ?? null;
     },
-    getFavorites: async () => await getFavoritesServer(),
+    getFavorites: () => getFavoritesServer(),
     getVersionList: async (formId: string) => {
       const result = await getFormVersions({ data: { formId } });
       return result.versions;
