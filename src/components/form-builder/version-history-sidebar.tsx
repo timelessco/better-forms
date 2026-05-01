@@ -92,7 +92,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
 
   const handleRestoreConfirm = useCallback(() => {
     if (restoreConfirmVersionId) {
-      handleRestore(restoreConfirmVersionId);
+      void handleRestore(restoreConfirmVersionId);
     }
     setRestoreConfirmVersionId(null);
   }, [restoreConfirmVersionId, handleRestore]);

@@ -63,7 +63,7 @@ export const DropoffFunnel = ({ dropoff }: DropoffFunnelProps) => {
   const [sorting, setSorting] = useState<SortingState>([{ id: "step", desc: false }]);
 
   const sortedQuestions = useMemo(
-    () => [...dropoff.questions].sort((a, b) => a.questionIndex - b.questionIndex),
+    () => [...dropoff.questions].toSorted((a, b) => a.questionIndex - b.questionIndex),
     [dropoff.questions],
   );
 

@@ -356,7 +356,7 @@ const SubmissionsPage = () => {
   const handleDelete = useCallback(
     async (submissionId: string) => {
       await deleteSubmission({ data: { id: submissionId, formId } });
-      queryClient.invalidateQueries({ queryKey: ["submissions", formId] });
+      void queryClient.invalidateQueries({ queryKey: ["submissions", formId] });
     },
     [formId, queryClient],
   );
@@ -622,7 +622,7 @@ const SubmissionsPage = () => {
     await deleteSubmissionsBulk({
       data: { formId, submissionIds: selectedIds },
     });
-    queryClient.invalidateQueries({ queryKey: ["submissions", formId] });
+    void queryClient.invalidateQueries({ queryKey: ["submissions", formId] });
     setRowSelection({});
   }, [formId, queryClient, rowSelection]);
 

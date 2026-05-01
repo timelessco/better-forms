@@ -64,7 +64,7 @@ export const mergeDropoffMetrics = (args: MergeDropoffArgs): QuestionDropoffMetr
   }
 
   const questions = Array.from(byQuestion.values())
-    .sort((a, b) => a.questionIndex - b.questionIndex)
+    .toSorted((a, b) => a.questionIndex - b.questionIndex)
     .map((agg) => {
       const dropoffCount = agg.viewCount - agg.completeCount;
       const dropoffRate = agg.viewCount > 0 ? Math.round((dropoffCount / agg.viewCount) * 100) : 0;

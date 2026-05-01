@@ -95,7 +95,7 @@ export const PasswordGate = ({ formId, children }: PasswordGateProps) => {
                     if (error) setError(null);
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") handleUnlock();
+                    if (e.key === "Enter") void handleUnlock();
                   }}
                   className="pr-10"
                   autoFocus

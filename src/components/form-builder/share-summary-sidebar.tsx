@@ -52,7 +52,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
     listeners: {
       onChange: ({ formApi }) => {
         const v = formApi.state.values;
-        navigate({
+        void navigate({
           search: ((prev: Record<string, unknown>) => ({
             ...prev,
             ...formValuesToSearch(v),
@@ -79,7 +79,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
       collection.update(
         doc.id,
         (draft: { settings?: Record<string, unknown>; updatedAt?: string }) => {
-          draft.settings = { ...(draft.settings ?? {}), ...patch };
+          draft.settings = { ...draft.settings, ...patch };
           draft.updatedAt = new Date().toISOString();
         },
       );
@@ -194,7 +194,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
                   const update = () => {
                     flushSync(() => {
                       field.handleChange(v as typeof field.state.value);
-                      navigate({
+                      void navigate({
                         search: ((prev: Record<string, unknown>) => ({
                           ...prev,
                           embedType: v,

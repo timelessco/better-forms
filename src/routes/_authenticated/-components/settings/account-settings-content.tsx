@@ -222,7 +222,7 @@ export const AccountSettingsContent = () => {
     auth.unlinkAccount.mutationOptions({
       onSuccess: (_, variables) => {
         toast.success(`${variables.providerId} disconnected`);
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: auth.listAccounts.queryKey(),
         });
       },
@@ -255,34 +255,36 @@ export const AccountSettingsContent = () => {
     }),
   );
 
+  const { mutate: unlinkAccount } = unlinkAccountMutation;
+  const { mutate: deleteAccount } = deleteAccountMutation;
+  const { mutate: socialSignIn } = socialSignInMutation;
+  const { mutate: updateProfile } = updateProfileMutation;
+
   const handleDisconnectAccount = useCallback(
     (providerId: string) => {
-      unlinkAccountMutation.mutate({ providerId });
+      unlinkAccount({ providerId });
     },
-    [unlinkAccountMutation],
+    [unlinkAccount],
   );
 
   const handleDeleteAccount = useCallback(() => {
     if (!window.confirm("Are you absolutely sure? This action cannot be undone.")) return;
-    deleteAccountMutation.mutate({});
-  }, [deleteAccountMutation]);
+    deleteAccount({});
+  }, [deleteAccount]);
 
   const handleGoogleSignIn = useCallback(() => {
-    socialSignInMutation.mutate({
+    socialSignIn({
       provider: "google",
       callbackURL: window.location.origin,
     });
-  }, [socialSignInMutation]);
+  }, [socialSignIn]);
 
   const handleOpenFileDialog = useCallback(
     () => avatarUpload.fileInputRef.current?.click(),
     [avatarUpload.fileInputRef],
   );
 
-  const handleRemoveAvatar = useCallback(
-    () => updateProfileMutation.mutate({ image: "" }),
-    [updateProfileMutation],
-  );
+  const handleRemoveAvatar = useCallback(() => updateProfile({ image: "" }), [updateProfile]);
 
   const handleDisconnectGoogle = useCallback(
     () => handleDisconnectAccount("google"),

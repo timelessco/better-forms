@@ -104,7 +104,7 @@ export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?:
       }),
     onSuccess: (result) => {
       queryClient.setQueryData(["form-in-app-notification-preference", formId], result);
-      queryClient.invalidateQueries({ queryKey: ["submission-notifications"] });
+      void queryClient.invalidateQueries({ queryKey: ["submission-notifications"] });
     },
     onError: (error) => {
       const message =
@@ -136,7 +136,7 @@ export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?:
   };
 
   const form = useAppForm({
-    defaultValues: { ...settingsDefaults, ...(formDoc?.settings ?? {}) },
+    defaultValues: { ...settingsDefaults, ...formDoc?.settings },
     validationLogic: revalidateLogic(),
     listeners: {
       onChange: ({ formApi }) => {

@@ -520,7 +520,7 @@ const ProSection = ({
     onSuccess: (result, domainId) => {
       const slug = (result.form as { slug?: string | null }).slug ?? null;
       onDomainAssigned?.(domainId, slug);
-      queryClient.invalidateQueries({ queryKey: ["forms", formId] });
+      void queryClient.invalidateQueries({ queryKey: ["forms", formId] });
     },
   });
 
@@ -531,7 +531,7 @@ const ProSection = ({
     },
     onSuccess: (_result, slug) => {
       onDomainAssigned?.(customDomainId ?? null, slug);
-      queryClient.invalidateQueries({ queryKey: ["forms", formId] });
+      void queryClient.invalidateQueries({ queryKey: ["forms", formId] });
     },
   });
 
@@ -579,6 +579,9 @@ const ProSection = ({
     draftDomainId !== (customDomainId ?? null) ||
     draftSlug.trim() !== (formSlug ?? defaultSlug);
 
+  const { mutateAsync: assignDomainAsync, isPending: isAssignDomainPending } = assignDomainMutation;
+  const { mutateAsync: updateSlugAsync, isPending: isUpdateSlugPending } = updateSlugMutation;
+
   const saveLiveSettings = useCallback(async () => {
     if (draftBranding !== (docBranding ?? true)) {
       onBrandingChange?.(draftBranding);
@@ -587,11 +590,11 @@ const ProSection = ({
       onAnalyticsChange?.(draftAnalytics);
     }
     if (draftDomainId !== (customDomainId ?? null)) {
-      await assignDomainMutation.mutateAsync(draftDomainId);
+      await assignDomainAsync(draftDomainId);
     }
     const trimmed = draftSlug.trim();
     if (draftDomainId && trimmed && trimmed !== (formSlug ?? "")) {
-      await updateSlugMutation.mutateAsync(trimmed);
+      await updateSlugAsync(trimmed);
     }
   }, [
     draftBranding,
@@ -604,11 +607,11 @@ const ProSection = ({
     formSlug,
     onBrandingChange,
     onAnalyticsChange,
-    assignDomainMutation,
-    updateSlugMutation,
+    assignDomainAsync,
+    updateSlugAsync,
   ]);
 
-  const isSaving = assignDomainMutation.isPending || updateSlugMutation.isPending;
+  const isSaving = isAssignDomainPending || isUpdateSlugPending;
 
   return (
     <FeatureGate requiredPlan="pro" variant="block">
