@@ -3,7 +3,7 @@ import * as schema from "@/db/schema";
 import { drizzle } from "drizzle-orm/postgres-js";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
-type Db = PostgresJsDatabase<typeof schema, typeof schema.relations>;
+type Db = PostgresJsDatabase<typeof schema.relations>;
 
 let dbInstance: Db | undefined;
 
@@ -19,8 +19,8 @@ const getDb = (): Db => {
       // `prepare: false` is required by Supabase pgbouncer in transaction mode
       // (port 6543 connection pooler) — prepared statements aren't supported.
       connection: { url, prepare: false },
-      schema,
       relations: schema.relations,
+      jit: true,
     });
   }
   return dbInstance;
