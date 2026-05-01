@@ -4,7 +4,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { customDomains, forms, member } from "@/db/schema";
 import { db } from "@/db";
-import { authMiddleware } from "@/lib/auth/middleware";
+import { authMiddleware } from "@/lib/auth/middleware.server";
 import { purgeFormCacheBatch } from "@/lib/server-fn/cdn-cache";
 import { vercelDomains } from "@/lib/vercel-domains.server";
 import type { VercelDomainVerification } from "@/lib/vercel-domains.server";

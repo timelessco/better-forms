@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { member } from "@/db/schema";
-import { authMiddleware } from "@/lib/auth/middleware";
+import { authMiddleware } from "@/lib/auth/middleware.server";
 
 /**
  * Opens Polar's hosted customer portal for an organization-scoped customer.

@@ -6,7 +6,7 @@ import { customDomains, forms, member, submissions, workspaces } from "@/db/sche
 import { RESERVED_SLUGS } from "@/lib/config/plan-config";
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { db } from "@/db";
-import { authMiddleware, formProSettingsMiddleware } from "@/lib/auth/middleware";
+import { authMiddleware, formProSettingsMiddleware } from "@/lib/auth/middleware.server";
 import { purgeFormCache, purgeFormCacheBatch } from "@/lib/server-fn/cdn-cache";
 import type { VersionedSettingsSnapshot } from "@/lib/content-hash";
 import type { FormSettings } from "@/types/form-settings";

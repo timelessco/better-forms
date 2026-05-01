@@ -5,7 +5,7 @@ import { Loader2Icon } from "@/components/ui/icons";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth-client";
-import { guestMiddleware } from "@/lib/auth/middleware";
+import { guestMiddleware } from "@/lib/auth/middleware.server";
 import { Logo } from "@/components/ui/logo";
 import { toast } from "sonner";
 

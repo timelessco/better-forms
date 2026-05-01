@@ -5,7 +5,7 @@ import { z } from "zod";
 import { forms, formVersions, user } from "@/db/schema";
 import { mergeFormSettings } from "@/lib/server-fn/forms";
 import { db } from "@/db";
-import { authMiddleware } from "@/lib/auth/middleware";
+import { authMiddleware } from "@/lib/auth/middleware.server";
 import { computeContentHash, pickVersionedSettings } from "@/lib/content-hash";
 import { purgeFormCache } from "@/lib/server-fn/cdn-cache";
 import { getActiveOrgId } from "./auth-helpers";

@@ -9,7 +9,7 @@ import {
   workspaces,
 } from "@/db/schema";
 import { db } from "@/db";
-import { authMiddleware } from "@/lib/auth/middleware";
+import { authMiddleware } from "@/lib/auth/middleware.server";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm } from "./auth-helpers.server";
 
