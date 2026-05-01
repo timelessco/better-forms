@@ -256,7 +256,7 @@ const AIInputPopoverBody = ({ state }: { state: AIInputState }) => {
         align="start"
         side="bottom"
         sideOffset={-anchorRect.height}
-        className="z-50 p-0"
+        className="z-30 p-0"
         style={{ width: anchorRect.width || undefined }}
       >
         <div
