@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { customDomains, forms } from "@/db/schema";
+import { customDomains, formSettings, forms } from "@/db/schema";
 import { isAnalyticsEnabled } from "@/lib/server-fn/analytics.server";
-import { mergeFormSettings } from "@/lib/server-fn/forms";
+import { defaultFormSettings } from "@/types/form-settings";
 import {
   resolveCustomDomain,
   resolveDomainForSlug,
@@ -42,6 +42,18 @@ describe("plan-read-enforcement", () => {
 
   afterEach(async () => {
     await db.delete(customDomains).where(eq(customDomains.organizationId, orgId));
+    const formIds = await db
+      .select({ id: forms.id })
+      .from(forms)
+      .where(eq(forms.workspaceId, workspaceId));
+    if (formIds.length > 0) {
+      await db.delete(formSettings).where(
+        inArray(
+          formSettings.formId,
+          formIds.map((f) => f.id),
+        ),
+      );
+    }
     await db.delete(forms).where(eq(forms.workspaceId, workspaceId));
     await cleanupTestUser(ownerId);
     await cleanupTestOrg(orgId);
@@ -51,9 +63,8 @@ describe("plan-read-enforcement", () => {
     it("true when org is pro and forms.analytics is true", async () => {
       const form = await createTestForm(workspaceId, ownerId);
       await db
-        .update(forms)
-        .set({ draftSettings: mergeFormSettings({ analytics: true }) })
-        .where(eq(forms.id, form.id));
+        .insert(formSettings)
+        .values({ formId: form.id, settings: { ...defaultFormSettings, analytics: true } });
 
       await expect(isAnalyticsEnabled(form.id)).resolves.toBeTruthy();
     });
@@ -66,9 +77,8 @@ describe("plan-read-enforcement", () => {
     it("false when org is free and forms.analytics is true (post-downgrade race)", async () => {
       const form = await createTestForm(workspaceId, ownerId);
       await db
-        .update(forms)
-        .set({ draftSettings: mergeFormSettings({ analytics: true }) })
-        .where(eq(forms.id, form.id));
+        .insert(formSettings)
+        .values({ formId: form.id, settings: { ...defaultFormSettings, analytics: true } });
       await setOrgPlan(orgId, "free");
 
       await expect(isAnalyticsEnabled(form.id)).resolves.toBeFalsy();
