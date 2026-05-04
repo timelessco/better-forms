@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { Sidebar, SidebarContent, SidebarHeader } from "@/components/ui/sidebar";
 import { SidebarSection } from "@/components/ui/sidebar-section";
 import { FeatureGate } from "@/components/ui/feature-gate";
-import { MinimalColorPicker } from "@/components/ui/minimal-color-picker";
+import { ColorPicker } from "@/components/ui/color-picker";
 import { StyleNumberInput } from "@/components/ui/style-controls";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -679,7 +679,7 @@ const AdvancedColorPickers = ({
           customization[prefixedKey] || customization[key] || resolved[key] || "#000000";
 
         return (
-          <MinimalColorPicker
+          <ColorPicker
             key={key}
             label={label}
             value={currentValue}
