@@ -2,6 +2,7 @@
 
 import { Slider as SliderPrimitive } from "@base-ui/react/slider";
 import { PipetteIcon } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -584,7 +585,17 @@ const ColorPickerPanel = ({ value, onChange }: ColorPickerPanelProps) => {
         </div>
         <FormatToggle mode={mode} onChange={setMode} className="ml-auto" />
       </div>
-      <FormatInputs mode={mode} hsla={hsla} onChangeHsla={(next) => updateAndEmit(next)} />
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={mode}
+          initial={{ opacity: 0, filter: "blur(8px)" }}
+          animate={{ opacity: 1, filter: "blur(0px)" }}
+          exit={{ opacity: 0, filter: "blur(8px)" }}
+          transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+        >
+          <FormatInputs mode={mode} hsla={hsla} onChangeHsla={(next) => updateAndEmit(next)} />
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 };
