@@ -8,7 +8,6 @@ import {
 import type { VersionListItem, VersionContent } from "@/collections/query/version";
 import { db } from "@/db";
 import { formVersions, user } from "@/db/schema";
-import { pickVersionedSettings } from "@/lib/content-hash";
 import {
   getTestUtils,
   createTestOrg,
@@ -29,7 +28,7 @@ const createTestVersion = async (formId: string, publishedByUserId: string, vers
       formId,
       version,
       content: [{ type: "p", children: [{ text: `Version ${version}` }] }],
-      settings: pickVersionedSettings(null),
+      settings: null,
       customization: {},
       title: `Form v${version}`,
       publishedByUserId,

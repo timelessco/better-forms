@@ -6,6 +6,7 @@ import {
   formDropoffDaily,
   formQuestionProgress,
   forms,
+  formSettings,
   formVisits,
   organization,
   workspaces,
@@ -62,11 +63,14 @@ export type InsightsFilterInput = {
 // org-plan check covers the window where a Polar downgrade webhook hasn't
 // yet flipped `forms.analytics`.
 export const isAnalyticsEnabled = async (formId: string): Promise<boolean> => {
+  // Read the LIVE settings (form_settings table), not the working draft —
+  // analytics tracking should reflect what's published, not pending edits.
   const [row] = await db
-    .select({ settings: forms.settings, plan: organization.plan })
+    .select({ settings: formSettings.settings, plan: organization.plan })
     .from(forms)
     .innerJoin(workspaces, eq(workspaces.id, forms.workspaceId))
     .innerJoin(organization, eq(organization.id, workspaces.organizationId))
+    .leftJoin(formSettings, eq(formSettings.formId, forms.id))
     .where(eq(forms.id, formId));
   if (row?.settings?.analytics !== true) return false;
   return isServerPlan(row.plan) && planUnlocks(row.plan, "analytics");

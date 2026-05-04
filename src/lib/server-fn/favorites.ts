@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { formFavorites } from "@/db/schema";
 import { db } from "@/db";
-import { authMiddleware } from "@/lib/auth/middleware.server";
+import { authMiddleware } from "@/lib/auth/middleware";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm } from "./auth-helpers.server";
 

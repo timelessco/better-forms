@@ -81,7 +81,7 @@ export const createTestForm = async (workspaceId: string, creatorId: string) => 
       formName: "draft",
       schemaName: "draftFormSchema",
       content: [],
-      settings: defaultFormSettings,
+      draftSettings: defaultFormSettings,
       status: "draft",
       createdAt: now,
       updatedAt: now,

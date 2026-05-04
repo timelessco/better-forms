@@ -12,7 +12,7 @@ import {
   workspaces,
 } from "@/db/schema";
 import { db } from "@/db";
-import { authMiddleware } from "@/lib/auth/middleware.server";
+import { authMiddleware } from "@/lib/auth/middleware";
 import { purgeFormCacheBatch } from "@/lib/server-fn/cdn-cache";
 import { createServerFn } from "@tanstack/react-start";
 import { and, count, eq, inArray } from "drizzle-orm";

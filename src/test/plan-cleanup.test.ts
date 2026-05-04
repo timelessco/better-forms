@@ -62,7 +62,7 @@ describe("plan-cleanup", () => {
       await db
         .update(forms)
         .set({
-          settings: mergeFormSettings({
+          draftSettings: mergeFormSettings({
             analytics: true,
             dataRetention: true,
             dataRetentionDays: 30,
@@ -74,7 +74,7 @@ describe("plan-cleanup", () => {
       await db
         .update(forms)
         .set({
-          settings: mergeFormSettings({
+          draftSettings: mergeFormSettings({
             analytics: true,
             dataRetention: true,
             dataRetentionDays: 90,
@@ -87,16 +87,16 @@ describe("plan-cleanup", () => {
       await applyDowngradeCleanup(orgId);
 
       const rows = await db
-        .select({ settings: forms.settings })
+        .select({ draftSettings: forms.draftSettings })
         .from(forms)
         .where(eq(forms.workspaceId, workspaceId));
 
       for (const row of rows) {
-        expect(row.settings?.analytics).toBeFalsy();
-        expect(row.settings?.dataRetention).toBeFalsy();
-        expect(row.settings?.dataRetentionDays).toBeNull();
-        expect(row.settings?.respondentEmailNotifications).toBeFalsy();
-        expect(row.settings?.branding).toBeTruthy();
+        expect(row.draftSettings?.analytics).toBeFalsy();
+        expect(row.draftSettings?.dataRetention).toBeFalsy();
+        expect(row.draftSettings?.dataRetentionDays).toBeNull();
+        expect(row.draftSettings?.respondentEmailNotifications).toBeFalsy();
+        expect(row.draftSettings?.branding).toBeTruthy();
       }
     });
 
@@ -193,14 +193,14 @@ describe("plan-cleanup", () => {
       const otherForm = await createTestForm(otherWorkspace.id, otherOwnerId);
       await db
         .update(forms)
-        .set({ settings: mergeFormSettings({ analytics: true, branding: false }) })
+        .set({ draftSettings: mergeFormSettings({ analytics: true, branding: false }) })
         .where(eq(forms.id, otherForm.id));
       const otherDomain = await createTestCustomDomain(otherOrg.id, { status: "verified" });
 
       await applyDowngradeCleanup(orgId);
 
       const [otherFormAfter] = await db
-        .select({ settings: forms.settings })
+        .select({ draftSettings: forms.draftSettings })
         .from(forms)
         .where(eq(forms.id, otherForm.id));
       const [otherDomainAfter] = await db
@@ -212,8 +212,8 @@ describe("plan-cleanup", () => {
         .from(organization)
         .where(eq(organization.id, otherOrg.id));
 
-      expect(otherFormAfter.settings?.analytics).toBeTruthy();
-      expect(otherFormAfter.settings?.branding).toBeFalsy();
+      expect(otherFormAfter.draftSettings?.analytics).toBeTruthy();
+      expect(otherFormAfter.draftSettings?.branding).toBeFalsy();
       expect(otherDomainAfter.status).toBe("verified");
       expect(otherOrgAfter.plan).toBe("pro");
 
@@ -293,7 +293,7 @@ describe("plan-cleanup", () => {
       await db
         .update(forms)
         .set({
-          settings: mergeFormSettings({
+          draftSettings: mergeFormSettings({
             analytics: false,
             dataRetention: false,
             dataRetentionDays: null,
@@ -307,13 +307,13 @@ describe("plan-cleanup", () => {
       await applyUpgradeRestore(orgId);
 
       const [row] = await db
-        .select({ settings: forms.settings })
+        .select({ draftSettings: forms.draftSettings })
         .from(forms)
         .where(eq(forms.id, form.id));
-      expect(row.settings?.analytics).toBeFalsy();
-      expect(row.settings?.dataRetention).toBeFalsy();
-      expect(row.settings?.respondentEmailNotifications).toBeFalsy();
-      expect(row.settings?.branding).toBeTruthy();
+      expect(row.draftSettings?.analytics).toBeFalsy();
+      expect(row.draftSettings?.dataRetention).toBeFalsy();
+      expect(row.draftSettings?.respondentEmailNotifications).toBeFalsy();
+      expect(row.draftSettings?.branding).toBeTruthy();
     });
 
     it("round-trip: downgrade then upgrade restores domain status", async () => {

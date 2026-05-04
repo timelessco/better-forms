@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { putBlob } from "@/integrations/blob";
-import { authMiddleware } from "@/lib/auth/middleware.server";
+import { authMiddleware } from "@/lib/auth/middleware";
 
 /**
  * Upload avatar image to Vercel Blob storage.

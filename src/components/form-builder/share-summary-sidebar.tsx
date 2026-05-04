@@ -25,7 +25,7 @@ import {
 } from "./embed-config-panel";
 import { EmbedCodeDialog, searchToFormValues, formValuesToSearch, tabs } from "./embed-section";
 import { EmbedPreviewMockup } from "./embed-preview-mockup";
-import type { PresentationMode } from "@/types/form-settings";
+import type { FormSettings as FormSettingsType, PresentationMode } from "@/types/form-settings";
 
 const selectValues = (state: { values: ReturnType<typeof searchToFormValues> }) => state.values;
 
@@ -45,7 +45,10 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
   const [codeDialogOpen, setCodeDialogOpen] = useState(false);
   const handleOpenCodeDialog = useCallback(() => setCodeDialogOpen(true), []);
 
-  const docSettings = doc?.settings;
+  // The Share sidebar is an editing surface — show the working draft so
+  // toggles reflect the user's pending edits, not the last-published state.
+  const docSettings: Partial<FormSettingsType> | null | undefined =
+    doc?.draftSettings ?? doc?.liveSettings;
 
   const form = useTanstackForm({
     defaultValues: searchToFormValues(search, doc?.icon, Boolean(docSettings?.branding ?? true)),
@@ -78,8 +81,8 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
       const collection = getFormListings();
       collection.update(
         doc.id,
-        (draft: { settings?: Record<string, unknown>; updatedAt?: string }) => {
-          draft.settings = { ...draft.settings, ...patch };
+        (draft: { draftSettings?: Record<string, unknown>; updatedAt?: string }) => {
+          draft.draftSettings = { ...draft.draftSettings, ...patch };
           draft.updatedAt = new Date().toISOString();
         },
       );

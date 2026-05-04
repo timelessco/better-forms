@@ -1,6 +1,13 @@
 import { notFound } from "@tanstack/react-router";
 import { and, count, eq, ne } from "drizzle-orm";
-import { customDomains, forms, formVersions, organization, submissions } from "@/db/schema";
+import {
+  customDomains,
+  formSettings,
+  forms,
+  formVersions,
+  organization,
+  submissions,
+} from "@/db/schema";
 import { db } from "@/db";
 import { buildPublicFormSettings } from "@/types/form-settings";
 import type { DomainMeta, ResolvedDomain } from "./custom-domain-loader";
@@ -102,15 +109,15 @@ export const loadFormForCustomDomain = async (
       id: forms.id,
       status: forms.status,
       lastPublishedVersionId: forms.lastPublishedVersionId,
-      // Group 4 (live) — branding is always false for custom domains anyway;
-      // analytics lives in forms.settings JSONB.
-      liveSettings: forms.settings,
+      // Live settings now live in form_settings (split from versioning).
+      liveSettings: formSettings.settings,
       draftTitle: forms.title,
       draftContent: forms.content,
       draftIcon: forms.icon,
       draftCover: forms.cover,
     })
     .from(forms)
+    .leftJoin(formSettings, eq(formSettings.formId, forms.id))
     .where(conditions);
 
   if (!form) {
@@ -122,8 +129,8 @@ export const loadFormForCustomDomain = async (
     ? await db.select().from(formVersions).where(eq(formVersions.id, form.lastPublishedVersionId))
     : [undefined];
 
-  const snapshotSettings = version?.settings;
-  const settings = buildPublicFormSettings(snapshotSettings, { branding: false });
+  // Branding is always false on custom domains regardless of liveSettings.
+  const settings = buildPublicFormSettings(form.liveSettings, { branding: false });
 
   // --- Gating checks (same logic as getPublishedFormById) ---
   if (settings.closeForm) {

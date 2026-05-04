@@ -52,7 +52,7 @@ describe("plan-read-enforcement", () => {
       const form = await createTestForm(workspaceId, ownerId);
       await db
         .update(forms)
-        .set({ settings: mergeFormSettings({ analytics: true }) })
+        .set({ draftSettings: mergeFormSettings({ analytics: true }) })
         .where(eq(forms.id, form.id));
 
       await expect(isAnalyticsEnabled(form.id)).resolves.toBeTruthy();
@@ -67,7 +67,7 @@ describe("plan-read-enforcement", () => {
       const form = await createTestForm(workspaceId, ownerId);
       await db
         .update(forms)
-        .set({ settings: mergeFormSettings({ analytics: true }) })
+        .set({ draftSettings: mergeFormSettings({ analytics: true }) })
         .where(eq(forms.id, form.id));
       await setOrgPlan(orgId, "free");
 

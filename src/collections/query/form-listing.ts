@@ -16,7 +16,11 @@ export type FormListing = {
   sortIndex?: string | null;
   customization?: Record<string, unknown> | null;
   submissionCount: number;
-  settings?: FormSettings;
+  /** Working draft of behavioral settings (forms.draftSettings). */
+  draftSettings?: FormSettings;
+  /** Live published settings (form_settings.settings). Null when the form
+   *  has never been published — first publish creates this row. */
+  liveSettings?: FormSettings | null;
   slug?: string | null;
   customDomainId?: string | null;
   publishedContentHash?: string | null;

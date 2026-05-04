@@ -4,7 +4,7 @@ import { convertToModelMessages, generateText, streamObject, tool } from "ai";
 import type { UIMessage } from "ai";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { apiAuthMiddleware } from "@/lib/auth/middleware.server";
+import { apiAuthMiddleware } from "@/lib/auth/middleware";
 import {
   formGenSchema,
   freeThemeSchema,

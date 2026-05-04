@@ -136,13 +136,16 @@ export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?:
   };
 
   const form = useAppForm({
-    defaultValues: { ...settingsDefaults, ...formDoc?.settings },
+    defaultValues: { ...settingsDefaults, ...formDoc?.draftSettings },
     validationLogic: revalidateLogic(),
     listeners: {
       onChange: ({ formApi }) => {
         if (!formDoc?.id) return;
         collection.update(formDoc.id, (draft) => {
-          draft.settings = { ...(draft.settings ?? settingsDefaults), ...formApi.state.values };
+          draft.draftSettings = {
+            ...(draft.draftSettings ?? settingsDefaults),
+            ...formApi.state.values,
+          };
           draft.updatedAt = new Date().toISOString();
         });
       },

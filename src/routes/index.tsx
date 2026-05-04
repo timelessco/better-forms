@@ -6,7 +6,7 @@ import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import Loader from "@/components/ui/loader";
 import { CustomDomainNotFound } from "@/components/ui/custom-domain-not-found";
-import { guestMiddleware } from "@/lib/auth/middleware.server";
+import { guestMiddleware } from "@/lib/auth/middleware";
 import { getRequestHost, isAppHost } from "@/lib/server-fn/custom-domain-loader";
 
 const LandingEditor = lazy(() => import("./-components/landing-editor"));

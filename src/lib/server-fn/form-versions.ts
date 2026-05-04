@@ -2,12 +2,13 @@ import crypto from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { forms, formVersions, user } from "@/db/schema";
-import { mergeFormSettings } from "@/lib/server-fn/forms";
+import { formSettings, forms, formVersions, user } from "@/db/schema";
 import { db } from "@/db";
-import { authMiddleware } from "@/lib/auth/middleware.server";
-import { computeContentHash, pickVersionedSettings } from "@/lib/content-hash";
+import { authMiddleware } from "@/lib/auth/middleware";
+import { canonicalJSON, computeContentHash } from "@/lib/content-hash";
 import { purgeFormCache } from "@/lib/server-fn/cdn-cache";
+import { defaultFormSettings } from "@/types/form-settings";
+import type { FormSettings } from "@/types/form-settings";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm } from "./auth-helpers.server";
 
@@ -41,22 +42,13 @@ export const publishFormVersion = createServerFn({ method: "POST" })
       }
 
       const [lastVersion] = await tx
-        .select({ id: formVersions.id, version: formVersions.version })
+        .select({ version: formVersions.version })
         .from(formVersions)
         .where(eq(formVersions.formId, data.formId))
         .orderBy(desc(formVersions.version))
         .limit(1);
 
-      const nextVersionNumber = (lastVersion?.version ?? 0) + 1;
       const now = new Date();
-
-      // Snapshot Group 2 behavior settings into the version's settings jsonb
-      // so the public endpoint can read them from the snapshot instead of the
-      // live forms.settings. Group 4 (slug, customDomainId, branding,
-      // analytics) is intentionally excluded — those stay live.
-      // `pickVersionedSettings` is the same helper that drives the client-side
-      // hash, so the snapshot, the hash, and the listings query stay in lockstep.
-      const settingsSnapshot = pickVersionedSettings(form.settings);
 
       const contentHash = computeContentHash({
         content: form.content,
@@ -64,55 +56,100 @@ export const publishFormVersion = createServerFn({ method: "POST" })
         title: form.title,
         icon: form.icon,
         cover: form.cover,
-        settings: settingsSnapshot,
       });
 
-      const versionId = crypto.randomUUID();
+      // Per-domain conditional publish (see plan §2):
+      //   - Versioned domain (editor + customization): create new version row
+      //     only if hash differs from the current `publishedContentHash`.
+      //   - Settings domain: upsert formSettings from forms.draftSettings only
+      //     if the live row differs from the draft.
+      // First publish ever: both branches always fire (no baseline to diff).
+      const versionedDirty = form.publishedContentHash !== contentHash;
+      const isFirstPublish = !form.lastPublishedVersionId;
 
-      const [newVersion] = await tx
-        .insert(formVersions)
-        .values({
-          id: versionId,
-          formId: data.formId,
-          version: nextVersionNumber,
-          content: form.content,
-          settings: settingsSnapshot,
-          customization: form.customization ?? {},
-          title: form.title,
-          icon: form.icon,
-          cover: form.cover,
-          publishedByUserId: context.session.user.id,
-          publishedAt: now,
-          createdAt: now,
-        })
-        .returning();
+      let newVersion: typeof formVersions.$inferSelect | undefined;
+      let versionId = form.lastPublishedVersionId ?? null;
 
-      await tx
-        .update(forms)
-        .set({
-          content: form.content,
-          title: form.title,
-          status: "published",
-          lastPublishedVersionId: versionId,
-          publishedContentHash: contentHash,
-          updatedAt: now,
-        })
-        .where(eq(forms.id, data.formId));
+      if (versionedDirty || isFirstPublish) {
+        const nextVersionNumber = (lastVersion?.version ?? 0) + 1;
+        versionId = crypto.randomUUID();
 
-      const allVersions = await tx
-        .select({ id: formVersions.id })
-        .from(formVersions)
-        .where(eq(formVersions.formId, data.formId))
-        .orderBy(desc(formVersions.version));
+        const [inserted] = await tx
+          .insert(formVersions)
+          .values({
+            id: versionId,
+            formId: data.formId,
+            version: nextVersionNumber,
+            content: form.content,
+            // Settings are intentionally excluded from versions — kept null
+            // for new rows; legacy rows still carry their pre-split snapshot.
+            settings: null,
+            customization: form.customization ?? {},
+            title: form.title,
+            icon: form.icon,
+            cover: form.cover,
+            publishedByUserId: context.session.user.id,
+            publishedAt: now,
+            createdAt: now,
+          })
+          .returning();
+        newVersion = inserted;
 
-      if (allVersions.length > MAX_VERSIONS_PER_FORM) {
-        const versionsToDelete = allVersions.slice(MAX_VERSIONS_PER_FORM).map((v) => v.id);
-        await tx.delete(formVersions).where(inArray(formVersions.id, versionsToDelete));
+        await tx
+          .update(forms)
+          .set({
+            status: "published",
+            lastPublishedVersionId: versionId,
+            publishedContentHash: contentHash,
+            updatedAt: now,
+          })
+          .where(eq(forms.id, data.formId));
+
+        const allVersions = await tx
+          .select({ id: formVersions.id })
+          .from(formVersions)
+          .where(eq(formVersions.formId, data.formId))
+          .orderBy(desc(formVersions.version));
+
+        if (allVersions.length > MAX_VERSIONS_PER_FORM) {
+          const versionsToDelete = allVersions.slice(MAX_VERSIONS_PER_FORM).map((v) => v.id);
+          await tx.delete(formVersions).where(inArray(formVersions.id, versionsToDelete));
+        }
+      } else if (form.status !== "published") {
+        // No content change but the form was archived/unpublished — flip back
+        // to "published" without creating an empty new version.
+        await tx
+          .update(forms)
+          .set({ status: "published", updatedAt: now })
+          .where(eq(forms.id, data.formId));
+      }
+
+      // Settings: copy draft → live row whenever they differ. Use jsonb !=
+      // (canonical equal) to avoid emitting a noop write.
+      const [liveRow] = await tx
+        .select({ settings: formSettings.settings })
+        .from(formSettings)
+        .where(eq(formSettings.formId, data.formId));
+
+      const draft = (form.draftSettings ?? defaultFormSettings) as FormSettings;
+      const live = liveRow?.settings ?? null;
+      const settingsDirty = live === null || canonicalJSON(live) !== canonicalJSON(draft);
+
+      if (settingsDirty || isFirstPublish) {
+        await tx
+          .insert(formSettings)
+          .values({ formId: data.formId, settings: draft, updatedAt: now })
+          .onConflictDoUpdate({
+            target: formSettings.formId,
+            set: { settings: draft, updatedAt: now },
+          });
       }
 
       return {
-        version: serializeVersion(newVersion),
-        versionNumber: nextVersionNumber,
+        version: newVersion ? serializeVersion(newVersion) : null,
+        versionId,
+        versionedPublished: Boolean(newVersion),
+        settingsPublished: settingsDirty || isFirstPublish,
       };
     });
 
@@ -238,9 +275,11 @@ export const discardFormChanges = createServerFn({ method: "POST" })
       .select({
         lastPublishedVersionId: forms.lastPublishedVersionId,
         version: formVersions,
+        liveSettings: formSettings.settings,
       })
       .from(forms)
       .innerJoin(formVersions, eq(forms.lastPublishedVersionId, formVersions.id))
+      .leftJoin(formSettings, eq(formSettings.formId, forms.id))
       .where(eq(forms.id, data.formId));
 
     if (!result?.version) {
@@ -248,7 +287,6 @@ export const discardFormChanges = createServerFn({ method: "POST" })
     }
 
     const version = result.version;
-    const snapshotSettings = version.settings ?? {};
 
     const contentHash = computeContentHash({
       content: version.content,
@@ -256,13 +294,14 @@ export const discardFormChanges = createServerFn({ method: "POST" })
       title: version.title,
       icon: version.icon,
       cover: version.cover,
-      settings: snapshotSettings,
     });
 
-    // Reset every versioned field on the live draft back to the snapshot via a
-    // jsonb concat — `forms.settings || snapshot` keeps the live-only keys
-    // (branding, analytics) and overwrites the versioned ones. Group 4 (slug,
-    // customDomainId) is on top-level columns and intentionally left untouched.
+    // Discard resets BOTH domains in one shot:
+    //   - Versioned: editor + customization + title/icon/cover ← last version
+    //   - Settings: forms.draftSettings ← live formSettings.settings (or
+    //     defaultFormSettings if no live row exists yet)
+    const liveSettings = (result.liveSettings ?? defaultFormSettings) as FormSettings;
+
     const [updatedForm] = await db
       .update(forms)
       .set({
@@ -271,7 +310,7 @@ export const discardFormChanges = createServerFn({ method: "POST" })
         customization: version.customization ?? {},
         icon: version.icon,
         cover: version.cover,
-        settings: mergeFormSettings(snapshotSettings),
+        draftSettings: liveSettings,
         publishedContentHash: contentHash,
         updatedAt: new Date(),
       })
@@ -289,7 +328,6 @@ export const discardFormChanges = createServerFn({ method: "POST" })
       },
       version: {
         content: version.content as object[],
-        settings: version.settings,
         title: version.title,
       },
     };

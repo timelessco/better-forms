@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { authMiddleware } from "@/lib/auth/middleware.server";
+import { authMiddleware } from "@/lib/auth/middleware";
 import { getActiveOrgId } from "@/lib/server-fn/auth-helpers";
 import type { FormInsightsMetrics, QuestionDropoffMetrics } from "@/types/analytics";
 

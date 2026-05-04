@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { revalidateLogic, useAppForm } from "@/components/ui/tanstack-form";
 import { authClient } from "@/lib/auth/auth-client";
-import { guestMiddleware } from "@/lib/auth/middleware.server";
+import { guestMiddleware } from "@/lib/auth/middleware";
 import { Logo } from "@/components/ui/logo";
 
 const emailSchema = z.object({

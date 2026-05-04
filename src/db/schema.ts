@@ -170,8 +170,10 @@ export const forms = pgTable(
     // Version history fields
     lastPublishedVersionId: text(), // FK to formVersions.id
     publishedContentHash: text(), // Hash for fast change detection
-    // Behavioral settings (single typed group). See `FormSettings` type.
-    settings: jsonb().$type<FormSettings>().notNull().default(defaultFormSettings),
+    // Behavioral settings draft (working buffer). The live published settings
+    // live in `formSettings` keyed by formId. Both share the `FormSettings`
+    // shape; diffing draft vs. live drives the settings dirty flag.
+    draftSettings: jsonb().$type<FormSettings>().notNull().default(defaultFormSettings),
     customization: jsonb().default({}),
     slug: text(),
     customDomainId: text(),
@@ -218,9 +220,9 @@ export const formVersions = pgTable(
     formId: text().notNull(),
     version: integer().notNull(), // v1, v2, v3...
     content: jsonb().notNull(), // Plate.js JSON snapshot
-    // Snapshot of versioned (Group 2) form-behavior settings; the live (Group 4)
-    // keys (`branding`, `analytics`) are excluded by `pickVersionedSettings`.
-    settings: jsonb().$type<VersionedSettingsSnapshot>().notNull(),
+    // Legacy: pre-split versions snapshot the 23 versioned-settings keys here.
+    // Settings are no longer versioned — new version rows write null.
+    settings: jsonb().$type<VersionedSettingsSnapshot | null>(),
     customization: jsonb().default({}), // Theme customization snapshot
     title: text().notNull(),
     icon: text(), // Visual asset snapshot
@@ -234,6 +236,18 @@ export const formVersions = pgTable(
     index("idx_form_versions_form_id_version").on(t.formId, t.version),
   ],
 );
+
+/**
+ * Live published settings for each form. The form row carries `draftSettings`
+ * (working buffer); this table is what the public renderer reads. Settings
+ * are intentionally outside `formVersions` — they're flip-on/flip-off
+ * toggles, not snapshot-able content. See docs/plans/2026-05-04-settings-version-split.md.
+ */
+export const formSettings = pgTable("form_settings", {
+  formId: text().primaryKey(),
+  settings: jsonb().$type<FormSettings>().notNull().default(defaultFormSettings),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
 
 export const submissions = pgTable(
   "submissions",
@@ -478,6 +492,7 @@ export const relations = defineRelations(
     invitation,
     forms,
     formVersions,
+    formSettings,
     workspaces,
     submissions,
     formVisits,
@@ -647,6 +662,10 @@ export const relations = defineRelations(
         from: r.forms.lastPublishedVersionId,
         to: r.formVersions.id,
       }),
+      liveSettings: r.one.formSettings({
+        from: r.forms.id,
+        to: r.formSettings.formId,
+      }),
       favorites: r.many.formFavorites({
         from: r.forms.id,
         to: r.formFavorites.formId,
@@ -672,6 +691,12 @@ export const relations = defineRelations(
       publishedBy: r.one.user({
         from: r.formVersions.publishedByUserId,
         to: r.user.id,
+      }),
+    },
+    formSettings: {
+      form: r.one.forms({
+        from: r.formSettings.formId,
+        to: r.forms.id,
       }),
     },
     submissions: {
