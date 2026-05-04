@@ -81,14 +81,23 @@ export const AccordionTrigger = ({
   );
 };
 
+interface AccordionContentProps extends AccordionPrimitive.Panel.Props {
+  /** Additional classes for the outer Panel (e.g. `!overflow-visible` so popups can escape). */
+  panelClassName?: string;
+}
+
 export const AccordionContent = ({
   className,
+  panelClassName,
   children,
   ...props
-}: AccordionPrimitive.Panel.Props) => (
+}: AccordionContentProps) => (
   <AccordionPrimitive.Panel
     data-slot="accordion-content"
-    className="h-(--accordion-panel-height) overflow-hidden text-sm transition-[height] duration-300 ease-in-out data-ending-style:h-0 data-starting-style:h-0"
+    className={cn(
+      "h-(--accordion-panel-height) overflow-hidden text-sm transition-[height] duration-300 ease-in-out data-ending-style:h-0 data-starting-style:h-0",
+      panelClassName,
+    )}
     {...props}
   >
     <div

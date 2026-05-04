@@ -14,7 +14,7 @@ import type { AppliedOp, ApplyContext } from "@/lib/editor/apply-op";
 import { mergeThemeIntoCustomization } from "@/lib/editor/merge-theme";
 import { settingsDialogStore } from "@/hooks/use-settings-dialog";
 import { FREE_CUSTOMIZATION_KEYS } from "@/lib/server-fn/plan-helpers";
-import { AI_DAILY_LIMIT_ERROR } from "@/lib/server-fn/ai-quota.server";
+import { AI_DAILY_LIMIT_ERROR } from "@/lib/server-fn/ai-quota-constants";
 import { formGenSchema, isOpReady } from "@/lib/ai/ops-schema";
 import type { FormGenResult, Op, PartialOp, SetThemeOp } from "@/lib/ai/ops-schema";
 

@@ -2,11 +2,10 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { aiGenerationCounts } from "@/db/schema";
 import { aiQuotaForPlan } from "@/lib/config/plan-gates";
+import { AI_DAILY_LIMIT_ERROR } from "@/lib/server-fn/ai-quota-constants";
 import type { ServerPlan } from "@/lib/server-fn/plan-helpers";
 
-// Server-emitted error code surfaced in the 429 body. Mirrored on the client
-// so toast wiring can detect quota errors without parsing message text.
-export const AI_DAILY_LIMIT_ERROR = "ai_daily_limit_exceeded";
+export { AI_DAILY_LIMIT_ERROR };
 
 /** Stable UTC YYYY-MM-DD bucket so the limit resets at 00:00 UTC. */
 export const utcDayKey = (now: Date = new Date()): string => now.toISOString().slice(0, 10);
