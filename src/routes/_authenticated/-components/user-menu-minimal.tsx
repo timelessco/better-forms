@@ -1,5 +1,5 @@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useTheme } from "@/components/theme-provider";
+import { useResolvedTheme, useTheme } from "@/components/theme-provider";
 import { auth, useSession } from "@/lib/auth/auth-client";
 import { settingsDialogStore } from "@/hooks/use-settings-dialog";
 import { cn } from "@/lib/utils";
@@ -8,7 +8,6 @@ import { useLoaderData, useRouter } from "@tanstack/react-router";
 import {
   ChevronDownIcon,
   LogOutIcon,
-  MonitorIcon,
   MoonIcon,
   SettingsIcon,
   SunIcon,
@@ -16,6 +15,8 @@ import {
 } from "@/components/ui/icons";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useHotkey } from "@tanstack/react-hotkeys";
+import { formatForDisplay, HOTKEYS } from "@/lib/hotkeys";
 
 const getInitials = (name?: string | null) => {
   if (!name) return "U";
@@ -33,8 +34,13 @@ export interface UserMenuMinimalProps {
 
 export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
+  const resolvedTheme = useResolvedTheme();
   const [isOpen, setIsOpen] = useState(false);
+
+  const toggleTheme = () => setTheme(resolvedTheme === "dark" ? "light" : "dark");
+
+  useHotkey(HOTKEYS.TOGGLE_THEME, () => toggleTheme(), { ignoreInputs: true });
 
   const { data: session } = useSession();
   const { activeOrg } = useLoaderData({ from: "/_authenticated" });
@@ -61,15 +67,11 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
     },
     {
       key: "theme",
-      label: { dark: "Light mode", light: "System theme", system: "Dark mode" }[theme ?? "system"],
-      icon: { dark: SunIcon, light: MonitorIcon, system: MoonIcon }[theme ?? "system"],
+      label: resolvedTheme === "dark" ? "Light mode" : "Dark mode",
+      icon: resolvedTheme === "dark" ? SunIcon : MoonIcon,
+      shortcut: HOTKEYS.TOGGLE_THEME,
       action: () => {
-        setTheme(
-          { dark: "light", light: "system", system: "dark" }[theme ?? "system"] as
-            | "light"
-            | "system"
-            | "dark",
-        );
+        toggleTheme();
         setIsOpen(false);
       },
     },
@@ -166,6 +168,11 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
                 >
                   <Icon className={menuItemIconClass} />
                   <span className="flex-1 text-left">{item.label}</span>
+                  {"shortcut" in item && item.shortcut ? (
+                    <kbd className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded border border-border bg-secondary px-1 font-mono text-[10px] font-medium text-muted-foreground">
+                      {formatForDisplay(item.shortcut)}
+                    </kbd>
+                  ) : null}
                 </button>
               );
             })}
