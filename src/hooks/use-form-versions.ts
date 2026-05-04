@@ -7,13 +7,19 @@ import {
   getVersionContent,
   getQueryClient,
 } from "@/collections";
-import { computeContentHash } from "@/lib/content-hash";
+import { canonicalJSON, computeContentHash } from "@/lib/content-hash";
 import {
   discardFormChanges,
   publishFormVersion,
   restoreFormVersion,
 } from "@/lib/server-fn/form-versions";
 import { useForm } from "./use-live-hooks";
+
+const EMPTY_STATUS = {
+  hasVersionedChanges: false,
+  hasSettingsChanges: false,
+  hasAnyChanges: false,
+} as const;
 
 export const useFormVersions = (formId: string | undefined) =>
   useLiveQuery(
@@ -34,33 +40,60 @@ export const useFormVersionContent = (versionId: string | undefined) =>
   );
 
 /**
- * Hook to detect if the current draft has unpublished changes.
+ * Compose dirty flags for the publish CTA. Two independent sources:
  *
- * Compares a hash of the live draft (content + customization + title + icon +
- * cover + Group 2 settings) against `form.publishedContentHash`, which the
- * server writes atomically at publish time (see publishFormVersion). This
- * avoids the race window of fetching a separate version-content row and
- * works from a single reactive source (the form listing itself).
+ *   - `hasVersionedChanges`: hash of editor + customization + title/icon/cover
+ *     against `form.publishedContentHash`. Settings are intentionally NOT in
+ *     the hash (split out per docs/plans/2026-05-04-settings-version-split.md).
+ *   - `hasSettingsChanges`: deep-equal of `form.draftSettings` against the
+ *     live `formSettings.settings` row (carried on the listings query as
+ *     `liveSettings`). When no live row exists yet (first publish), any
+ *     non-default draft counts as dirty.
  */
-export const useHasUnpublishedChanges = (formId: string | undefined) => {
+export const useFormPublishStatus = (formId: string | undefined) => {
   const { data: formData } = useForm(formId);
   const form = formData?.[0];
 
   return useMemo(() => {
-    if (!formId || !form) return false;
-    if (!form.lastPublishedVersionId || !form.publishedContentHash) return false;
+    if (!formId || !form) return EMPTY_STATUS;
 
-    const currentHash = computeContentHash({
-      content: form.content,
-      customization: form.customization,
-      title: form.title,
-      icon: form.icon,
-      cover: form.cover,
-      settings: form.settings,
-    });
-    return currentHash !== form.publishedContentHash;
+    // Versioned: pre-first-publish, any draft counts. Once a baseline exists,
+    // hash editor + customization + title/icon/cover and compare to
+    // `publishedContentHash`.
+    const everPublished = !!form.lastPublishedVersionId;
+    const hasVersionedChanges =
+      !everPublished ||
+      (!!form.publishedContentHash &&
+        computeContentHash({
+          content: form.content,
+          customization: form.customization,
+          title: form.title,
+          icon: form.icon,
+          cover: form.cover,
+        }) !== form.publishedContentHash);
+
+    // Settings: compare draft against the live row. Canonicalize before
+    // stringify — postgres jsonb roundtrip can rearrange keys after a server
+    // merge, and key-order drift would flicker the dirty flag during autosave.
+    const draft = form.draftSettings ?? null;
+    const live = form.liveSettings ?? null;
+    const hasSettingsChanges =
+      live === null ? draft !== null : canonicalJSON(draft) !== canonicalJSON(live);
+
+    return {
+      hasVersionedChanges,
+      hasSettingsChanges,
+      hasAnyChanges: hasVersionedChanges || hasSettingsChanges,
+    };
   }, [formId, form]);
 };
+
+/**
+ * Boolean alias kept for migration; callers gating the Publish button can
+ * use this until they switch to `useFormPublishStatus` for granular flags.
+ */
+export const useHasUnpublishedChanges = (formId: string | undefined): boolean =>
+  useFormPublishStatus(formId).hasAnyChanges;
 
 /**
  * Publish the current form draft. Optimistically sets status to "published".
@@ -85,17 +118,19 @@ export const publishForm = (formId: string) => {
   tx.mutate(() => {
     getFormListings().update(formId, (draft) => {
       draft.status = "published";
-      // Optimistically align publishedContentHash with the about-to-be-saved
-      // snapshot so useHasUnpublishedChanges flips to "no changes" immediately,
-      // without waiting for the server roundtrip + refetch.
+      // Optimistically align publishedContentHash AND liveSettings so both
+      // dirty flags flip to "no changes" immediately, without waiting for
+      // the server refetch.
       draft.publishedContentHash = computeContentHash({
         content: draft.content,
         customization: draft.customization,
         title: draft.title,
         icon: draft.icon,
         cover: draft.cover,
-        settings: draft.settings,
       });
+      if (draft.draftSettings !== undefined) {
+        draft.liveSettings = draft.draftSettings;
+      }
       draft.updatedAt = new Date().toISOString();
     });
   });

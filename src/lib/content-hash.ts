@@ -6,6 +6,11 @@
  * and compares to detect unpublished changes — no version-content fetch
  * required.
  *
+ * Settings are intentionally **not** part of the hash — they live outside
+ * versioning entirely (see docs/plans/2026-05-04-settings-version-split.md).
+ * The settings dirty flag is computed by deep-equal of `forms.draftSettings`
+ * vs the live `form_settings` row.
+ *
  * Both environments must run identical code, so the hash is a pure-JS fn
  * (cyrb53) and the JSON is canonicalized (sorted keys, stripped undefineds)
  * so that object-key-order drift between server reads and client edits
@@ -14,39 +19,12 @@
 
 import type { FormSettings } from "@/types/form-settings";
 
-export const VERSIONED_SETTINGS_KEYS = [
-  "progressBar",
-  "presentationMode",
-  "saveAnswersForLater",
-  "redirectOnCompletion",
-  "redirectUrl",
-  "redirectDelay",
-  "language",
-  "passwordProtect",
-  "password",
-  "closeForm",
-  "closedFormMessage",
-  "closeOnDate",
-  "closeDate",
-  "limitSubmissions",
-  "maxSubmissions",
-  "preventDuplicateSubmissions",
-  "selfEmailNotifications",
-  "notificationEmail",
-  "respondentEmailNotifications",
-  "respondentEmailSubject",
-  "respondentEmailBody",
-  "dataRetention",
-  "dataRetentionDays",
-] as const satisfies readonly (keyof FormSettings)[];
-
-export type VersionedSettingKey = (typeof VERSIONED_SETTINGS_KEYS)[number];
-
-/** Snapshot shape stored in `formVersions.settings` — every versioned key
- * is present (with the source value or `null`), live-only keys excluded. */
-export type VersionedSettingsSnapshot = {
-  [K in VersionedSettingKey]: FormSettings[K] | null;
-};
+/**
+ * Legacy snapshot shape — pre-split versions stored a subset of settings keys
+ * here. Kept for type compatibility when reading old `formVersions.settings`
+ * rows; new versions write `null` for the column.
+ */
+export type VersionedSettingsSnapshot = Partial<FormSettings>;
 
 export type VersionedSnapshotInput = {
   content: unknown;
@@ -54,25 +32,9 @@ export type VersionedSnapshotInput = {
   title: unknown;
   icon: unknown;
   cover: unknown;
-  /** Source of versioned settings. The helper only reads keys named in
-   * `VERSIONED_SETTINGS_KEYS`, so callers can pass a live `FormSettings`,
-   * a stored `VersionedSettingsSnapshot`, or any partial — extra keys are
-   * ignored, missing ones default to null. */
-  settings: Partial<FormSettings> | VersionedSettingsSnapshot | null | undefined;
 };
 
-export const pickVersionedSettings = (
-  src: Partial<FormSettings> | VersionedSettingsSnapshot | null | undefined,
-): VersionedSettingsSnapshot => {
-  const obj: Partial<Record<VersionedSettingKey, unknown>> = src ?? {};
-  const out = {} as VersionedSettingsSnapshot;
-  for (const key of VERSIONED_SETTINGS_KEYS) {
-    (out as Record<string, unknown>)[key] = obj[key] ?? null;
-  }
-  return out;
-};
-
-const canonicalize = (value: unknown): unknown => {
+export const canonicalize = (value: unknown): unknown => {
   if (value === null || typeof value !== "object") return value;
   if (Array.isArray(value)) return value.map(canonicalize);
   const obj = value as Record<string, unknown>;
@@ -84,6 +46,13 @@ const canonicalize = (value: unknown): unknown => {
   }
   return out;
 };
+
+/**
+ * Stable JSON for jsonb-roundtrip-safe equality checks. Postgres jsonb may
+ * rearrange keys after a server merge, so any equality check between draft
+ * and live settings must canonicalize both sides first.
+ */
+export const canonicalJSON = (value: unknown): string => JSON.stringify(canonicalize(value));
 
 const cyrb53 = (str: string, seed = 0): string => {
   let h1 = 0xdeadbeef ^ seed;
@@ -106,7 +75,6 @@ export const computeContentHash = (input: VersionedSnapshotInput): string => {
     title: input.title ?? null,
     icon: input.icon ?? null,
     cover: input.cover ?? null,
-    settings: pickVersionedSettings(input.settings ?? {}),
   };
   return cyrb53(JSON.stringify(canonicalize(snapshot)));
 };

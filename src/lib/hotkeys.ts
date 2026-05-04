@@ -6,6 +6,7 @@ export const HOTKEYS = {
   // Global
   TOGGLE_SIDEBAR: "Mod+B",
   TOGGLE_COMMAND_PALETTE: "Mod+K",
+  TOGGLE_THEME: "M",
   // Form builder — scoped
   TOGGLE_SETTINGS_SIDEBAR: "Mod+Alt+,",
   TOGGLE_CUSTOMIZE_SIDEBAR: "Mod+Shift+C",

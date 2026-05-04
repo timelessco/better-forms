@@ -40,7 +40,7 @@ export const usePublicFormTracking = ({ formId, enabled = true }: Args): PublicF
     const params = new URLSearchParams(window.location.search);
 
     let cancelled = false;
-    fireRecordVisit({
+    void fireRecordVisit({
       formId,
       visitorHash: hash,
       sessionId: session,

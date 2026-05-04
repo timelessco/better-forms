@@ -32,7 +32,10 @@ export const FormSchema = z.object({
   status: z.enum(["draft", "published", "archived"]).default("draft"),
   lastPublishedVersionId: z.string().nullable().optional(),
   publishedContentHash: z.string().nullable().optional(),
-  settings: z.custom<FormSettings>().default(() => defaultFormSettings),
+  draftSettings: z.custom<FormSettings>().default(() => defaultFormSettings),
+  // Live settings — for unauthenticated local drafts there's no server row,
+  // so this mirrors draft until the user signs in and publishes.
+  liveSettings: z.custom<FormSettings | null>().default(() => null),
   customization: z.record(z.string(), z.any()).default({}),
   createdAt: timestampField,
   updatedAt: timestampField,

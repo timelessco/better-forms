@@ -26,10 +26,10 @@ export const MembersContent = () => {
     auth.organization.inviteMember.mutationOptions({
       onSuccess: () => {
         inviteForm.setFieldValue("email", "");
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: auth.organization.listMembers.queryKey(),
         });
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: auth.organization.listInvitations.queryKey(),
         });
         toast.success("Invitation sent successfully");
@@ -43,7 +43,7 @@ export const MembersContent = () => {
   const cancelInvitationMutation = useMutation(
     auth.organization.cancelInvitation.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: auth.organization.listInvitations.queryKey(),
         });
         toast.success("Invitation cancelled");
@@ -57,7 +57,7 @@ export const MembersContent = () => {
   const removeMemberMutation = useMutation(
     auth.organization.removeMember.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: auth.organization.listMembers.queryKey(),
         });
         toast.success("Member removed successfully");

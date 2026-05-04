@@ -34,7 +34,8 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
     resolvedAppTheme,
   );
   const content = (doc?.content as Value) || [];
-  const docSettings = doc?.settings;
+  // Preview shows what the user is about to publish — read the draft.
+  const docSettings = doc?.draftSettings;
   const previewSettings = useMemo<PublicFormSettings>(
     () =>
       buildPublicFormSettings(docSettings, {

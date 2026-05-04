@@ -2,13 +2,12 @@ import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { and, count, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
-import { customDomains, forms, member, submissions, workspaces } from "@/db/schema";
+import { customDomains, formSettings, forms, member, submissions, workspaces } from "@/db/schema";
 import { RESERVED_SLUGS } from "@/lib/config/plan-config";
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { db } from "@/db";
 import { authMiddleware, formProSettingsMiddleware } from "@/lib/auth/middleware";
 import { purgeFormCache, purgeFormCacheBatch } from "@/lib/server-fn/cdn-cache";
-import type { VersionedSettingsSnapshot } from "@/lib/content-hash";
 import type { FormSettings } from "@/types/form-settings";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm, authFormsBulk } from "./auth-helpers.server";
@@ -24,13 +23,13 @@ const serializeForm = (form: typeof forms.$inferSelect) => ({
 
 /**
  * Drizzle SQL fragment that shallow-merges a settings patch into the existing
- * `forms.settings` JSONB. Used by every UPDATE that mutates a subset of
- * behavioral keys without replacing the full settings object — accepts both
- * a live `Partial<FormSettings>` patch and a stored `VersionedSettingsSnapshot`
- * (used by the discard-changes / restore-version flow).
+ * `forms.draftSettings` JSONB. Used by every UPDATE that mutates a subset of
+ * behavioral keys without replacing the full settings object. The live
+ * settings (served to public renderers) live in the `form_settings` table —
+ * `mergeFormSettings` only patches the user's working draft.
  */
-export const mergeFormSettings = (patch: Partial<FormSettings> | VersionedSettingsSnapshot) =>
-  sql`${forms.settings} || ${JSON.stringify(patch)}::jsonb`;
+export const mergeFormSettings = (patch: Partial<FormSettings>) =>
+  sql`${forms.draftSettings} || ${JSON.stringify(patch)}::jsonb`;
 
 export const createForm = createServerFn({ method: "POST" })
   .middleware([authMiddleware, formProSettingsMiddleware])
@@ -45,7 +44,7 @@ export const createForm = createServerFn({ method: "POST" })
       icon: z.string().nullable().optional(),
       cover: z.string().nullable().optional(),
       status: z.enum(["draft", "published", "archived"]).optional(),
-      settings: z.custom<FormSettings>().optional(),
+      draftSettings: z.custom<FormSettings>().optional(),
       customization: z.record(z.string(), z.unknown()).optional(),
       sortIndex: z.string().nullable().optional(),
     }),
@@ -65,7 +64,7 @@ export const createForm = createServerFn({ method: "POST" })
         icon: data.icon,
         cover: data.cover,
         status: data.status ?? "draft",
-        ...(data.settings ? { settings: data.settings } : {}),
+        ...(data.draftSettings ? { draftSettings: data.draftSettings } : {}),
         customization: data.customization,
         sortIndex: data.sortIndex,
         createdAt: now,
@@ -90,13 +89,13 @@ export const updateForm = createServerFn({ method: "POST" })
       cover: z.string().nullable().optional(),
       status: z.enum(["draft", "published", "archived"]).optional(),
       updatedAt: z.string().optional(),
-      settings: z.custom<Partial<FormSettings>>().optional(),
+      draftSettings: z.custom<Partial<FormSettings>>().optional(),
       customization: z.record(z.string(), z.unknown()).optional(),
       sortIndex: z.string().nullable().optional(),
     }),
   )
   .handler(async ({ data, context }) => {
-    const { id, updatedAt: clientUpdatedAt, settings: settingsPatch, ...updateData } = data;
+    const { id, updatedAt: clientUpdatedAt, draftSettings: settingsPatch, ...updateData } = data;
     const orgId = getActiveOrgId(context.session);
     await authForm(id, context.session.user.id, orgId);
 
@@ -104,21 +103,18 @@ export const updateForm = createServerFn({ method: "POST" })
       .update(forms)
       .set({
         ...updateData,
-        ...(settingsPatch ? { settings: mergeFormSettings(settingsPatch) } : {}),
+        ...(settingsPatch ? { draftSettings: mergeFormSettings(settingsPatch) } : {}),
         updatedAt: clientUpdatedAt ? new Date(clientUpdatedAt) : new Date(),
       })
       .where(eq(forms.id, id))
       .returning();
 
-    // Cache invalidation: the public response changes when (a) a live field
-    // the public view reads flips (branding/analytics) or (b) status moves
-    // off "published". Versioned fields are handled by the republish flow.
-    // Skip the purge if the form was never published — there's no edge cache
-    // for `form:$id` in that case, just a never-cached 404.
-    const liveFieldChanged =
-      settingsPatch?.branding !== undefined || settingsPatch?.analytics !== undefined;
+    // Cache invalidation: with settings out of versioning and never written
+    // to the live row by this fn (`updateForm` only touches draftSettings),
+    // the only field this endpoint flips that is public-visible is `status`
+    // moving off "published". Live settings changes happen in publishFormVersion.
     const statusChanged = updateData.status !== undefined;
-    if ((liveFieldChanged || statusChanged) && form?.lastPublishedVersionId) {
+    if (statusChanged && form?.lastPublishedVersionId) {
       void purgeFormCache(id);
     }
 
@@ -200,16 +196,20 @@ export const getFormListings = createServerFn({ method: "GET" })
         lastPublishedVersionId: forms.lastPublishedVersionId,
         slug: forms.slug,
         customDomainId: forms.customDomainId,
-        // Full settings JSONB — covers both the share-sidebar live reads
-        // (branding, analytics) and the versioned keys the client hashes.
-        settings: forms.settings,
+        // Working draft of behavioral settings — what the editor's settings
+        // sidebar reads/writes. The live (published) settings live in
+        // `form_settings`; carry both so the client can diff for the
+        // settings dirty flag without an extra fetch.
+        draftSettings: forms.draftSettings,
+        liveSettings: formSettings.settings,
       })
       .from(forms)
       .innerJoin(workspaces, eq(forms.workspaceId, workspaces.id))
       .innerJoin(member, eq(workspaces.organizationId, member.organizationId))
       .leftJoin(submissions, eq(submissions.formId, forms.id))
+      .leftJoin(formSettings, eq(formSettings.formId, forms.id))
       .where(and(eq(member.userId, context.session.user.id), ne(forms.status, "archived")))
-      .groupBy(forms.id)
+      .groupBy(forms.id, formSettings.formId)
       .orderBy(forms.updatedAt);
 
     return formList.map((f) => ({

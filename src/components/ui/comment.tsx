@@ -508,7 +508,7 @@ export const CommentCreateForm = ({
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        onAddComment();
+        void onAddComment();
       }
     },
     [onAddComment],
@@ -517,7 +517,7 @@ export const CommentCreateForm = ({
   const handleSubmitClick = React.useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      onAddComment();
+      void onAddComment();
     },
     [onAddComment],
   );

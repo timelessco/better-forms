@@ -22,7 +22,7 @@ export const Switch = ({
   >
     <SwitchPrimitive.Thumb
       data-slot="switch-thumb"
-      className="pointer-events-none block rounded-full bg-background shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-1px_rgba(0,0,0,0.06)] ring-0 transition-transform group-data-[size=default]/switch:size-3 group-data-[size=sm]/switch:size-3 group-data-[size=default]/switch:data-checked:translate-x-[11px] group-data-[size=sm]/switch:data-checked:translate-x-[calc(100%-2px)] dark:data-checked:bg-primary-foreground group-data-[size=default]/switch:data-unchecked:translate-x-px group-data-[size=sm]/switch:data-unchecked:translate-x-0 dark:data-unchecked:bg-background"
+      className="pointer-events-none block rounded-full bg-background shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-1px_rgba(0,0,0,0.06)] ring-0 transition-transform duration-150 ease-out group-active/switch:scale-x-[1.35] group-data-[size=default]/switch:size-3 group-data-[size=sm]/switch:size-3 motion-reduce:group-active/switch:scale-x-100 data-checked:group-active/switch:origin-right group-data-[size=default]/switch:data-checked:translate-x-[11px] group-data-[size=sm]/switch:data-checked:translate-x-[calc(100%-2px)] dark:data-checked:bg-primary-foreground data-unchecked:group-active/switch:origin-left group-data-[size=default]/switch:data-unchecked:translate-x-px group-data-[size=sm]/switch:data-unchecked:translate-x-0 dark:data-unchecked:bg-background"
     />
   </SwitchPrimitive.Root>
 );

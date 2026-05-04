@@ -1,6 +1,6 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { customDomains, forms, organization, workspaces } from "@/db/schema";
+import { customDomains, formSettings, forms, organization, workspaces } from "@/db/schema";
 import { mergeFormSettings } from "@/lib/server-fn/forms";
 import { vercelDomains } from "@/lib/vercel-domains.server";
 
@@ -35,25 +35,41 @@ export const applyDowngradeCleanup = async (
     // `customization` is intentionally preserved — UI re-gates editing on free,
     // and clearing stored values would surprise a user who later re-upgrades.
     // Pro-gated keys are reset via a jsonb merge so the rest of `settings`
-    // (language, redirect, password, etc.) stays untouched.
+    // (language, redirect, password, etc.) stays untouched. Reset BOTH the
+    // working draft (so the editor reflects the downgrade) AND the live
+    // formSettings rows (so the public renderer immediately stops serving
+    // pro-only features).
+    const proResetPatch = {
+      analytics: false,
+      dataRetention: false,
+      dataRetentionDays: null,
+      respondentEmailNotifications: false,
+      branding: true,
+    } as const;
+
+    const orgWorkspaceIds = tx
+      .select({ id: workspaces.id })
+      .from(workspaces)
+      .where(eq(workspaces.organizationId, orgId));
+
     await tx
       .update(forms)
+      .set({ draftSettings: mergeFormSettings(proResetPatch) })
+      .where(inArray(forms.workspaceId, orgWorkspaceIds));
+
+    await tx
+      .update(formSettings)
       .set({
-        settings: mergeFormSettings({
-          analytics: false,
-          dataRetention: false,
-          dataRetentionDays: null,
-          respondentEmailNotifications: false,
-          branding: true,
-        }),
+        settings: sql`${formSettings.settings} || ${JSON.stringify(proResetPatch)}::jsonb`,
+        updatedAt: new Date(),
       })
       .where(
         inArray(
-          forms.workspaceId,
+          formSettings.formId,
           tx
-            .select({ id: workspaces.id })
-            .from(workspaces)
-            .where(eq(workspaces.organizationId, orgId)),
+            .select({ id: forms.id })
+            .from(forms)
+            .where(inArray(forms.workspaceId, orgWorkspaceIds)),
         ),
       );
 

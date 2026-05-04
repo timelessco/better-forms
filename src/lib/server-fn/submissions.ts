@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, count, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Value } from "platejs";
-import { forms, formVersions, submissions } from "@/db/schema";
+import { formSettings, forms, formVersions, submissions } from "@/db/schema";
 import { db } from "@/db";
 import {
   getEditableFields,
@@ -35,12 +35,15 @@ const serializeSubmission = (s: typeof submissions.$inferSelect) => ({
 // turned on. Cheap fire-and-forget; over-purges in the "count was nowhere
 // near the cap" case but cost is one Vercel API call.
 const maybePurgeAfterSubmissionDelete = async (formId: string) => {
+  // Read the LIVE settings — only published `limitSubmissions` matters for
+  // the public renderer's gate; the user's draft is irrelevant here.
   const [row] = await db
     .select({
       lastPublishedVersionId: forms.lastPublishedVersionId,
-      settings: forms.settings,
+      settings: formSettings.settings,
     })
     .from(forms)
+    .leftJoin(formSettings, eq(formSettings.formId, forms.id))
     .where(eq(forms.id, formId));
   if (row?.lastPublishedVersionId && row.settings?.limitSubmissions) {
     void purgeFormCache(formId);

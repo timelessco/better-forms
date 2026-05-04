@@ -2,7 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { notFound } from "@tanstack/react-router";
 import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
-import { forms, formVersions, organization, submissions, workspaces } from "@/db/schema";
+import {
+  formSettings,
+  forms,
+  formVersions,
+  organization,
+  submissions,
+  workspaces,
+} from "@/db/schema";
 import { db } from "@/db";
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { isServerPlan } from "@/lib/server-fn/plan-helpers";
@@ -21,18 +28,16 @@ import { buildPublicFormSettings } from "@/types/form-settings";
 export const getPublishedFormById = createServerFn({ method: "GET" })
   .inputValidator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
-    // Read only the live (Group 4) fields + version pointer from forms. Everything
-    // else (content, title, icon, cover, Group 2 settings) comes from the
-    // published version snapshot so changes don't leak to the public URL until
-    // the user republishes.
+    // Settings live in the form_settings table now (split from versioning —
+    // see docs/plans/2026-05-04-settings-version-split.md). Editor content
+    // (title, content, icon, cover, customization) still comes from the
+    // published version snapshot so changes don't leak before republish.
     const [form] = await db
       .select({
         id: forms.id,
         status: forms.status,
         lastPublishedVersionId: forms.lastPublishedVersionId,
-        // Group 4 (live): branding + analytics live in forms.settings JSONB.
-        // Plus draft fallbacks for forms without versions.
-        liveSettings: forms.settings,
+        liveSettings: formSettings.settings,
         orgPlan: organization.plan,
         draftTitle: forms.title,
         draftContent: forms.content,
@@ -42,24 +47,24 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
       .from(forms)
       .innerJoin(workspaces, eq(workspaces.id, forms.workspaceId))
       .innerJoin(organization, eq(organization.id, workspaces.organizationId))
+      .leftJoin(formSettings, eq(formSettings.formId, forms.id))
       .where(and(eq(forms.id, data.id), eq(forms.status, "published")));
 
     if (!form) {
       throw notFound();
     }
 
-    // Load version snapshot (source of truth for Groups 1-3)
+    // Load version snapshot (source of truth for editor content/customization)
     const [version] = form.lastPublishedVersionId
       ? await db.select().from(formVersions).where(eq(formVersions.id, form.lastPublishedVersionId))
       : [undefined];
 
-    const snapshotSettings = version?.settings;
     const canDisableBranding =
       isServerPlan(form.orgPlan) && planUnlocks(form.orgPlan, "disableBranding");
     const liveBranding = form.liveSettings?.branding ?? true;
     const liveAnalytics = form.liveSettings?.analytics ?? false;
     const effectiveBranding = canDisableBranding ? liveBranding : true;
-    const settings = buildPublicFormSettings(snapshotSettings, { branding: effectiveBranding });
+    const settings = buildPublicFormSettings(form.liveSettings, { branding: effectiveBranding });
 
     // --- Gating checks (based on snapshot settings — changes here require republish) ---
     // 1. Form manually closed
@@ -153,10 +158,11 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
 export const verifyFormPassword = createServerFn({ method: "POST" })
   .inputValidator(z.object({ formId: z.uuid(), password: z.string() }))
   .handler(async ({ data }) => {
+    // Password is a live setting — read from form_settings, not the draft.
     const [formRow] = await db
-      .select({ settings: forms.settings })
-      .from(forms)
-      .where(eq(forms.id, data.formId));
+      .select({ settings: formSettings.settings })
+      .from(formSettings)
+      .where(eq(formSettings.formId, data.formId));
 
     if (!formRow) {
       return { valid: false };

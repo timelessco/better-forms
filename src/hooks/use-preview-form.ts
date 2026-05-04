@@ -76,7 +76,7 @@ export const useStepPreviewForm = ({
     listeners: {
       onBlur: ({ formApi }) => {
         if (formId) {
-          saveDraft({
+          void saveDraft({
             values: { ...formData, ...formApi.state.values },
             lastStepReached: stepIndex,
           });

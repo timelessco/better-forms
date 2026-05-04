@@ -234,14 +234,14 @@ const initCollectionsOnClient = createClientOnlyFn((queryClient: QueryClient) =>
         ),
       };
     },
-    getFormListings: async () => await getFormListingsServer(),
+    getFormListings: () => getFormListingsServer(),
     getFormDetail: async (formId: string) => {
       const { getFormbyIdQueryOption } = await import("@/lib/server-fn/forms");
       const result = await queryClient.ensureQueryData(getFormbyIdQueryOption(formId));
       // oxlint-disable-next-line typescript-eslint/no-explicit-any -- server type bridge
       return (result as { form?: any })?.form ?? null;
     },
-    getFavorites: async () => await getFavoritesServer(),
+    getFavorites: () => getFavoritesServer(),
     getVersionList: async (formId: string) => {
       const result = await getFormVersions({ data: { formId } });
       return result.versions;
@@ -483,8 +483,8 @@ const AppSidebar = () => {
   const signOutMutation = useMutation(
     auth.signOut.mutationOptions({
       onSuccess: () => {
-        router.invalidate();
-        router.navigate({ to: "/" });
+        void router.invalidate();
+        void router.navigate({ to: "/" });
       },
     }),
   );
@@ -618,7 +618,7 @@ const AppSidebar = () => {
                           : orgWorkspaces[0];
 
                         const { form: newForm } = createFormLocal(targetWorkspace.id);
-                        router.navigate({
+                        void router.navigate({
                           to: "/workspace/$workspaceId/form-builder/$formId/edit",
                           params: {
                             workspaceId: targetWorkspace.id,
@@ -637,7 +637,7 @@ const AppSidebar = () => {
                     if (activeOrg) {
                       createWorkspaceLocal(activeOrg.id, "New Workspace")
                         .then((workspace) => {
-                          router.navigate({
+                          void router.navigate({
                             to: "/workspace/$workspaceId",
                             params: { workspaceId: workspace.id },
                           });
@@ -662,7 +662,7 @@ const AppSidebar = () => {
                         onSelect={() => {
                           setIsPaletteOpen(false);
                           setPaletteSearch("");
-                          router.navigate({
+                          void router.navigate({
                             to: "/workspace/$workspaceId/form-builder/$formId/edit",
                             params: {
                               workspaceId: form.workspaceId,
@@ -682,7 +682,7 @@ const AppSidebar = () => {
               <CommandGroup heading="Navigation">
                 <CommandItem
                   onSelect={() => {
-                    router.navigate({ to: "/dashboard" });
+                    void router.navigate({ to: "/dashboard" });
                     setIsPaletteOpen(false);
                   }}
                 >
@@ -999,7 +999,7 @@ const TrashDialog = ({
                         size="icon-sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleRestore(form.id);
+                          void handleRestore(form.id);
                         }}
                         disabled={isRowBusy}
                         className="h-7 w-7"
@@ -1017,7 +1017,7 @@ const TrashDialog = ({
                         size="icon-sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handlePermanentDelete(form.id);
+                          void handlePermanentDelete(form.id);
                         }}
                         disabled={isRowBusy}
                         className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
@@ -1122,7 +1122,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
   const handleError = (error: unknown) => {
     const message = error instanceof Error ? error.message : "Something went wrong";
     toast.error(message);
-    queryClient.invalidateQueries({
+    void queryClient.invalidateQueries({
       queryKey: auth.organization.listUserInvitations.queryKey(),
     });
   };
@@ -1131,7 +1131,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
     auth.organization.acceptInvitation.mutationOptions({
       onSuccess: () => {
         toast.success("Invitation accepted!");
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: auth.organization.listUserInvitations.queryKey(),
         });
       },
@@ -1143,7 +1143,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
     auth.organization.rejectInvitation.mutationOptions({
       onSuccess: () => {
         toast.success("Invitation declined");
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: auth.organization.listUserInvitations.queryKey(),
         });
       },
@@ -1621,7 +1621,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
       setDeleteDialogOpen(false);
       setWorkspaceToDelete(null);
       setDeleteConfirmName("");
-      router.navigate({ to: "/dashboard" });
+      void router.navigate({ to: "/dashboard" });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to delete workspace";
       toast.error(message);
@@ -1649,7 +1649,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
   const handleRenameKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter") {
-        handleRenameWorkspace();
+        void handleRenameWorkspace();
       }
     },
     [handleRenameWorkspace],
@@ -1705,7 +1705,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
       toast.success("Form deleted");
       // Navigate to dashboard if user is on the deleted form's page
       if (location.pathname.includes(`/form-builder/${formToDelete.id}`)) {
-        router.navigate({ to: "/dashboard" });
+        void router.navigate({ to: "/dashboard" });
       }
       setFormDeleteDialogOpen(false);
       setFormToDelete(null);

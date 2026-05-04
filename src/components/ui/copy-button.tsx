@@ -75,7 +75,7 @@ export const CopyButton = ({
 
   const handleClick = useCallback(
     (e: CopyButtonClickEvent) => {
-      copy(text);
+      void copy(text);
       onClick?.(e);
     },
     [copy, text, onClick],

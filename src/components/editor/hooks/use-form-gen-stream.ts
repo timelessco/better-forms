@@ -14,7 +14,7 @@ import type { AppliedOp, ApplyContext } from "@/lib/editor/apply-op";
 import { mergeThemeIntoCustomization } from "@/lib/editor/merge-theme";
 import { settingsDialogStore } from "@/hooks/use-settings-dialog";
 import { FREE_CUSTOMIZATION_KEYS } from "@/lib/server-fn/plan-helpers";
-import { AI_DAILY_LIMIT_ERROR } from "@/lib/server-fn/ai-quota.server";
+import { AI_DAILY_LIMIT_ERROR } from "@/lib/server-fn/ai-quota-constants";
 import { formGenSchema, isOpReady } from "@/lib/ai/ops-schema";
 import type { FormGenResult, Op, PartialOp, SetThemeOp } from "@/lib/ai/ops-schema";
 
@@ -235,7 +235,7 @@ export const useFormGenStream = ({
 
   const lastPromptRef = useRef<string>("");
 
-  const themeMutation = useMutation({
+  const { mutate: themeMutate, isPending: isThemeMutationPending } = useMutation({
     mutationFn: async (requestBody: unknown): Promise<ThemePayload> => {
       const res = await fetch("/api/ai/form-generate", {
         method: "POST",
@@ -612,7 +612,7 @@ export const useFormGenStream = ({
       // Theme mode bypasses useObject — server returns one-shot JSON from a
       // tool call rather than a streamed object.
       if (mode === "theme") {
-        themeMutation.mutate(requestBody);
+        themeMutate(requestBody);
         return;
       }
 
@@ -625,7 +625,7 @@ export const useFormGenStream = ({
       getSelectionContext,
       getSelectedBlockPaths,
       editor,
-      themeMutation,
+      themeMutate,
     ],
   );
 
@@ -634,7 +634,7 @@ export const useFormGenStream = ({
     stop,
     rollback,
     accept,
-    isLoading: isLoading || themeMutation.isPending,
+    isLoading: isLoading || isThemeMutationPending,
     error,
   };
 };

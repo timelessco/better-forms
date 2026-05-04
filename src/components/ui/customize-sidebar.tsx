@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { Sidebar, SidebarContent, SidebarHeader } from "@/components/ui/sidebar";
 import { SidebarSection } from "@/components/ui/sidebar-section";
 import { FeatureGate } from "@/components/ui/feature-gate";
-import { StyleColorPicker, StyleNumberInput } from "@/components/ui/style-controls";
+import { ColorPicker } from "@/components/ui/color-picker";
+import { StyleNumberInput } from "@/components/ui/style-controls";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -571,21 +572,27 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
             </FeatureGate>
           </SidebarSection>
 
-          <SidebarSection label="Colors" action={<ProBadge />}>
+          <SidebarSection
+            label="Colors"
+            action={<ProBadge />}
+            className="!overflow-visible"
+            panelClassName="!overflow-visible"
+          >
             <FeatureGate requiredPlan="pro" variant="block">
-              <Tabs value={activeMode} onValueChange={handleModeToggle} className="mb-2.5">
+              <Tabs value={activeMode} onValueChange={handleModeToggle} className="relative mb-2.5">
                 <TabsList className="w-full">
                   <TabsTrigger value="light">Light</TabsTrigger>
                   <TabsTrigger value="dark">Dark</TabsTrigger>
                   <TabsIndicator />
                 </TabsList>
               </Tabs>
-              <ConfigCard>
+              <div className="relative isolate z-50 flex flex-col gap-px overflow-visible rounded-lg [&>*:first-child]:rounded-t-lg [&>*:last-child]:rounded-b-lg">
                 <AdvancedColorPickers
                   customization={customization}
                   updateField={updateWithCustomPreset}
+                  mode={activeMode}
                 />
-              </ConfigCard>
+              </div>
             </FeatureGate>
           </SidebarSection>
 
@@ -643,15 +650,15 @@ const ADVANCED_COLOR_TOKENS = [
 const AdvancedColorPickers = ({
   customization,
   updateField,
+  mode,
 }: {
   customization: Record<string, string>;
   updateField: (field: string, value: string) => void;
+  mode: "light" | "dark";
 }) => {
   const baseColorName = customization.baseColor || "neutral";
   const themeColorName = customization.themeColor || "neutral";
-  const isDark = customization.mode === "dark";
-  const mode = isDark ? "dark" : "light";
-  const baseColors = isDark ? DARK_BASE_COLORS : BASE_COLORS;
+  const baseColors = mode === "dark" ? DARK_BASE_COLORS : BASE_COLORS;
   const base = baseColors[baseColorName] ?? baseColors.neutral;
   const theme = THEME_COLORS[themeColorName] ?? THEME_COLORS.neutral;
 
@@ -672,7 +679,7 @@ const AdvancedColorPickers = ({
           customization[prefixedKey] || customization[key] || resolved[key] || "#000000";
 
         return (
-          <StyleColorPicker
+          <ColorPicker
             key={key}
             label={label}
             value={currentValue}

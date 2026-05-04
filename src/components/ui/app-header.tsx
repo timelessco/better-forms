@@ -546,7 +546,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
 
           {isFormBuilder && (
             <>
-              {hasUnpublishedChanges && (
+              {isEditRoute && hasUnpublishedChanges && (
                 <Tooltip>
                   <TooltipTrigger
                     render={
@@ -651,7 +651,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                 </DropdownMenu>
               </div>
 
-              {isEditRoute || hasUnpublishedChanges ? (
+              {isEditRoute ? (
                 <Tooltip>
                   <TooltipTrigger
                     render={
@@ -689,32 +689,70 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               ) : (
                 workspaceId &&
                 formId && (
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Link
-                          to="/workspace/$workspaceId/form-builder/$formId/edit"
-                          params={() => ({ workspaceId, formId })}
-                          search={(prev) => ({ ...prev, force: true })}
-                          aria-label="Edit form"
-                          className={cn(
-                            buttonVariants({ size: "sm" }),
-                            "ml-1 rounded-lg border-none bg-black text-base text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200",
-                          )}
-                        />
-                      }
+                  <div className="ml-1 flex items-stretch overflow-hidden rounded-lg bg-black text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-colors dark:bg-white dark:text-black">
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Link
+                            to="/workspace/$workspaceId/form-builder/$formId/edit"
+                            params={() => ({ workspaceId, formId })}
+                            search={(prev) => ({ ...prev, force: true })}
+                            aria-label="Edit form"
+                            className="inline-flex h-7 items-center gap-1 pr-2 pl-2.5 text-[14px] transition-colors hover:bg-stone-800 dark:hover:bg-stone-200"
+                          />
+                        }
+                      >
+                        <PencilIcon className="size-3.5 shrink-0" />
+                        Edit
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" align="end">
+                        <p className="text-xs text-muted-foreground">
+                          {formatForDisplay(HOTKEYS.EDIT_FORM)}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <div
+                      aria-hidden={!hasUnpublishedChanges}
+                      className={cn(
+                        "grid items-stretch overflow-hidden transition-[grid-template-columns,opacity] duration-300 ease-out motion-reduce:transition-none",
+                        hasUnpublishedChanges
+                          ? "grid-cols-[1fr] opacity-100"
+                          : "pointer-events-none grid-cols-[0fr] opacity-0",
+                      )}
                     >
-                      <span data-icon="inline-start" className="shrink-0 [&_svg]:size-[1em]!">
-                        <PencilIcon />
-                      </span>
-                      Edit
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" align="end">
-                      <p className="text-xs text-muted-foreground">
-                        {formatForDisplay(HOTKEYS.EDIT_FORM)}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
+                      <div className="flex min-w-0 items-stretch">
+                        <span
+                          aria-hidden
+                          className="my-1.5 w-px self-stretch bg-white/25 dark:bg-black/20"
+                        />
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <button
+                                type="button"
+                                onClick={handlePublish}
+                                disabled={isPublishing || !hasUnpublishedChanges}
+                                tabIndex={hasUnpublishedChanges ? 0 : -1}
+                                className="inline-flex h-7 items-center pr-2 pl-2.5 text-[14px] transition-colors hover:bg-stone-800 disabled:opacity-60 dark:hover:bg-stone-200"
+                              />
+                            }
+                          >
+                            {isPublishing ? (
+                              <Loader2Icon className="h-4 w-4 animate-spin" />
+                            ) : (
+                              "Publish"
+                            )}
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" align="end">
+                            <p className="text-xs text-muted-foreground">
+                              {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </div>
+                  </div>
                 )
               )}
             </>

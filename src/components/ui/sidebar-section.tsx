@@ -17,12 +17,15 @@ export const SidebarSection = ({
   action,
   initialOpen = true,
   className,
+  panelClassName,
 }: {
   label: string;
   children: React.ReactNode;
   action?: React.ReactNode;
   initialOpen?: boolean;
   className?: string;
+  /** Additional classes for the accordion Panel itself (use to allow popups to escape). */
+  panelClassName?: string;
 }) => {
   const defaultAction = (
     <Button
@@ -46,7 +49,12 @@ export const SidebarSection = ({
             {label}
           </span>
         </AccordionTrigger>
-        <AccordionContent className={cn("flex flex-col", className)}>{children}</AccordionContent>
+        <AccordionContent
+          className={cn("flex flex-col", className)}
+          panelClassName={panelClassName}
+        >
+          {children}
+        </AccordionContent>
       </AccordionItem>
     </Accordion>
   );

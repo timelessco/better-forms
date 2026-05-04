@@ -139,7 +139,11 @@ export const useSubmissionNotifications = ({ poll = false }: HookOptions = {}) =
     await queryClient.invalidateQueries({ queryKey: ["submission-notifications"] });
   };
 
-  const markReadMutation = useMutation({
+  const {
+    mutateAsync: markRead,
+    isPending: isMarkReadPending,
+    variables: markReadVariables,
+  } = useMutation({
     mutationFn: async (formId: string) => markSubmissionNotificationRead({ data: { formId } }),
     onSuccess: invalidateNotifications,
     onError: (error) => {
@@ -168,7 +172,7 @@ export const useSubmissionNotifications = ({ poll = false }: HookOptions = {}) =
 
   const openNotification = useCallback(
     async (notification: SerializedSubmissionNotification) => {
-      await markReadMutation.mutateAsync(notification.formId);
+      await markRead(notification.formId);
       await router.navigate({
         to: "/workspace/$workspaceId/form-builder/$formId/submissions",
         params: {
@@ -177,7 +181,7 @@ export const useSubmissionNotifications = ({ poll = false }: HookOptions = {}) =
         },
       });
     },
-    [markReadMutation, router],
+    [markRead, router],
   );
 
   useEffect(() => {
@@ -258,7 +262,7 @@ export const useSubmissionNotifications = ({ poll = false }: HookOptions = {}) =
     isLoading: notificationsQuery.isLoading,
     isFetching: notificationsQuery.isFetching,
     refetch: notificationsQuery.refetch,
-    markNotificationRead: markReadMutation.mutateAsync,
+    markNotificationRead: markRead,
     clearNotification: clearNotificationMutation.mutateAsync,
     clearAllReadNotifications: clearAllReadMutation.mutateAsync,
     openNotification,
@@ -266,6 +270,6 @@ export const useSubmissionNotifications = ({ poll = false }: HookOptions = {}) =
     clearingFormId: clearNotificationMutation.isPending
       ? clearNotificationMutation.variables
       : null,
-    readingFormId: markReadMutation.isPending ? markReadMutation.variables : null,
+    readingFormId: isMarkReadPending ? markReadVariables : null,
   };
 };

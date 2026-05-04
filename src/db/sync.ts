@@ -74,7 +74,10 @@ export const syncLocalDataToCloud = async (organizationId: string): Promise<Sync
           icon: localForm.icon,
           cover: localForm.cover,
           status: localForm.status || "draft",
-          settings: localForm.settings,
+          // Promote local draft to the cloud form's `draftSettings` — sync
+          // doesn't establish a live row here; first Publish click creates
+          // the formSettings row.
+          draftSettings: localForm.draftSettings,
           customization: localForm.customization,
           createdAt: now,
           updatedAt: now,

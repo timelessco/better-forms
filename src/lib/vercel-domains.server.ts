@@ -63,7 +63,7 @@ export const vercelDomains = {
       if (verification?.length) {
         return { domain, verified: false, verification };
       }
-      throw new Error(errorMessage(error, "Failed to add domain to Vercel"));
+      throw new Error(errorMessage(error, "Failed to add domain to Vercel"), { cause: error });
     }
   },
 
@@ -79,7 +79,7 @@ export const vercelDomains = {
         verification: value.verification,
       };
     } catch (error) {
-      throw new Error(errorMessage(error, "Failed to check domain status"));
+      throw new Error(errorMessage(error, "Failed to check domain status"), { cause: error });
     }
   },
 
@@ -94,7 +94,7 @@ export const vercelDomains = {
       // challenge should fall back to check().
       return { verified: value.verified ?? false };
     } catch (error) {
-      throw new Error(errorMessage(error, "Failed to verify domain"));
+      throw new Error(errorMessage(error, "Failed to verify domain"), { cause: error });
     }
   },
 
@@ -115,7 +115,7 @@ export const vercelDomains = {
       // "not found" by message inspection.
       const message = errorMessage(error, "Failed to detach domain from project");
       if (NOT_FOUND_RE.test(message)) return;
-      throw new Error(message);
+      throw new Error(message, { cause: error });
     }
   },
 
@@ -133,7 +133,7 @@ export const vercelDomains = {
     } catch (error) {
       const message = errorMessage(error, "Failed to delete domain from account");
       if (NOT_FOUND_RE.test(message)) return;
-      throw new Error(message);
+      throw new Error(message, { cause: error });
     }
   },
 };

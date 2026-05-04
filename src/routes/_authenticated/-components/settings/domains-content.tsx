@@ -194,7 +194,7 @@ export const DomainsContent = () => {
   const removeMutation = useMutation({
     mutationFn: (domainId: string) => removeDomain({ data: { domainId } }),
     onSuccess: (_data, domainId) => {
-      queryClient.invalidateQueries({ queryKey: ["org-domains", orgId] });
+      void queryClient.invalidateQueries({ queryKey: ["org-domains", orgId] });
       setConfirmDeleteId(null);
       clearDnsRecords(domainId);
       toast.success("Domain removed");
@@ -211,7 +211,7 @@ export const DomainsContent = () => {
       status: string;
       verification?: { type: string; domain: string; value: string }[];
     }) => {
-      queryClient.invalidateQueries({ queryKey: ["org-domains", orgId] });
+      void queryClient.invalidateQueries({ queryKey: ["org-domains", orgId] });
       if (result.status === "verified") {
         clearDnsRecords(result.id);
         toast.success("Domain verified!");
@@ -254,11 +254,14 @@ export const DomainsContent = () => {
     },
   });
 
+  const { mutate: mutateAddDomain } = addMutation;
+  const { mutate: mutateUpdateMeta } = updateMetaMutation;
+
   const handleAddDomain = useCallback(() => {
     const trimmed = newDomain.trim();
     if (!trimmed) return;
-    addMutation.mutate(trimmed);
-  }, [newDomain, addMutation]);
+    mutateAddDomain(trimmed);
+  }, [newDomain, mutateAddDomain]);
 
   const handleDomainInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => setNewDomain(e.target.value),
@@ -281,9 +284,9 @@ export const DomainsContent = () => {
 
   const handleSaveSiteTitle = useCallback(
     (domainId: string) => {
-      updateMetaMutation.mutate({ domainId, siteTitle: siteTitle || undefined });
+      mutateUpdateMeta({ domainId, siteTitle: siteTitle || undefined });
     },
-    [siteTitle, updateMetaMutation],
+    [siteTitle, mutateUpdateMeta],
   );
 
   const handleSiteTitleChange = useCallback(
@@ -310,7 +313,7 @@ export const DomainsContent = () => {
         setUrl(result.url);
         // Auto-commit the new URL to the domain row so the user doesn't need a
         // second "Save" click. Mirrors the inline-save pattern in account-settings.
-        updateMetaMutation.mutate({ domainId, [metaField]: result.url });
+        mutateUpdateMeta({ domainId, [metaField]: result.url });
       } catch (error) {
         toast.error(
           error instanceof Error
@@ -321,13 +324,13 @@ export const DomainsContent = () => {
         setUploading(false);
       }
     },
-    [updateMetaMutation],
+    [mutateUpdateMeta],
   );
 
   const handleFaviconChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (file && expandedConfigId) uploadFile(file, "favicon", expandedConfigId);
+      if (file && expandedConfigId) void uploadFile(file, "favicon", expandedConfigId);
     },
     [uploadFile, expandedConfigId],
   );
@@ -335,7 +338,7 @@ export const DomainsContent = () => {
   const handleOgChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (file && expandedConfigId) uploadFile(file, "og", expandedConfigId);
+      if (file && expandedConfigId) void uploadFile(file, "og", expandedConfigId);
     },
     [uploadFile, expandedConfigId],
   );
