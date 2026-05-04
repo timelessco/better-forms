@@ -514,11 +514,48 @@ const ColorPickerPanel = ({ value, onChange }: ColorPickerPanelProps) => {
     lastEmittedRef.current = incoming;
   }, [value]);
 
+  // Trailing-edge throttle for drag emits: the parent's onChange likely
+  // syncs to a server (TanStack DB collection.update). Without throttling,
+  // every pointermove tick fires a network write. Discrete actions (input
+  // typing, eyedropper, format toggle) bypass the throttle and emit live.
+  const flushTimerRef = React.useRef<number | null>(null);
+  const pendingHexRef = React.useRef<string | null>(null);
+  const THROTTLE_MS = 150;
+
   const emit = React.useCallback(
-    (next: Hsla) => {
+    (next: Hsla, throttle: boolean) => {
       const hex = hslaToHex(next);
       lastEmittedRef.current = hex.toLowerCase();
-      onChangeRef.current(hex);
+
+      if (!throttle) {
+        if (flushTimerRef.current !== null) {
+          window.clearTimeout(flushTimerRef.current);
+          flushTimerRef.current = null;
+        }
+        pendingHexRef.current = null;
+        onChangeRef.current(hex);
+        return;
+      }
+
+      pendingHexRef.current = hex;
+      if (flushTimerRef.current === null) {
+        flushTimerRef.current = window.setTimeout(() => {
+          flushTimerRef.current = null;
+          const v = pendingHexRef.current;
+          pendingHexRef.current = null;
+          if (v !== null) onChangeRef.current(v);
+        }, THROTTLE_MS);
+      }
+    },
+    [onChangeRef],
+  );
+
+  React.useEffect(
+    () => () => {
+      if (flushTimerRef.current !== null) {
+        window.clearTimeout(flushTimerRef.current);
+        if (pendingHexRef.current !== null) onChangeRef.current(pendingHexRef.current);
+      }
     },
     [onChangeRef],
   );
@@ -528,7 +565,7 @@ const ColorPickerPanel = ({ value, onChange }: ColorPickerPanelProps) => {
       if (fromDrag) draggingRef.current = true;
       setHsla((prev) => {
         const next = { ...prev, ...patch };
-        emit(next);
+        emit(next, fromDrag);
         return next;
       });
       if (fromDrag) {
