@@ -5,6 +5,7 @@ import { PipetteIcon } from "lucide-react";
 import * as React from "react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 declare global {
@@ -289,29 +290,16 @@ interface FormatToggleProps {
 }
 
 const FormatToggle = ({ mode, onChange, className }: FormatToggleProps) => (
-  <div
-    className={cn(
-      "inline-flex items-center rounded-md border border-border/60 bg-secondary p-0.5 text-[10px]",
-      className,
-    )}
-  >
-    {MODES.map((m) => (
-      <button
-        key={m}
-        type="button"
-        onClick={() => onChange(m)}
-        aria-pressed={mode === m}
-        className={cn(
-          "rounded-sm px-2 py-0.5 font-mono tracking-wide uppercase transition-colors",
-          mode === m
-            ? "bg-background text-foreground shadow-sm"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        {m}
-      </button>
-    ))}
-  </div>
+  <Tabs value={mode} onValueChange={(v) => onChange(v as Mode)} className={cn("!gap-0", className)}>
+    <TabsList size="sm">
+      {MODES.map((m) => (
+        <TabsTrigger key={m} value={m} size="sm" className="font-mono tracking-wide uppercase">
+          {m}
+        </TabsTrigger>
+      ))}
+      <TabsIndicator />
+    </TabsList>
+  </Tabs>
 );
 
 const NUMERIC_INPUT_CLASS =
