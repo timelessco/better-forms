@@ -85,10 +85,17 @@ const config = defineConfig({
       },
     }),
     rsc(),
-    viteReact(),
+    viteReact({
+      babel: {
+        plugins: [["babel-plugin-react-compiler", {}]],
+      },
+    }),
   ],
   resolve: {
     dedupe: ["@platejs/core"],
+  },
+  server: {
+    sourcemapIgnoreList: (sourcePath) => sourcePath.includes("node_modules"),
   },
   build: {
     // Emit .vite/manifest.json so the server can resolve lazy field chunks

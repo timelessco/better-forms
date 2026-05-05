@@ -24,7 +24,7 @@ import { FONT_REGISTRY } from "@/lib/theme/font-registry";
 import { TOKEN_NAMES } from "@/lib/theme/generate-theme-css";
 import { loadGoogleFont } from "@/lib/theme/load-google-font";
 import { BASE_COLORS, DARK_BASE_COLORS, STYLES, THEME_COLORS } from "@/lib/theme/theme-presets";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const FONT_OPTIONS = Object.keys(FONT_REGISTRY).map((name) => ({
   label: name,
@@ -240,18 +240,32 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
   const cssKey = `${activeMode}:customCss`;
   const cssValue = customization[cssKey] || customization.customCss || "";
 
+  const clearColorTokenOverrides = useCallback((updates: Record<string, string | null>) => {
+    for (const tokenName of TOKEN_NAMES) {
+      updates[tokenName] = null;
+      updates[`light:${tokenName}`] = null;
+      updates[`dark:${tokenName}`] = null;
+    }
+  }, []);
+
   const handleThemeColorChange = useCallback(
     (v: string) => {
-      if (v) updateFields({ themeColor: v, preset: "custom" });
+      if (!v) return;
+      const updates: Record<string, string | null> = { themeColor: v, preset: "custom" };
+      clearColorTokenOverrides(updates);
+      updateFields(updates);
     },
-    [updateFields],
+    [updateFields, clearColorTokenOverrides],
   );
 
   const handleBaseColorChange = useCallback(
     (v: string) => {
-      if (v) updateFields({ baseColor: v, preset: "custom" });
+      if (!v) return;
+      const updates: Record<string, string | null> = { baseColor: v, preset: "custom" };
+      clearColorTokenOverrides(updates);
+      updateFields(updates);
     },
-    [updateFields],
+    [updateFields, clearColorTokenOverrides],
   );
 
   const handleFontChange = useCallback(
@@ -587,7 +601,7 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
                 </TabsList>
               </Tabs>
               <div className="relative isolate z-50 flex flex-col gap-px overflow-visible rounded-lg [&>*:first-child]:rounded-t-lg [&>*:last-child]:rounded-b-lg">
-                <AdvancedColorPickers
+                <DeferredAdvancedColorPickers
                   customization={customization}
                   updateField={updateWithCustomPreset}
                   mode={activeMode}
@@ -647,6 +661,46 @@ const ADVANCED_COLOR_TOKENS = [
   { key: "ring", label: "Ring" },
 ] as const;
 
+// Per-token wrapper. React Compiler auto-memoizes this and its `onChange`
+// closure based on (prefixedKey, value, updateField) stability.
+const TokenColorPicker = ({
+  label,
+  prefixedKey,
+  value,
+  updateField,
+}: {
+  label: string;
+  prefixedKey: string;
+  value: string;
+  updateField: (field: string, value: string) => void;
+}) => (
+  <ColorPicker
+    label={label}
+    value={value}
+    onChange={(v) => updateField(prefixedKey, v)}
+    className="!rounded-none"
+  />
+);
+
+// 15 ColorPickers — each with text inputs, Popover setup, and useUncontrolledSync
+// effects — are the heaviest part of CustomizeSidebar's initial mount. The
+// sidebar opens with all sections expanded, so we defer this subtree to a
+// post-paint render: first commit drops the wrapper, next tick mounts the
+// pickers. Net effect: the sidebar's other sections paint fast, and the
+// Colors row fills in within a frame.
+const DeferredAdvancedColorPickers = (props: {
+  customization: Record<string, string>;
+  updateField: (field: string, value: string) => void;
+  mode: "light" | "dark";
+}) => {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    setReady(true);
+  }, []);
+  if (!ready) return null;
+  return <AdvancedColorPickers {...props} />;
+};
+
 const AdvancedColorPickers = ({
   customization,
   updateField,
@@ -679,12 +733,12 @@ const AdvancedColorPickers = ({
           customization[prefixedKey] || customization[key] || resolved[key] || "#000000";
 
         return (
-          <ColorPicker
+          <TokenColorPicker
             key={key}
             label={label}
+            prefixedKey={prefixedKey}
             value={currentValue}
-            onChange={(v) => updateField(prefixedKey, v)}
-            className="!rounded-none"
+            updateField={updateField}
           />
         );
       })}

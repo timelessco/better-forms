@@ -56,13 +56,14 @@ export const PopoverContent = ({
   side = "bottom",
   sideOffset = 4,
   anchor,
+  keepMounted = false,
   ...props
 }: PopoverPrimitive.Popup.Props &
   Pick<
     PopoverPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "anchor"
-  >) => (
-  <PopoverPrimitive.Portal>
+  > & { keepMounted?: boolean }) => (
+  <PopoverPrimitive.Portal keepMounted={keepMounted}>
     <PopoverPrimitive.Positioner
       anchor={anchor}
       align={align}

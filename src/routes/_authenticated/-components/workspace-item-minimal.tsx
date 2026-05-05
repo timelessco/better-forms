@@ -30,14 +30,12 @@ import {
   StarIcon,
   TrashIcon,
 } from "@/components/ui/icons";
-import { SidebarSection } from "@/components/ui/sidebar-section";
 import {
   createFormLocal,
   moveFormToWorkspaceLocal,
   renameFormLocal,
   toggleFavoriteLocal,
 } from "@/collections";
-import { useIsFavorite } from "@/hooks/use-live-hooks";
 import { useSession } from "@/lib/auth/auth-client";
 import { cn } from "@/lib/utils";
 import {
@@ -57,7 +55,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useLocation, useRouter } from "@tanstack/react-router";
+import { useRouter } from "@tanstack/react-router";
 import type * as React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -86,10 +84,12 @@ export interface WorkspaceItemMinimalProps {
   workspace: WorkspaceWithForms;
   allWorkspaces: Array<Pick<WorkspaceWithForms, "id" | "name">>;
   submissionCounts: Map<string, number>;
+  favoriteFormIds: ReadonlySet<string>;
+  activeFormId?: string;
   sortMode: string;
   onSortChange: (mode: "recent" | "oldest" | "alphabetical" | "manual") => void;
-  onRename: () => void;
-  onDelete: () => void;
+  onRename: (workspace: WorkspaceWithForms) => void;
+  onDelete: (workspace: WorkspaceWithForms) => void;
   onDuplicateForm: (form: WorkspaceWithForms["forms"][0]) => void;
   onDeleteForm: (form: WorkspaceWithForms["forms"][0]) => void;
   onFormDragEnd: (workspaceId: string, event: DragEndEvent) => void;
@@ -100,6 +100,8 @@ export const WorkspaceItemMinimal = ({
   workspace,
   allWorkspaces,
   submissionCounts,
+  favoriteFormIds,
+  activeFormId,
   sortMode,
   onSortChange,
   onRename,
@@ -174,7 +176,7 @@ export const WorkspaceItemMinimal = ({
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <SidebarSection
+      <LiteSidebarSection
         label={workspace.name}
         initialOpen={true}
         action={
@@ -230,12 +232,12 @@ export const WorkspaceItemMinimal = ({
                   {isCreatingForm ? <Loader2Icon className="size-4 animate-spin" /> : <PlusIcon />}
                   <span className="flex-1 text-left">New form</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onRename}>
+                <DropdownMenuItem onClick={() => onRename(workspace)}>
                   <Pencil2Icon />
                   <span className="flex-1 text-left">Rename</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                <DropdownMenuItem variant="destructive" onClick={() => onDelete(workspace)}>
                   <TrashIcon />
                   <span className="flex-1 text-left">Delete</span>
                 </DropdownMenuItem>
@@ -258,8 +260,10 @@ export const WorkspaceItemMinimal = ({
                 workspaceId={workspace.id}
                 submissionCount={submissionCounts.get(form.id) || 0}
                 otherWorkspaces={otherWorkspaces}
-                onDuplicate={() => onDuplicateForm(form)}
-                onDelete={() => onDeleteForm(form)}
+                isFavorite={favoriteFormIds.has(form.id)}
+                isActive={form.id === activeFormId}
+                onDuplicate={onDuplicateForm}
+                onDelete={onDeleteForm}
                 isDuplicating={isFormDuplicating(form.id)}
               />
             ))}
@@ -270,7 +274,63 @@ export const WorkspaceItemMinimal = ({
             No forms yet
           </span>
         )}
-      </SidebarSection>
+      </LiteSidebarSection>
+    </div>
+  );
+};
+
+// Lightweight sidebar section that mirrors the look of the shared SidebarSection
+// but does not pull in Base UI's Accordion + Collapsible. Those primitives
+// broadcast AccordionItemContext + CollapsibleRootContext to every descendant on
+// every internal state change (height measurements, mount transitions, etc.),
+// which forces all 26 nested form rows + the dnd-kit useSortable subscribers to
+// re-render even when no real data changed. With ~26 forms × multiple Base UI
+// effects per render, that broadcast was the dominant cost in the sidebar.
+const LiteSidebarSection = ({
+  label,
+  children,
+  action,
+  initialOpen = true,
+}: {
+  label: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+  initialOpen?: boolean;
+}) => {
+  const [open, setOpen] = useState(initialOpen);
+  const toggle = useCallback(() => setOpen((prev) => !prev), []);
+
+  return (
+    <div className="flex w-full flex-col">
+      <div className="group/accordion-header flex">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={toggle}
+          className={cn(
+            "group/accordion-trigger relative ml-[0.55px] flex h-7.5 flex-1 cursor-pointer items-center gap-1 overflow-hidden rounded-lg border border-transparent px-1 py-1.5 text-start text-[13px] transition-all outline-none",
+            "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+          )}
+        >
+          <span className="flex min-w-0 flex-1 items-center gap-1">
+            <span className="truncate font-case text-[13px] font-medium tracking-4 text-muted-foreground">
+              {label}
+            </span>
+            <ChevronDownIcon
+              className={cn(
+                "size-2.5 shrink-0 text-muted-foreground transition-transform duration-200",
+                open ? "rotate-0" : "-rotate-90",
+              )}
+            />
+          </span>
+        </button>
+        {action && (
+          <div className="mr-[0.55px] flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/accordion-header:opacity-100">
+            {action}
+          </div>
+        )}
+      </div>
+      {open && <div className="flex flex-col pt-0 pb-2.5">{children}</div>}
     </div>
   );
 };
@@ -286,20 +346,24 @@ const stopBubble = (e: React.SyntheticEvent) => {
   e.stopPropagation();
 };
 
+type FormForMinimal = {
+  id: string;
+  title: string | null;
+  icon?: string | null;
+  workspaceId: string;
+  status: string;
+  customization?: Record<string, string> | null;
+};
+
 interface WorkspaceFormMinimalProps {
-  form: {
-    id: string;
-    title: string | null;
-    icon?: string | null;
-    workspaceId: string;
-    status: string;
-    customization?: Record<string, string> | null;
-  };
+  form: FormForMinimal;
   workspaceId: string;
   submissionCount: number;
   otherWorkspaces: Array<{ id: string; name: string }>;
-  onDuplicate: () => void;
-  onDelete: () => void;
+  isFavorite: boolean;
+  isActive: boolean;
+  onDuplicate: (form: WorkspaceWithForms["forms"][0]) => void;
+  onDelete: (form: WorkspaceWithForms["forms"][0]) => void;
   isDuplicating?: boolean;
 }
 
@@ -308,14 +372,14 @@ const WorkspaceFormMinimal = ({
   workspaceId,
   submissionCount,
   otherWorkspaces,
+  isFavorite: isFav,
+  isActive,
   onDuplicate,
   onDelete,
   isDuplicating = false,
 }: WorkspaceFormMinimalProps) => {
-  const location = useLocation();
   const { data: session } = useSession();
   const userId = session?.user?.id;
-  const isFav = useIsFavorite(userId, form.id);
   const [renameOpen, setRenameOpen] = useState(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -336,9 +400,6 @@ const WorkspaceFormMinimal = ({
       : "/workspace/$workspaceId/form-builder/$formId/edit",
     params: { workspaceId, formId: form.id },
   } as const;
-  const isActive = location.pathname.startsWith(
-    `/workspace/${workspaceId}/form-builder/${form.id}`,
-  );
   const label = form.title || "Untitled";
 
   const prefix = getFormIcon(label, form.icon, form.customization);
@@ -397,7 +458,10 @@ const WorkspaceFormMinimal = ({
         >
           <DropdownMenuGroup>
             <DropdownMenuLabel>Form</DropdownMenuLabel>
-            <DropdownMenuItem onClick={onDuplicate} disabled={isDuplicating}>
+            <DropdownMenuItem
+              onClick={() => onDuplicate(form as WorkspaceWithForms["forms"][0])}
+              disabled={isDuplicating}
+            >
               <CopyIcon />
               <span className="flex-1 text-left">
                 {isDuplicating ? "Duplicating…" : "Duplicate"}
@@ -432,7 +496,10 @@ const WorkspaceFormMinimal = ({
             )}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => onDelete(form as WorkspaceWithForms["forms"][0])}
+          >
             <TrashIcon />
             <span className="flex-1 text-left">Delete</span>
           </DropdownMenuItem>
