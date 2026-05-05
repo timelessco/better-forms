@@ -20,7 +20,7 @@ import type { TElement, Value } from "platejs";
 import { Plate, usePlateEditor } from "platejs/react";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import type { KeyboardEvent } from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface EditorAppProps {
   formId: string;
@@ -144,12 +144,19 @@ const EditorAppInner = ({
     }
   }
 
+  // React Compiler memoizes this on `savedContent`'s reference. Immer (used by
+  // TanStack DB) preserves unchanged-field references across structural
+  // updates, so during a customization-only mutation `savedDocs[0]?.content`
+  // is the same reference and `contentStr` stays stable — no spurious
+  // resetKey bumps, no Plate remount loop.
+  const savedContent = savedDocs?.[0]?.content;
+  const contentStr = savedContent ? JSON.stringify(savedContent) : null;
+
   // Detect external content change (discard, restore, remote sync) and recreate editor.
   // setState during render is a documented React pattern — React aborts this
   // render and immediately re-renders with the new state.
   // Skip detection while we have a pending save — the sync-back is our own edit.
-  if (!versionContent && savedDocs?.length && !pendingValueRef.current) {
-    const contentStr = JSON.stringify(savedDocs[0]?.content);
+  if (!versionContent && contentStr !== null && !pendingValueRef.current) {
     if (lastKnownContentRef.current === null) {
       lastKnownContentRef.current = contentStr;
       // Force reset when returning from version view so editor picks up
@@ -192,7 +199,9 @@ const EditorAppInner = ({
     [resetKey],
   );
 
-  editor.setOption(AIInputPlugin, "formId", formId);
+  useEffect(() => {
+    editor.setOption(AIInputPlugin, "formId", formId);
+  }, [editor, formId]);
 
   const debouncedSave = useDebouncedCallback(
     (val: Value) => {
@@ -231,6 +240,13 @@ const EditorAppInner = ({
         skipSaveRef.current = false;
         return;
       }
+
+      // Plate fires onChange on selection/focus changes too (clicking into the
+      // color picker, opening a popover, etc.) with the same content. Skip the
+      // save when content is unchanged so we don't queue a server roundtrip
+      // for a pure updatedAt bump.
+      const serialized = JSON.stringify(value);
+      if (serialized === lastKnownContentRef.current) return;
 
       pendingValueRef.current = value;
       debouncedSave(value);
@@ -290,15 +306,42 @@ const EditorAppInner = ({
         )}
         style={hasCustomization ? themeVars : undefined}
       >
-        <Plate editor={editor} readOnly={readOnly} onChange={handleChange}>
-          <EditorContainer
-            variant="default"
-            className="max-w-full overflow-y-visible border-none px-0 shadow-none sm:px-0"
-          >
-            <Editor variant="demo" className="rounded-none" onKeyDown={handleEditorKeyDown} />
-          </EditorContainer>
-        </Plate>
+        <PlateEditorTree
+          editor={editor}
+          readOnly={readOnly}
+          onChange={handleChange}
+          onKeyDown={handleEditorKeyDown}
+        />
       </div>
     </EditorThemeProvider>
   );
 };
+
+// Memoized Plate subtree. Customization-driven re-renders of `EditorAppInner`
+// (theme variables, dark-class flips, etc.) update the wrapper div above but
+// stop dead here — Plate and its selection/AI/etc. plugins don't see the
+// updates, so their useEffects don't repeatedly mount/unmount and we don't
+// hit React's update-depth limit during heavy color-picker drags.
+const PlateEditorTree = memo(
+  ({
+    editor,
+    readOnly,
+    onChange,
+    onKeyDown,
+  }: {
+    editor: ReturnType<typeof usePlateEditor>;
+    readOnly: boolean;
+    onChange: (args: { value: Value }) => void;
+    onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => void;
+  }) => (
+    <Plate editor={editor} readOnly={readOnly} onChange={onChange}>
+      <EditorContainer
+        variant="default"
+        className="max-w-full overflow-y-visible border-none px-0 shadow-none sm:px-0"
+      >
+        <Editor variant="demo" className="rounded-none" onKeyDown={onKeyDown} />
+      </EditorContainer>
+    </Plate>
+  ),
+);
+PlateEditorTree.displayName = "PlateEditorTree";

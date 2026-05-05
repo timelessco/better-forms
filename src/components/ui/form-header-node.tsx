@@ -1,6 +1,6 @@
 import { ImageIcon, CircleUserRoundIcon, SettingsIcon, Trash2Icon } from "@/components/ui/icons";
 import { IconPickerContent, IconPickerPreview } from "@/components/icon-picker";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Activity, useCallback, useEffect, useRef, useState } from "react";
 import type { PlateElementProps } from "platejs/react";
 import { PlateElement, useEditorRef } from "platejs/react";
 import { Button } from "@/components/ui/button";
@@ -546,6 +546,11 @@ export const FormHeaderElement = (props: PlateElementProps) => {
 
   const [iconPopoverOpen, setIconPopoverOpen] = useState(false);
   const [iconTab, setIconTab] = useState("icon");
+  // Lazy-mount Upload tab on first activation, then keep its tree alive via
+  // <Activity> so drag-state and any in-flight upload survive Icon ↔ Upload
+  // tab switches.
+  const [openedUploadTab, setOpenedUploadTab] = useState(false);
+  if (iconTab === "upload" && !openedUploadTab) setOpenedUploadTab(true);
   const [coverPopoverOpen, setCoverPopoverOpen] = useState(false);
 
   return (
@@ -789,6 +794,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
               <PopoverContent
                 align="start"
                 side="bottom"
+                keepMounted
                 className={cn(
                   "w-[310px] p-0",
                   hasCustomization && "bf-themed",
@@ -813,7 +819,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                       <Trash2Icon />
                     </Button>
                   </div>
-                  {iconTab === "icon" ? (
+                  <Activity mode={iconTab === "icon" ? "visible" : "hidden"}>
                     <IconPickerContent
                       iconValue={icon && icon !== DEFAULT_ICON && !isValidUrl(icon) ? icon : null}
                       iconColor={hasCustomization ? activeAccentColor : iconColor || "#000000"}
@@ -831,15 +837,18 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                       }}
                       colors={accentColors}
                     />
-                  ) : (
-                    <IconUploadTab
-                      currentIcon={icon && isValidUrl(icon) ? icon : null}
-                      onUpload={(url) => {
-                        handleIconChange(url);
-                        setIconPopoverOpen(false);
-                      }}
-                      onCancel={() => setIconPopoverOpen(false)}
-                    />
+                  </Activity>
+                  {openedUploadTab && (
+                    <Activity mode={iconTab === "upload" ? "visible" : "hidden"}>
+                      <IconUploadTab
+                        currentIcon={icon && isValidUrl(icon) ? icon : null}
+                        onUpload={(url) => {
+                          handleIconChange(url);
+                          setIconPopoverOpen(false);
+                        }}
+                        onCancel={() => setIconPopoverOpen(false)}
+                      />
+                    </Activity>
                   )}
                 </div>
               </PopoverContent>

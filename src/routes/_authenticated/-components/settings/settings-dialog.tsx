@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { SettingsTab } from "@/hooks/use-settings-dialog";
 import { useSettingsDialog } from "@/hooks/use-settings-dialog";
-import { useCallback } from "react";
+import { Activity, useCallback, useState } from "react";
 import { SidebarItem } from "@/components/sidebar-item";
 import { CircleUserIcon, CreditCardIcon, GlobeIcon } from "@/components/ui/icons";
 import { AccountSettingsContent } from "./account-settings-content";
@@ -27,17 +27,47 @@ const tabTitles: Record<SettingsTab, string> = {
   domains: "Custom Domains",
 };
 
-const TabContent = ({ tab }: { tab: SettingsTab }) => {
-  switch (tab) {
-    case "account":
-      return <AccountSettingsContent />;
-    case "members":
-      return <MembersContent />;
-    case "billing":
-      return <BillingContent />;
-    case "domains":
-      return <DomainsContent />;
-  }
+/**
+ * Renders all four tab panels but only the active one is visible. Each panel
+ * is lazily mounted on first activation (so initial dialog open doesn't pay
+ * for tabs the user hasn't visited), then kept resident via <Activity> —
+ * scroll position, form drafts, and any per-tab effects survive tab switches.
+ */
+const TabPanels = ({ activeTab }: { activeTab: SettingsTab }) => {
+  const [openedAccount, setOpenedAccount] = useState(activeTab === "account");
+  const [openedMembers, setOpenedMembers] = useState(activeTab === "members");
+  const [openedBilling, setOpenedBilling] = useState(activeTab === "billing");
+  const [openedDomains, setOpenedDomains] = useState(activeTab === "domains");
+
+  if (activeTab === "account" && !openedAccount) setOpenedAccount(true);
+  if (activeTab === "members" && !openedMembers) setOpenedMembers(true);
+  if (activeTab === "billing" && !openedBilling) setOpenedBilling(true);
+  if (activeTab === "domains" && !openedDomains) setOpenedDomains(true);
+
+  return (
+    <>
+      {openedAccount && (
+        <Activity mode={activeTab === "account" ? "visible" : "hidden"}>
+          <AccountSettingsContent />
+        </Activity>
+      )}
+      {openedMembers && (
+        <Activity mode={activeTab === "members" ? "visible" : "hidden"}>
+          <MembersContent />
+        </Activity>
+      )}
+      {openedBilling && (
+        <Activity mode={activeTab === "billing" ? "visible" : "hidden"}>
+          <BillingContent />
+        </Activity>
+      )}
+      {openedDomains && (
+        <Activity mode={activeTab === "domains" ? "visible" : "hidden"}>
+          <DomainsContent />
+        </Activity>
+      )}
+    </>
+  );
 };
 
 export const SettingsDialog = () => {
@@ -88,7 +118,7 @@ export const SettingsDialog = () => {
             <DialogTitle className="mb-4 text-xl font-semibold text-foreground">
               {tabTitles[activeTab]}
             </DialogTitle>
-            <TabContent tab={activeTab} />
+            <TabPanels activeTab={activeTab} />
           </div>
         </ScrollArea>
 

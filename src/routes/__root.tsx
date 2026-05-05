@@ -34,6 +34,9 @@ const RootDocument = ({ children }: { children: React.ReactNode }) => (
       {/* Theme init script - static trusted content, not user input */}
       {/** biome-ignore lint/security/noDangerouslySetInnerHtml: Needed for theme initialization */}
       <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      {import.meta.env.DEV && (
+        <script crossOrigin="anonymous" src="//unpkg.com/react-scan/dist/auto.global.js" />
+      )}
       <HeadContent />
     </head>
     <body

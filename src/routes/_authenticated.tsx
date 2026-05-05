@@ -183,7 +183,7 @@ import { generateOrderedIndexes, sortByManualOrder } from "@/lib/sort-utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDistanceToNow } from "date-fns";
 import type * as React from "react";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Activity, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
 import { toast } from "sonner";
 
@@ -212,6 +212,60 @@ const LazyCustomizeSidebar = lazy(() =>
     default: m.CustomizeSidebar,
   })),
 );
+
+/**
+ * Keeps each sidebar's React tree alive across activeSidebar toggles via
+ * <Activity>. Lazily mounts each one on first activation (so first-paint of
+ * the route doesn't pay for sidebars the user hasn't opened yet), then keeps
+ * it resident — switching settings ↔ share ↔ customize no longer remounts
+ * the TanStack Form, scroll position, or expanded-section state.
+ *
+ * `key={formId}` on the inner sidebar ensures a hard remount when the user
+ * navigates between forms, since per-sidebar form state is form-specific.
+ *
+ * `history` is excluded — it's a one-shot view/restore action, rarely
+ * toggled, and persisting its tree gives no UX benefit.
+ */
+const PersistentSidebars = ({
+  activeSidebar,
+  formId,
+}: {
+  activeSidebar: ReturnType<typeof useEditorSidebar>["activeSidebar"];
+  formId: string | undefined;
+}) => {
+  const showSettings = activeSidebar === "settings";
+  const showShare = activeSidebar === "share";
+  const showCustomize = activeSidebar === "customize";
+
+  const [openedSettings, setOpenedSettings] = useState(showSettings);
+  const [openedShare, setOpenedShare] = useState(showShare);
+  const [openedCustomize, setOpenedCustomize] = useState(showCustomize);
+
+  if (showSettings && !openedSettings) setOpenedSettings(true);
+  if (showShare && !openedShare) setOpenedShare(true);
+  if (showCustomize && !openedCustomize) setOpenedCustomize(true);
+
+  return (
+    <>
+      {openedSettings && (
+        <Activity mode={showSettings ? "visible" : "hidden"}>
+          {formId && <LazyFormSettingsSidebar key={formId} formId={formId} />}
+        </Activity>
+      )}
+      {openedShare && (
+        <Activity mode={showShare ? "visible" : "hidden"}>
+          {formId && <LazyShareSummarySidebar key={formId} formId={formId} />}
+        </Activity>
+      )}
+      {activeSidebar === "history" && formId && <LazyVersionHistorySidebar formId={formId} />}
+      {openedCustomize && (
+        <Activity mode={showCustomize ? "visible" : "hidden"}>
+          {formId && <LazyCustomizeSidebar key={formId} formId={formId} />}
+        </Activity>
+      )}
+    </>
+  );
+};
 
 const formatNotificationTime = (value: string) =>
   formatDistanceToNow(new Date(value), {
@@ -411,14 +465,7 @@ const AuthLayoutContent = () => {
         {(() => {
           const rightSidebarContent = (
             <Suspense fallback={null}>
-              {activeSidebar === "settings" && formId && (
-                <LazyFormSettingsSidebar formId={formId} />
-              )}
-              {activeSidebar === "share" && formId && <LazyShareSummarySidebar formId={formId} />}
-              {activeSidebar === "history" && formId && (
-                <LazyVersionHistorySidebar formId={formId} />
-              )}
-              {activeSidebar === "customize" && formId && <LazyCustomizeSidebar formId={formId} />}
+              <PersistentSidebars activeSidebar={activeSidebar} formId={formId} />
             </Suspense>
           );
           if (isMobile) {
@@ -1450,8 +1497,44 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
 
   const favoriteForms = useFavoriteForms(session?.user?.id);
 
+  // Derive a stable Set of favorited form ids so individual sidebar rows can
+  // read a primitive `isFavorite` prop instead of each spinning up its own
+  // `useIsFavorite` live-query subscription. The Set identity is reused when
+  // the membership is unchanged so the prop chain stays referentially stable.
+  const favoriteFormIdsRef = useRef<Set<string>>(new Set());
+  const favoriteFormIds = useMemo(() => {
+    const next = new Set<string>();
+    for (const f of favoriteForms) next.add(f.id);
+    const previous = favoriteFormIdsRef.current;
+    if (previous.size === next.size) {
+      let identical = true;
+      for (const id of next) {
+        if (!previous.has(id)) {
+          identical = false;
+          break;
+        }
+      }
+      if (identical) return previous;
+    }
+    favoriteFormIdsRef.current = next;
+    return next;
+  }, [favoriteForms]);
+
+  // Pull the active form id once at the parent so each form row can read a
+  // primitive `isActive` prop instead of subscribing to `useLocation`.
+  const activeFormId = useMemo(() => {
+    const match = location.pathname.match(/\/form-builder\/([^/]+)/);
+    return match?.[1];
+  }, [location.pathname]);
+
   const isLoading = workspacesLoading || formsLoading;
   const isDataReady = !isLoading && workspacesData !== undefined && formsData !== undefined;
+
+  // Cache workspace + forms-array identities by id so a live-query notification
+  // that doesn't actually change content (just the array reference) doesn't
+  // cascade new identities into every consumer downstream.
+  const workspaceCacheRef = useRef(new Map<string, WorkspaceWithForms>());
+  const formsArrayCacheRef = useRef(new Map<string, WorkspaceWithForms["forms"]>());
 
   const workspaces: WorkspaceWithForms[] = useMemo(() => {
     if (!activeOrgId || !isDataReady) return [];
@@ -1459,10 +1542,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
     const formsByWorkspace = (formsData || []).reduce(
       (acc, form) => {
         if (!acc[form.workspaceId]) acc[form.workspaceId] = [];
-        acc[form.workspaceId].push({
-          ...form,
-          customization: form.customization as Record<string, string> | null | undefined,
-        });
+        acc[form.workspaceId].push(form as unknown as WorkspaceWithForms["forms"][0]);
         return acc;
       },
       {} as Record<string, WorkspaceWithForms["forms"]>,
@@ -1473,7 +1553,10 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     );
 
-    return orderedWorkspaces.map((ws) => {
+    const nextWorkspaceCache = new Map<string, WorkspaceWithForms>();
+    const nextFormsCache = new Map<string, WorkspaceWithForms["forms"]>();
+
+    const result = orderedWorkspaces.map((ws) => {
       const forms = formsByWorkspace[ws.id] || [];
       let sortedForms: WorkspaceWithForms["forms"];
       if (sortMode === "manual") {
@@ -1496,14 +1579,59 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
           },
         );
       }
-      return { ...ws, forms: sortedForms };
+
+      // Reuse the previous forms array if every form item is the same reference
+      // in the same order — this stabilises both the array and any per-form
+      // identity churn upstream.
+      const previousForms = formsArrayCacheRef.current.get(ws.id);
+      if (
+        previousForms &&
+        previousForms.length === sortedForms.length &&
+        previousForms.every((f, i) => f === sortedForms[i])
+      ) {
+        sortedForms = previousForms;
+      }
+      nextFormsCache.set(ws.id, sortedForms);
+
+      const previousWorkspace = workspaceCacheRef.current.get(ws.id);
+      if (
+        previousWorkspace &&
+        previousWorkspace.forms === sortedForms &&
+        previousWorkspace.name === ws.name &&
+        previousWorkspace.sortIndex === ws.sortIndex &&
+        previousWorkspace.organizationId === ws.organizationId &&
+        previousWorkspace.updatedAt === ws.updatedAt &&
+        previousWorkspace.createdAt === ws.createdAt &&
+        previousWorkspace.createdByUserId === ws.createdByUserId
+      ) {
+        nextWorkspaceCache.set(ws.id, previousWorkspace);
+        return previousWorkspace;
+      }
+      const fresh = { ...ws, forms: sortedForms };
+      nextWorkspaceCache.set(ws.id, fresh);
+      return fresh;
     });
+
+    workspaceCacheRef.current = nextWorkspaceCache;
+    formsArrayCacheRef.current = nextFormsCache;
+    return result;
   }, [workspacesData, formsData, activeOrgId, isDataReady, sortMode]);
 
-  const allWorkspaceSummaries = useMemo(
-    () => workspaces.map((w) => ({ id: w.id, name: w.name })),
-    [workspaces],
-  );
+  // Same content-stability trick: keep the previous summaries array when every
+  // (id, name) tuple is unchanged so memoised children skip re-rendering.
+  const allWorkspaceSummariesRef = useRef<Array<Pick<WorkspaceWithForms, "id" | "name">>>([]);
+  const allWorkspaceSummaries = useMemo(() => {
+    const next = workspaces.map((w) => ({ id: w.id, name: w.name }));
+    const previous = allWorkspaceSummariesRef.current;
+    if (
+      previous.length === next.length &&
+      previous.every((p, i) => p.id === next[i].id && p.name === next[i].name)
+    ) {
+      return previous;
+    }
+    allWorkspaceSummariesRef.current = next;
+    return next;
+  }, [workspaces]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -1512,42 +1640,47 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
 
   const workspaceIds = useMemo(() => workspaces.map((w) => w.id), [workspaces]);
 
-  const handleWorkspaceDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
+  // Read-only ref so drag handlers can read the freshest workspaces snapshot
+  // without re-binding their identity (and re-rendering every WorkspaceItemMinimal)
+  // each time the live-query data churns.
+  const workspacesRef = useRef(workspaces);
+  workspacesRef.current = workspaces;
+  const sortModeRef = useRef(sortMode);
+  sortModeRef.current = sortMode;
 
-      const current = workspaces;
-      const oldIdx = current.findIndex((w) => w.id === active.id);
-      const newIdx = current.findIndex((w) => w.id === over.id);
-      if (oldIdx < 0 || newIdx < 0) return;
+  const handleWorkspaceDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-      const reordered = [...current];
-      const [moved] = reordered.splice(oldIdx, 1);
-      reordered.splice(newIdx, 0, moved);
+    const current = workspacesRef.current;
+    const oldIdx = current.findIndex((w) => w.id === active.id);
+    const newIdx = current.findIndex((w) => w.id === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
 
-      try {
-        const indexes = generateOrderedIndexes(reordered.length);
-        reordered.forEach((ws, i) => {
-          if ((ws.sortIndex ?? null) !== indexes[i]) {
-            reorderWorkspaceLocal(ws.id, indexes[i]).catch(() =>
-              toast.error("Failed to reorder workspace"),
-            );
-          }
-        });
-      } catch (err) {
-        console.error("Failed to compute workspace sort indexes", err);
-      }
-    },
-    [workspaces],
-  );
+    const reordered = [...current];
+    const [moved] = reordered.splice(oldIdx, 1);
+    reordered.splice(newIdx, 0, moved);
+
+    try {
+      const indexes = generateOrderedIndexes(reordered.length);
+      reordered.forEach((ws, i) => {
+        if ((ws.sortIndex ?? null) !== indexes[i]) {
+          reorderWorkspaceLocal(ws.id, indexes[i]).catch(() =>
+            toast.error("Failed to reorder workspace"),
+          );
+        }
+      });
+    } catch (err) {
+      console.error("Failed to compute workspace sort indexes", err);
+    }
+  }, []);
 
   const handleFormDragEnd = useCallback(
     (workspaceId: string, event: DragEndEvent) => {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
-      const ws = workspaces.find((w) => w.id === workspaceId);
+      const ws = workspacesRef.current.find((w) => w.id === workspaceId);
       if (!ws) return;
 
       const oldIdx = ws.forms.findIndex((f) => f.id === active.id);
@@ -1568,12 +1701,12 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
           }
         });
         // Auto-switch sidebar to manual mode so the reorder "sticks" visually
-        if (sortMode !== "manual") handleSortChange("manual");
+        if (sortModeRef.current !== "manual") handleSortChange("manual");
       } catch (err) {
         console.error("Failed to compute form sort indexes", err);
       }
     },
-    [workspaces, sortMode, handleSortChange],
+    [handleSortChange],
   );
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -1655,21 +1788,24 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
     [handleRenameWorkspace],
   );
 
-  const openRenameDialog = (workspace: WorkspaceWithForms) => {
+  const openRenameDialog = useCallback((workspace: WorkspaceWithForms) => {
     setWorkspaceToRename(workspace);
     setNewWorkspaceName(workspace.name);
     setRenameDialogOpen(true);
-  };
+  }, []);
 
-  const openDeleteDialog = (workspace: WorkspaceWithForms) => {
+  const openDeleteDialog = useCallback((workspace: WorkspaceWithForms) => {
     setWorkspaceToDelete(workspace);
     setDeleteConfirmName("");
     setDeleteDialogOpen(true);
-  };
+  }, []);
+
+  const duplicatingIdsRef = useRef(duplicatingIds);
+  duplicatingIdsRef.current = duplicatingIds;
 
   const handleDuplicateForm = useCallback(
     async (form: WorkspaceWithForms["forms"][0]) => {
-      if (duplicatingIds.has(form.id)) return;
+      if (duplicatingIdsRef.current.has(form.id)) return;
       setDuplicatingIds((prev) => new Set(prev).add(form.id));
       try {
         await duplicateForm(form.id);
@@ -1684,7 +1820,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
         });
       }
     },
-    [duplicateForm, duplicatingIds],
+    [duplicateForm],
   );
 
   const isFormDuplicating = useCallback(
@@ -1747,10 +1883,12 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
                       workspace={workspace}
                       allWorkspaces={allWorkspaceSummaries}
                       submissionCounts={submissionCounts}
+                      favoriteFormIds={favoriteFormIds}
+                      activeFormId={activeFormId}
                       sortMode={sortMode}
                       onSortChange={handleSortChange}
-                      onRename={() => openRenameDialog(workspace)}
-                      onDelete={() => openDeleteDialog(workspace)}
+                      onRename={openRenameDialog}
+                      onDelete={openDeleteDialog}
                       onDuplicateForm={handleDuplicateForm}
                       onDeleteForm={handleDeleteForm}
                       onFormDragEnd={handleFormDragEnd}

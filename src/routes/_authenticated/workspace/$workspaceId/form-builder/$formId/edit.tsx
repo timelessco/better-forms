@@ -12,7 +12,7 @@ import { createFileRoute, isRedirect, redirect, useLocation } from "@tanstack/re
 import { format } from "date-fns";
 import { Loader2Icon } from "@/components/ui/icons";
 import type { Value } from "platejs";
-import { Suspense, lazy } from "react";
+import { Activity, Suspense, lazy } from "react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
 
@@ -75,30 +75,36 @@ const DesignPage = () => {
             previewMode ? "h-full overflow-hidden" : "overflow-y-auto",
           )}
         >
-          {previewMode ? (
-            <PreviewMode formId={formId} workspaceId={workspaceId} />
-          ) : isViewingVersion && isLoadingVersionContent ? (
-            <div className="flex h-full w-full items-center justify-center">
-              <Loader2Icon className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <Suspense
-              fallback={
-                <div className="flex h-full items-center justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                </div>
-              }
-            >
-              <EditorApp
-                key={formId}
-                formId={formId}
-                workspaceId={workspaceId}
-                versionContent={isViewingVersion ? versionContent : undefined}
-                versionCustomization={isViewingVersion ? versionCustomization : undefined}
-                readOnly={isViewingVersion}
-              />
-            </Suspense>
-          )}
+          {previewMode && <PreviewMode formId={formId} workspaceId={workspaceId} />}
+          {/* Keep EditorApp's fiber tree, Slate document, and DOM alive across
+              preview toggles via <Activity>. A fresh mount of Plate (50+
+              elements, per-element plugin effects) costs ~600ms; Activity
+              preserves the editor instance and only re-runs effects on the
+              hidden ↔ visible flip. */}
+          <Activity mode={previewMode ? "hidden" : "visible"}>
+            {isViewingVersion && isLoadingVersionContent ? (
+              <div className="flex h-full w-full items-center justify-center">
+                <Loader2Icon className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <Suspense
+                fallback={
+                  <div className="flex h-full items-center justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  </div>
+                }
+              >
+                <EditorApp
+                  key={formId}
+                  formId={formId}
+                  workspaceId={workspaceId}
+                  versionContent={isViewingVersion ? versionContent : undefined}
+                  versionCustomization={isViewingVersion ? versionCustomization : undefined}
+                  readOnly={isViewingVersion}
+                />
+              </Suspense>
+            )}
+          </Activity>
         </div>
       </main>
     </div>

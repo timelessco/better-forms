@@ -1,6 +1,6 @@
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import {
   isInitialized,
   getWorkspaces,
@@ -189,15 +189,33 @@ export const useSubmissionCounts = () => {
     }));
   }, []);
 
+  // TanStack DB live queries hand back fresh array references on every notification,
+  // so the upstream useMemo would emit a brand-new Map identity even when no count
+  // actually changed. Returning the previous Map reference when contents are
+  // identical lets memoised consumers downstream skip re-rendering entirely.
+  const previousMapRef = useRef<Map<string, number>>(new Map());
+
   return useMemo(() => {
-    const map = new Map<string, number>();
+    const next = new Map<string, number>();
     if (allForms) {
       for (const form of allForms) {
         if (form.submissionCount > 0) {
-          map.set(form.id, form.submissionCount);
+          next.set(form.id, form.submissionCount);
         }
       }
     }
-    return map;
+    const previous = previousMapRef.current;
+    if (previous.size === next.size) {
+      let identical = true;
+      for (const [id, count] of next) {
+        if (previous.get(id) !== count) {
+          identical = false;
+          break;
+        }
+      }
+      if (identical) return previous;
+    }
+    previousMapRef.current = next;
+    return next;
   }, [allForms]);
 };

@@ -492,52 +492,41 @@ interface ColorPickerPanelProps {
 }
 
 const ColorPickerPanel = ({ value, onChange }: ColorPickerPanelProps) => {
+  // The panel is mounted only while the popover is open. We seed `hsla` from
+  // `value` once on mount and from then on the panel OWNS the value. Ignoring
+  // later `value` prop changes is intentional — without that, the parent's
+  // optimistic round-trip during a drag would race with local state and
+  // create a setState feedback loop.
   const [hsla, setHsla] = React.useState<Hsla>(() => cssToHsla(value));
   const [mode, setMode] = React.useState<Mode>("hex");
-  const draggingRef = React.useRef(false);
-  const lastEmittedRef = React.useRef(hslaToHex(hsla).toLowerCase());
   const onChangeRef = useLatestRef(onChange);
 
-  // External value updates only apply when not dragging — parent's prop
-  // round-trip would otherwise fight the drag state.
-  React.useEffect(() => {
-    if (draggingRef.current) return;
-    const incoming = value.toLowerCase();
-    if (incoming === lastEmittedRef.current) return;
-    const next = cssToHsla(value);
-    setHsla((prev) => ({
-      h: next.s < 0.5 ? prev.h : next.h,
-      s: next.s,
-      l: next.l,
-      a: next.a,
-    }));
-    lastEmittedRef.current = incoming;
-  }, [value]);
-
-  const emit = React.useCallback(
-    (next: Hsla) => {
-      const hex = hslaToHex(next);
-      lastEmittedRef.current = hex.toLowerCase();
-      onChangeRef.current(hex);
-    },
-    [onChangeRef],
-  );
+  // Mirror `hsla` in a ref so `updateAndEmit` can compute `next` without using
+  // the function-form of setState. Why this matters: emitting (which fires
+  // `onChange` → `collection.update` → live-query subscriber setStates)
+  // INSIDE a setState updater triggers React's "Cannot update a component
+  // while rendering a different component" warning and can cause the updater
+  // to be re-run, doubling work per drag tick.
+  const hslaRef = React.useRef(hsla);
 
   const updateAndEmit = React.useCallback(
-    (patch: Partial<Hsla>, fromDrag = false) => {
-      if (fromDrag) draggingRef.current = true;
-      setHsla((prev) => {
-        const next = { ...prev, ...patch };
-        emit(next);
-        return next;
+    (patch: Partial<Hsla>) => {
+      const next = { ...hslaRef.current, ...patch };
+      hslaRef.current = next;
+      // Urgent: local picker state. Drives the saturation panel handle and
+      // slider thumbs — must commit immediately so the cursor doesn't lag.
+      setHsla(next);
+      // Transition: app-wide cascade (collection.update → live-query
+      // subscribers → editor preview / customize sidebar / app sidebar
+      // re-render). React commits the urgent update first and lets
+      // subsequent pointermove events interrupt this transition, so the
+      // local handle stays glued to the cursor regardless of how heavy the
+      // downstream re-renders are.
+      React.startTransition(() => {
+        onChangeRef.current(hslaToHex(next));
       });
-      if (fromDrag) {
-        queueMicrotask(() => {
-          draggingRef.current = false;
-        });
-      }
     },
-    [emit],
+    [onChangeRef],
   );
 
   const currentHex = React.useMemo(() => hslaToHex(hsla), [hsla]);
@@ -552,19 +541,19 @@ const ColorPickerPanel = ({ value, onChange }: ColorPickerPanelProps) => {
         hue={hsla.h}
         saturation={hsla.s}
         lightness={hsla.l}
-        onChange={(s, l) => updateAndEmit({ s, l }, true)}
+        onChange={(s, l) => updateAndEmit({ s, l })}
       />
       <SliderRow
         value={hsla.h}
         max={360}
-        onValueChange={(h) => updateAndEmit({ h }, true)}
+        onValueChange={(h) => updateAndEmit({ h })}
         trackBackground={HUE_TRACK}
         ariaLabel="Hue"
       />
       <SliderRow
         value={round(hsla.a * 100)}
         max={100}
-        onValueChange={(a) => updateAndEmit({ a: a / 100 }, true)}
+        onValueChange={(a) => updateAndEmit({ a: a / 100 })}
         trackBackground={alphaTrack}
         ariaLabel="Alpha"
       />
@@ -652,7 +641,7 @@ export const ColorPicker = ({ label, value, onChange, className }: ColorPickerPr
               </button>
             }
           />
-          <PopoverContent side="left" align="start" sideOffset={8} className="w-64 p-3">
+          <PopoverContent side="left" align="start" sideOffset={8} keepMounted className="w-64 p-3">
             <ColorPickerPanel value={swatchHex} onChange={onChange} />
           </PopoverContent>
         </Popover>
