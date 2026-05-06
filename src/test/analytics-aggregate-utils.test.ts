@@ -26,7 +26,6 @@ const makeVisit = (overrides: Partial<RawVisit> & { id: string }): RawVisit => {
     os: null,
     osVersion: null,
     country: null,
-    countryName: null,
     city: null,
     region: null,
     visitStartedAt: baseTimestamp,
@@ -99,50 +98,37 @@ describe("buildDailyAnalyticsRows", () => {
     expect(totals).toStrictEqual({ "form-a": 2, "form-b": 1 });
   });
 
-  it("buckets device counts", () => {
+  it("builds device breakdown skipping nulls", () => {
     const visits = [
       makeVisit({ id: "v1", deviceType: "desktop" }),
       makeVisit({ id: "v2", deviceType: "mobile" }),
       makeVisit({ id: "v3", deviceType: "tablet" }),
+      makeVisit({ id: "v4", deviceType: null }),
     ];
     const [row] = buildDailyAnalyticsRows(visits, dateKey, now);
-    expect(row).toMatchObject({
-      deviceDesktop: 1,
-      deviceMobile: 1,
-      deviceTablet: 1,
-    });
+    expect(row.deviceBreakdown).toStrictEqual({ desktop: 1, mobile: 1, tablet: 1 });
   });
 
-  it("buckets browser counts and maps unknowns to Other", () => {
+  it("builds browser breakdown, mapping null/unknown to Other key", () => {
     const visits = [
       makeVisit({ id: "v1", browser: "Chrome" }),
       makeVisit({ id: "v2", browser: "Safari" }),
-      makeVisit({ id: "v3", browser: "Opera" }), // unknown
+      makeVisit({ id: "v3", browser: "Opera" }),
+      makeVisit({ id: "v4", browser: null }),
     ];
     const [row] = buildDailyAnalyticsRows(visits, dateKey, now);
-    expect(row).toMatchObject({
-      browserChrome: 1,
-      browserSafari: 1,
-      browserOther: 1,
-      browserFirefox: 0,
-      browserEdge: 0,
-    });
+    expect(row.browserBreakdown).toStrictEqual({ Chrome: 1, Safari: 1, Opera: 1, Other: 1 });
   });
 
-  it("buckets os counts and maps unknowns to Other", () => {
+  it("builds os breakdown, mapping null/unknown to Other key", () => {
     const visits = [
       makeVisit({ id: "v1", os: "Windows" }),
       makeVisit({ id: "v2", os: "iOS" }),
-      makeVisit({ id: "v3", os: "FreeBSD" }), // unknown
+      makeVisit({ id: "v3", os: "FreeBSD" }),
+      makeVisit({ id: "v4", os: null }),
     ];
     const [row] = buildDailyAnalyticsRows(visits, dateKey, now);
-    expect(row).toMatchObject({
-      osWindows: 1,
-      osIos: 1,
-      osOther: 1,
-      osMacos: 0,
-      osAndroid: 0,
-    });
+    expect(row.osBreakdown).toStrictEqual({ Windows: 1, iOS: 1, FreeBSD: 1, Other: 1 });
   });
 
   it("computes average and median durations, ignoring nulls", () => {

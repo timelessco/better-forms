@@ -1,4 +1,3 @@
-import { apiKeyClient } from "@better-auth/api-key/client";
 import { polarClient } from "@polar-sh/better-auth/client";
 import { magicLinkClient, organizationClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
@@ -14,7 +13,7 @@ const getBaseURL = () => {
 
 export const authClient = createAuthClient({
   baseURL: getBaseURL(),
-  plugins: [magicLinkClient(), apiKeyClient(), organizationClient(), polarClient()],
+  plugins: [magicLinkClient(), organizationClient(), polarClient()],
 });
 export const auth = createAuthQueryClient(authClient);
 

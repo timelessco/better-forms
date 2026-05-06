@@ -18,7 +18,6 @@ import { checkout, polar, portal, webhooks } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { apiKey } from "@better-auth/api-key";
 import { magicLink, organization, testUtils } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
@@ -152,7 +151,6 @@ export const auth = betterAuth({
         }
       },
     }),
-    apiKey(),
     organization({
       async sendInvitationEmail(data) {
         logger(

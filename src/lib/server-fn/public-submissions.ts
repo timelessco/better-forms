@@ -236,30 +236,33 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
     // Notifications + emails only fire on final submit, not on each draft save.
     const isFinalizing = data.isCompleted && (!existingRow || !existingRow.isCompleted);
     if (isFinalizing) {
-      recordOwnerSubmissionNotification({
-        formId: data.formId,
-        userId: form.createdByUserId,
-        submissionId,
-        createdAt: now,
-      }).catch(() => {});
+      // creator may be NULL after user delete (FK SET NULL).
+      if (form.createdByUserId) {
+        recordOwnerSubmissionNotification({
+          formId: data.formId,
+          userId: form.createdByUserId,
+          submissionId,
+          createdAt: now,
+        }).catch(() => {});
 
-      sendEmailNotifications(
-        {
-          selfEmailNotifications: vSettings.selfEmailNotifications ?? false,
-          notificationEmail: vSettings.notificationEmail ?? null,
-          // Pro-only — defense in depth for the post-downgrade webhook race.
-          respondentEmailNotifications:
-            (vSettings.respondentEmailNotifications ?? false) &&
-            isServerPlan(form.orgPlan) &&
-            planUnlocks(form.orgPlan, "respondentEmailNotifications"),
-          respondentEmailSubject: vSettings.respondentEmailSubject ?? null,
-          respondentEmailBody: vSettings.respondentEmailBody ?? null,
-        },
-        form.createdByUserId,
-        data.formId,
-        submissionId,
-        sanitizedData,
-      ).catch((err) => console.error("[Email] Notification error:", err));
+        sendEmailNotifications(
+          {
+            selfEmailNotifications: vSettings.selfEmailNotifications ?? false,
+            notificationEmail: vSettings.notificationEmail ?? null,
+            // Pro-only — defense in depth for the post-downgrade webhook race.
+            respondentEmailNotifications:
+              (vSettings.respondentEmailNotifications ?? false) &&
+              isServerPlan(form.orgPlan) &&
+              planUnlocks(form.orgPlan, "respondentEmailNotifications"),
+            respondentEmailSubject: vSettings.respondentEmailSubject ?? null,
+            respondentEmailBody: vSettings.respondentEmailBody ?? null,
+          },
+          form.createdByUserId,
+          data.formId,
+          submissionId,
+          sanitizedData,
+        ).catch((err) => console.error("[Email] Notification error:", err));
+      }
 
       // Attribute the submission to its visit row. For incomplete → completed flows,
       // the same draftId may have produced multiple visits across sessions; the

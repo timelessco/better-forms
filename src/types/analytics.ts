@@ -23,7 +23,6 @@ export interface FormVisit {
   osVersion: string | null;
 
   country: string | null;
-  countryName: string | null;
   city: string | null;
   region: string | null;
 
@@ -69,23 +68,9 @@ export interface FormAnalyticsDaily {
   avgDurationMs: number | null;
   medianDurationMs: number | null;
 
-  deviceDesktop: number;
-  deviceMobile: number;
-  deviceTablet: number;
-
-  browserChrome: number;
-  browserFirefox: number;
-  browserSafari: number;
-  browserEdge: number;
-  browserOther: number;
-
-  osWindows: number;
-  osMacos: number;
-  osIos: number;
-  osAndroid: number;
-  osLinux: number;
-  osOther: number;
-
+  deviceBreakdown: CountBreakdown;
+  browserBreakdown: CountBreakdown;
+  osBreakdown: CountBreakdown;
   countryBreakdown: CountBreakdown;
   cityBreakdown: CountBreakdown;
   sourceBreakdown: CountBreakdown;

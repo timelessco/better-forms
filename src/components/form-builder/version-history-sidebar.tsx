@@ -29,7 +29,7 @@ import {
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
 const getPublisherInfo = (
-  publishedBy?: { id: string; name: string | null; image: string | null } | null,
+  publishedBy?: { id: string | null; name: string | null; image: string | null } | null,
 ) => {
   if (!publishedBy) {
     return { name: "Unknown", image: undefined, initial: "?" };

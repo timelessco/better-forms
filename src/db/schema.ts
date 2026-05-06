@@ -1,6 +1,7 @@
 import { defineRelations, sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -10,6 +11,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { createSelectSchema } from "drizzle-zod";
 import type { VersionedSettingsSnapshot } from "@/lib/content-hash";
 import type { FormSettings } from "@/types/form-settings";
@@ -113,37 +115,33 @@ export const twoFactor = pgTable("twoFactor", {
   userId: text().notNull(),
 });
 
-export const apikey = pgTable("apikey", {
-  id: text().primaryKey(),
-  name: text(),
-  start: text(),
-  prefix: text(),
-  key: text().notNull(),
-  userId: text().notNull(),
-  referenceId: text(),
-  refillInterval: integer(),
-  refillAmount: integer(),
-  lastRefillAt: timestamp({ withTimezone: true }),
-  enabled: boolean().default(true),
-  rateLimitEnabled: boolean().default(true),
-  rateLimitTimeWindow: integer().default(86400000),
-  rateLimitMax: integer().default(10),
-  requestCount: integer().default(0),
-  remaining: integer(),
-  lastRequest: timestamp({ withTimezone: true }),
-  expiresAt: timestamp({ withTimezone: true }),
-  createdAt: timestamp({ withTimezone: true }).notNull(),
-  updatedAt: timestamp({ withTimezone: true }).notNull(),
-  permissions: text(),
-  metadata: text(),
-});
+// Convention: tables with composite identity (`${userId}:${formId}`,
+// `${orgId}:${YYYY-MM-DD}`) use string-concatenated PKs in the `id` column.
+// Used by formFavorites, userWorkspaceOrder, formNotificationPreferences,
+// formSubmissionNotifications, aiGenerationCounts. Working compromise with
+// TanStack DB collection ergonomics; revisit if collection ergonomics change.
+//
+// Convention: `createdByUserId` / `publishedByUserId` are audit-trail FKs to
+// `user.id` with ON DELETE SET NULL — domain rows are owned by their org or
+// parent, not the user, so user deletion anonymises the audit field.
+
+// Single source of truth for the small enum-like status sets, used to derive
+// both DB-level CHECK constraints and TS unions. Keep the literal tuples in
+// sync with any consumer that needs the same set (forms.ts, custom-domains.ts).
+export const FORM_STATUSES = ["draft", "published", "archived"] as const;
+export const CUSTOM_DOMAIN_STATUSES = ["pending", "verified", "failed", "suspended"] as const;
+export const DEVICE_TYPES = ["desktop", "mobile", "tablet"] as const;
+
+const sqlInList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(", "));
 
 export const workspaces = pgTable(
   "workspaces",
   {
     id: text().primaryKey(),
-    organizationId: text().notNull(),
-    createdByUserId: text().notNull(),
+    organizationId: text()
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    createdByUserId: text().references(() => user.id, { onDelete: "set null" }),
     name: text().notNull().default("Workspace"),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -158,17 +156,25 @@ export const forms = pgTable(
   "forms",
   {
     id: text().primaryKey(), // UUID generated client-side
-    createdByUserId: text().notNull(),
-    workspaceId: text().notNull(),
+    createdByUserId: text().references(() => user.id, { onDelete: "set null" }),
+    workspaceId: text()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
     title: text().notNull().default("Untitled"),
+    // formName / schemaName are runtime identifiers passed to TanStack Form
+    // (they become DOM `id` and Zod schema export names). They are NOT the
+    // user-facing title — that's `title`. Both default to placeholder values
+    // for newly-created forms; document use sites in src/components/form-components/.
     formName: text().notNull().default("draft"),
     schemaName: text().notNull().default("draftFormSchema"),
     content: jsonb().notNull().default([]),
     icon: text(),
     cover: text(),
-    status: text().notNull().default("draft"), // 'draft' | 'published' | 'archived'
+    status: text().notNull().default("draft"),
     // Version history fields
-    lastPublishedVersionId: text(), // FK to formVersions.id
+    lastPublishedVersionId: text().references((): AnyPgColumn => formVersions.id, {
+      onDelete: "set null",
+    }),
     publishedContentHash: text(), // Hash for fast change detection
     // Behavioral settings draft (working buffer). The live published settings
     // live in `formSettings` keyed by formId. Both share the `FormSettings`
@@ -176,7 +182,9 @@ export const forms = pgTable(
     draftSettings: jsonb().$type<FormSettings>().notNull().default(defaultFormSettings),
     customization: jsonb().default({}),
     slug: text(),
-    customDomainId: text(),
+    customDomainId: text().references((): AnyPgColumn => customDomains.id, {
+      onDelete: "set null",
+    }),
     sortIndex: text(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -185,8 +193,11 @@ export const forms = pgTable(
     index("idx_forms_workspace_id").on(t.workspaceId),
     index("idx_forms_workspace_id_status").on(t.workspaceId, t.status),
     index("idx_forms_id_created_by").on(t.id, t.createdByUserId),
-    index("idx_forms_slug_custom_domain").on(t.slug, t.customDomainId),
+    uniqueIndex("uniq_forms_slug_custom_domain")
+      .on(t.slug, t.customDomainId)
+      .where(sql`${t.slug} IS NOT NULL`),
     index("idx_forms_workspace_id_sort_index").on(t.workspaceId, t.sortIndex),
+    check("forms_status_check", sql`${t.status} IN (${sqlInList(FORM_STATUSES)})`),
   ],
 );
 
@@ -194,7 +205,9 @@ export const customDomains = pgTable(
   "custom_domains",
   {
     id: text().primaryKey(),
-    organizationId: text().notNull(),
+    organizationId: text()
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
     domain: text().notNull().unique(),
     status: text().notNull().default("pending"),
     // Captures `status` when an org is downgraded so re-upgrade can restore
@@ -210,6 +223,14 @@ export const customDomains = pgTable(
   (t) => [
     index("custom_domains_org_idx").on(t.organizationId),
     index("custom_domains_domain_idx").on(t.domain),
+    check(
+      "custom_domains_status_check",
+      sql`${t.status} IN (${sqlInList(CUSTOM_DOMAIN_STATUSES)})`,
+    ),
+    check(
+      "custom_domains_previous_status_check",
+      sql`${t.previousStatus} IS NULL OR ${t.previousStatus} IN (${sqlInList(CUSTOM_DOMAIN_STATUSES)})`,
+    ),
   ],
 );
 
@@ -217,7 +238,9 @@ export const formVersions = pgTable(
   "form_versions",
   {
     id: text().primaryKey(),
-    formId: text().notNull(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
     version: integer().notNull(), // v1, v2, v3...
     content: jsonb().notNull(), // Plate.js JSON snapshot
     // Legacy: pre-split versions snapshot the 23 versioned-settings keys here.
@@ -227,7 +250,7 @@ export const formVersions = pgTable(
     title: text().notNull(),
     icon: text(), // Visual asset snapshot
     cover: text(), // Visual asset snapshot
-    publishedByUserId: text().notNull(),
+    publishedByUserId: text().references(() => user.id, { onDelete: "set null" }),
     publishedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -244,7 +267,9 @@ export const formVersions = pgTable(
  * toggles, not snapshot-able content. See docs/plans/2026-05-04-settings-version-split.md.
  */
 export const formSettings = pgTable("form_settings", {
-  formId: text().primaryKey(),
+  formId: text()
+    .primaryKey()
+    .references(() => forms.id, { onDelete: "cascade" }),
   settings: jsonb().$type<FormSettings>().notNull().default(defaultFormSettings),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
@@ -253,8 +278,10 @@ export const submissions = pgTable(
   "submissions",
   {
     id: text().primaryKey(),
-    formId: text().notNull(),
-    formVersionId: text(), // Links to the form version this submission was created against
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    formVersionId: text().references(() => formVersions.id, { onDelete: "set null" }),
     data: jsonb().notNull().default({}),
     isCompleted: boolean().notNull().default(true),
     // Client-generated UUID (localStorage) that links debounced draft saves to a
@@ -269,6 +296,7 @@ export const submissions = pgTable(
   (t) => [
     index("idx_submissions_form_id").on(t.formId),
     index("idx_submissions_form_id_created_at_id").on(t.formId, t.createdAt, t.id),
+    index("idx_submissions_form_version_id").on(t.formVersionId),
     uniqueIndex("uniq_submissions_form_id_draft_id")
       .on(t.formId, t.draftId)
       .where(sql`${t.draftId} IS NOT NULL`),
@@ -279,7 +307,9 @@ export const formFavorites = pgTable(
   "form_favorites",
   {
     id: text().primaryKey(), // Format: ${userId}:${formId}
-    userId: text().notNull(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     formId: text()
       .notNull()
       .references(() => forms.id, { onDelete: "cascade" }),
@@ -297,8 +327,12 @@ export const userWorkspaceOrder = pgTable(
   "user_workspace_order",
   {
     id: text().primaryKey(), // Format: ${userId}:${workspaceId}
-    userId: text().notNull(),
-    workspaceId: text().notNull(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    workspaceId: text()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
     sortIndex: text().notNull(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -310,7 +344,9 @@ export const formNotificationPreferences = pgTable(
   "form_notification_preferences",
   {
     id: text().primaryKey(), // Format: ${userId}:${formId}
-    userId: text().notNull(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     formId: text()
       .notNull()
       .references(() => forms.id, { onDelete: "cascade" }),
@@ -328,7 +364,9 @@ export const formSubmissionNotifications = pgTable(
   "form_submission_notifications",
   {
     id: text().primaryKey(), // Format: ${userId}:${formId}
-    userId: text().notNull(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     formId: text()
       .notNull()
       .references(() => forms.id, { onDelete: "cascade" }),
@@ -351,7 +389,9 @@ export const formVisits = pgTable(
   "form_visits",
   {
     id: text().primaryKey(),
-    formId: text().notNull(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
 
     // Anonymous tracking
     visitorHash: text().notNull(),
@@ -364,15 +404,15 @@ export const formVisits = pgTable(
     utmCampaign: text(),
 
     // Device metadata
-    deviceType: text(), // 'desktop' | 'tablet' | 'mobile'
+    deviceType: text(),
     browser: text(),
     browserVersion: text(),
     os: text(),
     osVersion: text(),
 
-    // Geolocation (country-level, privacy-friendly)
+    // Geolocation: ISO-3166 country code + city/region. Country display names
+    // are resolved at the application layer (i18n-aware) — no countryName column.
     country: text(),
-    countryName: text(),
     city: text(),
     region: text(),
 
@@ -384,37 +424,58 @@ export const formVisits = pgTable(
     // Interaction tracking
     didStartForm: boolean().notNull().default(false),
     didSubmit: boolean().notNull().default(false),
-    submissionId: text(),
+    submissionId: text().references(() => submissions.id, { onDelete: "set null" }),
 
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("idx_form_visits_form_id").on(t.formId)],
+  (t) => [
+    index("idx_form_visits_form_id").on(t.formId),
+    index("idx_form_visits_visitor_hash").on(t.visitorHash),
+    index("idx_form_visits_form_id_visit_started_at").on(t.formId, t.visitStartedAt),
+    check(
+      "form_visits_device_type_check",
+      sql`${t.deviceType} IS NULL OR ${t.deviceType} IN (${sqlInList(DEVICE_TYPES)})`,
+    ),
+  ],
 );
 
-export const formQuestionProgress = pgTable("form_question_progress", {
-  id: text().primaryKey(),
-  formId: text().notNull(),
-  visitId: text().notNull(),
-  visitorHash: text().notNull(),
+export const formQuestionProgress = pgTable(
+  "form_question_progress",
+  {
+    id: text().primaryKey(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    visitId: text()
+      .notNull()
+      .references(() => formVisits.id, { onDelete: "cascade" }),
+    visitorHash: text().notNull(),
 
-  questionId: text().notNull(),
-  questionType: text(),
-  questionIndex: integer().notNull(),
+    questionId: text().notNull(),
+    questionType: text(),
+    questionIndex: integer().notNull(),
 
-  viewedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  startedAt: timestamp({ withTimezone: true }),
-  completedAt: timestamp({ withTimezone: true }),
-  wasLastQuestion: boolean().notNull().default(false),
+    viewedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp({ withTimezone: true }),
+    completedAt: timestamp({ withTimezone: true }),
+    wasLastQuestion: boolean().notNull().default(false),
 
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_form_question_progress_form_id").on(t.formId),
+    index("idx_form_question_progress_visit_id").on(t.visitId),
+  ],
+);
 
 export const formAnalyticsDaily = pgTable(
   "form_analytics_daily",
   {
     id: text().primaryKey(),
-    formId: text().notNull(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
     date: text().notNull(), // 'YYYY-MM-DD'
 
     // Core metrics
@@ -425,42 +486,36 @@ export const formAnalyticsDaily = pgTable(
     avgDurationMs: integer(),
     medianDurationMs: integer(),
 
-    // Device breakdown
-    deviceDesktop: integer().default(0),
-    deviceMobile: integer().default(0),
-    deviceTablet: integer().default(0),
-
-    // Browser breakdown
-    browserChrome: integer().default(0),
-    browserFirefox: integer().default(0),
-    browserSafari: integer().default(0),
-    browserEdge: integer().default(0),
-    browserOther: integer().default(0),
-
-    // OS breakdown
-    osWindows: integer().default(0),
-    osMacos: integer().default(0),
-    osIos: integer().default(0),
-    osAndroid: integer().default(0),
-    osLinux: integer().default(0),
-    osOther: integer().default(0),
-
-    // Flexible breakdowns (JSONB for many values)
-    countryBreakdown: jsonb().notNull().default({}),
-    cityBreakdown: jsonb().notNull().default({}),
-    sourceBreakdown: jsonb().notNull().default({}),
+    // Breakdowns: counts keyed by dimension value, e.g.
+    //   deviceBreakdown:  { desktop: 12, mobile: 4, tablet: 1 }
+    //   browserBreakdown: { Chrome: 9, Safari: 3, Firefox: 2, Other: 3 }
+    //   osBreakdown:      { Windows: 6, macOS: 5, iOS: 2, Android: 4, Other: 0 }
+    deviceBreakdown: jsonb("device_breakdown")
+      .$type<Record<string, number>>()
+      .notNull()
+      .default({}),
+    browserBreakdown: jsonb("browser_breakdown")
+      .$type<Record<string, number>>()
+      .notNull()
+      .default({}),
+    osBreakdown: jsonb("os_breakdown").$type<Record<string, number>>().notNull().default({}),
+    countryBreakdown: jsonb().$type<Record<string, number>>().notNull().default({}),
+    cityBreakdown: jsonb().$type<Record<string, number>>().notNull().default({}),
+    sourceBreakdown: jsonb().$type<Record<string, number>>().notNull().default({}),
 
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("idx_form_analytics_daily_form_id_date").on(t.formId, t.date)],
+  (t) => [uniqueIndex("uniq_form_analytics_daily_form_id_date").on(t.formId, t.date)],
 );
 
 export const formDropoffDaily = pgTable(
   "form_dropoff_daily",
   {
     id: text().primaryKey(),
-    formId: text().notNull(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
     date: text().notNull(), // 'YYYY-MM-DD'
     questionId: text().notNull(),
     questionIndex: integer().notNull(),
@@ -486,7 +541,6 @@ export const relations = defineRelations(
     verification,
     todos,
     twoFactor,
-    apikey,
     organization,
     member,
     invitation,
@@ -518,10 +572,6 @@ export const relations = defineRelations(
       twoFactors: r.many.twoFactor({
         from: r.user.id,
         to: r.twoFactor.userId,
-      }),
-      apikeys: r.many.apikey({
-        from: r.user.id,
-        to: r.apikey.userId,
       }),
       // Workspaces and forms are owned by organization; this just tracks creator.
       createdWorkspaces: r.many.workspaces({
@@ -572,12 +622,6 @@ export const relations = defineRelations(
     twoFactor: {
       user: r.one.user({
         from: r.twoFactor.userId,
-        to: r.user.id,
-      }),
-    },
-    apikey: {
-      user: r.one.user({
-        from: r.apikey.userId,
         to: r.user.id,
       }),
     },

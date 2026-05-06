@@ -1,3 +1,4 @@
+import { bumpKey } from "@/lib/analytics/aggregate-utils";
 import type { formAnalyticsDaily, formVisits } from "@/db/schema";
 import type { CountBreakdown, FormInsightsMetrics } from "@/types/analytics";
 
@@ -16,19 +17,13 @@ interface MergeArgs {
 const KNOWN_BROWSERS = new Set(["Chrome", "Firefox", "Safari", "Edge"]);
 const KNOWN_OS = new Set(["Windows", "macOS", "iOS", "Android", "Linux"]);
 
-const addBreakdowns = (a: CountBreakdown, b: CountBreakdown): CountBreakdown => {
-  const result: CountBreakdown = { ...a };
-  for (const [key, value] of Object.entries(b)) {
-    result[key] = (result[key] ?? 0) + value;
+// Mutates `target` in place to avoid O(N × distinct-values) spread-clones in
+// the per-row aggregation loop. Returns `target` for assignment ergonomics.
+const addBreakdowns = (target: CountBreakdown, source: CountBreakdown): CountBreakdown => {
+  for (const [key, value] of Object.entries(source)) {
+    target[key] = (target[key] ?? 0) + value;
   }
-  return result;
-};
-
-const incrementBreakdown = (target: CountBreakdown, key: string | null | undefined): void => {
-  if (!key) {
-    return;
-  }
-  target[key] = (target[key] ?? 0) + 1;
+  return target;
 };
 
 const bucketBrowser = (name: string | null | undefined): string => {
@@ -90,51 +85,12 @@ const aggregateDailyRows = (rows: DailyRow[]): DailyAggregate => {
       agg.durationVisitsWeight += row.totalVisits;
     }
 
-    if (row.deviceDesktop) {
-      agg.devices.desktop = (agg.devices.desktop ?? 0) + row.deviceDesktop;
-    }
-    if (row.deviceMobile) {
-      agg.devices.mobile = (agg.devices.mobile ?? 0) + row.deviceMobile;
-    }
-    if (row.deviceTablet) {
-      agg.devices.tablet = (agg.devices.tablet ?? 0) + row.deviceTablet;
-    }
-
-    if (row.browserChrome) {
-      agg.browsers.Chrome = (agg.browsers.Chrome ?? 0) + row.browserChrome;
-    }
-    if (row.browserFirefox) {
-      agg.browsers.Firefox = (agg.browsers.Firefox ?? 0) + row.browserFirefox;
-    }
-    if (row.browserSafari) {
-      agg.browsers.Safari = (agg.browsers.Safari ?? 0) + row.browserSafari;
-    }
-    if (row.browserEdge) {
-      agg.browsers.Edge = (agg.browsers.Edge ?? 0) + row.browserEdge;
-    }
-    if (row.browserOther) {
-      agg.browsers.Other = (agg.browsers.Other ?? 0) + row.browserOther;
-    }
-
-    if (row.osWindows) {
-      agg.operatingSystems.Windows = (agg.operatingSystems.Windows ?? 0) + row.osWindows;
-    }
-    if (row.osMacos) {
-      agg.operatingSystems.macOS = (agg.operatingSystems.macOS ?? 0) + row.osMacos;
-    }
-    if (row.osIos) {
-      agg.operatingSystems.iOS = (agg.operatingSystems.iOS ?? 0) + row.osIos;
-    }
-    if (row.osAndroid) {
-      agg.operatingSystems.Android = (agg.operatingSystems.Android ?? 0) + row.osAndroid;
-    }
-    if (row.osLinux) {
-      agg.operatingSystems.Linux = (agg.operatingSystems.Linux ?? 0) + row.osLinux;
-    }
-    if (row.osOther) {
-      agg.operatingSystems.Other = (agg.operatingSystems.Other ?? 0) + row.osOther;
-    }
-
+    agg.devices = addBreakdowns(agg.devices, (row.deviceBreakdown ?? {}) as CountBreakdown);
+    agg.browsers = addBreakdowns(agg.browsers, (row.browserBreakdown ?? {}) as CountBreakdown);
+    agg.operatingSystems = addBreakdowns(
+      agg.operatingSystems,
+      (row.osBreakdown ?? {}) as CountBreakdown,
+    );
     agg.countries = addBreakdowns(agg.countries, (row.countryBreakdown ?? {}) as CountBreakdown);
     agg.cities = addBreakdowns(agg.cities, (row.cityBreakdown ?? {}) as CountBreakdown);
     agg.sources = addBreakdowns(agg.sources, (row.sourceBreakdown ?? {}) as CountBreakdown);
@@ -173,12 +129,12 @@ const aggregateRawRows = (rows: RawVisitRow[]): RawAggregate => {
       durationCount += 1;
     }
 
-    incrementBreakdown(devices, row.deviceType);
-    incrementBreakdown(countries, row.country);
-    incrementBreakdown(cities, row.city);
-    incrementBreakdown(sources, row.utmSource);
-    browsers[bucketBrowser(row.browser)] = (browsers[bucketBrowser(row.browser)] ?? 0) + 1;
-    operatingSystems[bucketOs(row.os)] = (operatingSystems[bucketOs(row.os)] ?? 0) + 1;
+    bumpKey(devices, row.deviceType);
+    bumpKey(countries, row.country);
+    bumpKey(cities, row.city);
+    bumpKey(sources, row.utmSource);
+    bumpKey(browsers, bucketBrowser(row.browser));
+    bumpKey(operatingSystems, bucketOs(row.os));
   }
 
   return {
