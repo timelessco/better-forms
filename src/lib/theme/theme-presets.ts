@@ -31,7 +31,7 @@ export const BASE_COLORS: Record<string, BaseColorTokens> = {
     accent: "#ededed",
     "accent-foreground": "#2e2e2e",
     border: "#ededed",
-    input: "#e0e0e0",
+    input: "#ffffff",
   },
   zinc: {
     background: "#ffffff",
@@ -105,7 +105,7 @@ export const DARK_BASE_COLORS: Record<string, BaseColorTokens> = {
     accent: "#363636",
     "accent-foreground": "#d1d1d1",
     border: "#363636",
-    input: "#363636",
+    input: "#1c1c1c",
   },
   zinc: {
     background: "#09090b",
