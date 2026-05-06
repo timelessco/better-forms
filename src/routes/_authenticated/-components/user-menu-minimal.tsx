@@ -43,7 +43,7 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
   useHotkey(HOTKEYS.TOGGLE_THEME, () => toggleTheme(), { ignoreInputs: true });
 
   const { data: session } = useSession();
-  const { activeOrg } = useLoaderData({ from: "/_authenticated" });
+  const activeOrg = useLoaderData({ from: "/_authenticated", select: (d) => d.activeOrg });
   const displayName = activeOrg?.name ?? session?.user?.name ?? "User";
 
   const signOutMutation = useMutation(

@@ -96,7 +96,7 @@ let _hasSynced = false;
 const DashboardPage = () => {
   const navigate = useNavigate();
   const duplicateFormFn = useDuplicateForm();
-  const { activeOrg } = useLoaderData({ from: "/_authenticated" });
+  const activeOrg = useLoaderData({ from: "/_authenticated", select: (d) => d.activeOrg });
   const [isCreating, setIsCreating] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);

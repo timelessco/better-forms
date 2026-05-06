@@ -397,8 +397,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 const AuthLayoutContent = () => {
-  const location = useLocation();
-  const { pathname } = location;
+  const pathname = useLocation({ select: (s) => s.pathname });
   const isEditRoute = pathname.includes("/form-builder/") && pathname.endsWith("/edit");
   const { visible: isHeaderVisible, reportPointerActivity } = useEditorHeaderVisibility();
 
@@ -531,7 +530,7 @@ const AppSidebar = () => {
   const { toggleSidebar } = useSidebar();
   const { isInboxOpen, toggleInbox, closeInbox } = useMinimalSidebar();
   const isMobile = useIsMobile();
-  const location = useLocation();
+  const pathname = useLocation({ select: (s) => s.pathname });
   const router = useRouter();
   const {
     toggle: togglePalette,
@@ -546,7 +545,7 @@ const AppSidebar = () => {
   const [trashDialogOpen, setTrashDialogOpen] = useState(false);
   const [paletteSearch, setPaletteSearch] = useState("");
 
-  const { activeOrg } = Route.useLoaderData();
+  const activeOrg = Route.useLoaderData({ select: (d) => d.activeOrg });
   const { data: workspacesData } = useOrgWorkspaces(activeOrg?.id);
   const { data: formsData } = useOrgForms(activeOrg?.id);
   const { unreadSubmissionCount } = useSubmissionNotifications({ poll: true });
@@ -616,7 +615,7 @@ const AppSidebar = () => {
                         prefix={<HomeIcon className="size-[18px] text-muted-foreground" />}
                         label="All"
                         linkOptions={{ to: "/dashboard" }}
-                        isActive={location.pathname === "/dashboard"}
+                        isActive={pathname === "/dashboard"}
                       />
                     </SidebarMenuItem>
                     <SidebarMenuItem>
@@ -687,7 +686,7 @@ const AppSidebar = () => {
                     if (activeOrg && workspacesData) {
                       const orgWorkspaces = workspacesData;
                       if (orgWorkspaces.length > 0) {
-                        const workspaceMatch = location.pathname.match(/\/workspace\/([^/]+)/);
+                        const workspaceMatch = pathname.match(/\/workspace\/([^/]+)/);
                         const currentWorkspaceId = workspaceMatch?.[1];
                         const targetWorkspace = currentWorkspaceId
                           ? orgWorkspaces.find((ws) => ws.id === currentWorkspaceId) ||
@@ -1500,7 +1499,7 @@ const SidebarInbox = () => {
 
 const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => {
   const router = useRouter();
-  const location = useLocation();
+  const pathname = useLocation({ select: (s) => s.pathname });
   const duplicateForm = useDuplicateForm();
   const { data: session } = useSession();
 
@@ -1553,9 +1552,9 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
   // Pull the active form id once at the parent so each form row can read a
   // primitive `isActive` prop instead of subscribing to `useLocation`.
   const activeFormId = useMemo(() => {
-    const match = location.pathname.match(/\/form-builder\/([^/]+)/);
+    const match = pathname.match(/\/form-builder\/([^/]+)/);
     return match?.[1];
-  }, [location.pathname]);
+  }, [pathname]);
 
   const isLoading = workspacesLoading || formsLoading;
   const isDataReady = !isLoading && workspacesData !== undefined && formsData !== undefined;
@@ -1870,7 +1869,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
       await updateFormStatus(formToDelete.id, "archived");
       toast.success("Form deleted");
       // Navigate to dashboard if user is on the deleted form's page
-      if (location.pathname.includes(`/form-builder/${formToDelete.id}`)) {
+      if (pathname.includes(`/form-builder/${formToDelete.id}`)) {
         void router.navigate({ to: "/dashboard" });
       }
       setFormDeleteDialogOpen(false);
@@ -1881,7 +1880,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
     } finally {
       setIsDeletingForm(false);
     }
-  }, [formToDelete, location.pathname, router, isDeletingForm]);
+  }, [formToDelete, pathname, router, isDeletingForm]);
 
   return (
     <>
@@ -2144,7 +2143,7 @@ const SortableFavoriteItem = ({
   form: FavoriteFormItem & { sortIndex: string | null };
   userId: string;
 }) => {
-  const location = useLocation();
+  const pathname = useLocation({ select: (s) => s.pathname });
   const [renameOpen, setRenameOpen] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: form.favoriteId,
@@ -2157,9 +2156,7 @@ const SortableFavoriteItem = ({
     opacity: isDragging ? 0.4 : 1,
   };
 
-  const isFavActive = location.pathname.startsWith(
-    `/workspace/${form.workspaceId}/form-builder/${form.id}`,
-  );
+  const isFavActive = pathname.startsWith(`/workspace/${form.workspaceId}/form-builder/${form.id}`);
 
   const handleUnfavorite = useCallback(() => {
     toggleFavoriteLocal(userId, form.id).catch(() => toast.error("Failed to unfavorite"));

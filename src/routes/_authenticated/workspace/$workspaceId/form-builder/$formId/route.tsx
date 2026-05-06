@@ -8,7 +8,7 @@ import type { FormStatus } from "@/lib/server-fn/forms";
 import { createFileRoute, isRedirect, Outlet, redirect, useLocation } from "@tanstack/react-router";
 
 const FormLayout = () => {
-  const { pathname } = useLocation();
+  const pathname = useLocation({ select: (s) => s.pathname });
   // Extract formId from pathname to ensure it's always current
   const formIdFromPath = pathname.split("/form-builder/")[1]?.split("/")[0] || "";
   const params = Route.useParams();

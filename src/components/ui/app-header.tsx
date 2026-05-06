@@ -55,7 +55,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     toggleSidebar: () => {},
     isMobile: false,
   };
-  const { pathname } = useLocation();
+  const pathname = useLocation({ select: (s) => s.pathname });
   const isDashboard = pathname === "/dashboard";
   const isLandingPage = pathname === "/";
   const isFormBuilder = pathname.startsWith("/form-builder") || pathname.includes("/form-builder/");

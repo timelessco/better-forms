@@ -73,7 +73,7 @@ export const SidebarProvider = ({
 
   // Auto-close the mobile drawer on navigation so tapping a nav item leaves a
   // clean screen instead of the drawer overlaying the destination route.
-  const { pathname } = useLocation();
+  const pathname = useLocation({ select: (s) => s.pathname });
   const [lastPathname, setLastPathname] = useState(pathname);
   if (lastPathname !== pathname) {
     setLastPathname(pathname);
