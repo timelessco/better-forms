@@ -83,7 +83,7 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SidebarSection } from "@/components/ui/sidebar-section";
+import { SidebarSection, SidebarSectionResetProvider } from "@/components/ui/sidebar-section";
 import { UserMenuMinimal } from "./_authenticated/-components/user-menu-minimal";
 import type { WorkspaceWithForms } from "./_authenticated/-components/workspace-item-minimal";
 import { WorkspaceItemMinimal } from "./_authenticated/-components/workspace-item-minimal";
@@ -183,7 +183,7 @@ import { generateOrderedIndexes, sortByManualOrder } from "@/lib/sort-utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDistanceToNow } from "date-fns";
 import type * as React from "react";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Activity, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
 import { toast } from "sonner";
 
@@ -214,12 +214,22 @@ const LazyCustomizeSidebar = lazy(() =>
 );
 
 /**
- * Conditionally mounts the active right sidebar. Each sidebar gets a fresh
- * React tree on every open — accordion sections, scroll position, and form
- * state all reset to defaults. We previously kept trees mounted via
- * <Activity> for state preservation, but that caused collapsed accordion
- * sections to persist across reopens, which surprised users more than the
- * preserved-state benefit helped.
+ * Keeps each sidebar's React tree alive across activeSidebar toggles via
+ * <Activity>, so switching settings ↔ share ↔ customize doesn't remount the
+ * TanStack Form, lose scroll position, or reset transient field-level state.
+ *
+ * Per-sidebar epoch counters increment on every hidden→visible transition
+ * and feed `SidebarSectionResetProvider`. Each `<SidebarSection>` consumes
+ * that epoch as a `key` on its inner Accordion only — so reopening a sidebar
+ * resets the expanded/collapsed state of all sections back to `initialOpen`
+ * while everything above the Accordion (form provider, scroll container)
+ * stays mounted. Best of both: cheap reopen, predictable expanded state.
+ *
+ * `key={formId}` on the inner sidebar ensures a hard remount when the user
+ * navigates between forms, since per-sidebar form state is form-specific.
+ *
+ * `history` is excluded from the persistence path — it's a one-shot
+ * view/restore action and rarely toggled.
  */
 const PersistentSidebars = ({
   activeSidebar,
@@ -228,13 +238,61 @@ const PersistentSidebars = ({
   activeSidebar: ReturnType<typeof useEditorSidebar>["activeSidebar"];
   formId: string | undefined;
 }) => {
-  if (!formId) return null;
+  const showSettings = activeSidebar === "settings";
+  const showShare = activeSidebar === "share";
+  const showCustomize = activeSidebar === "customize";
+
+  const [openedSettings, setOpenedSettings] = useState(showSettings);
+  const [openedShare, setOpenedShare] = useState(showShare);
+  const [openedCustomize, setOpenedCustomize] = useState(showCustomize);
+
+  if (showSettings && !openedSettings) setOpenedSettings(true);
+  if (showShare && !openedShare) setOpenedShare(true);
+  if (showCustomize && !openedCustomize) setOpenedCustomize(true);
+
+  const [settingsEpoch, setSettingsEpoch] = useState(0);
+  const [shareEpoch, setShareEpoch] = useState(0);
+  const [customizeEpoch, setCustomizeEpoch] = useState(0);
+  const wasShowingSettings = useRef(showSettings);
+  const wasShowingShare = useRef(showShare);
+  const wasShowingCustomize = useRef(showCustomize);
+  useEffect(() => {
+    if (showSettings && !wasShowingSettings.current) setSettingsEpoch((e) => e + 1);
+    wasShowingSettings.current = showSettings;
+  }, [showSettings]);
+  useEffect(() => {
+    if (showShare && !wasShowingShare.current) setShareEpoch((e) => e + 1);
+    wasShowingShare.current = showShare;
+  }, [showShare]);
+  useEffect(() => {
+    if (showCustomize && !wasShowingCustomize.current) setCustomizeEpoch((e) => e + 1);
+    wasShowingCustomize.current = showCustomize;
+  }, [showCustomize]);
+
   return (
     <>
-      {activeSidebar === "settings" && <LazyFormSettingsSidebar key={formId} formId={formId} />}
-      {activeSidebar === "share" && <LazyShareSummarySidebar key={formId} formId={formId} />}
-      {activeSidebar === "history" && <LazyVersionHistorySidebar formId={formId} />}
-      {activeSidebar === "customize" && <LazyCustomizeSidebar key={formId} formId={formId} />}
+      {openedSettings && (
+        <SidebarSectionResetProvider value={settingsEpoch}>
+          <Activity mode={showSettings ? "visible" : "hidden"}>
+            {formId && <LazyFormSettingsSidebar key={formId} formId={formId} />}
+          </Activity>
+        </SidebarSectionResetProvider>
+      )}
+      {openedShare && (
+        <SidebarSectionResetProvider value={shareEpoch}>
+          <Activity mode={showShare ? "visible" : "hidden"}>
+            {formId && <LazyShareSummarySidebar key={formId} formId={formId} />}
+          </Activity>
+        </SidebarSectionResetProvider>
+      )}
+      {activeSidebar === "history" && formId && <LazyVersionHistorySidebar formId={formId} />}
+      {openedCustomize && (
+        <SidebarSectionResetProvider value={customizeEpoch}>
+          <Activity mode={showCustomize ? "visible" : "hidden"}>
+            {formId && <LazyCustomizeSidebar key={formId} formId={formId} />}
+          </Activity>
+        </SidebarSectionResetProvider>
+      )}
     </>
   );
 };
@@ -298,7 +356,7 @@ const initCollectionsOnClient = createClientOnlyFn((queryClient: QueryClient) =>
 const AuthLayout = () => {
   const queryClient = useQueryClient();
   initCollectionsOnClient(queryClient);
-  const { pathname } = useLocation();
+  const pathname = useLocation({ select: (s) => s.pathname });
   const isEditRoute = pathname.includes("/form-builder/") && pathname.endsWith("/edit");
 
   return (
