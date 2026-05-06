@@ -24,6 +24,7 @@ import { Route as ApiCronPurgeArchivedFormsRouteImport } from './routes/api/cron
 import { Route as ApiCronAggregateAnalyticsRouteImport } from './routes/api/cron/aggregate-analytics'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiAiFormGenerateRouteImport } from './routes/api/ai/form-generate'
+import { Route as ApiAiChatFormRouteImport } from './routes/api/ai/chat-form'
 import { Route as AuthenticatedWorkspaceWorkspaceIdRouteRouteImport } from './routes/_authenticated/workspace/$workspaceId/route'
 import { Route as ApiOgFormIdHashRouteImport } from './routes/api/og/$formId/$hash'
 import { Route as ApiFormsFormIdMetaRouteImport } from './routes/api/forms/$formId/meta'
@@ -109,6 +110,11 @@ const ApiAiFormGenerateRoute = ApiAiFormGenerateRouteImport.update({
   path: '/api/ai/form-generate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAiChatFormRoute = ApiAiChatFormRouteImport.update({
+  id: '/api/ai/chat-form',
+  path: '/api/ai/chat-form',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedWorkspaceWorkspaceIdRouteRoute =
   AuthenticatedWorkspaceWorkspaceIdRouteRouteImport.update({
     id: '/workspace/$workspaceId',
@@ -172,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/login/email': typeof LoginEmailRoute
   '/login/': typeof LoginIndexRoute
   '/workspace/$workspaceId': typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
+  '/api/ai/chat-form': typeof ApiAiChatFormRoute
   '/api/ai/form-generate': typeof ApiAiFormGenerateRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
@@ -196,6 +203,7 @@ export interface FileRoutesByTo {
   '/login/email': typeof LoginEmailRoute
   '/login': typeof LoginIndexRoute
   '/workspace/$workspaceId': typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
+  '/api/ai/chat-form': typeof ApiAiChatFormRoute
   '/api/ai/form-generate': typeof ApiAiFormGenerateRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/login/email': typeof LoginEmailRoute
   '/login/': typeof LoginIndexRoute
   '/_authenticated/workspace/$workspaceId': typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
+  '/api/ai/chat-form': typeof ApiAiChatFormRoute
   '/api/ai/form-generate': typeof ApiAiFormGenerateRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
@@ -248,6 +257,7 @@ export interface FileRouteTypes {
     | '/login/email'
     | '/login/'
     | '/workspace/$workspaceId'
+    | '/api/ai/chat-form'
     | '/api/ai/form-generate'
     | '/api/auth/$'
     | '/api/cron/aggregate-analytics'
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/login/email'
     | '/login'
     | '/workspace/$workspaceId'
+    | '/api/ai/chat-form'
     | '/api/ai/form-generate'
     | '/api/auth/$'
     | '/api/cron/aggregate-analytics'
@@ -297,6 +308,7 @@ export interface FileRouteTypes {
     | '/login/email'
     | '/login/'
     | '/_authenticated/workspace/$workspaceId'
+    | '/api/ai/chat-form'
     | '/api/ai/form-generate'
     | '/api/auth/$'
     | '/api/cron/aggregate-analytics'
@@ -321,6 +333,7 @@ export interface RootRouteChildren {
   FormsFormIdRoute: typeof FormsFormIdRoute
   LoginEmailRoute: typeof LoginEmailRoute
   LoginIndexRoute: typeof LoginIndexRoute
+  ApiAiChatFormRoute: typeof ApiAiChatFormRoute
   ApiAiFormGenerateRoute: typeof ApiAiFormGenerateRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCronAggregateAnalyticsRoute: typeof ApiCronAggregateAnalyticsRoute
@@ -436,6 +449,13 @@ declare module '@tanstack/react-router' {
       path: '/api/ai/form-generate'
       fullPath: '/api/ai/form-generate'
       preLoaderRoute: typeof ApiAiFormGenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/chat-form': {
+      id: '/api/ai/chat-form'
+      path: '/api/ai/chat-form'
+      fullPath: '/api/ai/chat-form'
+      preLoaderRoute: typeof ApiAiChatFormRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/workspace/$workspaceId': {
@@ -560,6 +580,7 @@ const rootRouteChildren: RootRouteChildren = {
   FormsFormIdRoute: FormsFormIdRoute,
   LoginEmailRoute: LoginEmailRoute,
   LoginIndexRoute: LoginIndexRoute,
+  ApiAiChatFormRoute: ApiAiChatFormRoute,
   ApiAiFormGenerateRoute: ApiAiFormGenerateRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCronAggregateAnalyticsRoute: ApiCronAggregateAnalyticsRoute,

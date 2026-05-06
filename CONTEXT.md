@@ -100,11 +100,15 @@ The Polar billing object backing a paid Plan. Has its own product IDs and lifecy
 Verbs for transitioning between Plans. Driven by Polar Subscription events; webhook handlers (`src/lib/auth/polar-handlers.server.ts`) update `organization.plan`.
 
 **Plan-gated feature**:
-A feature available only on a specific Plan (or any Paid Plan). Defined in `src/lib/config/plan-gates.ts` as a `FeatureGate` literal mapped to its minimum Plan in `PLAN_GATES`. Gate sites call `planUnlocks(plan, feature)` rather than comparing plan strings directly. Current gates: `analytics`, `customDomains`, `respondentEmailNotifications`, `dataRetention`, `disableBranding`, `customization`.
+A feature available only on a specific Plan (or any Paid Plan). Defined in `src/lib/config/plan-gates.ts` as a `FeatureGate` literal mapped to its minimum Plan in `PLAN_GATES`. Gate sites call `planUnlocks(plan, feature)` rather than comparing plan strings directly. Current gates: `analytics`, `customDomains`, `respondentEmailNotifications`, `dataRetention`, `disableBranding`, `customization`, `aiChatPresentation`.
 
 **Submission**:
 A row in the `submissions` table representing one respondent's session of answers for a **Form**. Always called a Submission regardless of state.
 _Avoid_: Response, Entry, Result
+
+**Chat Session**:
+One **Respondent's** filling of a Form in AI Chat **Presentation Mode**, scoped 1:1 to a single **Incomplete Submission**. Counted once per Org-Month on the first AI call against that Submission; not re-counted on resume. The unit of metering for AI Chat Plan-tier caps.
+_Avoid_: Conversation, Chat, AI session
 
 **Incomplete** (Submission state):
 A **Submission** with `isCompleted = false`. Created by autosave; keyed by client-generated `draftId` and upserted on `(formId, draftId)`. Use as an adjective ("incomplete submission"), not a standalone noun. Pairs with **Completed**.

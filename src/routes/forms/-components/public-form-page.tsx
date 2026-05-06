@@ -11,6 +11,11 @@ const FormPreviewFromPlate = lazy(() =>
     default: m.FormPreviewFromPlate,
   })),
 );
+const AiChatForm = lazy(() =>
+  import("@/components/form-components/ai-chat-form/ai-chat-form").then((m) => ({
+    default: m.AiChatForm,
+  })),
+);
 import { FormPreviewRSC } from "@/components/form-components/form-preview-rsc";
 import type { StepRSC } from "@/components/form-components/form-preview-rsc";
 import { BrandingFooter } from "./branding-footer";
@@ -18,7 +23,7 @@ import { AlreadySubmitted, FormClosed } from "@/routes/forms/-components/form-cl
 import { PasswordGate } from "@/routes/forms/-components/password-gate";
 import { TranslationProvider, useTranslation } from "@/contexts/translation-context";
 import { createPublicSubmission, getPublicDraft } from "@/lib/server-fn/public-submissions";
-import { clearDraftId, readDraftId } from "@/hooks/use-draft-autosave";
+import { clearDraftId, getOrCreateDraftId, readDraftId } from "@/hooks/use-draft-autosave";
 import { usePublicFormTracking } from "@/lib/analytics/use-public-form-tracking";
 import { getTranslations } from "@/lib/translations";
 import { cn } from "@/lib/utils";
@@ -198,6 +203,7 @@ export const PublicFormPage = ({
   // Local override so the user's "Start over" / "Resume" choices stick across
   // re-renders without invalidating the query.
   const [draftOverride, setDraftOverride] = useState<DraftState | null>(null);
+  const [aiChatFallback, setAiChatFallback] = useState(false);
 
   const computedDraftState: DraftState = useMemo(() => {
     if (!draftId) return { status: "dismissed" };
@@ -255,7 +261,11 @@ export const PublicFormPage = ({
   // For field-by-field popups, suppress iframe-level scrollbars — the single
   // visible field is centered within the available height, so no scroll is
   // needed and the macOS overlay scrollbar would otherwise appear.
-  const isFieldByFieldPopup = isPopup && form?.settings?.presentationMode === "field-by-field";
+  const isSingleScreenPopup =
+    isPopup &&
+    (form?.settings?.presentationMode === "field-by-field" ||
+      form?.settings?.presentationMode === "ai-chat");
+  const isFieldByFieldPopup = isSingleScreenPopup;
   useEffect(() => {
     if (!isFieldByFieldPopup) return;
     const originalHtmlOverflow = document.documentElement.style.overflow;
@@ -403,6 +413,15 @@ export const PublicFormPage = ({
   }
 
   const settings = form.settings ?? defaultPublicFormSettings;
+  // Local in-session escape: AI Chat → field-by-field (without persisting to
+  // settings). Triggered by the "Switch to standard form" button or by
+  // session-wide AI failure trip.
+  const effectivePresentationMode =
+    settings.presentationMode === "ai-chat" && aiChatFallback
+      ? "field-by-field"
+      : settings.presentationMode;
+  const isAiChat = effectivePresentationMode === "ai-chat";
+  const submissionIdForChat = isAiChat ? getOrCreateDraftId(formId) : null;
 
   const formContent = (
     <main
@@ -410,17 +429,14 @@ export const PublicFormPage = ({
       id="bf-form-container"
       className={cn(
         "text-foreground",
-        settings.presentationMode === "field-by-field"
+        effectivePresentationMode === "field-by-field" || effectivePresentationMode === "ai-chat"
           ? "relative h-screen overflow-hidden"
           : cn("overflow-x-hidden", settings.branding ? "pb-16" : "pb-8"),
         form.customization && Object.keys(form.customization).length > 0 && "bf-themed",
         // Don't apply min-h-screen for popup or dynamic-height embeds — it
         // stretches the form to 100vh of the iframe viewport, creating a
         // second inner scrollbar on top of the host page's scroll.
-        !isPopup &&
-          !dynamicHeight &&
-          settings.presentationMode !== "field-by-field" &&
-          "min-h-screen",
+        !isPopup && !dynamicHeight && effectivePresentationMode === "card" && "min-h-screen",
         transparentBackground || isPopup ? "bg-transparent" : "bg-background",
         alignLeft && "text-left",
       )}
@@ -463,7 +479,19 @@ export const PublicFormPage = ({
           </div>
         </div>
       )}
-      {rsc && settings.presentationMode !== "field-by-field" ? (
+      {isAiChat && submissionIdForChat ? (
+        <Suspense fallback={null}>
+          <AiChatForm
+            formId={formId}
+            submissionId={submissionIdForChat}
+            content={form.content as never}
+            settings={settings}
+            onSwitchToStandard={() => setAiChatFallback(true)}
+            onSubmit={handleSubmit}
+            initialAnswers={draftState.status === "resumed" ? draftState.draft.data : undefined}
+          />
+        </Suspense>
+      ) : rsc && effectivePresentationMode !== "field-by-field" ? (
         <FormPreviewRSC
           key={previewKey}
           steps={rsc.steps}
@@ -471,7 +499,7 @@ export const PublicFormPage = ({
           stepCount={rsc.stepCount}
           header={hideTitle ? null : rsc.header}
           onSubmit={handleSubmit}
-          settings={settings}
+          settings={{ ...settings, presentationMode: effectivePresentationMode }}
           formId={formId}
           trackingBase={trackingBase}
           {...resumeProps}
@@ -486,7 +514,7 @@ export const PublicFormPage = ({
             cover={hideTitle ? undefined : (form.cover ?? undefined)}
             onSubmit={handleSubmit}
             hideTitle={hideTitle}
-            settings={settings}
+            settings={{ ...settings, presentationMode: effectivePresentationMode }}
             formId={formId}
             customization={form.customization}
             isPopup={isPopup}

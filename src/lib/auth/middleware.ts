@@ -31,7 +31,12 @@ export const authMiddleware = createMiddleware().server(async ({ next }) => {
 export const formProSettingsMiddleware = createMiddleware({ type: "function" })
   .middleware([authMiddleware])
   .server(async ({ next, data, context }) => {
-    const input = data as unknown as FormProSettingsInput;
+    // The gated keys (branding, analytics, presentationMode, …) live inside
+    // `draftSettings` on createForm/updateForm payloads, so flatten that
+    // bag in before running the gate predicate.
+    const raw = data as Record<string, unknown> | undefined;
+    const draft = (raw?.draftSettings as Record<string, unknown> | undefined) ?? {};
+    const input = { ...draft, ...raw } as unknown as FormProSettingsInput;
     const gates = formSettingsFeatureGates(input);
     if (gates.length === 0) return next();
 

@@ -63,10 +63,21 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
 
     const canDisableBranding =
       isServerPlan(form.orgPlan) && planUnlocks(form.orgPlan, "disableBranding");
+    const canUseAiChat =
+      isServerPlan(form.orgPlan) && planUnlocks(form.orgPlan, "aiChatPresentation");
     const liveBranding = form.liveSettings?.branding ?? true;
     const liveAnalytics = form.liveSettings?.analytics ?? false;
     const effectiveBranding = canDisableBranding ? liveBranding : true;
-    const settings = buildPublicFormSettings(form.liveSettings, { branding: effectiveBranding });
+    const rawSettings = buildPublicFormSettings(form.liveSettings, {
+      branding: effectiveBranding,
+    });
+    // Silent fallback: if the Form was set to AI Chat but the Org no longer
+    // unlocks the feature (e.g. Plan Downgrade), render as field-by-field.
+    // The Respondent never sees a billing/plan message.
+    const settings =
+      rawSettings.presentationMode === "ai-chat" && !canUseAiChat
+        ? { ...rawSettings, presentationMode: "field-by-field" as const }
+        : rawSettings;
 
     // --- Gating checks (based on snapshot settings — changes here require republish) ---
     // 1. Form manually closed

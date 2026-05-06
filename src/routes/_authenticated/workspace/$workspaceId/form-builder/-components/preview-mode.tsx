@@ -2,12 +2,19 @@ import { APP_NAME, SPRITE_PATH } from "@/lib/config/app-config";
 import { Link, useSearch } from "@tanstack/react-router";
 import { SparklesIcon, XIcon } from "@/components/ui/icons";
 import { iconMap } from "@/components/icon-picker/icon-data";
-import { useState, useCallback, useMemo } from "react";
+import { lazy, Suspense, useState, useCallback, useMemo } from "react";
 import type { Value } from "platejs";
 import {
   FormPreviewFromPlate,
   isHexColor,
 } from "@/components/form-components/form-preview-from-plate";
+import { transformPlateStateToFormElements } from "@/lib/editor/transform-plate-to-form";
+
+const AiChatForm = lazy(() =>
+  import("@/components/form-components/ai-chat-form/ai-chat-form").then((m) => ({
+    default: m.AiChatForm,
+  })),
+);
 import { RenderStepPreviewInputEager } from "@/components/form-components/render-step-preview-input-eager";
 import { PreviewRendererContext } from "@/components/form-components/render-step-preview-input";
 import { Button } from "@/components/ui/button";
@@ -33,7 +40,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
     doc,
     resolvedAppTheme,
   );
-  const content = (doc?.content as Value) || [];
+  const content = useMemo<Value>(() => (doc?.content as Value) || [], [doc?.content]);
   // Preview shows what the user is about to publish — read the draft.
   const docSettings = doc?.draftSettings;
   const previewSettings = useMemo<PublicFormSettings>(
@@ -43,6 +50,13 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
       }),
     [docSettings],
   );
+
+  const previewIsAiChat = previewSettings.presentationMode === "ai-chat";
+  const previewElements = useMemo(
+    () => (previewIsAiChat ? transformPlateStateToFormElements(content) : []),
+    [previewIsAiChat, content],
+  );
+  const previewSubmissionId = `preview:${formId}`;
 
   const search = useSearch({ strict: false });
   const embedType = (search.embedType as EmbedType) ?? "fullpage";
@@ -177,17 +191,31 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
                                   : undefined
                               }
                             >
-                              <FormPreviewFromPlate
-                                content={content}
-                                title={hideTitle ? "" : (doc.title ?? undefined)}
-                                icon={showEmoji ? (doc.icon ?? undefined) : undefined}
-                                cover={doc.cover ?? undefined}
-                                onSubmit={noop}
-                                hideTitle={hideTitle}
-                                customization={customization}
-                                settings={previewSettings}
-                                formId={formId}
-                              />
+                              {previewIsAiChat ? (
+                                <Suspense fallback={null}>
+                                  <AiChatForm
+                                    formId={formId}
+                                    submissionId={previewSubmissionId}
+                                    content={previewElements}
+                                    settings={previewSettings}
+                                    onSubmit={noop}
+                                    onSwitchToStandard={() => {}}
+                                    isPreview
+                                  />
+                                </Suspense>
+                              ) : (
+                                <FormPreviewFromPlate
+                                  content={content}
+                                  title={hideTitle ? "" : (doc.title ?? undefined)}
+                                  icon={showEmoji ? (doc.icon ?? undefined) : undefined}
+                                  cover={doc.cover ?? undefined}
+                                  onSubmit={noop}
+                                  hideTitle={hideTitle}
+                                  customization={customization}
+                                  settings={previewSettings}
+                                  formId={formId}
+                                />
+                              )}
                             </div>
                           </div>
                         </div>
@@ -257,18 +285,32 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
                               : "max-h-[650px] overflow-x-hidden overflow-y-auto"
                           }
                         >
-                          <FormPreviewFromPlate
-                            content={content}
-                            title={hideTitle ? "" : (doc.title ?? undefined)}
-                            icon={showEmoji ? (doc.icon ?? undefined) : undefined}
-                            cover={doc.cover ?? undefined}
-                            onSubmit={noop}
-                            hideTitle={hideTitle}
-                            customization={customization}
-                            settings={previewSettings}
-                            isPopup
-                            formId={formId}
-                          />
+                          {previewIsAiChat ? (
+                            <Suspense fallback={null}>
+                              <AiChatForm
+                                formId={formId}
+                                submissionId={previewSubmissionId}
+                                content={previewElements}
+                                settings={previewSettings}
+                                onSubmit={noop}
+                                onSwitchToStandard={() => {}}
+                                isPreview
+                              />
+                            </Suspense>
+                          ) : (
+                            <FormPreviewFromPlate
+                              content={content}
+                              title={hideTitle ? "" : (doc.title ?? undefined)}
+                              icon={showEmoji ? (doc.icon ?? undefined) : undefined}
+                              cover={doc.cover ?? undefined}
+                              onSubmit={noop}
+                              hideTitle={hideTitle}
+                              customization={customization}
+                              settings={previewSettings}
+                              isPopup
+                              formId={formId}
+                            />
+                          )}
                         </div>
 
                         {branding && (

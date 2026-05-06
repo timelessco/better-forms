@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from "@/components/ui/sidebar";
 import { SidebarSection } from "@/components/ui/sidebar-section";
 import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { FeatureGate, useHasPlan } from "@/components/ui/feature-gate";
 import { useForm } from "@/hooks/use-live-hooks";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import { publishForm } from "@/hooks/use-form-versions";
@@ -25,7 +27,11 @@ import {
 } from "./embed-config-panel";
 import { EmbedCodeDialog, searchToFormValues, formValuesToSearch, tabs } from "./embed-section";
 import { EmbedPreviewMockup } from "./embed-preview-mockup";
-import type { FormSettings as FormSettingsType, PresentationMode } from "@/types/form-settings";
+import type {
+  AiChatTone,
+  FormSettings as FormSettingsType,
+  PresentationMode,
+} from "@/types/form-settings";
 
 const selectValues = (state: { values: ReturnType<typeof searchToFormValues> }) => state.values;
 
@@ -90,12 +96,36 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
     [doc?.id],
   );
 
+  const hasPro = useHasPlan("pro");
+  const docAiChatTone: AiChatTone = (docSettings?.aiChatTone ?? "friendly") as AiChatTone;
+  const docAiChatGreeting: string = docSettings?.aiChatGreeting ?? "";
+
   const handlePresentationModeChange = useCallback(
     (value: PresentationMode) => {
       if (docPresentationMode === value) return;
+      // Block free-plan users at the UI layer too — server rejects on save,
+      // this just gives an immediate signal instead of a delayed error.
+      if (value === "ai-chat" && !hasPro) return;
       updateSettings({ presentationMode: value });
     },
-    [docPresentationMode, updateSettings],
+    [docPresentationMode, updateSettings, hasPro],
+  );
+
+  const handleAiChatToneChange = useCallback(
+    (value: AiChatTone) => {
+      if (docAiChatTone === value) return;
+      updateSettings({ aiChatTone: value });
+    },
+    [docAiChatTone, updateSettings],
+  );
+
+  const handleAiChatGreetingChange = useCallback(
+    (value: string) => {
+      const next = value.trim().length === 0 ? null : value;
+      if ((docAiChatGreeting || null) === next) return;
+      updateSettings({ aiChatGreeting: next });
+    },
+    [docAiChatGreeting, updateSettings],
   );
 
   const handleProgressBarChange = useCallback(
@@ -252,6 +282,12 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
                     <TabsTrigger value="field-by-field" className="px-2 text-xs">
                       Field by field
                     </TabsTrigger>
+                    <FeatureGate requiredPlan="pro" tooltipSide="bottom">
+                      <TabsTrigger value="ai-chat" className="gap-1 px-2 text-xs">
+                        AI Chat
+                        <span aria-hidden="true">✨</span>
+                      </TabsTrigger>
+                    </FeatureGate>
                     <TabsIndicator />
                   </TabsList>
                 </Tabs>
@@ -269,8 +305,56 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
                   size="default"
                 />
               </ConfigRow>
+
+              {docPresentationMode === "ai-chat" && (
+                <>
+                  <ConfigRow label="Tone" description="How the AI should talk to respondents.">
+                    <Tabs
+                      value={docAiChatTone}
+                      onValueChange={(v) => handleAiChatToneChange(v as AiChatTone)}
+                    >
+                      <TabsList className="h-7">
+                        <TabsTrigger value="formal" className="px-2 text-xs">
+                          Formal
+                        </TabsTrigger>
+                        <TabsTrigger value="friendly" className="px-2 text-xs">
+                          Friendly
+                        </TabsTrigger>
+                        <TabsTrigger value="playful" className="px-2 text-xs">
+                          Playful
+                        </TabsTrigger>
+                        <TabsIndicator />
+                      </TabsList>
+                    </Tabs>
+                  </ConfigRow>
+                  <ConfigRow
+                    label="Greeting"
+                    description="Optional. Used verbatim as the very first message."
+                  >
+                    <Textarea
+                      aria-label="AI Chat greeting"
+                      value={docAiChatGreeting}
+                      onChange={(e) => handleAiChatGreetingChange(e.target.value)}
+                      placeholder="Welcome — let's get started."
+                      className="min-h-12 text-xs"
+                    />
+                  </ConfigRow>
+                </>
+              )}
             </ConfigCard>
           </SidebarSection>
+
+          {docPresentationMode === "ai-chat" && (
+            <form.Subscribe selector={(s) => s.values.embedType}>
+              {(embedType) =>
+                embedType === "standard" ? (
+                  <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                    AI Chat works best on Full Page or Popup embeds.
+                  </div>
+                ) : null
+              }
+            </form.Subscribe>
+          )}
 
           {isDraft ? (
             <div className="flex flex-col items-center justify-center space-y-6 rounded-2xl border-2 border-dashed bg-muted/20 px-4 py-10 text-center">
