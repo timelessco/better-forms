@@ -25,6 +25,7 @@ import { Route as ApiCronAggregateAnalyticsRouteImport } from './routes/api/cron
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiAiFormGenerateRouteImport } from './routes/api/ai/form-generate'
 import { Route as AuthenticatedWorkspaceWorkspaceIdRouteRouteImport } from './routes/_authenticated/workspace/$workspaceId/route'
+import { Route as ApiOgFormIdHashRouteImport } from './routes/api/og/$formId/$hash'
 import { Route as ApiFormsFormIdMetaRouteImport } from './routes/api/forms/$formId/meta'
 import { Route as AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteImport } from './routes/_authenticated/workspace/$workspaceId/form-builder/$formId/route'
 import { Route as AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSubmissionsRouteImport } from './routes/_authenticated/workspace/$workspaceId/form-builder/$formId/submissions'
@@ -114,6 +115,11 @@ const AuthenticatedWorkspaceWorkspaceIdRouteRoute =
     path: '/workspace/$workspaceId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const ApiOgFormIdHashRoute = ApiOgFormIdHashRouteImport.update({
+  id: '/api/og/$formId/$hash',
+  path: '/api/og/$formId/$hash',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiFormsFormIdMetaRoute = ApiFormsFormIdMetaRouteImport.update({
   id: '/api/forms/$formId/meta',
   path: '/api/forms/$formId/meta',
@@ -173,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/forms/$i8n/$formId': typeof FormsI8nFormIdRoute
   '/api/forms/$formId/meta': typeof ApiFormsFormIdMetaRoute
+  '/api/og/$formId/$hash': typeof ApiOgFormIdHashRoute
   '/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
   '/workspace/$workspaceId/form-builder/$formId/edit': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute
   '/workspace/$workspaceId/form-builder/$formId/insights': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute
@@ -196,6 +203,7 @@ export interface FileRoutesByTo {
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/forms/$i8n/$formId': typeof FormsI8nFormIdRoute
   '/api/forms/$formId/meta': typeof ApiFormsFormIdMetaRoute
+  '/api/og/$formId/$hash': typeof ApiOgFormIdHashRoute
   '/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
   '/workspace/$workspaceId/form-builder/$formId/edit': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute
   '/workspace/$workspaceId/form-builder/$formId/insights': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/forms/$i8n/$formId': typeof FormsI8nFormIdRoute
   '/api/forms/$formId/meta': typeof ApiFormsFormIdMetaRoute
+  '/api/og/$formId/$hash': typeof ApiOgFormIdHashRoute
   '/_authenticated/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
   '/_authenticated/workspace/$workspaceId/form-builder/$formId/edit': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute
   '/_authenticated/workspace/$workspaceId/form-builder/$formId/insights': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute
@@ -246,6 +255,7 @@ export interface FileRouteTypes {
     | '/api/icons/$name'
     | '/forms/$i8n/$formId'
     | '/api/forms/$formId/meta'
+    | '/api/og/$formId/$hash'
     | '/workspace/$workspaceId/form-builder/$formId'
     | '/workspace/$workspaceId/form-builder/$formId/edit'
     | '/workspace/$workspaceId/form-builder/$formId/insights'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/api/icons/$name'
     | '/forms/$i8n/$formId'
     | '/api/forms/$formId/meta'
+    | '/api/og/$formId/$hash'
     | '/workspace/$workspaceId/form-builder/$formId'
     | '/workspace/$workspaceId/form-builder/$formId/edit'
     | '/workspace/$workspaceId/form-builder/$formId/insights'
@@ -293,6 +304,7 @@ export interface FileRouteTypes {
     | '/api/icons/$name'
     | '/forms/$i8n/$formId'
     | '/api/forms/$formId/meta'
+    | '/api/og/$formId/$hash'
     | '/_authenticated/workspace/$workspaceId/form-builder/$formId'
     | '/_authenticated/workspace/$workspaceId/form-builder/$formId/edit'
     | '/_authenticated/workspace/$workspaceId/form-builder/$formId/insights'
@@ -316,6 +328,7 @@ export interface RootRouteChildren {
   ApiIconsNameRoute: typeof ApiIconsNameRoute
   FormsI8nFormIdRoute: typeof FormsI8nFormIdRoute
   ApiFormsFormIdMetaRoute: typeof ApiFormsFormIdMetaRoute
+  ApiOgFormIdHashRoute: typeof ApiOgFormIdHashRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -432,6 +445,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/og/$formId/$hash': {
+      id: '/api/og/$formId/$hash'
+      path: '/api/og/$formId/$hash'
+      fullPath: '/api/og/$formId/$hash'
+      preLoaderRoute: typeof ApiOgFormIdHashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/forms/$formId/meta': {
       id: '/api/forms/$formId/meta'
       path: '/api/forms/$formId/meta'
@@ -547,6 +567,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIconsNameRoute: ApiIconsNameRoute,
   FormsI8nFormIdRoute: FormsI8nFormIdRoute,
   ApiFormsFormIdMetaRoute: ApiFormsFormIdMetaRoute,
+  ApiOgFormIdHashRoute: ApiOgFormIdHashRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
