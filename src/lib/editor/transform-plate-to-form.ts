@@ -242,6 +242,22 @@ export const extractTextContent = (children: Array<{ text?: string }>): string =
     .trim();
 };
 
+/**
+ * True when `type` is a Plate node that, if it appears immediately after a
+ * label-eligible block (p / h1-3 / formLabel / blockquote), would consume
+ * that block as its field label in `transformPlateStateToFormElements`.
+ *
+ * Used by extractors that need to distinguish description prose from a
+ * field label — a leading `p` whose next block is one of these types is a
+ * label, not description text.
+ */
+export const isFormInputType = (type: string | undefined): boolean =>
+  type !== undefined &&
+  (type in INPUT_TYPE_TO_FIELD_TYPE ||
+    type === "formMultiSelectInput" ||
+    type === "formOptionItem" ||
+    type === "formButton");
+
 /** Slugify a label, e.g. "Email Address" -> "email_address". */
 const NON_ALNUM_RE = /[^a-z0-9]+/g;
 const TRIM_UNDERSCORES_RE = /^_|_$/g;
