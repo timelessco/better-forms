@@ -132,9 +132,14 @@ export const Route = createFileRoute("/forms/$formId")({
     const defaultMode = loaderData?.form?.customization?.defaultMode || "system";
     const formId = params.formId;
     const preloadUrls = loaderData?.preloadModuleUrls ?? [];
+    const ogDescription = loaderData?.form?.ogDescription;
+    const ogImageUrl = loaderData?.form?.ogImageUrl;
     return {
       meta: seo({
         formTitle: loaderData?.form?.title ?? "Form",
+        description: ogDescription || undefined,
+        image: ogImageUrl,
+        noindex: true,
       }),
       links: [
         // Preload the Latin subset of Inter Variable. The other subsets

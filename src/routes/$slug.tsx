@@ -137,11 +137,15 @@ export const Route = createFileRoute("/$slug")({
     const formTitle = loaderData?.form?.title;
     const defaultMode = loaderData?.form?.customization?.defaultMode || "system";
     const formId = loaderData?.form?.id ?? "";
+    const formOgImage = loaderData?.form?.ogImageUrl;
+    const domainOgImage = loaderData?.domainMeta?.ogImageUrl ?? undefined;
     return {
       meta: seo({
         formTitle,
         siteTitle,
-        image: loaderData?.domainMeta?.ogImageUrl ?? undefined,
+        description: loaderData?.form?.ogDescription || undefined,
+        image: formOgImage ?? domainOgImage,
+        noindex: true,
       }),
       links: loaderData?.domainMeta?.faviconUrl
         ? [{ rel: "icon", href: loaderData.domainMeta.faviconUrl }]
