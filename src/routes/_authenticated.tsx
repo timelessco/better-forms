@@ -183,7 +183,7 @@ import { generateOrderedIndexes, sortByManualOrder } from "@/lib/sort-utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDistanceToNow } from "date-fns";
 import type * as React from "react";
-import { Activity, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
 import { toast } from "sonner";
 
@@ -214,17 +214,12 @@ const LazyCustomizeSidebar = lazy(() =>
 );
 
 /**
- * Keeps each sidebar's React tree alive across activeSidebar toggles via
- * <Activity>. Lazily mounts each one on first activation (so first-paint of
- * the route doesn't pay for sidebars the user hasn't opened yet), then keeps
- * it resident — switching settings ↔ share ↔ customize no longer remounts
- * the TanStack Form, scroll position, or expanded-section state.
- *
- * `key={formId}` on the inner sidebar ensures a hard remount when the user
- * navigates between forms, since per-sidebar form state is form-specific.
- *
- * `history` is excluded — it's a one-shot view/restore action, rarely
- * toggled, and persisting its tree gives no UX benefit.
+ * Conditionally mounts the active right sidebar. Each sidebar gets a fresh
+ * React tree on every open — accordion sections, scroll position, and form
+ * state all reset to defaults. We previously kept trees mounted via
+ * <Activity> for state preservation, but that caused collapsed accordion
+ * sections to persist across reopens, which surprised users more than the
+ * preserved-state benefit helped.
  */
 const PersistentSidebars = ({
   activeSidebar,
@@ -233,36 +228,13 @@ const PersistentSidebars = ({
   activeSidebar: ReturnType<typeof useEditorSidebar>["activeSidebar"];
   formId: string | undefined;
 }) => {
-  const showSettings = activeSidebar === "settings";
-  const showShare = activeSidebar === "share";
-  const showCustomize = activeSidebar === "customize";
-
-  const [openedSettings, setOpenedSettings] = useState(showSettings);
-  const [openedShare, setOpenedShare] = useState(showShare);
-  const [openedCustomize, setOpenedCustomize] = useState(showCustomize);
-
-  if (showSettings && !openedSettings) setOpenedSettings(true);
-  if (showShare && !openedShare) setOpenedShare(true);
-  if (showCustomize && !openedCustomize) setOpenedCustomize(true);
-
+  if (!formId) return null;
   return (
     <>
-      {openedSettings && (
-        <Activity mode={showSettings ? "visible" : "hidden"}>
-          {formId && <LazyFormSettingsSidebar key={formId} formId={formId} />}
-        </Activity>
-      )}
-      {openedShare && (
-        <Activity mode={showShare ? "visible" : "hidden"}>
-          {formId && <LazyShareSummarySidebar key={formId} formId={formId} />}
-        </Activity>
-      )}
-      {activeSidebar === "history" && formId && <LazyVersionHistorySidebar formId={formId} />}
-      {openedCustomize && (
-        <Activity mode={showCustomize ? "visible" : "hidden"}>
-          {formId && <LazyCustomizeSidebar key={formId} formId={formId} />}
-        </Activity>
-      )}
+      {activeSidebar === "settings" && <LazyFormSettingsSidebar key={formId} formId={formId} />}
+      {activeSidebar === "share" && <LazyShareSummarySidebar key={formId} formId={formId} />}
+      {activeSidebar === "history" && <LazyVersionHistorySidebar formId={formId} />}
+      {activeSidebar === "customize" && <LazyCustomizeSidebar key={formId} formId={formId} />}
     </>
   );
 };
