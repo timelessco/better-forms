@@ -12,7 +12,7 @@ import {
 } from "@/db/schema";
 import { db } from "@/db";
 import { planUnlocks } from "@/lib/config/plan-gates";
-import { extractOgDescription } from "@/lib/og/extract-description";
+import { resolveOgInputs } from "@/lib/og/resolve-inputs";
 import { buildOgImageUrl } from "@/lib/og/url";
 import { isServerPlan } from "@/lib/server-fn/plan-helpers";
 import { buildPublicFormSettings } from "@/types/form-settings";
@@ -117,13 +117,19 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
       ? { type: "password_required" as const, message: null }
       : null;
 
+    const og = resolveOgInputs(version, {
+      title: form.draftTitle,
+      content: form.draftContent,
+      icon: form.draftIcon,
+    });
+    const ogImageUrl = buildOgImageUrl({
+      formId: form.id,
+      title: og.title,
+      description: og.description,
+    });
+    const ogDescription = og.description;
+
     if (version) {
-      const ogDescription = extractOgDescription(version.content);
-      const ogImageUrl = buildOgImageUrl({
-        formId: form.id,
-        title: version.title ?? "",
-        description: ogDescription,
-      });
       return {
         form: {
           id: form.id,
@@ -145,12 +151,6 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
 
     // Fallback for forms without versions (backward compatibility — shouldn't
     // happen after backfill migration but kept for safety)
-    const ogDescription = extractOgDescription(form.draftContent);
-    const ogImageUrl = buildOgImageUrl({
-      formId: form.id,
-      title: form.draftTitle ?? "",
-      description: ogDescription,
-    });
     return {
       form: {
         id: form.id,

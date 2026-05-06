@@ -6,8 +6,8 @@ import path from "node:path";
 import { db } from "@/db";
 import { formVersions, forms } from "@/db/schema";
 import { FORM_ID_RE } from "@/lib/config/embed-cors";
-import { extractOgDescription } from "@/lib/og/extract-description";
 import { computeOgHash } from "@/lib/og/hash";
+import { resolveOgInputs } from "@/lib/og/resolve-inputs";
 import { OgCard } from "@/lib/og/template";
 import { formCacheTag } from "@/lib/server-fn/cdn-cache";
 
@@ -74,18 +74,14 @@ export const Route = createFileRoute("/api/og/$formId/$hash")({
               .where(eq(formVersions.id, form.lastPublishedVersionId))
           : [undefined];
 
-        const title = version?.title ?? form.draftTitle ?? "Untitled";
-        const content = version?.content ?? form.draftContent;
-        const icon = (version?.icon ?? form.draftIcon) || null;
-        const customization = (version?.customization ?? form.draftCustomization) as
-          | Record<string, string>
-          | null
-          | undefined;
-        const themeColorName = customization?.themeColor ?? null;
+        const og = resolveOgInputs(version, {
+          title: form.draftTitle,
+          content: form.draftContent,
+          icon: form.draftIcon,
+          customization: form.draftCustomization as Record<string, string> | null,
+        });
 
-        const description = extractOgDescription(content);
-
-        const expected = computeOgHash({ title, description });
+        const expected = computeOgHash({ title: og.title, description: og.description });
         if (expected !== hashParam) {
           return new Response("hash_mismatch", { status: 404, headers: NOT_FOUND_HEADERS });
         }
@@ -94,15 +90,18 @@ export const Route = createFileRoute("/api/og/$formId/$hash")({
 
         return new ImageResponse(
           <OgCard
-            description={description}
-            icon={icon}
-            themeColorName={themeColorName}
-            title={title}
+            description={og.description}
+            icon={og.icon}
+            themeColorName={og.themeColorName}
+            title={og.title}
           />,
           {
             width: 1200,
             height: 630,
-            fonts: [{ name: "Inter", data: fontData, weight: 400, style: "normal" }],
+            fonts: [
+              { name: "Inter", data: fontData, weight: 400, style: "normal" },
+              { name: "Inter", data: fontData, weight: 700, style: "normal" },
+            ],
             headers: {
               "Cache-Control": "public, max-age=31536000, immutable",
               "Cache-Tag": formCacheTag(params.formId),
