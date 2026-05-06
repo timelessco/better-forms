@@ -3,12 +3,15 @@
   "plugins": [
     "react",
     "react-hooks",
+    "react-perf",
     "typescript",
     "jsx-a11y",
     "import",
     "unicorn",
     "promise",
-    "node"
+    "node",
+    "oxc",
+    "jsdoc"
   ],
   "jsPlugins": ["@tanstack/eslint-plugin-query"],
   "categories": {
@@ -28,43 +31,48 @@
       }
     ],
     "no-console": "off",
+    "no-duplicate-imports": ["error", { "allowSeparateTypeImports": true }],
+    "func-style": ["error", "expression", { "allowArrowFunctions": true }],
+    "arrow-body-style": ["error", "as-needed"],
+
     "react/react-in-jsx-scope": "off",
-    "react/jsx-uses-react": "off",
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "warn",
+
     "typescript/no-explicit-any": "warn",
     "typescript/no-non-null-assertion": "warn",
     "typescript/prefer-ts-expect-error": "warn",
+    "typescript/no-floating-promises": "warn",
+    "typescript/unbound-method": "warn",
+
     "import/no-duplicates": "error",
     "import/no-self-import": "error",
     "import/no-cycle": "warn",
+    "import/consistent-type-specifier-style": ["error", "prefer-top-level"],
+
     "unicorn/no-null": "off",
-    "unicorn/prevent-abbreviations": "off",
     "unicorn/filename-case": "off",
     "unicorn/no-array-for-each": "off",
     "unicorn/no-useless-undefined": "off",
+
     "promise/no-nesting": "warn",
     "promise/no-return-wrap": "error",
     "promise/always-return": "off",
+
     "jsx-a11y/no-autofocus": "off",
     "jsx-a11y/click-events-have-key-events": "warn",
     "jsx-a11y/no-static-element-interactions": "warn",
     "jsx-a11y/anchor-is-valid": "off",
+
     "react-perf/jsx-no-new-function-as-prop": "off",
-    "typescript/no-floating-promises": "warn",
-    "typescript/unbound-method": "warn",
+    "react-perf/jsx-no-new-object-as-prop": "off",
+    "react-perf/jsx-no-new-array-as-prop": "off",
+
     "@tanstack/query/exhaustive-deps": "warn",
     "@tanstack/query/no-rest-destructuring": "warn",
     "@tanstack/query/stable-query-client": "error",
     "@tanstack/query/no-void-query-fn": "warn",
-    "@tanstack/query/no-unstable-deps": "warn",
-    "typescript-eslint/no-base-to-string": "off",
-    "typescript-eslint/restrict-template-expressions": "off",
-    "typescript-eslint/no-redundant-type-constituents": "off",
-    "typescript-eslint/no-misused-spread": "off",
-    "typescript-eslint/await-thenable": "off",
-    "typescript-eslint/require-array-sort-compare": "off",
-    "typescript-eslint/no-meaningless-void-operator": "off"
+    "@tanstack/query/no-unstable-deps": "warn"
   },
   "settings": {
     "jsx-a11y": {
@@ -113,11 +121,7 @@
         "vitest/no-disabled-tests": "warn",
         "vitest/no-focused-tests": "error",
         "vitest/expect-expect": "warn",
-        "jest/no-hooks": "off",
-        "typescript-eslint/no-floating-promises": "off",
         "typescript/no-floating-promises": "off",
-        "typescript-eslint/await-thenable": "off",
-        "typescript-eslint/require-array-sort-compare": "off",
         "typescript/unbound-method": "off"
       }
     },
@@ -126,11 +130,13 @@
       "rules": {
         "@tanstack/query/exhaustive-deps": "off"
       }
+    },
+    {
+      "files": ["**/routeTree.gen.ts"],
+      "rules": {
+        "unicorn/filename-case": "off",
+        "unicorn/no-abusive-eslint-disable": "off"
+      }
     }
-  ],
-  "extends": [
-    "./node_modules/ultracite/config/oxlint/core/.oxlintrc.json",
-    "./node_modules/ultracite/config/oxlint/remix/.oxlintrc.json",
-    "./node_modules/ultracite/config/oxlint/react/.oxlintrc.json"
   ]
 }

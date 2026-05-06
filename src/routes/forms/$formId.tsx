@@ -8,7 +8,11 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
 import { getPublicFormViewRSC } from "@/lib/server-fn/public-form-view-rsc";
-import { generateDualThemeCss, getGoogleFontLinkUrl } from "@/lib/theme/generate-theme-css";
+import {
+  generateDualThemeCss,
+  getGoogleFontLinkUrl,
+  GOOGLE_FONTS_PRECONNECTS,
+} from "@/lib/theme/generate-theme-css";
 import { seo } from "@/lib/seo";
 
 type PublicTheme = "light" | "dark" | "system";
@@ -91,13 +95,11 @@ const PublicFormRoute = () => {
   // Dual-mode CSS — both light and dark tokens are emitted; the root `.dark`
   // class picks one purely in CSS, avoiding any hydration flash.
   const themeCss = useMemo(() => generateDualThemeCss(rawCustomization), [rawCustomization]);
-  const googleFontUrl = useMemo(() => getGoogleFontLinkUrl(rawCustomization), [rawCustomization]);
 
   const showThemeToggle = defaultMode === "system" && !search.popup && !isTransparent;
 
   return (
     <>
-      {googleFontUrl && <link rel="stylesheet" href={googleFontUrl} />}
       {themeCss && <style>{themeCss}</style>}
       <PublicFormPage
         form={loaderData?.form ?? null}
@@ -134,6 +136,7 @@ export const Route = createFileRoute("/forms/$formId")({
     const preloadUrls = loaderData?.preloadModuleUrls ?? [];
     const ogDescription = loaderData?.form?.ogDescription;
     const ogImageUrl = loaderData?.form?.ogImageUrl;
+    const googleFontUrl = getGoogleFontLinkUrl(loaderData?.form?.customization ?? null);
     return {
       meta: seo({
         formTitle: loaderData?.form?.title ?? "Form",
@@ -155,8 +158,11 @@ export const Route = createFileRoute("/forms/$formId")({
         ...preloadUrls.map((href) => ({
           rel: "modulepreload",
           href,
-          crossOrigin: "" as const,
+          crossOrigin: "anonymous" as const,
         })),
+        ...(googleFontUrl
+          ? [...GOOGLE_FONTS_PRECONNECTS, { rel: "stylesheet", href: googleFontUrl }]
+          : []),
       ],
       scripts: [
         {

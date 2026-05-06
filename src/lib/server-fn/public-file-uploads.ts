@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { putBlob } from "@/integrations/blob";
-import { getRequestHeaders } from "@tanstack/react-start/server";
+import { getRequestIP } from "@tanstack/react-start/server";
 import { and, eq, sql } from "drizzle-orm";
 import type { Value } from "platejs";
 import { z } from "zod";
@@ -34,18 +34,7 @@ const CLEANUP_PROBABILITY = 0.01;
 const HARD_MAX_FILE_BYTES = 50 * 1024 * 1024;
 const DEFAULT_ACCEPT = "image/*,.pdf,.doc,.docx";
 
-const getClientIp = (): string => {
-  const headers = getRequestHeaders();
-  const forwarded = headers["x-forwarded-for"];
-  if (typeof forwarded === "string" && forwarded.length > 0) {
-    return forwarded.split(",")[0].trim();
-  }
-  const realIp = headers["x-real-ip"];
-  if (typeof realIp === "string" && realIp.length > 0) {
-    return realIp;
-  }
-  return "unknown";
-};
+const getClientIp = (): string => getRequestIP({ xForwardedFor: true }) ?? "unknown";
 
 // Inlined as a SQL literal because Postgres can't concatenate a parameterized
 // integer with text inside an interval cast. Safe: it's a build-time constant.

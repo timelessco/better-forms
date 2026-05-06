@@ -12,7 +12,7 @@ Thank you for your interest in contributing! This guide will help you get set up
 
 ## Code Quality
 
-This project uses [Ultracite](https://github.com/haydenbleasel/ultracite) for automated code quality enforcement via oxlint and oxfmt.
+This project uses [oxlint](https://oxc.rs/docs/guide/usage/linter) and [oxfmt](https://oxc.rs/docs/guide/usage/formatter) (configured in `.oxlintrc.json`) for automated code quality enforcement.
 
 Before committing, run:
 
@@ -88,7 +88,7 @@ When modifying the database schema in `src/db/schema.ts`:
 Run the test suite with:
 
 ```bash
-bun test
+bun run test
 ```
 
 Tests use [Vitest](https://vitest.dev) with [Testing Library](https://testing-library.com).

@@ -8,7 +8,11 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import Loader from "@/components/ui/loader";
 import { CustomDomainNotFound } from "@/components/ui/custom-domain-not-found";
 import { getCustomDomainFormBySlugRSC } from "@/lib/server-fn/custom-domain-view-rsc";
-import { generateThemeCss, getGoogleFontLinkUrl } from "@/lib/theme/generate-theme-css";
+import {
+  generateThemeCss,
+  getGoogleFontLinkUrl,
+  GOOGLE_FONTS_PRECONNECTS,
+} from "@/lib/theme/generate-theme-css";
 import { seo } from "@/lib/seo";
 
 type PublicTheme = "light" | "dark" | "system";
@@ -89,13 +93,11 @@ const CustomDomainSlugRoute = () => {
     [rawCustomization, resolvedTheme],
   );
   const themeCss = useMemo(() => generateThemeCss(customization), [customization]);
-  const googleFontUrl = useMemo(() => getGoogleFontLinkUrl(customization), [customization]);
 
   const showThemeToggle = defaultMode === "system";
 
   return (
     <>
-      {googleFontUrl && <link rel="stylesheet" href={googleFontUrl} />}
       {themeCss && <style>{themeCss}</style>}
       <PublicFormPage
         form={loaderData?.form ?? null}
@@ -139,6 +141,7 @@ export const Route = createFileRoute("/$slug")({
     const formId = loaderData?.form?.id ?? "";
     const formOgImage = loaderData?.form?.ogImageUrl;
     const domainOgImage = loaderData?.domainMeta?.ogImageUrl ?? undefined;
+    const googleFontUrl = getGoogleFontLinkUrl(loaderData?.form?.customization ?? null);
     return {
       meta: seo({
         formTitle,
@@ -147,9 +150,14 @@ export const Route = createFileRoute("/$slug")({
         image: formOgImage ?? domainOgImage,
         noindex: true,
       }),
-      links: loaderData?.domainMeta?.faviconUrl
-        ? [{ rel: "icon", href: loaderData.domainMeta.faviconUrl }]
-        : [],
+      links: [
+        ...(googleFontUrl
+          ? [...GOOGLE_FONTS_PRECONNECTS, { rel: "stylesheet", href: googleFontUrl }]
+          : []),
+        ...(loaderData?.domainMeta?.faviconUrl
+          ? [{ rel: "icon", href: loaderData.domainMeta.faviconUrl }]
+          : []),
+      ],
       scripts: [
         {
           children: `(function(){try{var d=document.documentElement;var override=null;try{override=window.localStorage.getItem("bf-form-theme:${formId}");}catch(e){}var def=${JSON.stringify(defaultMode)};var pick=override||def;var m=pick==="system"?(window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"):pick;d.classList.remove("light","dark");d.classList.add(m);d.style.colorScheme=m;}catch(e){}})();`,
