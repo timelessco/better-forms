@@ -18,5 +18,8 @@ export type BuildOgImageUrlInput = {
  */
 export const buildOgImageUrl = ({ formId, title, description }: BuildOgImageUrlInput): string => {
   const hash = computeOgHash({ title, description });
-  return `${APP_WEBSITE_URL}/api/og/${formId}/${hash}.png`;
+  // VITE_APP_WEBSITE_URL may include a trailing slash (e.g. preview deploys);
+  // strip it so the path concat doesn't produce `//api/og/...`.
+  const origin = APP_WEBSITE_URL.replace(/\/+$/, "");
+  return `${origin}/api/og/${formId}/${hash}.png`;
 };

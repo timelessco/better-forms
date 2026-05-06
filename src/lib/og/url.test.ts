@@ -9,7 +9,8 @@ describe("buildOgImageUrl", () => {
       title: "Hi",
       description: "World",
     });
-    expect(url.startsWith(`${APP_WEBSITE_URL}/api/og/abc/`)).toBeTruthy();
+    const origin = APP_WEBSITE_URL.replace(/\/+$/, "");
+    expect(url.startsWith(`${origin}/api/og/abc/`)).toBeTruthy();
     expect(url.endsWith(".png")).toBeTruthy();
   });
 
@@ -23,5 +24,11 @@ describe("buildOgImageUrl", () => {
     const a = buildOgImageUrl({ formId: "abc", title: "A", description: "x" });
     const b = buildOgImageUrl({ formId: "abc", title: "A", description: "x" });
     expect(a).toBe(b);
+  });
+
+  it("does not produce a double slash when APP_WEBSITE_URL has a trailing slash", () => {
+    const url = buildOgImageUrl({ formId: "abc", title: "Hi", description: "" });
+    expect(url).not.toContain("//api/og/");
+    expect(url).toMatch(/^https?:\/\/[^/]+\/api\/og\/abc\//);
   });
 });
