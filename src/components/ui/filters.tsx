@@ -462,7 +462,7 @@ const filterItemVariants = cva("flex items-center shadow-xs shadow-black/5", {
   },
 });
 
-const FilterInput = <T = unknown>({
+const FilterInput = <T = unknown,>({
   field,
   onChange,
   onBlur,
@@ -727,14 +727,14 @@ export interface FilterFieldConfig<T = unknown> {
   onValueChange?: (values: T[]) => void;
 }
 
-const isFieldGroup = <T = unknown>(
+const isFieldGroup = <T = unknown,>(
   item: FilterFieldConfig<T> | FilterFieldGroup<T>,
 ): item is FilterFieldGroup<T> => "fields" in item && Array.isArray(item.fields);
 
-const isGroupLevelField = <T = unknown>(field: FilterFieldConfig<T>): boolean =>
+const isGroupLevelField = <T = unknown,>(field: FilterFieldConfig<T>): boolean =>
   Boolean(field.group && field.fields);
 
-const flattenFields = <T = unknown>(fields: FilterFieldsConfig<T>): FilterFieldConfig<T>[] => {
+const flattenFields = <T = unknown,>(fields: FilterFieldsConfig<T>): FilterFieldConfig<T>[] => {
   const result: FilterFieldConfig<T>[] = [];
   for (const item of fields) {
     if (isFieldGroup(item)) {
@@ -748,7 +748,7 @@ const flattenFields = <T = unknown>(fields: FilterFieldsConfig<T>): FilterFieldC
   return result;
 };
 
-const getFieldsMap = <T = unknown>(
+const getFieldsMap = <T = unknown,>(
   fields: FilterFieldsConfig<T>,
 ): Record<string, FilterFieldConfig<T>> => {
   const flatFields = flattenFields(fields);
@@ -871,7 +871,7 @@ const createOperatorsFromI18n = (i18n: FilterI18nConfig): Record<string, FilterO
 export const DEFAULT_OPERATORS: Record<string, FilterOperator[]> =
   createOperatorsFromI18n(DEFAULT_I18N);
 
-const getOperatorsForField = <T = unknown>(
+const getOperatorsForField = <T = unknown,>(
   field: FilterFieldConfig<T>,
   values: T[],
   i18n: FilterI18nConfig,
@@ -900,7 +900,7 @@ interface FilterOperatorDropdownProps<T = unknown> {
   onChange: (operator: string) => void;
 }
 
-const FilterOperatorDropdown = <T = unknown>({
+const FilterOperatorDropdown = <T = unknown,>({
   field,
   operator,
   values,
@@ -965,7 +965,7 @@ interface SelectOptionsPopoverProps<T = unknown> {
   inline?: boolean;
 }
 
-const SelectOptionsPopover = <T = unknown>({
+const SelectOptionsPopover = <T = unknown,>({
   field,
   values,
   onChange,
@@ -1194,7 +1194,7 @@ const SelectOptionsPopover = <T = unknown>({
   );
 };
 
-const FilterValueSelector = <T = unknown>({
+const FilterValueSelector = <T = unknown,>({
   field,
   values,
   onChange,
@@ -1648,7 +1648,7 @@ interface FiltersContentProps<T = unknown> {
   onChange: (filters: Filter<T>[]) => void;
 }
 
-export const FiltersContent = <T = unknown>({
+export const FiltersContent = <T = unknown,>({
   filters,
   fields,
   onChange,
@@ -1755,7 +1755,7 @@ interface FiltersProps<T = unknown> {
   popoverContentClassName?: string;
 }
 
-export const Filters = <T = unknown>({
+export const Filters = <T = unknown,>({
   filters,
   fields,
   onChange,
@@ -2182,7 +2182,7 @@ export const Filters = <T = unknown>({
   );
 };
 
-export const createFilter = <T = unknown>(
+export const createFilter = <T = unknown,>(
   field: string,
   operator?: string,
   values: T[] = [],
@@ -2193,7 +2193,7 @@ export const createFilter = <T = unknown>(
   values,
 });
 
-export const createFilterGroup = <T = unknown>(
+export const createFilterGroup = <T = unknown,>(
   id: string,
   label: string,
   fields: FilterFieldConfig<T>[],

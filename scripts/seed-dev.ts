@@ -27,7 +27,6 @@ const SEED_PASSWORD = process.env.SEED_PASSWORD ?? "password123";
 import {
   account,
   aiGenerationCounts,
-  apikey,
   customDomains,
   forms,
   formAnalyticsDaily,
@@ -69,7 +68,6 @@ const N = {
   questionProgress: Number(process.env.QUESTION_PROGRESS ?? 400),
   customDomains: Number(process.env.CUSTOM_DOMAINS ?? 3),
   todos: Number(process.env.TODOS ?? 10),
-  apikeys: Number(process.env.APIKEYS ?? 5),
   invitations: Number(process.env.INVITATIONS ?? 5),
   verifications: Number(process.env.VERIFICATIONS ?? 5),
   uploadRateLimits: Number(process.env.UPLOAD_RATE_LIMITS ?? 5),
@@ -108,7 +106,6 @@ const main = async () => {
       user_workspace_order,
       workspaces,
       custom_domains,
-      apikey,
       "twoFactor",
       account,
       session,
@@ -201,13 +198,12 @@ const main = async () => {
 
   // ─── Layer 1: depends on user/org ───────────────────────────────────────
   console.log(
-    "Seeding session/account/twoFactor/apikey/member/invitation/customDomains/workspaces/aiCounts…",
+    "Seeding session/account/twoFactor/member/invitation/customDomains/workspaces/aiCounts…",
   );
   await seed(db, {
     session,
     account,
     twoFactor,
-    apikey,
     member,
     invitation,
     customDomains,
@@ -238,12 +234,6 @@ const main = async () => {
     },
     twoFactor: {
       count: 0,
-    },
-    apikey: {
-      count: N.apikeys,
-      columns: {
-        userId: f.valuesFromArray({ values: userIds }),
-      },
     },
     member: {
       count: N.users,
@@ -474,7 +464,6 @@ const main = async () => {
       (SELECT count(*) FROM session)                        AS sessions,
       (SELECT count(*) FROM account)                        AS accounts,
       (SELECT count(*) FROM verification)                   AS verifications,
-      (SELECT count(*) FROM apikey)                         AS apikeys,
       (SELECT count(*) FROM workspaces)                     AS workspaces,
       (SELECT count(*) FROM custom_domains)                 AS custom_domains,
       (SELECT count(*) FROM forms)                          AS forms,

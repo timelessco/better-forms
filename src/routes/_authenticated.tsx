@@ -83,7 +83,7 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SidebarSection } from "@/components/ui/sidebar-section";
+import { SidebarSection, SidebarSectionResetProvider } from "@/components/ui/sidebar-section";
 import { UserMenuMinimal } from "./_authenticated/-components/user-menu-minimal";
 import type { WorkspaceWithForms } from "./_authenticated/-components/workspace-item-minimal";
 import { WorkspaceItemMinimal } from "./_authenticated/-components/workspace-item-minimal";
@@ -215,16 +215,21 @@ const LazyCustomizeSidebar = lazy(() =>
 
 /**
  * Keeps each sidebar's React tree alive across activeSidebar toggles via
- * <Activity>. Lazily mounts each one on first activation (so first-paint of
- * the route doesn't pay for sidebars the user hasn't opened yet), then keeps
- * it resident — switching settings ↔ share ↔ customize no longer remounts
- * the TanStack Form, scroll position, or expanded-section state.
+ * <Activity>, so switching settings ↔ share ↔ customize doesn't remount the
+ * TanStack Form, lose scroll position, or reset transient field-level state.
+ *
+ * Per-sidebar epoch counters increment on every hidden→visible transition
+ * and feed `SidebarSectionResetProvider`. Each `<SidebarSection>` consumes
+ * that epoch as a `key` on its inner Accordion only — so reopening a sidebar
+ * resets the expanded/collapsed state of all sections back to `initialOpen`
+ * while everything above the Accordion (form provider, scroll container)
+ * stays mounted. Best of both: cheap reopen, predictable expanded state.
  *
  * `key={formId}` on the inner sidebar ensures a hard remount when the user
  * navigates between forms, since per-sidebar form state is form-specific.
  *
- * `history` is excluded — it's a one-shot view/restore action, rarely
- * toggled, and persisting its tree gives no UX benefit.
+ * `history` is excluded from the persistence path — it's a one-shot
+ * view/restore action and rarely toggled.
  */
 const PersistentSidebars = ({
   activeSidebar,
@@ -245,23 +250,48 @@ const PersistentSidebars = ({
   if (showShare && !openedShare) setOpenedShare(true);
   if (showCustomize && !openedCustomize) setOpenedCustomize(true);
 
+  const [settingsEpoch, setSettingsEpoch] = useState(0);
+  const [shareEpoch, setShareEpoch] = useState(0);
+  const [customizeEpoch, setCustomizeEpoch] = useState(0);
+  const wasShowingSettings = useRef(showSettings);
+  const wasShowingShare = useRef(showShare);
+  const wasShowingCustomize = useRef(showCustomize);
+  useEffect(() => {
+    if (showSettings && !wasShowingSettings.current) setSettingsEpoch((e) => e + 1);
+    wasShowingSettings.current = showSettings;
+  }, [showSettings]);
+  useEffect(() => {
+    if (showShare && !wasShowingShare.current) setShareEpoch((e) => e + 1);
+    wasShowingShare.current = showShare;
+  }, [showShare]);
+  useEffect(() => {
+    if (showCustomize && !wasShowingCustomize.current) setCustomizeEpoch((e) => e + 1);
+    wasShowingCustomize.current = showCustomize;
+  }, [showCustomize]);
+
   return (
     <>
       {openedSettings && (
-        <Activity mode={showSettings ? "visible" : "hidden"}>
-          {formId && <LazyFormSettingsSidebar key={formId} formId={formId} />}
-        </Activity>
+        <SidebarSectionResetProvider value={settingsEpoch}>
+          <Activity mode={showSettings ? "visible" : "hidden"}>
+            {formId && <LazyFormSettingsSidebar key={formId} formId={formId} />}
+          </Activity>
+        </SidebarSectionResetProvider>
       )}
       {openedShare && (
-        <Activity mode={showShare ? "visible" : "hidden"}>
-          {formId && <LazyShareSummarySidebar key={formId} formId={formId} />}
-        </Activity>
+        <SidebarSectionResetProvider value={shareEpoch}>
+          <Activity mode={showShare ? "visible" : "hidden"}>
+            {formId && <LazyShareSummarySidebar key={formId} formId={formId} />}
+          </Activity>
+        </SidebarSectionResetProvider>
       )}
       {activeSidebar === "history" && formId && <LazyVersionHistorySidebar formId={formId} />}
       {openedCustomize && (
-        <Activity mode={showCustomize ? "visible" : "hidden"}>
-          {formId && <LazyCustomizeSidebar key={formId} formId={formId} />}
-        </Activity>
+        <SidebarSectionResetProvider value={customizeEpoch}>
+          <Activity mode={showCustomize ? "visible" : "hidden"}>
+            {formId && <LazyCustomizeSidebar key={formId} formId={formId} />}
+          </Activity>
+        </SidebarSectionResetProvider>
       )}
     </>
   );
@@ -326,7 +356,7 @@ const initCollectionsOnClient = createClientOnlyFn((queryClient: QueryClient) =>
 const AuthLayout = () => {
   const queryClient = useQueryClient();
   initCollectionsOnClient(queryClient);
-  const { pathname } = useLocation();
+  const pathname = useLocation({ select: (s) => s.pathname });
   const isEditRoute = pathname.includes("/form-builder/") && pathname.endsWith("/edit");
 
   return (
@@ -367,8 +397,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 const AuthLayoutContent = () => {
-  const location = useLocation();
-  const { pathname } = location;
+  const pathname = useLocation({ select: (s) => s.pathname });
   const isEditRoute = pathname.includes("/form-builder/") && pathname.endsWith("/edit");
   const { visible: isHeaderVisible, reportPointerActivity } = useEditorHeaderVisibility();
 
@@ -501,7 +530,7 @@ const AppSidebar = () => {
   const { toggleSidebar } = useSidebar();
   const { isInboxOpen, toggleInbox, closeInbox } = useMinimalSidebar();
   const isMobile = useIsMobile();
-  const location = useLocation();
+  const pathname = useLocation({ select: (s) => s.pathname });
   const router = useRouter();
   const {
     toggle: togglePalette,
@@ -516,7 +545,7 @@ const AppSidebar = () => {
   const [trashDialogOpen, setTrashDialogOpen] = useState(false);
   const [paletteSearch, setPaletteSearch] = useState("");
 
-  const { activeOrg } = Route.useLoaderData();
+  const activeOrg = Route.useLoaderData({ select: (d) => d.activeOrg });
   const { data: workspacesData } = useOrgWorkspaces(activeOrg?.id);
   const { data: formsData } = useOrgForms(activeOrg?.id);
   const { unreadSubmissionCount } = useSubmissionNotifications({ poll: true });
@@ -586,7 +615,7 @@ const AppSidebar = () => {
                         prefix={<HomeIcon className="size-[18px] text-muted-foreground" />}
                         label="All"
                         linkOptions={{ to: "/dashboard" }}
-                        isActive={location.pathname === "/dashboard"}
+                        isActive={pathname === "/dashboard"}
                       />
                     </SidebarMenuItem>
                     <SidebarMenuItem>
@@ -657,7 +686,7 @@ const AppSidebar = () => {
                     if (activeOrg && workspacesData) {
                       const orgWorkspaces = workspacesData;
                       if (orgWorkspaces.length > 0) {
-                        const workspaceMatch = location.pathname.match(/\/workspace\/([^/]+)/);
+                        const workspaceMatch = pathname.match(/\/workspace\/([^/]+)/);
                         const currentWorkspaceId = workspaceMatch?.[1];
                         const targetWorkspace = currentWorkspaceId
                           ? orgWorkspaces.find((ws) => ws.id === currentWorkspaceId) ||
@@ -1470,7 +1499,7 @@ const SidebarInbox = () => {
 
 const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => {
   const router = useRouter();
-  const location = useLocation();
+  const pathname = useLocation({ select: (s) => s.pathname });
   const duplicateForm = useDuplicateForm();
   const { data: session } = useSession();
 
@@ -1523,9 +1552,9 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
   // Pull the active form id once at the parent so each form row can read a
   // primitive `isActive` prop instead of subscribing to `useLocation`.
   const activeFormId = useMemo(() => {
-    const match = location.pathname.match(/\/form-builder\/([^/]+)/);
+    const match = pathname.match(/\/form-builder\/([^/]+)/);
     return match?.[1];
-  }, [location.pathname]);
+  }, [pathname]);
 
   const isLoading = workspacesLoading || formsLoading;
   const isDataReady = !isLoading && workspacesData !== undefined && formsData !== undefined;
@@ -1840,7 +1869,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
       await updateFormStatus(formToDelete.id, "archived");
       toast.success("Form deleted");
       // Navigate to dashboard if user is on the deleted form's page
-      if (location.pathname.includes(`/form-builder/${formToDelete.id}`)) {
+      if (pathname.includes(`/form-builder/${formToDelete.id}`)) {
         void router.navigate({ to: "/dashboard" });
       }
       setFormDeleteDialogOpen(false);
@@ -1851,7 +1880,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
     } finally {
       setIsDeletingForm(false);
     }
-  }, [formToDelete, location.pathname, router, isDeletingForm]);
+  }, [formToDelete, pathname, router, isDeletingForm]);
 
   return (
     <>
@@ -2114,7 +2143,7 @@ const SortableFavoriteItem = ({
   form: FavoriteFormItem & { sortIndex: string | null };
   userId: string;
 }) => {
-  const location = useLocation();
+  const pathname = useLocation({ select: (s) => s.pathname });
   const [renameOpen, setRenameOpen] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: form.favoriteId,
@@ -2127,9 +2156,7 @@ const SortableFavoriteItem = ({
     opacity: isDragging ? 0.4 : 1,
   };
 
-  const isFavActive = location.pathname.startsWith(
-    `/workspace/${form.workspaceId}/form-builder/${form.id}`,
-  );
+  const isFavActive = pathname.startsWith(`/workspace/${form.workspaceId}/form-builder/${form.id}`);
 
   const handleUnfavorite = useCallback(() => {
     toggleFavoriteLocal(userId, form.id).catch(() => toast.error("Failed to unfavorite"));

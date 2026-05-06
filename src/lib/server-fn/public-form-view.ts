@@ -12,6 +12,8 @@ import {
 } from "@/db/schema";
 import { db } from "@/db";
 import { planUnlocks } from "@/lib/config/plan-gates";
+import { resolveOgInputs } from "@/lib/og/resolve-inputs";
+import { buildOgImageUrl } from "@/lib/og/url";
 import { isServerPlan } from "@/lib/server-fn/plan-helpers";
 import { buildPublicFormSettings } from "@/types/form-settings";
 
@@ -115,6 +117,18 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
       ? { type: "password_required" as const, message: null }
       : null;
 
+    const og = resolveOgInputs(version, {
+      title: form.draftTitle,
+      content: form.draftContent,
+      icon: form.draftIcon,
+    });
+    const ogImageUrl = buildOgImageUrl({
+      formId: form.id,
+      title: og.title,
+      description: og.description,
+    });
+    const ogDescription = og.description;
+
     if (version) {
       return {
         form: {
@@ -127,6 +141,8 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
           status: form.status,
           analytics: liveAnalytics,
           settings,
+          ogDescription,
+          ogImageUrl,
         },
         error: null,
         gated,
@@ -146,6 +162,8 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
         status: form.status,
         analytics: liveAnalytics,
         settings,
+        ogDescription,
+        ogImageUrl,
       },
       error: null,
       gated: null,

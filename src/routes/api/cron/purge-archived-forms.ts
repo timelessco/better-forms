@@ -2,19 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { and, eq, lt } from "drizzle-orm";
 import { db } from "@/db";
 import { forms } from "@/db/schema";
+import { isCronAuthorized } from "@/lib/server-fn/cron-auth";
 
 const PURGE_GRACE_DAYS = 30;
 const MS_PER_DAY = 86_400_000;
-
-const isAuthorized = (request: Request): boolean => {
-  // Vercel auto-injects this header on cron-triggered requests.
-  if (request.headers.get("x-vercel-cron")) return true;
-  // Manual trigger via shared secret (set CRON_SECRET in Vercel project env).
-  const auth = request.headers.get("authorization");
-  const secret = process.env.CRON_SECRET;
-  if (secret && auth === `Bearer ${secret}`) return true;
-  return false;
-};
 
 // Hard-deletes forms that have been in the trash (status="archived") for more
 // than 30 days. The countdown uses `updatedAt` — archive/restore both update
@@ -28,8 +19,8 @@ const isAuthorized = (request: Request): boolean => {
 export const Route = createFileRoute("/api/cron/purge-archived-forms")({
   server: {
     handlers: {
-      GET: async ({ request }: { request: Request }) => {
-        if (!isAuthorized(request)) {
+      GET: async () => {
+        if (!isCronAuthorized()) {
           return new Response("forbidden", { status: 403 });
         }
 

@@ -1,18 +1,18 @@
 import { createFileRoute, isNotFound, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
+import { getRequestHost } from "@tanstack/react-start/server";
 import { lazy, Suspense } from "react";
 
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import Loader from "@/components/ui/loader";
 import { CustomDomainNotFound } from "@/components/ui/custom-domain-not-found";
 import { guestMiddleware } from "@/lib/auth/middleware";
-import { getRequestHost, isAppHost } from "@/lib/server-fn/custom-domain-loader";
+import { isAppHost } from "@/lib/server-fn/custom-domain-loader";
 
 const LandingEditor = lazy(() => import("./-components/landing-editor"));
 
 const checkHostIsApp = createServerFn({ method: "GET" }).handler(() => {
-  const host = getRequestHost(getRequestHeaders());
+  const host = getRequestHost({ xForwardedHost: true });
   if (!isAppHost(host)) {
     throw notFound();
   }

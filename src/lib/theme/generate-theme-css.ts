@@ -287,3 +287,8 @@ export const getGoogleFontLinkUrl = (
   const fontName = customization.font || style.font;
   return getGoogleFontUrl(fontName);
 };
+
+export const GOOGLE_FONTS_PRECONNECTS = [
+  { rel: "preconnect", href: "https://fonts.googleapis.com" },
+  { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+] as const;

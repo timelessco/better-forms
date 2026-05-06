@@ -1,23 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { getRequestUrl } from "@tanstack/react-start/server";
 import { toDateKey } from "@/lib/analytics/time-range";
 import { aggregateAnalyticsDaily } from "@/lib/server-fn/analytics";
+import { isCronAuthorized } from "@/lib/server-fn/cron-auth";
 
 const MS_PER_DAY = 86_400_000;
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-const isAuthorized = (request: Request): boolean => {
-  // Vercel auto-injects this header on cron-triggered requests.
-  if (request.headers.get("x-vercel-cron")) return true;
-  // Manual trigger via shared secret (set CRON_SECRET in Vercel project env).
-  const auth = request.headers.get("authorization");
-  const secret = process.env.CRON_SECRET;
-  if (secret && auth === `Bearer ${secret}`) return true;
-  return false;
-};
-
-const resolveDateKey = (request: Request): string => {
-  const url = new URL(request.url);
-  const overrideDate = url.searchParams.get("date");
+const resolveDateKey = (): string => {
+  const overrideDate = getRequestUrl().searchParams.get("date");
   if (overrideDate && DATE_KEY_RE.test(overrideDate)) {
     return overrideDate;
   }
@@ -28,11 +19,11 @@ const resolveDateKey = (request: Request): string => {
 export const Route = createFileRoute("/api/cron/aggregate-analytics")({
   server: {
     handlers: {
-      GET: async ({ request }: { request: Request }) => {
-        if (!isAuthorized(request)) {
+      GET: async () => {
+        if (!isCronAuthorized()) {
           return new Response("forbidden", { status: 403 });
         }
-        const dateKey = resolveDateKey(request);
+        const dateKey = resolveDateKey();
         const result = await aggregateAnalyticsDaily({ data: { date: dateKey } });
         return Response.json(result);
       },

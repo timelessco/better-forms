@@ -109,7 +109,6 @@ export const recordFormVisitImpl = async (
     os: parsed.os,
     osVersion: parsed.osVersion,
     country,
-    countryName: null,
     city: null,
     region: null,
   });

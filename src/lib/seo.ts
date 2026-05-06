@@ -13,20 +13,23 @@ type SeoInput = {
   image?: string;
   formTitle?: string;
   siteTitle?: string;
+  noindex?: boolean;
 };
 
 export const seo = ({
   title,
   description,
-  image = DEFAULT_IMAGE,
+  image,
   formTitle,
   siteTitle = APP_NAME,
+  noindex = false,
 }: SeoInput = {}) => {
   const resolvedTitle = title ?? (formTitle ? `${formTitle} | ${siteTitle}` : siteTitle);
   const resolvedDescription =
     description ?? (formTitle ? `Fill out ${formTitle}` : DEFAULT_DESCRIPTION);
-  const resolvedImage = image ?? DEFAULT_IMAGE;
-  return [
+  const resolvedImage = image || DEFAULT_IMAGE;
+
+  const tags: Array<Record<string, string>> = [
     { title: resolvedTitle },
     { name: "description", content: resolvedDescription },
     { name: "keywords", content: DEFAULT_KEYWORDS },
@@ -46,4 +49,8 @@ export const seo = ({
     { property: "og:image:width", content: "1200" },
     { property: "og:image:height", content: "630" },
   ];
+
+  if (noindex) tags.push({ name: "robots", content: "noindex, nofollow" });
+
+  return tags;
 };

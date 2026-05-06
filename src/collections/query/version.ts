@@ -8,7 +8,7 @@ export type VersionListItem = {
   title: string | null;
   publishedAt: string;
   publishedBy: {
-    id: string;
+    id: string | null;
     name: string | null;
     image: string | null;
   };

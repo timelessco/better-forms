@@ -1,0 +1,12 @@
+-- Intentionally empty.
+--
+-- The schema audit changes (drop apikey, JSONB analytics breakdowns, FK
+-- constraints, status CHECKs, missing indexes) were applied directly to the
+-- DB during recovery from a partially-failed `drizzle-kit push`. The matching
+-- changes live in src/db/schema.ts.
+--
+-- This file's purpose is its accompanying snapshot.json — drizzle-kit's last
+-- good baseline was months stale, so generate produced a destructive
+-- catch-up migration mis-pairing unrelated drops/creates as renames. The
+-- snapshot here is now the baseline future `drizzle-kit generate` runs diff
+-- against. Schema.ts is the single source of truth from this point on.

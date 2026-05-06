@@ -9,6 +9,8 @@ import {
   submissions,
 } from "@/db/schema";
 import { db } from "@/db";
+import { resolveOgInputs } from "@/lib/og/resolve-inputs";
+import { buildOgImageUrl } from "@/lib/og/url";
 import { buildPublicFormSettings } from "@/types/form-settings";
 import type { DomainMeta, ResolvedDomain } from "./custom-domain-loader";
 
@@ -179,6 +181,18 @@ export const loadFormForCustomDomain = async (
     ? { type: "password_required" as const, message: null }
     : null;
 
+  const og = resolveOgInputs(version, {
+    title: form.draftTitle,
+    content: form.draftContent,
+    icon: form.draftIcon,
+  });
+  const ogImageUrl = buildOgImageUrl({
+    formId: form.id,
+    title: og.title,
+    description: og.description,
+  });
+  const ogDescription = og.description;
+
   if (version) {
     return {
       form: {
@@ -191,6 +205,8 @@ export const loadFormForCustomDomain = async (
         status: form.status,
         analytics: form.liveSettings?.analytics ?? false,
         settings,
+        ogDescription,
+        ogImageUrl,
       },
       error: null,
       gated,
@@ -210,6 +226,8 @@ export const loadFormForCustomDomain = async (
       status: form.status,
       analytics: form.liveSettings?.analytics ?? false,
       settings,
+      ogDescription,
+      ogImageUrl,
     },
     error: null,
     gated: null,

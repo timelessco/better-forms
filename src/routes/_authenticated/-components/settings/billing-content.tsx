@@ -27,7 +27,7 @@ const tierActionVariant = (action: TierAction): ButtonVariant => {
 };
 
 export const BillingContent = () => {
-  const { activeOrg } = useLoaderData({ from: "/_authenticated" });
+  const activeOrg = useLoaderData({ from: "/_authenticated", select: (d) => d.activeOrg });
 
   const {
     isPro: isProPlan,

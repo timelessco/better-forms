@@ -42,6 +42,9 @@ export const Route = createFileRoute("/forms/$i8n/$formId")({
   head: ({ loaderData }) => ({
     meta: seo({
       formTitle: loaderData?.form?.title ?? "Form",
+      description: loaderData?.form?.ogDescription || undefined,
+      image: loaderData?.form?.ogImageUrl,
+      noindex: true,
     }),
     links: [
       // Preload the Latin subset of Inter Variable. The other subsets
