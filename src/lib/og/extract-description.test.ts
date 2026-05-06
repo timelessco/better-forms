@@ -51,6 +51,14 @@ describe("extractOgDescription", () => {
     expect(out.slice(-2, -1)).not.toMatch(/\S/);
   });
 
+  it("handles a single very long word in the fallback branch", () => {
+    const long = "A".repeat(300);
+    const out = extractOgDescription([formHeader(), p(long)]);
+    expect(out.length).toBeLessThanOrEqual(180);
+    expect(out.endsWith("…")).toBeTruthy();
+    expect(out.slice(-2, -1)).not.toMatch(/\S/);
+  });
+
   it("trims leading/trailing whitespace inside paragraphs", () => {
     expect(extractOgDescription([formHeader(), p("   spaced   "), p("ok")])).toBe("spaced ok");
   });
@@ -61,7 +69,12 @@ describe("extractOgDescription", () => {
     );
   });
 
-  it("skips empty p blocks at the top and stops looking", () => {
-    expect(extractOgDescription([formHeader(), p(""), p("hello")])).toBe("");
+  it("skips empty p blocks at the top to find the next real one", () => {
+    expect(extractOgDescription([formHeader(), p(""), p("hello")])).toBe("hello");
+  });
+
+  it("stops inspecting after MAX_INSPECTED leading blocks even if all are empty p", () => {
+    const blocks = [formHeader(), p(""), p(""), p(""), p(""), p(""), p("hello")];
+    expect(extractOgDescription(blocks)).toBe("");
   });
 });

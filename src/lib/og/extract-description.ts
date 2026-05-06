@@ -2,6 +2,7 @@ import { extractTextContent, isFormInputType } from "@/lib/editor/transform-plat
 
 const MAX_LENGTH = 180;
 const MAX_PARAGRAPHS = 2;
+const MAX_INSPECTED = 5;
 
 type PlateNode = {
   type?: string;
@@ -10,10 +11,11 @@ type PlateNode = {
 
 const truncateAtWordBoundary = (text: string, max: number): string => {
   if (text.length <= max) return text;
-  const slice = text.slice(0, max - 1);
+  // Reserve 2 chars for a space + the ellipsis.
+  const slice = text.slice(0, max - 2);
   const lastSpace = slice.lastIndexOf(" ");
-  const cut = lastSpace > max * 0.5 ? slice.slice(0, lastSpace + 1) : `${slice} `;
-  return `${cut}…`;
+  const cut = lastSpace > max * 0.5 ? slice.slice(0, lastSpace) : slice;
+  return `${cut} …`;
 };
 
 /**
@@ -33,7 +35,11 @@ export const extractOgDescription = (content: unknown): string => {
   if ((content[0] as PlateNode | undefined)?.type === "formHeader") start = 1;
 
   const collected: string[] = [];
-  for (let i = start; i < content.length && collected.length < MAX_PARAGRAPHS; i++) {
+  for (
+    let i = start;
+    i < content.length && i - start < MAX_INSPECTED && collected.length < MAX_PARAGRAPHS;
+    i++
+  ) {
     const node = content[i] as PlateNode;
     if (node?.type !== "p") break;
 
@@ -41,7 +47,7 @@ export const extractOgDescription = (content: unknown): string => {
     if (isFormInputType(next?.type)) break;
 
     const text = extractTextContent((node.children ?? []) as Array<{ text?: string }>).trim();
-    if (!text) break;
+    if (!text) continue;
 
     collected.push(text);
   }

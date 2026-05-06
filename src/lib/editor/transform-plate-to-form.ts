@@ -252,11 +252,7 @@ export const extractTextContent = (children: Array<{ text?: string }>): string =
  * label, not description text.
  */
 export const isFormInputType = (type: string | undefined): boolean =>
-  type !== undefined &&
-  (type in INPUT_TYPE_TO_FIELD_TYPE ||
-    type === "formMultiSelectInput" ||
-    type === "formOptionItem" ||
-    type === "formButton");
+  type !== undefined && FORM_INPUT_NODE_TYPES.has(type);
 
 /** Slugify a label, e.g. "Email Address" -> "email_address". */
 const NON_ALNUM_RE = /[^a-z0-9]+/g;
