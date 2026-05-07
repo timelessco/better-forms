@@ -32,7 +32,6 @@ export const OgCard = ({ title, description, icon, themeColorName }: OgCardProps
         flexDirection: "column",
         background: tint,
         padding: "64px",
-        fontFamily: "Inter",
         color: "#0a0a0a",
       }}
     >
