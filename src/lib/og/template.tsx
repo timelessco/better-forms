@@ -2,26 +2,23 @@ import { THEME_COLORS } from "@/lib/theme/theme-presets";
 
 const DEFAULT_ACCENT = THEME_COLORS.neutral.primary;
 
-const tintHex = (hex: string, alpha = 0.08): string => {
-  // satori does NOT support rgba()/oklch() — append two hex digits for alpha.
-  const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255)
-    .toString(16)
-    .padStart(2, "0");
-  return `${hex}${a}`;
-};
+const BG = "#0a0a0a";
+const FG = "#fafafa";
+const FG_MUTED = "#a3a3a3";
+const FG_DIM = "#525252";
 
 export type OgCardProps = {
   title: string;
   description: string;
-  icon?: string | null;
+  /** Absolute URL or data URL for the icon. Sprite names are pre-resolved by the handler. */
+  iconUrl?: string | null;
   themeColorName?: string | null;
 };
 
-export const OgCard = ({ title, description, icon, themeColorName }: OgCardProps) => {
+export const OgCard = ({ title, description, iconUrl, themeColorName }: OgCardProps) => {
   const accent =
     (themeColorName && THEME_COLORS[themeColorName as keyof typeof THEME_COLORS]?.primary) ||
     DEFAULT_ACCENT;
-  const tint = tintHex(accent, 0.08);
 
   return (
     <div
@@ -29,55 +26,58 @@ export const OgCard = ({ title, description, icon, themeColorName }: OgCardProps
         width: "1200px",
         height: "630px",
         display: "flex",
-        flexDirection: "column",
-        background: tint,
-        padding: "64px",
-        fontFamily: "Inter",
-        color: "#0a0a0a",
+        background: BG,
+        padding: "80px",
+        color: FG,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center" }}>
-        {icon ? (
+      <div
+        style={{
+          width: "200px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {iconUrl ? (
+          // eslint-disable-next-line jsx-a11y/alt-text
+          <img src={iconUrl} width={140} height={140} style={{ opacity: 0.9 }} />
+        ) : (
           <div
             style={{
-              width: "72px",
-              height: "72px",
-              borderRadius: "20px",
-              background: "#ffffff",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "40px",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+              fontFamily: "serif",
+              fontStyle: "italic",
+              fontSize: "140px",
+              fontWeight: 400,
+              color: FG_DIM,
+              lineHeight: 1,
             }}
           >
-            {icon}
+            f.
           </div>
-        ) : (
-          <div style={{ width: "72px", height: "72px" }} />
         )}
       </div>
 
       <div
         style={{
+          flex: 1,
           display: "flex",
           flexDirection: "column",
-          flex: 1,
           justifyContent: "center",
-          marginTop: "32px",
+          marginLeft: "40px",
         }}
       >
         <div
           style={{
             fontSize: "72px",
             fontWeight: 700,
-            lineHeight: 1.1,
-            letterSpacing: "-0.02em",
-            color: "#0a0a0a",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
+            lineHeight: 1.05,
+            letterSpacing: "-0.025em",
+            color: FG,
+            display: "flex",
           }}
         >
           {title}
@@ -85,42 +85,38 @@ export const OgCard = ({ title, description, icon, themeColorName }: OgCardProps
         {description ? (
           <div
             style={{
-              marginTop: "24px",
+              marginTop: "28px",
               fontSize: "30px",
               lineHeight: 1.4,
-              color: "#525252",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
+              color: FG_MUTED,
+              display: "flex",
             }}
           >
             {description}
           </div>
         ) : null}
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
         <div
           style={{
-            width: "120px",
-            height: "6px",
-            borderRadius: "999px",
-            background: accent,
+            display: "flex",
+            alignItems: "center",
+            gap: "16px",
+            marginTop: "auto",
+            paddingTop: "48px",
           }}
-        />
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        >
           <div
             style={{
-              fontSize: "24px",
+              width: "32px",
+              height: "4px",
+              borderRadius: "999px",
+              background: accent,
+            }}
+          />
+          <div
+            style={{
+              fontSize: "22px",
               fontWeight: 600,
-              color: "#737373",
+              color: FG_MUTED,
               letterSpacing: "-0.01em",
             }}
           >

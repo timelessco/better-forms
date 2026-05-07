@@ -88,8 +88,8 @@ const PublicFormRoute = () => {
     title: search.hideTitle ? "hidden" : "visible",
     background: isTransparent ? "transparent" : "solid",
     alignment: search.alignLeft ? "left" : "center",
-    dynamicHeight: search.dynamicHeight,
-    dynamicWidth: search.dynamicWidth,
+    dynamicHeight: search.dynamicHeight ?? false,
+    dynamicWidth: search.dynamicWidth ?? false,
   };
 
   // Dual-mode CSS — both light and dark tokens are emitted; the root `.dark`
@@ -192,14 +192,17 @@ export const Route = createFileRoute("/forms/$formId")({
   notFoundComponent: NotFound,
   validateSearch: zodValidator(
     z.object({
-      transparentBackground: z.boolean().optional().default(false),
+      // No `.default()` on these — TanStack Router would canonicalize the URL
+      // by 307-redirecting `/forms/$formId` to `/forms/$formId?popup=false&…`,
+      // which strips link-preview bots that don't follow redirects.
+      transparentBackground: z.boolean().optional(),
       transparent: z.coerce.boolean().optional(),
-      popup: z.coerce.boolean().optional().default(false),
-      hideTitle: z.coerce.boolean().optional().default(false),
-      alignLeft: z.coerce.boolean().optional().default(false),
+      popup: z.coerce.boolean().optional(),
+      hideTitle: z.coerce.boolean().optional(),
+      alignLeft: z.coerce.boolean().optional(),
       originPage: z.string().optional(),
-      dynamicHeight: z.coerce.boolean().optional().default(false),
-      dynamicWidth: z.coerce.boolean().optional().default(false),
+      dynamicHeight: z.coerce.boolean().optional(),
+      dynamicWidth: z.coerce.boolean().optional(),
     }),
   ),
 });
