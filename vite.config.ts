@@ -150,6 +150,12 @@ const config = defineConfig({
       "postgres",
       "drizzle-orm",
       "drizzle-orm/postgres-js",
+      // Keep @vercel/og resolved from node_modules at runtime so the package's
+      // sibling `Geist-Regular.ttf` (read at module load via
+      // `new URL("./Geist-Regular.ttf", import.meta.url)`) ships intact into
+      // the Vercel function. Inlining it into the SSR bundle drops the .ttf
+      // and crashes with ENOENT on first import in /var/task/_ssr/.
+      "@vercel/og",
     ],
   },
   environments: {
