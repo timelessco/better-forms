@@ -21,8 +21,8 @@ const PublicFormRoute = () => {
     title: search.hideTitle ? "hidden" : "visible",
     background: isTransparent ? "transparent" : "solid",
     alignment: search.alignLeft ? "left" : "center",
-    dynamicHeight: search.dynamicHeight,
-    dynamicWidth: search.dynamicWidth,
+    dynamicHeight: search.dynamicHeight ?? false,
+    dynamicWidth: search.dynamicWidth ?? false,
   };
 
   return (
@@ -75,21 +75,17 @@ export const Route = createFileRoute("/forms/$i8n/$formId")({
   notFoundComponent: NotFound,
   validateSearch: zodValidator(
     z.object({
-      // Transparent background for iframe embeds
-      transparentBackground: z.boolean().optional().default(false),
+      // No `.default()` here — TanStack Router would canonicalize a bare URL
+      // to `?popup=false&…`, breaking link-preview bots that don't follow
+      // redirects.
+      transparentBackground: z.boolean().optional(),
       transparent: z.coerce.boolean().optional(), // Alias for transparentBackground
-      // Popup mode (embedded via popup.js)
-      popup: z.coerce.boolean().optional().default(false),
-      // Hide form title in popup
-      hideTitle: z.coerce.boolean().optional().default(false),
-      // Align form content to the left
-      alignLeft: z.coerce.boolean().optional().default(false),
-      // Origin page for tracking
+      popup: z.coerce.boolean().optional(),
+      hideTitle: z.coerce.boolean().optional(),
+      alignLeft: z.coerce.boolean().optional(),
       originPage: z.string().optional(),
-      // Dynamic height for standard iframe embeds
-      dynamicHeight: z.coerce.boolean().optional().default(false),
-      // Dynamic width — form fields fill full width with padding
-      dynamicWidth: z.coerce.boolean().optional().default(false),
+      dynamicHeight: z.coerce.boolean().optional(),
+      dynamicWidth: z.coerce.boolean().optional(),
     }),
   ),
 });

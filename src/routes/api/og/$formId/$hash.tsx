@@ -1,28 +1,40 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ImageResponse } from "@vercel/og";
 import { and, eq } from "drizzle-orm";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { db } from "@/db";
 import { formVersions, forms } from "@/db/schema";
+import { APP_WEBSITE_URL } from "@/lib/config/app-config";
 import { FORM_ID_RE } from "@/lib/config/embed-cors";
 import { computeOgHash } from "@/lib/og/hash";
 import { resolveOgInputs } from "@/lib/og/resolve-inputs";
 import { OgCard } from "@/lib/og/template";
 import { formCacheTag } from "@/lib/server-fn/cdn-cache";
 
-const FONT_PATH = path.join(
-  process.cwd(),
-  "public/fonts/inter-variable/fonts/inter-variable-latin.woff2",
-);
+// Fetch the font from the deployed origin instead of `process.cwd()/public/...`.
+// Vercel serves `public/` from the static CDN; the serverless function bundle
+// at /var/task does NOT contain it, so `readFile` would ENOENT. The first
+// invocation pays one HTTP round-trip; subsequent warm invocations reuse the
+// module-scope promise.
+const FONT_URL = `${APP_WEBSITE_URL}/fonts/inter-variable/fonts/inter-variable-latin.woff2`;
 
-let cachedFont: ArrayBuffer | null = null;
-const loadFont = async (): Promise<ArrayBuffer> => {
-  if (cachedFont) return cachedFont;
-  const buf = await readFile(FONT_PATH);
-  const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-  cachedFont = ab;
-  return ab;
+// Cache the in-flight Promise (not just the resolved buffer) so two cold
+// requests racing the first cold start don't double-fetch. On rejection we
+// null it out so a retry isn't poisoned forever.
+let fontPromise: Promise<ArrayBuffer> | null = null;
+const loadFont = (): Promise<ArrayBuffer> => {
+  if (!fontPromise) {
+    fontPromise = (async () => {
+      const res = await fetch(FONT_URL);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch OG font (${res.status}) from ${FONT_URL}`);
+      }
+      return res.arrayBuffer();
+    })().catch((err) => {
+      fontPromise = null;
+      throw err;
+    });
+  }
+  return fontPromise;
 };
 
 const NOT_FOUND_HEADERS = {
@@ -62,6 +74,12 @@ export const Route = createFileRoute("/api/og/$formId/$hash")({
           return new Response("not_found", { status: 404, headers: NOT_FOUND_HEADERS });
         }
 
+        // Kick off the font fetch in parallel with the version query — saves
+        // ~1 RTT on cold starts. Detach the rejection handler from the early
+        // 404 path so an unawaited rejection can't crash the worker.
+        const fontPromise = loadFont();
+        fontPromise.catch(() => {});
+
         const [version] = form.lastPublishedVersionId
           ? await db
               .select({
@@ -86,7 +104,7 @@ export const Route = createFileRoute("/api/og/$formId/$hash")({
           return new Response("hash_mismatch", { status: 404, headers: NOT_FOUND_HEADERS });
         }
 
-        const fontData = await loadFont();
+        const fontData = await fontPromise;
 
         return new ImageResponse(
           <OgCard
