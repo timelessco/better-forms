@@ -1,13 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ImageResponse } from "@vercel/og";
 import { and, eq } from "drizzle-orm";
+// `?raw` inlines the sprite at build time so the function bundle on Vercel
+// (where /var/task has no public/) can extract <symbol> bodies for OG icons.
+import spriteSvg from "../../../../../public/sprite.svg?raw";
 import { db } from "@/db";
 import { formVersions, forms } from "@/db/schema";
 import { FORM_ID_RE } from "@/lib/config/embed-cors";
 import { computeOgHash } from "@/lib/og/hash";
 import { resolveOgInputs } from "@/lib/og/resolve-inputs";
+import { buildIconDataUrl, isIconUrl, isSpriteIconName } from "@/lib/og/sprite-icon";
 import { OgCard } from "@/lib/og/template";
 import { formCacheTag } from "@/lib/server-fn/cdn-cache";
+
+// Light icon fill against the dark card background.
+const ICON_FILL = "#fafafa";
 
 const NOT_FOUND_HEADERS = {
   "Cache-Control": "public, max-age=60, s-maxage=60",
@@ -77,6 +84,17 @@ export const Route = createFileRoute("/api/og/$formId/$hash")({
           return new Response("hash_mismatch", { status: 404, headers: NOT_FOUND_HEADERS });
         }
 
+        // Resolve the form's icon to something Satori can rasterize via <img>.
+        // Sprite names (e.g. "fingerprint-03") are extracted from the bundled
+        // sprite into a data URL; uploaded images come through as absolute URLs;
+        // anything else falls back to the `f.` brand mark inside OgCard.
+        let iconUrl: string | null = null;
+        if (isIconUrl(og.icon)) {
+          iconUrl = og.icon;
+        } else if (og.icon && isSpriteIconName(og.icon)) {
+          iconUrl = buildIconDataUrl(spriteSvg, og.icon, ICON_FILL);
+        }
+
         // Buffer the streaming PNG so render errors surface here instead of
         // silently truncating the body to 0 bytes (which the edge then caches
         // as `immutable` for a year). Use @vercel/og's bundled Geist by
@@ -85,7 +103,7 @@ export const Route = createFileRoute("/api/og/$formId/$hash")({
           const image = new ImageResponse(
             <OgCard
               description={og.description}
-              icon={og.icon}
+              iconUrl={iconUrl}
               themeColorName={og.themeColorName}
               title={og.title}
             />,
