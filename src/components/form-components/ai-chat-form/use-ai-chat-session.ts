@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { answerableQuestions, computeNextQuestionId } from "@/lib/ai/chat-form-helpers";
+import {
+  answerableQuestions,
+  computeNextQuestionId,
+  humanizeName,
+} from "@/lib/ai/chat-form-helpers";
 import { generateZodSchemaFromFields } from "@/lib/form-schema/generate-preview-schema";
 import { getTranslations } from "@/lib/translations";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
@@ -13,8 +17,11 @@ const newBubbleId = () => `b_${crypto.randomUUID()}`;
 
 const isTerminal = (res: ChatFormResponse): boolean => "error" in res && res._terminal === true;
 
-const labelOf = (q: PlateFormField | undefined, fallback: string) =>
-  (q && "label" in q && q.label) || fallback;
+const labelOf = (q: PlateFormField | undefined, fallback: string): string => {
+  if (q && "label" in q && q.label) return q.label;
+  if (q && "name" in q && q.name) return humanizeName(q.name);
+  return fallback;
+};
 
 type Args = Pick<
   AiChatFormProps,
@@ -156,7 +163,7 @@ export const useAiChatSession = ({
       const res = await callApi("advance", { currentQuestionId: nextQid });
       if ("error" in res) {
         if (recordFailure(isTerminal(res))) return;
-        const label = labelOf(questionById.get(nextQid), nextQid);
+        const label = labelOf(questionById.get(nextQid), "your answer");
         appendBubble({ kind: "ai", id: newBubbleId(), prompt: `${label}?` });
         setPhase("ready");
         return;
@@ -202,16 +209,20 @@ export const useAiChatSession = ({
     }
     setCurrentQuestionId(firstQid);
     const res = await callApi("start", { currentQuestionId: firstQid });
+    const fallbackLabel = labelOf(questionById.get(firstQid), "your answer");
     if ("error" in res) {
       if (recordFailure(isTerminal(res))) return;
-      const label = labelOf(questionById.get(firstQid), firstQid);
-      appendBubble({ kind: "ai", id: newBubbleId(), prompt: `${label}?` });
+      appendBubble({ kind: "ai", id: newBubbleId(), prompt: `${fallbackLabel}?` });
       setPhase("ready");
       return;
     }
     if (res.tool === "askQuestion") {
       recordSuccess();
       appendBubble({ kind: "ai", id: newBubbleId(), prompt: res.args.prompt });
+    } else {
+      // Defensive: API returned an unexpected tool shape on `start`. Surface a
+      // deterministic question prompt rather than leaving the transcript blank.
+      appendBubble({ kind: "ai", id: newBubbleId(), prompt: `${fallbackLabel}?` });
     }
     setPhase("ready");
   }, [

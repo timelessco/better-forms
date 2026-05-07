@@ -270,20 +270,22 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
               <ConfigRow
                 label="Mode"
                 description="Choose how questions are presented to respondents."
+                variant="stacked"
               >
                 <Tabs
                   value={docPresentationMode}
                   onValueChange={(v) => handlePresentationModeChange(v as PresentationMode)}
+                  className="w-full"
                 >
-                  <TabsList className="h-7">
-                    <TabsTrigger value="card" className="px-2 text-xs">
+                  <TabsList className="h-7 w-full">
+                    <TabsTrigger value="card" className="flex-1 px-2 text-xs">
                       Card
                     </TabsTrigger>
-                    <TabsTrigger value="field-by-field" className="px-2 text-xs">
+                    <TabsTrigger value="field-by-field" className="flex-1 px-2 text-xs">
                       Field by field
                     </TabsTrigger>
                     <FeatureGate requiredPlan="pro" tooltipSide="bottom">
-                      <TabsTrigger value="ai-chat" className="gap-1 px-2 text-xs">
+                      <TabsTrigger value="ai-chat" className="flex-1 gap-1 px-2 text-xs">
                         AI Chat
                         <span aria-hidden="true">✨</span>
                       </TabsTrigger>
@@ -330,6 +332,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
                   <ConfigRow
                     label="Greeting"
                     description="Optional. Used verbatim as the very first message."
+                    variant="stacked"
                   >
                     <Textarea
                       aria-label="AI Chat greeting"

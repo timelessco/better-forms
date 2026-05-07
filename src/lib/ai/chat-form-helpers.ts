@@ -38,6 +38,13 @@ const TONE_INSTRUCTIONS = {
   playful: "Use a playful, lighthearted voice. Light humor is welcome.",
 } as const;
 
+export const humanizeName = (name: string): string =>
+  name
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^./, (c) => c.toUpperCase());
+
 const renderBlockSummary = (el: TransformedElement): string => {
   if ("static" in el && el.static === true) {
     if (el.fieldType === "PageBreak") {
@@ -52,9 +59,13 @@ const renderBlockSummary = (el: TransformedElement): string => {
     return `[${el.fieldType}]`;
   }
   if (el.fieldType === "Button") return `[Button:${el.buttonRole}]`;
-  const label = "label" in el && el.label ? el.label : el.id;
+  const explicitLabel = "label" in el && el.label ? el.label : null;
+  const fieldName = "name" in el && el.name ? el.name : null;
+  const label = explicitLabel ?? (fieldName ? humanizeName(fieldName) : el.id);
+  const placeholder =
+    "placeholder" in el && el.placeholder ? ` placeholder="${el.placeholder}"` : "";
   const required = "required" in el && el.required ? " (required)" : "";
-  return `(Question id=${el.id} type=${el.fieldType} label="${label}"${required})`;
+  return `(Question id=${el.id} type=${el.fieldType} label="${label}"${placeholder}${required})`;
 };
 
 export type BuildSystemPromptInput = {
@@ -94,6 +105,11 @@ export const buildSystemPrompt = (input: BuildSystemPromptInput): string => {
     ? `\nThe form author has provided this verbatim greeting — open the conversation with it word-for-word, then transition into the first Question:\n"""\n${input.greeting}\n"""\n`
     : "";
 
+  const isFirstTurn = Object.keys(input.priorAnswers).length === 0;
+  const firstTurnRule = isFirstTurn
+    ? `  - This is the FIRST turn. Open the askQuestion \`prompt\` with a brief warm greeting that name-checks the form title ("${input.formTitle}") in one short sentence, then ask the current Question in the SAME prompt. One bubble, two beats. Do not split into two tool calls.`
+    : "";
+
   return [
     `You are guiding a Respondent through a conversational form titled "${input.formTitle}".`,
     `${TONE_INSTRUCTIONS[input.tone]} Respond in ${input.language}.`,
@@ -111,5 +127,10 @@ export const buildSystemPrompt = (input: BuildSystemPromptInput): string => {
     "  - Do not preview future Questions. Do not list them, count them, or hint at what's next.",
     "  - You may briefly acknowledge the prior Answer when natural.",
     "  - Do not invent facts. Only paraphrase content present in the form structure or prior Answers.",
-  ].join("\n");
+    "  - Reference Questions by their `label` (or `placeholder`) — NEVER by `id`. The id is internal and must not appear in any prose.",
+    "  - The askQuestion `prompt` must be a complete, natural sentence — never echo the id or label verbatim with a question mark.",
+    firstTurnRule,
+  ]
+    .filter(Boolean)
+    .join("\n");
 };

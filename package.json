@@ -183,5 +183,8 @@
     "vitest": "^3.2.4",
     "web-vitals": "^5.1.0"
   },
-  "packageManager": "bun@1.2.14"
+  "packageManager": "bun@1.2.14",
+  "patchedDependencies": {
+    "@tanstack/router-core@1.169.2": "patches/@tanstack%2Frouter-core@1.169.2.patch"
+  }
 }

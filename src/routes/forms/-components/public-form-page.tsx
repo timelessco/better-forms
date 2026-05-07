@@ -16,6 +16,7 @@ const AiChatForm = lazy(() =>
     default: m.AiChatForm,
   })),
 );
+import { transformPlateStateToFormElements } from "@/lib/editor/transform-plate-to-form";
 import { FormPreviewRSC } from "@/components/form-components/form-preview-rsc";
 import type { StepRSC } from "@/components/form-components/form-preview-rsc";
 import { BrandingFooter } from "./branding-footer";
@@ -242,6 +243,11 @@ export const PublicFormPage = ({
   const previewKey = resumed ? "resumed" : "fresh";
 
   const resolvedLanguage = form?.settings?.language ?? "English";
+
+  const aiChatElements = useMemo(
+    () => transformPlateStateToFormElements((form?.content ?? []) as Value),
+    [form?.content],
+  );
 
   useEffect(() => {
     if (transparentBackground || isPopup) {
@@ -484,7 +490,7 @@ export const PublicFormPage = ({
           <AiChatForm
             formId={formId}
             submissionId={submissionIdForChat}
-            content={form.content as never}
+            content={aiChatElements}
             settings={settings}
             onSwitchToStandard={() => setAiChatFallback(true)}
             onSubmit={handleSubmit}

@@ -161,6 +161,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "@tanstack/router-core@1.169.2": "patches/@tanstack%2Frouter-core@1.169.2.patch",
+  },
   "packages": {
     "@acemir/cssom": ["@acemir/cssom@0.9.31", "", {}, "sha512-ZnR3GSaH+/vJ0YlHau21FjfLYjMpYVIzTD8M8vIEQvIGxeOXyXdzCI140rrCY862p/C/BbzWsjc1dgnM9mkoTA=="],
 

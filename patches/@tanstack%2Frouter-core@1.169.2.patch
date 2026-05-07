@@ -1,0 +1,31 @@
+diff --git a/dist/esm/ssr/serializer/RawStream.js b/dist/esm/ssr/serializer/RawStream.js
+index 60b8321ce8643733d04aa342420b11b2d47de234..dc295b9b62de3f6c1d174cb85ccfafa74cb85f45 100644
+--- a/dist/esm/ssr/serializer/RawStream.js
++++ b/dist/esm/ssr/serializer/RawStream.js
+@@ -16,7 +16,7 @@ import { createPlugin, createStream } from "seroval";
+ var RawStream = class {
+ 	constructor(stream, options) {
+ 		this.stream = stream;
+-		this.hint = options?.hint ?? "binary";
++		this.hint = options?.hint ?? "binary"; this[Symbol.for("tanstack.router.RawStream")] = true;
+ 	}
+ };
+ const BufferCtor = globalThis.Buffer;
+@@ -193,7 +193,7 @@ const RawStreamSSRPlugin = /* @__PURE__ */ createPlugin({
+ 		}
+ 	})],
+ 	test(value) {
+-		return value instanceof RawStream;
++		return value !== null && typeof value === "object" && value[Symbol.for("tanstack.router.RawStream")] === true;
+ 	},
+ 	parse: {
+ 		sync(value, ctx, _data) {
+@@ -244,7 +244,7 @@ function createRawStreamRPCPlugin(onRawStream) {
+ 	return /* @__PURE__ */ createPlugin({
+ 		tag: "tss/RawStream",
+ 		test(value) {
+-			return value instanceof RawStream;
++			return value !== null && typeof value === "object" && value[Symbol.for("tanstack.router.RawStream")] === true;
+ 		},
+ 		parse: {
+ 			async async(value, ctx, _data) {

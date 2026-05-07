@@ -1,11 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { uploadFormFile } from "@/lib/server-fn/public-file-uploads";
 import { getTranslations } from "@/lib/translations";
+import { cn } from "@/lib/utils";
 import type { AiChatFormProps } from "./types";
 import { QuestionBubble } from "./question-bubble";
 import { useAiChatSession } from "./use-ai-chat-session";
+
+const FloatingPanel = ({ children }: { children: React.ReactNode }) => (
+  <div className="mx-auto w-full max-w-2xl px-4 pt-2 pb-6">{children}</div>
+);
+
+const FloatingMessage = ({
+  children,
+  muted = false,
+}: {
+  children: React.ReactNode;
+  muted?: boolean;
+}) => (
+  <FloatingPanel>
+    <div
+      className={cn(
+        "rounded-2xl border border-border bg-card p-3 text-center text-sm shadow-lg",
+        muted && "text-muted-foreground",
+      )}
+    >
+      {children}
+    </div>
+  </FloatingPanel>
+);
 
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -99,13 +122,14 @@ export const AiChatForm = (props: AiChatFormProps) => {
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const [draft, setDraft] = useState("");
 
-  // Focus management — when a new bubble lands and we're ready for input,
-  // focus the composer so the keyboard user can keep typing.
+  // Focus management — focus the composer each time we transition INTO the
+  // "ready" phase (i.e. a new Question is awaiting input). Don't re-focus on
+  // every bubble change, as that would steal focus mid-typing on resume.
   useEffect(() => {
     if (session.phase === "ready") {
       composerRef.current?.focus();
     }
-  }, [session.phase, session.bubbles.length]);
+  }, [session.phase]);
 
   // Scroll the latest bubble into view. Respect prefers-reduced-motion.
   useEffect(() => {
@@ -173,7 +197,7 @@ export const AiChatForm = (props: AiChatFormProps) => {
         role="log"
         aria-live="polite"
         aria-label="Conversation"
-        className="flex-1 space-y-3 overflow-y-auto px-4 py-4"
+        className="mx-auto w-full max-w-2xl flex-1 space-y-3 overflow-y-auto px-4 py-4 pb-6"
       >
         {session.bubbles.map((b) => {
           if (b.kind === "ai") {
@@ -231,15 +255,16 @@ export const AiChatForm = (props: AiChatFormProps) => {
       </div>
 
       {session.phase === "ready" && currentIsFreeText && (
-        <form
-          className="border-t px-4 py-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void handleSubmit();
-          }}
-        >
-          <div className="flex items-end gap-2">
-            <Textarea
+        <FloatingPanel>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleSubmit();
+            }}
+            onClick={() => composerRef.current?.focus()}
+            className="flex items-end gap-2 rounded-2xl border border-border bg-card p-2 shadow-lg focus-within:ring-2 focus-within:ring-ring/40"
+          >
+            <textarea
               ref={composerRef}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -251,12 +276,13 @@ export const AiChatForm = (props: AiChatFormProps) => {
               }}
               placeholder="Type your reply…"
               aria-label="Your reply"
-              className="min-h-10 resize-none text-sm"
+              rows={1}
+              className="min-h-12 w-full resize-none border-0 bg-transparent px-2 py-2 text-sm text-foreground caret-current outline-none placeholder:text-muted-foreground"
             />
             <Button type="submit" size="sm" disabled={!draft.trim()}>
               Send
             </Button>
-          </div>
+          </form>
           {canSkip && (
             <button
               type="button"
@@ -266,23 +292,25 @@ export const AiChatForm = (props: AiChatFormProps) => {
               {t.aiChatSkipped}
             </button>
           )}
-        </form>
+        </FloatingPanel>
       )}
 
       {session.phase === "ready" && currentIsStructured && currentQ && (
-        <div className="border-t px-4 py-3">
-          <QuestionBubble
-            question={currentQ}
-            onPick={(value, label) => session.pickStructured(value, label)}
-            onSkip={canSkip ? () => void session.requestSkip() : undefined}
-            canSkip={canSkip}
-          />
-        </div>
+        <FloatingPanel>
+          <div className="rounded-2xl border border-border bg-card p-3 shadow-lg">
+            <QuestionBubble
+              question={currentQ}
+              onPick={(value, label) => session.pickStructured(value, label)}
+              onSkip={canSkip ? () => void session.requestSkip() : undefined}
+              canSkip={canSkip}
+            />
+          </div>
+        </FloatingPanel>
       )}
 
       {session.phase === "ready" && currentIsFileUpload && currentQ && (
-        <div className="border-t px-4 py-3">
-          <div className="flex items-center gap-2">
+        <FloatingPanel>
+          <div className="flex items-center gap-2 rounded-2xl border border-border bg-card p-3 shadow-lg">
             <input
               id={`file-${currentQ.id}`}
               type="file"
@@ -295,7 +323,7 @@ export const AiChatForm = (props: AiChatFormProps) => {
             />
             <label
               htmlFor={`file-${currentQ.id}`}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm hover:bg-muted/60"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted/60"
             >
               📎 Attach file
             </label>
@@ -309,23 +337,15 @@ export const AiChatForm = (props: AiChatFormProps) => {
               </button>
             )}
           </div>
-        </div>
+        </FloatingPanel>
       )}
 
-      {session.phase === "submitting" && (
-        <div className="border-t px-4 py-3 text-center text-sm text-muted-foreground">
-          {t.submitting}
-        </div>
-      )}
+      {session.phase === "submitting" && <FloatingMessage muted>{t.submitting}</FloatingMessage>}
 
-      {session.phase === "closed" && (
-        <div className="border-t px-4 py-3 text-center text-sm">{t.aiChatSubmitted}</div>
-      )}
+      {session.phase === "closed" && <FloatingMessage>{t.aiChatSubmitted}</FloatingMessage>}
 
       {session.phase === "fallback" && (
-        <div className="border-t px-4 py-3 text-center text-sm text-muted-foreground">
-          {t.aiChatUnavailable}
-        </div>
+        <FloatingMessage muted>{t.aiChatUnavailable}</FloatingMessage>
       )}
     </div>
   );

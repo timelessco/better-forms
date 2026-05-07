@@ -8,6 +8,8 @@ import { formSettings, forms, formVersions, organization, workspaces } from "@/d
 import { auth } from "@/lib/auth/auth";
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { answerableQuestions, buildSystemPrompt, monthKey } from "@/lib/ai/chat-form-helpers";
+import { transformPlateStateToFormElements } from "@/lib/editor/transform-plate-to-form";
+import type { Value } from "platejs";
 import {
   AI_CHAT_CAP_ERROR,
   AI_CHAT_PREVIEW_CAP_ERROR,
@@ -104,7 +106,10 @@ const loadPublishedFormForChat = async (formId: string): Promise<FormLoadResult 
     formId: row.id,
     organizationId: row.organizationId,
     orgPlan: row.orgPlan,
-    content: (row.versionContent ?? []) as TransformedElement[],
+    // Transform raw Plate value into typed Form Elements; the published
+    // snapshot in `formVersions.content` is the raw editor doc, not the
+    // typed elements `answerableQuestions` expects.
+    content: transformPlateStateToFormElements((row.versionContent ?? []) as Value),
     formTitle: (row.versionTitle ?? "Untitled") as string,
     settings: buildPublicFormSettings(row.liveSettings),
   };
@@ -137,7 +142,7 @@ const loadDraftFormForPreview = async (
     formId: row.id,
     organizationId: row.organizationId,
     orgPlan: row.orgPlan,
-    content: (row.content ?? []) as TransformedElement[],
+    content: transformPlateStateToFormElements((row.content ?? []) as Value),
     formTitle: row.title,
     settings: buildPublicFormSettings({ ...defaultFormSettings, ...row.draftSettings }),
     isOwner: true,
@@ -352,6 +357,15 @@ const runAiTurn = async (
         body: {
           tool: "closing",
           args: { message: "Thanks — your response has been submitted." },
+          fallback: true,
+        },
+      };
+    }
+    if (body.intent === "start") {
+      return {
+        body: {
+          tool: "askQuestion",
+          args: { prompt: `Welcome to ${form.formTitle}! ${label}?` },
           fallback: true,
         },
       };

@@ -168,23 +168,38 @@ export const ConfigRow = ({
   label: string;
   description?: string;
   children: React.ReactNode;
-  variant?: "default" | "switch";
-}) => (
-  <div
-    className={`flex min-h-8.5 items-center gap-3 overflow-clip bg-secondary py-1.75 pl-2.5 ${
-      // max-h-9.5
-      variant === "switch" ? "pr-[6px]" : "pr-[3px]"
-    }`}
-  >
-    <div className="flex min-w-0 flex-1 flex-col gap-1">
-      <span className="text-base font-normal">{label}</span>
-      {description && (
-        <p className="text-sm font-normal text-wrap text-muted-foreground">{description}</p>
-      )}
+  variant?: "default" | "switch" | "stacked";
+}) => {
+  if (variant === "stacked") {
+    return (
+      <div className="flex flex-col gap-2 overflow-clip bg-secondary py-2 pr-2.5 pl-2.5">
+        <div className="flex flex-col gap-1">
+          <span className="text-base font-normal">{label}</span>
+          {description && (
+            <p className="text-sm font-normal text-wrap text-muted-foreground">{description}</p>
+          )}
+        </div>
+        {children}
+      </div>
+    );
+  }
+  return (
+    <div
+      className={`flex min-h-8.5 items-center gap-3 overflow-clip bg-secondary py-1.75 pl-2.5 ${
+        // max-h-9.5
+        variant === "switch" ? "pr-[6px]" : "pr-[3px]"
+      }`}
+    >
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="text-base font-normal">{label}</span>
+        {description && (
+          <p className="text-sm font-normal text-wrap text-muted-foreground">{description}</p>
+        )}
+      </div>
+      {children}
     </div>
-    {children}
-  </div>
-);
+  );
+};
 
 /**
  * Figma button: h-[24px] px-[8px] py-[5.5px] rounded-[5px] gap-[4px]
