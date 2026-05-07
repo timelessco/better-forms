@@ -87,8 +87,8 @@ const CustomDomainFormIdRoute = () => {
     title: search.hideTitle ? "hidden" : "visible",
     background: isTransparent ? "transparent" : "solid",
     alignment: search.alignLeft ? "left" : "center",
-    dynamicHeight: search.dynamicHeight,
-    dynamicWidth: search.dynamicWidth,
+    dynamicHeight: search.dynamicHeight ?? false,
+    dynamicWidth: search.dynamicWidth ?? false,
   };
 
   const customization = useMemo(
@@ -179,14 +179,16 @@ export const Route = createFileRoute("/f/$formId")({
   notFoundComponent: CustomDomainNotFound,
   validateSearch: zodValidator(
     z.object({
-      transparentBackground: z.boolean().optional().default(false),
+      // No `.default()` — would 307-redirect bare URLs to a canonical form
+      // with all defaults appended, breaking link-preview crawlers.
+      transparentBackground: z.boolean().optional(),
       transparent: z.coerce.boolean().optional(),
-      popup: z.coerce.boolean().optional().default(false),
-      hideTitle: z.coerce.boolean().optional().default(false),
-      alignLeft: z.coerce.boolean().optional().default(false),
+      popup: z.coerce.boolean().optional(),
+      hideTitle: z.coerce.boolean().optional(),
+      alignLeft: z.coerce.boolean().optional(),
       originPage: z.string().optional(),
-      dynamicHeight: z.coerce.boolean().optional().default(false),
-      dynamicWidth: z.coerce.boolean().optional().default(false),
+      dynamicHeight: z.coerce.boolean().optional(),
+      dynamicWidth: z.coerce.boolean().optional(),
     }),
   ),
 });

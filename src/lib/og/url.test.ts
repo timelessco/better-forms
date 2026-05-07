@@ -9,8 +9,7 @@ describe("buildOgImageUrl", () => {
       title: "Hi",
       description: "World",
     });
-    const origin = APP_WEBSITE_URL.replace(/\/+$/, "");
-    expect(url.startsWith(`${origin}/api/og/abc/`)).toBeTruthy();
+    expect(url.startsWith(`${APP_WEBSITE_URL}/api/og/abc/`)).toBeTruthy();
     expect(url.endsWith(".png")).toBeTruthy();
   });
 
