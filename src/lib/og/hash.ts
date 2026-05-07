@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
  * The next HTML render will emit a new URL for every form, naturally
  * invalidating every form's edge-cached OG image without manual purge.
  */
-export const TEMPLATE_VERSION = 1;
+export const TEMPLATE_VERSION = 2;
 
 export type OgHashInput = {
   title: string;
