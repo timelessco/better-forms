@@ -83,6 +83,7 @@ export const useAiChatSession = ({
         currentQuestionId?: string | null;
         userText?: string;
         priorAnswers?: Record<string, unknown>;
+        validationError?: string;
       },
     ): Promise<ChatFormResponse & { _terminal?: boolean }> => {
       aiCallCountRef.current += 1;
@@ -97,6 +98,7 @@ export const useAiChatSession = ({
             currentQuestionId: body.currentQuestionId ?? undefined,
             userText: body.userText,
             priorAnswers: body.priorAnswers ?? {},
+            validationError: body.validationError,
             isPreview: isPreview ?? false,
           }),
         });
@@ -290,14 +292,24 @@ export const useAiChatSession = ({
       if (res.tool === "confirmParse") {
         const fieldSchema = (
           validationSchema as {
-            shape?: Record<string, { safeParse: (v: unknown) => { success: boolean } }>;
+            shape?: Record<
+              string,
+              {
+                safeParse: (v: unknown) => { success: boolean; error?: { message: string } };
+              }
+            >;
           }
         ).shape?.[currentQuestionId];
-        const valid = fieldSchema ? fieldSchema.safeParse(res.args.parsedValue).success : true;
+        const parseResult = fieldSchema?.safeParse(res.args.parsedValue);
+        const valid = parseResult ? parseResult.success : true;
         if (!valid) {
           parseAttemptsRef.current += 1;
-          appendBubble({ kind: "ai", id: newBubbleId(), prompt: t.aiChatInvalidRetry });
           if (parseAttemptsRef.current >= MAX_PARSE_ATTEMPTS) {
+            // Out of attempts — show the AI's prompt if it provided one (it's
+            // usually a helpful "I need a URL like…" message), else fallback,
+            // then either skip (if optional) or trip (if required).
+            const aiRetryText = res.args.prompt?.trim() || t.aiChatInvalidRetry;
+            appendBubble({ kind: "ai", id: newBubbleId(), prompt: aiRetryText });
             const q = questionById.get(currentQuestionId);
             const required = q && "required" in q ? q.required : false;
             if (!required) {
@@ -311,31 +323,56 @@ export const useAiChatSession = ({
               await advanceTo(nextQid);
               return;
             }
-            // Required Q stuck in a loop — escape to standard.
             trip();
             return;
           }
+          // Re-ask with the validation error as AI context — server adds it
+          // to the system prompt so the AI can produce a specific re-ask
+          // (e.g. "I need a URL starting with https://" instead of generic).
+          const validationError =
+            parseResult?.error?.message ?? "value did not match expected format";
+          const retry = await callApi("parse-and-advance", {
+            currentQuestionId,
+            userText: trimmed,
+            priorAnswers: answers,
+            validationError,
+          });
+          if ("error" in retry) {
+            if (recordFailure(isTerminal(retry))) return;
+            appendBubble({ kind: "ai", id: newBubbleId(), prompt: t.aiChatInvalidRetry });
+            setPhase("ready");
+            return;
+          }
+          if (retry.tool === "confirmParse") {
+            const retryParse = fieldSchema?.safeParse(retry.args.parsedValue);
+            if (retryParse?.success) {
+              // AI's contextualized retry actually parsed cleanly this time.
+              recordSuccess();
+              const next = { ...answers, [currentQuestionId]: retry.args.parsedValue };
+              updateAnswers(next);
+              const nextQid = computeNextQuestionId(content, next);
+              await advanceTo(nextQid);
+              return;
+            }
+            // Still invalid; render the AI's contextual prompt as the retry.
+            const retryText = retry.args.prompt?.trim() || t.aiChatInvalidRetry;
+            appendBubble({ kind: "ai", id: newBubbleId(), prompt: retryText });
+            setPhase("ready");
+            return;
+          }
+          appendBubble({ kind: "ai", id: newBubbleId(), prompt: t.aiChatInvalidRetry });
           setPhase("ready");
           return;
         }
         recordSuccess();
         const next = { ...answers, [currentQuestionId]: res.args.parsedValue };
         updateAnswers(next);
-        // `confirmParse.prompt` already contains the prose for the next Question
-        // (per the tool description on the server). Render it as the next-Q
-        // bubble directly — DO NOT also call `advanceTo(nextQid)` for the same
-        // Q, which previously produced a second redundant "Hello! Welcome…
-        // Could you provide [same Q]?" bubble for every turn.
+        // `confirmParse.prompt` is unreliable as a next-Q bubble — the server's
+        // system prompt only tells the AI about the *current* Q, so the AI's
+        // prompt often re-asks the same one. Discard it; let `advance`'s
+        // askQuestion.prompt be the single next-Q bubble.
         const nextQid = computeNextQuestionId(content, next);
-        appendBubble({ kind: "ai", id: newBubbleId(), prompt: res.args.prompt });
-        if (!nextQid) {
-          // Final answer — call finish for the closing message + onSubmit.
-          await advanceTo(null);
-          return;
-        }
-        setCurrentQuestionId(nextQid);
-        parseAttemptsRef.current = 0;
-        setPhase("ready");
+        await advanceTo(nextQid);
       }
     },
     [

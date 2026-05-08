@@ -76,6 +76,10 @@ export type BuildSystemPromptInput = {
   currentQuestionId: string | null;
   priorAnswers: Record<string, unknown>;
   greeting: string | null;
+  /** Zod-validation error from the previous parse attempt for this reply.
+   * When set, the AI is told to either re-extract more carefully or write a
+   * specific re-ask explaining the expected format. */
+  validationError?: string | null;
 };
 
 /**
@@ -110,6 +114,20 @@ export const buildSystemPrompt = (input: BuildSystemPromptInput): string => {
     ? `  - This is the FIRST turn. Open the askQuestion \`prompt\` with a brief warm greeting that name-checks the form title ("${input.formTitle}") in one short sentence, then ask the current Question in the SAME prompt. One bubble, two beats. Do not split into two tool calls.`
     : "";
 
+  const personalizationRule = !isFirstTurn
+    ? `  - Personalize when natural: if a prior Answer contains the Respondent's name (look for fields like "Full Name" / "First Name" / "Name"), address them by their first name in your prompts (once, not in every message — use sparingly so it stays natural).`
+    : "";
+
+  const validationErrorBlock = input.validationError
+    ? [
+        "",
+        "PREVIOUS PARSE FAILED:",
+        `  ${input.validationError}`,
+        "  - Re-read the Respondent's reply and try harder to extract a value matching the current Question's expected type.",
+        '  - If the reply genuinely cannot satisfy the field (e.g. they said "baskar" when a URL is required), set `parsedValue` to a sensible empty default ("" for text, null for numbers) and write `prompt` as a SPECIFIC re-ask explaining the expected format with an example (e.g. "I need a URL like https://example.com — could you share yours?").',
+      ].join("\n")
+    : "";
+
   return [
     `You are guiding a Respondent through a conversational form titled "${input.formTitle}".`,
     `${TONE_INSTRUCTIONS[input.tone]} Respond in ${input.language}.`,
@@ -122,6 +140,7 @@ export const buildSystemPrompt = (input: BuildSystemPromptInput): string => {
     "Prior Answers from this Respondent:",
     answerLines || "  (none yet)",
     greetingLine,
+    validationErrorBlock,
     "Rules:",
     "  - Emit exactly one tool call. Do not produce free prose outside a tool call.",
     "  - Do not preview future Questions. Do not list them, count them, or hint at what's next.",
@@ -129,7 +148,16 @@ export const buildSystemPrompt = (input: BuildSystemPromptInput): string => {
     "  - Do not invent facts. Only paraphrase content present in the form structure or prior Answers.",
     "  - Reference Questions by their `label` (or `placeholder`) — NEVER by `id`. The id is internal and must not appear in any prose.",
     "  - The askQuestion `prompt` must be a complete, natural sentence — never echo the id or label verbatim with a question mark.",
+    "",
+    "Extraction rules (for confirmParse):",
+    "  - Be lenient with verbose Respondent replies. Extract ONLY the value relevant to the current Question; ignore surrounding chatter, hedges, and side commentary.",
+    '  - For Number/currency fields: emit a plain number (no commas, no currency symbols, no words). Convert magnitudes (e.g. "1 million" → 1000000, "5k" → 5000, "$100k" → 100000). If the reply contains multiple numbers, pick the one that directly answers the Question (e.g. for "Desired Salary", "100k would be great as I already get 50k" → 100000).',
+    "  - For URL fields: emit a fully-qualified https:// URL. If the user gave a domain without a protocol, prepend `https://`. If they gave only a name with no domain or path, leave parsedValue empty so the parse fails cleanly.",
+    '  - For Email/Phone: extract just the canonical address/number. Strip leading words like "my email is" or "sure, here\'s my number".',
+    "  - For Text fields with constraints (minLength/maxLength): respect them when extracting.",
+    "  - Never invent values. If extraction is impossible from the reply, leave parsedValue as a neutral empty default — DO NOT make something up.",
     firstTurnRule,
+    personalizationRule,
   ]
     .filter(Boolean)
     .join("\n");

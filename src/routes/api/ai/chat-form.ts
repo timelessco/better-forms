@@ -58,6 +58,10 @@ const bodySchema = z.object({
   // (e.g. address the Respondent by name once they've given it).
   // Server is read-only against this map; the submission table owns truth.
   priorAnswers: z.record(z.string(), z.unknown()).optional(),
+  // Optional Zod-validation error from the previous parse attempt. When set,
+  // the system prompt tells the AI exactly why the prior parse failed so it
+  // can produce a more specific re-ask (e.g. "I need a URL with https://").
+  validationError: z.string().max(500).optional(),
   isPreview: z.boolean().optional(),
 });
 
@@ -342,11 +346,14 @@ const runAiTurn = async (
     currentQuestionId: body.currentQuestionId ?? null,
     priorAnswers,
     greeting,
+    validationError: body.validationError ?? null,
   });
 
   const userMessage =
     body.intent === "parse-and-advance" && body.userText
-      ? `Respondent reply: ${body.userText}`
+      ? body.validationError
+        ? `Respondent reply: ${body.userText}\n\nThe previous parse of this same reply failed validation: ${body.validationError}. Re-extract more carefully or, if the reply genuinely cannot be made to satisfy the field, set parsedValue to a sensible empty default and write \`prompt\` as a helpful re-ask explaining the expected format.`
+        : `Respondent reply: ${body.userText}`
       : body.intent === "finish"
         ? "Render the closing message."
         : "Generate the next bubble.";
