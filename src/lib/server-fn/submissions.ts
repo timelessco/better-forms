@@ -46,7 +46,7 @@ const maybePurgeAfterSubmissionDelete = async (formId: string) => {
     .leftJoin(formSettings, eq(formSettings.formId, forms.id))
     .where(eq(forms.id, formId));
   if (row?.lastPublishedVersionId && row.settings?.limitSubmissions) {
-    void purgeFormCache(formId);
+    purgeFormCache(formId);
   }
 };
 

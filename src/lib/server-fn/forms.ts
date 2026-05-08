@@ -115,7 +115,7 @@ export const updateForm = createServerFn({ method: "POST" })
     // moving off "published". Live settings changes happen in publishFormVersion.
     const statusChanged = updateData.status !== undefined;
     if (statusChanged && form?.lastPublishedVersionId) {
-      void purgeFormCache(id);
+      purgeFormCache(id);
     }
 
     return { form: serializeForm(form) };
@@ -151,7 +151,7 @@ export const bulkArchiveForms = createServerFn({ method: "POST" })
       .returning({ id: forms.id, lastPublishedVersionId: forms.lastPublishedVersionId });
     // Drafts that go straight to trash have no edge cache to invalidate.
     const everPublished = updated.filter((r) => r.lastPublishedVersionId).map((r) => r.id);
-    void purgeFormCacheBatch(everPublished);
+    purgeFormCacheBatch(everPublished);
 
     return { archived: updated.length, ids: updated.map((r) => r.id) };
   });
@@ -365,7 +365,7 @@ export const updateFormSlug = createServerFn({ method: "POST" })
 
     // Slug is part of the public-routing surface — old URL keeps serving the
     // cached body until the tag is invalidated. Skip if never published.
-    if (updatedForm?.lastPublishedVersionId) void purgeFormCache(formId);
+    if (updatedForm?.lastPublishedVersionId) purgeFormCache(formId);
 
     return { form: serializeForm(updatedForm) };
   });
@@ -446,7 +446,7 @@ export const assignFormDomain = createServerFn({ method: "POST" })
 
     // Custom domain assignment changes the canonical URL + head metadata
     // rendered into the public response. Purge if ever published.
-    if (updatedForm?.lastPublishedVersionId) void purgeFormCache(formId);
+    if (updatedForm?.lastPublishedVersionId) purgeFormCache(formId);
 
     return { form: serializeForm(updatedForm) };
   });

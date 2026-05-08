@@ -1,4 +1,5 @@
 import { setResponseHeader } from "@tanstack/react-start/server";
+import { waitUntil } from "@vercel/functions";
 import { vercel, vercelProjectId, vercelTeamId } from "@/integrations/vercel";
 // Public forms are immutable per published version. We serve a year-long
 // edge cache with stale-while-revalidate, and invalidate the cache tag
@@ -46,37 +47,36 @@ export const applyFormCacheHeaders = (formId: string, { gated }: { gated: boolea
   setResponseHeader("Cache-Tag", formCacheTag(formId));
 };
 
-// Fire-and-forget purge by Cache-Tag via the Vercel API. No-op outside
-// Vercel deployments (env vars absent).
-export const purgeFormCache = (formId: string): Promise<void> => purgeFormCacheBatch([formId]);
+// No-op outside Vercel; on Vercel, registers the invalidation with
+// `waitUntil` so the serverless runtime doesn't freeze the function before
+// the HTTP call to the Edge Cache API completes.
+export const purgeFormCache = (formId: string): void => {
+  purgeFormCacheBatch([formId]);
+};
 
-// Invalidates Vercel's Edge Cache by tag via the typed Vercel SDK
-// (`vercel.edgeCache.invalidateByTags`). The SDK accepts a single tag string
-// or an array, so any batch (bulk delete, daily cron) can ride one call.
-export const purgeFormCacheBatch = async (formIds: string[]): Promise<void> => {
+export const purgeFormCacheBatch = (formIds: string[]): void => {
   if (formIds.length === 0) return;
 
   const projectId = vercelProjectId();
   if (!(process.env.VERCEL_TOKEN && projectId)) return;
 
-  // Skip in non-production environments — there's no Edge Cache to purge in
-  // local dev, and the API call would just be log noise on every publish.
-  // Set FORCE_CDN_PURGE=1 to override (e.g. when testing the purge path
-  // against a real Vercel project from a local branch).
+  // Set FORCE_CDN_PURGE=1 to exercise this path from a local branch against
+  // a real Vercel project — otherwise non-prod skips to avoid log noise.
   if (process.env.NODE_ENV !== "production" && process.env.FORCE_CDN_PURGE !== "1") {
     return;
   }
 
-  try {
-    await vercel.edgeCache.invalidateByTags({
+  const purge = vercel.edgeCache
+    .invalidateByTags({
       projectIdOrName: projectId,
       teamId: vercelTeamId(),
       requestBody: { tags: formIds.map(formCacheTag) },
+    })
+    .catch((err: unknown) => {
+      // Swallow: a failed purge must not break publish/update flows. Worst
+      // case the browser revalidates after `max-age=60`.
+      console.warn(`[cdn-cache] purge failed for ${formIds.length} tag(s):`, err);
     });
-  } catch (err) {
-    // Don't throw — purge failures must not break publish/update flows. The
-    // 60s browser max-age plus human behaviour (refresh on "didn't see my
-    // change") is an acceptable fallback.
-    console.warn(`[cdn-cache] purge failed for ${formIds.length} tag(s):`, err);
-  }
+
+  waitUntil(purge);
 };
