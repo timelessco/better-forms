@@ -295,6 +295,25 @@ export const EmbedPreviewMockup = ({
             onMouseEnter={isPopup ? handleMouseEnterMorph : undefined}
             onMouseLeave={isPopup ? handleMouseLeaveMorph : undefined}
           >
+            {embedType === "fullpage" && (
+              <div className="absolute inset-0 flex flex-col">
+                <div className="relative h-1/3 bg-secondary/70">
+                  <div className="absolute -bottom-3 left-3 h-6 w-6 rounded-full bg-secondary shadow-[0_1px_3px_rgba(0,0,0,0.12)]" />
+                </div>
+                <div className="flex flex-1 flex-col gap-2 px-3 pt-5 pb-2">
+                  <div className="h-2 w-2/5 rounded-full bg-secondary" />
+                  <div className="mt-1 space-y-1.5">
+                    <div className="h-1.5 w-1/4 rounded-full bg-secondary/80" />
+                    <div className="h-3 w-full rounded-[3px] bg-secondary/60" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="h-1.5 w-1/5 rounded-full bg-secondary/80" />
+                    <div className="h-3 w-full rounded-[3px] bg-secondary/60" />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {isPopup && isPopupExpanded && (
               <button
                 type="button"
