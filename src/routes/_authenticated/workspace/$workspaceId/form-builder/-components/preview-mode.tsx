@@ -382,18 +382,32 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
                   previewSettings.presentationMode !== "field-by-field" && branding && "pb-16",
                 )}
               >
-                <FormPreviewFromPlate
-                  content={content}
-                  title={hideTitle ? "" : (doc.title ?? undefined)}
-                  icon={doc.icon ?? undefined}
-                  cover={doc.cover ?? undefined}
-                  onSubmit={noop}
-                  hideTitle={hideTitle}
-                  layout="editor"
-                  customization={customization}
-                  settings={previewSettings}
-                  formId={formId}
-                />
+                {previewIsAiChat ? (
+                  <Suspense fallback={null}>
+                    <AiChatForm
+                      formId={formId}
+                      submissionId={previewSubmissionId}
+                      content={previewElements}
+                      settings={previewSettings}
+                      onSubmit={noop}
+                      onSwitchToStandard={() => {}}
+                      isPreview
+                    />
+                  </Suspense>
+                ) : (
+                  <FormPreviewFromPlate
+                    content={content}
+                    title={hideTitle ? "" : (doc.title ?? undefined)}
+                    icon={doc.icon ?? undefined}
+                    cover={doc.cover ?? undefined}
+                    onSubmit={noop}
+                    hideTitle={hideTitle}
+                    layout="editor"
+                    customization={customization}
+                    settings={previewSettings}
+                    formId={formId}
+                  />
+                )}
               </div>
               {branding && <BrandingBadge />}
             </div>
