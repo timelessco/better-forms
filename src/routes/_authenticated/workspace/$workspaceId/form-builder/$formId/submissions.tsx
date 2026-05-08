@@ -327,7 +327,6 @@ const SubmissionsPage = () => {
     initialPageParam: undefined as SubmissionCursor | undefined,
     getNextPageParam: (lastPage) => lastPage?.nextCursor,
     refetchOnWindowFocus: true,
-    staleTime: 30_000,
   });
 
   const allSubmissions: SerializedSubmission[] = useMemo(
