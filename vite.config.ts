@@ -92,7 +92,11 @@ const config = defineConfig({
     }),
   ],
   resolve: {
-    dedupe: ["@platejs/core"],
+    // `jotai` added: @platejs/core pins ~2.8.4 while another tree pulls 2.20.0,
+    // so node_modules has two copies. The Vite RSC plugin's client-references
+    // grouping collides when both reach the bundler ("Identifier 'import_*'
+    // has already been declared"). Deduping picks one for the bundle.
+    dedupe: ["@platejs/core", "jotai"],
   },
   server: {
     sourcemapIgnoreList: (sourcePath) => sourcePath.includes("node_modules"),
