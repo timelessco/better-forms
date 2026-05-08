@@ -1,6 +1,19 @@
 import { setResponseHeader } from "@tanstack/react-start/server";
-import { waitUntil } from "@vercel/functions";
 import { vercel, vercelProjectId, vercelTeamId } from "@/integrations/vercel";
+
+// Re-implements `waitUntil` from `@vercel/functions` directly: that package's
+// barrel pulls in `@vercel/functions/cache` which trips Vite's SSR
+// module runner (`__cjs_module_runner_transform`). On Vercel runtimes the
+// `@vercel/request-context` symbol is set by the platform; off-Vercel this
+// degrades to a no-op (the promise is left to settle on its own).
+const VERCEL_REQUEST_CONTEXT = Symbol.for("@vercel/request-context");
+type VercelRequestContext = { waitUntil?: (promise: Promise<unknown>) => void };
+const waitUntil = (promise: Promise<unknown>): void => {
+  const ctx = (globalThis as Record<symbol, unknown>)[VERCEL_REQUEST_CONTEXT] as
+    | { get?: () => VercelRequestContext | undefined }
+    | undefined;
+  ctx?.get?.()?.waitUntil?.(promise);
+};
 // Public forms are immutable per published version. We serve a year-long
 // edge cache with stale-while-revalidate, and invalidate the cache tag
 // when the form republishes, its branding changes, or it gets deleted.
