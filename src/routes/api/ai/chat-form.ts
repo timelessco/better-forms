@@ -54,6 +54,10 @@ const bodySchema = z.object({
   submissionId: z.string().min(1),
   currentQuestionId: z.string().optional(),
   userText: z.string().max(4000).optional(),
+  // Client-driven prior-answer threading — lets the AI personalize prose
+  // (e.g. address the Respondent by name once they've given it).
+  // Server is read-only against this map; the submission table owns truth.
+  priorAnswers: z.record(z.string(), z.unknown()).optional(),
   isPreview: z.boolean().optional(),
 });
 
@@ -321,8 +325,10 @@ const runAiTurn = async (
   }
 
   // The chat-form endpoint does not write Answers — submission autosave owns
-  // persistence. Prior Answers aren't threaded yet; the client drives turn order.
-  const priorAnswers: Record<string, unknown> = {};
+  // persistence. Prior Answers come from the client (which holds the
+  // authoritative session state for this turn) so the AI can personalize
+  // prose, e.g. address the Respondent by their answered name.
+  const priorAnswers = body.priorAnswers ?? {};
 
   const tone: AiChatTone = form.settings.aiChatTone ?? "friendly";
   const language = form.settings.language ?? "English";

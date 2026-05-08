@@ -82,27 +82,48 @@ export const useAiChatSession = ({
       body: {
         currentQuestionId?: string | null;
         userText?: string;
+        priorAnswers?: Record<string, unknown>;
       },
     ): Promise<ChatFormResponse & { _terminal?: boolean }> => {
       aiCallCountRef.current += 1;
-      const res = await fetch("/api/ai/chat-form", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          intent,
-          formId,
-          submissionId,
-          currentQuestionId: body.currentQuestionId ?? undefined,
-          userText: body.userText,
-          isPreview: isPreview ?? false,
-        }),
-      });
-      const json = (await res.json()) as ChatFormResponse;
-      // 403/429 are terminal — plan/cap/rate-limit failures don't recover on retry.
-      if (res.status === 403 || res.status === 429) {
-        return { ...json, _terminal: true } as ChatFormResponse & { _terminal: true };
+      try {
+        const res = await fetch("/api/ai/chat-form", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            intent,
+            formId,
+            submissionId,
+            currentQuestionId: body.currentQuestionId ?? undefined,
+            userText: body.userText,
+            priorAnswers: body.priorAnswers ?? {},
+            isPreview: isPreview ?? false,
+          }),
+        });
+        // 403/429 are terminal — plan/cap/rate-limit failures don't recover on retry.
+        const isTerminalStatus = res.status === 403 || res.status === 429;
+        // Defend against non-JSON 5xx responses: if json() throws, fall back to
+        // a synthetic error so the caller's error path runs and the UI doesn't
+        // get stuck in `phase: "loading"` forever.
+        let json: ChatFormResponse;
+        try {
+          json = (await res.json()) as ChatFormResponse;
+        } catch {
+          json = { error: "server_error" } as ChatFormResponse;
+        }
+        if (!res.ok && !("error" in json)) {
+          json = { error: `http_${res.status}` } as ChatFormResponse;
+        }
+        if (isTerminalStatus) {
+          return { ...json, _terminal: true } as ChatFormResponse & { _terminal: true };
+        }
+        return json;
+      } catch {
+        // Network failure (offline, DNS, etc.) — don't let the throw bubble up
+        // and freeze the UI. Return a soft error and let the failure-budget
+        // logic decide whether to retry or trip to standard form.
+        return { error: "network_failure" } as ChatFormResponse;
       }
-      return json;
     },
     [formId, submissionId, isPreview],
   );
@@ -145,7 +166,7 @@ export const useAiChatSession = ({
         // No more Questions — call finish.
         setCurrentQuestionId(null);
         setPhase("loading");
-        const res = await callApi("finish", { currentQuestionId: null });
+        const res = await callApi("finish", { currentQuestionId: null, priorAnswers: answers });
         if ("error" in res) {
           if (recordFailure(isTerminal(res))) return;
           appendBubble({ kind: "ai", id: newBubbleId(), prompt: t.aiChatSubmitted });
@@ -160,7 +181,10 @@ export const useAiChatSession = ({
       }
       setCurrentQuestionId(nextQid);
       setPhase("loading");
-      const res = await callApi("advance", { currentQuestionId: nextQid });
+      const res = await callApi("advance", {
+        currentQuestionId: nextQid,
+        priorAnswers: answers,
+      });
       if ("error" in res) {
         if (recordFailure(isTerminal(res))) return;
         const label = labelOf(questionById.get(nextQid), "your answer");
@@ -208,7 +232,7 @@ export const useAiChatSession = ({
       return;
     }
     setCurrentQuestionId(firstQid);
-    const res = await callApi("start", { currentQuestionId: firstQid });
+    const res = await callApi("start", { currentQuestionId: firstQid, priorAnswers: answers });
     const fallbackLabel = labelOf(questionById.get(firstQid), "your answer");
     if ("error" in res) {
       if (recordFailure(isTerminal(res))) return;
@@ -255,6 +279,7 @@ export const useAiChatSession = ({
       const res = await callApi("parse-and-advance", {
         currentQuestionId,
         userText: trimmed,
+        priorAnswers: answers,
       });
       if ("error" in res) {
         if (recordFailure(isTerminal(res))) return;
@@ -296,9 +321,21 @@ export const useAiChatSession = ({
         recordSuccess();
         const next = { ...answers, [currentQuestionId]: res.args.parsedValue };
         updateAnswers(next);
-        appendBubble({ kind: "ai", id: newBubbleId(), prompt: res.args.prompt });
+        // `confirmParse.prompt` already contains the prose for the next Question
+        // (per the tool description on the server). Render it as the next-Q
+        // bubble directly — DO NOT also call `advanceTo(nextQid)` for the same
+        // Q, which previously produced a second redundant "Hello! Welcome…
+        // Could you provide [same Q]?" bubble for every turn.
         const nextQid = computeNextQuestionId(content, next);
-        await advanceTo(nextQid);
+        appendBubble({ kind: "ai", id: newBubbleId(), prompt: res.args.prompt });
+        if (!nextQid) {
+          // Final answer — call finish for the closing message + onSubmit.
+          await advanceTo(null);
+          return;
+        }
+        setCurrentQuestionId(nextQid);
+        parseAttemptsRef.current = 0;
+        setPhase("ready");
       }
     },
     [
