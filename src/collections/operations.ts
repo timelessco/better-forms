@@ -139,7 +139,9 @@ export const updateFormStatus = async (id: string, status: "draft" | "published"
 
     const tx = createTransaction({
       mutationFn: async () => {
-        await serverFns.updateForm(stripNulls(existing) as never);
+        await serverFns.updateForm(
+          stripNulls(existing as unknown as Record<string, unknown>) as never,
+        );
         await queryClient.invalidateQueries({ queryKey: ["form-listings-archived"] });
       },
     });
