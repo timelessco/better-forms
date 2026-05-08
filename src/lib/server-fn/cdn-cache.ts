@@ -1,19 +1,5 @@
 import { setResponseHeader } from "@tanstack/react-start/server";
 import { vercel, vercelProjectId, vercelTeamId } from "@/integrations/vercel";
-
-// Re-implements `waitUntil` from `@vercel/functions` directly: that package's
-// barrel pulls in `@vercel/functions/cache` which trips Vite's SSR
-// module runner (`__cjs_module_runner_transform`). On Vercel runtimes the
-// `@vercel/request-context` symbol is set by the platform; off-Vercel this
-// degrades to a no-op (the promise is left to settle on its own).
-const VERCEL_REQUEST_CONTEXT = Symbol.for("@vercel/request-context");
-type VercelRequestContext = { waitUntil?: (promise: Promise<unknown>) => void };
-const waitUntil = (promise: Promise<unknown>): void => {
-  const ctx = (globalThis as Record<symbol, unknown>)[VERCEL_REQUEST_CONTEXT] as
-    | { get?: () => VercelRequestContext | undefined }
-    | undefined;
-  ctx?.get?.()?.waitUntil?.(promise);
-};
 // Public forms are immutable per published version. We serve a year-long
 // edge cache with stale-while-revalidate, and invalidate the cache tag
 // when the form republishes, its branding changes, or it gets deleted.
@@ -60,36 +46,54 @@ export const applyFormCacheHeaders = (formId: string, { gated }: { gated: boolea
   setResponseHeader("Cache-Tag", formCacheTag(formId));
 };
 
-// No-op outside Vercel; on Vercel, registers the invalidation with
-// `waitUntil` so the serverless runtime doesn't freeze the function before
-// the HTTP call to the Edge Cache API completes.
-export const purgeFormCache = (formId: string): void => {
-  purgeFormCacheBatch([formId]);
-};
+// DEBUG: awaited (not waitUntil) and verbose-logged so we can read Vercel
+// function logs to confirm the purge fires per publish. Raw `console.*`
+// is intentional — `@/lib/utils:logger` no-ops in production, which would
+// defeat the diagnostic. Revert to waitUntil + logger once verified.
+const log = (msg: string, data?: unknown) =>
+  data === undefined
+    ? console.log(`[cdn-cache:purge] ${msg}`)
+    : console.log(`[cdn-cache:purge] ${msg}`, data);
 
-export const purgeFormCacheBatch = (formIds: string[]): void => {
-  if (formIds.length === 0) return;
+export const purgeFormCache = (formId: string): Promise<void> => purgeFormCacheBatch([formId]);
 
-  const projectId = vercelProjectId();
-  if (!(process.env.VERCEL_TOKEN && projectId)) return;
+export const purgeFormCacheBatch = async (formIds: string[]): Promise<void> => {
+  log("called", {
+    formIds,
+    hasToken: Boolean(process.env.VERCEL_TOKEN),
+    projectId: process.env.VERCEL_PROJECT_ID,
+    teamId: process.env.VERCEL_TEAM_ID,
+    nodeEnv: process.env.NODE_ENV,
+    forcePurge: process.env.FORCE_CDN_PURGE,
+  });
 
-  // Set FORCE_CDN_PURGE=1 to exercise this path from a local branch against
-  // a real Vercel project — otherwise non-prod skips to avoid log noise.
-  if (process.env.NODE_ENV !== "production" && process.env.FORCE_CDN_PURGE !== "1") {
+  if (formIds.length === 0) {
+    log("empty formIds, skipping");
     return;
   }
 
-  const purge = vercel.edgeCache
-    .invalidateByTags({
+  const projectId = vercelProjectId();
+  if (!(process.env.VERCEL_TOKEN && projectId)) {
+    log("missing VERCEL_TOKEN or projectId, skipping");
+    return;
+  }
+
+  if (process.env.NODE_ENV !== "production" && process.env.FORCE_CDN_PURGE !== "1") {
+    log("non-production and FORCE_CDN_PURGE!=1, skipping");
+    return;
+  }
+
+  const tags = formIds.map(formCacheTag);
+  log("calling Vercel edgeCache.invalidateByTags", { projectId, teamId: vercelTeamId(), tags });
+
+  try {
+    const result = await vercel.edgeCache.invalidateByTags({
       projectIdOrName: projectId,
       teamId: vercelTeamId(),
-      requestBody: { tags: formIds.map(formCacheTag) },
-    })
-    .catch((err: unknown) => {
-      // Swallow: a failed purge must not break publish/update flows. Worst
-      // case the browser revalidates after `max-age=60`.
-      console.warn(`[cdn-cache] purge failed for ${formIds.length} tag(s):`, err);
+      requestBody: { tags },
     });
-
-  waitUntil(purge);
+    log("success", result);
+  } catch (err) {
+    console.error("[cdn-cache:purge] FAILED", err);
+  }
 };

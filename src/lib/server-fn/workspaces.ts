@@ -138,7 +138,7 @@ export const deleteWorkspace = createServerFn({ method: "POST" })
 
     // Purge CDN cache for any forms that were live at the edge. Skipped for
     // never-published forms (no tag at the edge to invalidate).
-    purgeFormCacheBatch(result.everPublished);
+    await purgeFormCacheBatch(result.everPublished);
 
     return { workspace: result.workspace };
   });

@@ -153,9 +153,7 @@ export const publishFormVersion = createServerFn({ method: "POST" })
       };
     });
 
-    // Purge CDN cache so viewers see the new version immediately. Runs after
-    // commit so a failed transaction doesn't nuke the cache for no reason.
-    purgeFormCache(data.formId);
+    await purgeFormCache(data.formId);
 
     return result;
   });
