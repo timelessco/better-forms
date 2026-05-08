@@ -23,7 +23,7 @@ export const HOTKEYS = {
   DASHBOARD_CLEAR_SELECTION: "Escape",
   // Submissions page — scoped
   SUBMISSIONS_SELECT_ALL: "Mod+A",
-  SUBMISSIONS_EXPORT: "Mod+E",
+  SUBMISSIONS_EXPORT: "Mod+Shift+X",
   SUBMISSIONS_DELETE: "Delete",
   SUBMISSIONS_CLEAR_SELECTION: "Escape",
 } as const satisfies Record<string, Hotkey>;
