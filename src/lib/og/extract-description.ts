@@ -1,21 +1,12 @@
 import { extractTextContent, isFormInputType } from "@/lib/editor/transform-plate-to-form";
+import { MAX_OG_DESCRIPTION_LENGTH, clampOgText } from "@/lib/og/limits";
 
-const MAX_LENGTH = 180;
 const MAX_PARAGRAPHS = 2;
 const MAX_INSPECTED = 5;
 
 type PlateNode = {
   type?: string;
   children?: Array<{ text?: string; children?: unknown }>;
-};
-
-const truncateAtWordBoundary = (text: string, max: number): string => {
-  if (text.length <= max) return text;
-  // Reserve 2 chars for a space + the ellipsis.
-  const slice = text.slice(0, max - 2);
-  const lastSpace = slice.lastIndexOf(" ");
-  const cut = lastSpace > max * 0.5 ? slice.slice(0, lastSpace) : slice;
-  return `${cut} …`;
 };
 
 /**
@@ -53,5 +44,5 @@ export const extractOgDescription = (content: unknown): string => {
   }
 
   if (collected.length === 0) return "";
-  return truncateAtWordBoundary(collected.join(" "), MAX_LENGTH);
+  return clampOgText(collected.join(" "), MAX_OG_DESCRIPTION_LENGTH);
 };

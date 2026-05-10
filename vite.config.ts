@@ -154,18 +154,36 @@ const config = defineConfig({
       "postgres",
       "drizzle-orm",
       "drizzle-orm/postgres-js",
-      // Keep @vercel/og resolved from node_modules at runtime so the package's
-      // sibling `Geist-Regular.ttf` (read at module load via
-      // `new URL("./Geist-Regular.ttf", import.meta.url)`) ships intact into
-      // the Vercel function. Inlining it into the SSR bundle drops the .ttf
-      // and crashes with ENOENT on first import in /var/task/_ssr/.
-      "@vercel/og",
+      // Keep takumi packages resolved from node_modules at runtime so:
+      // (a) the WASM file at `@takumi-rs/wasm/pkg/takumi_wasm_bg.wasm` (loaded
+      //     via `require.resolve` in render.server.ts) ships into the Vercel
+      //     function alongside its package, and
+      // (b) the `@takumi-rs/core` napi `.node` binding never leaks into the
+      //     SSR bundle (we force WASM mode anyway, but inlined native bindings
+      //     would fail to resolve in /var/task/_ssr/).
+      "@takumi-rs/core",
+      "@takumi-rs/helpers",
+      "@takumi-rs/image-response",
+      "@takumi-rs/wasm",
+      "takumi-js",
     ],
   },
   environments: {
     rsc: {
       resolve: {
-        external: ["postgres", "drizzle-orm", "drizzle-orm/postgres-js"],
+        external: [
+          "postgres",
+          "drizzle-orm",
+          "drizzle-orm/postgres-js",
+          // Same takumi-externalization rationale as `ssr.external` above —
+          // also applied to the RSC env so the OG route's transitive imports
+          // stay un-bundled wherever the route tree happens to be analyzed.
+          "@takumi-rs/core",
+          "@takumi-rs/helpers",
+          "@takumi-rs/image-response",
+          "@takumi-rs/wasm",
+          "takumi-js",
+        ],
         // Inline platejs + its slate/utils deps so the re-export chain is
         // resolved at bundle time. Leaving them external lets Rollup guess
         // which sibling package a re-exported name came from (e.g. bindFirst
@@ -188,7 +206,18 @@ const config = defineConfig({
     // `@base-ui/react` is excluded per the RSC plugin's inconsistent-
     // optimization warning (client components consumed across SSR + RSC
     // envs).
-    exclude: ["postgres", "drizzle-orm/postgres-js", "@base-ui/react"],
+    exclude: [
+      "postgres",
+      "drizzle-orm/postgres-js",
+      "@base-ui/react",
+      // Server-only — no need to pre-bundle for the client. Native + WASM
+      // assets in these packages also break esbuild's depscan if it ever runs.
+      "@takumi-rs/core",
+      "@takumi-rs/helpers",
+      "@takumi-rs/image-response",
+      "@takumi-rs/wasm",
+      "takumi-js",
+    ],
     // Force-include CJS-only `use-sync-external-store` so Vite extracts its
     // named exports correctly. The shim uses a `module.exports = require(...)`
     // indirection that Vite's auto-scan misses after the lockfile churn.
