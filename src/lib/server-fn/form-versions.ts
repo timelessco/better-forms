@@ -109,8 +109,8 @@ export const publishFormVersion = createServerFn({ method: "POST" })
             icon: form.icon,
             cover: form.cover,
             publishedByUserId: context.session.user.id,
-            publishedByName: context.session.user.name ?? null,
-            publishedByImage: context.session.user.image ?? null,
+            publishedByName: context.session.user.name || null,
+            publishedByImage: context.session.user.image || null,
             publishedAt: now,
             createdAt: now,
           })
@@ -226,8 +226,8 @@ export const getFormVersions = createServerFn({ method: "GET" })
         publishedAt: v.publishedAt.toISOString(),
         publishedBy: {
           id: v.publishedByUserId,
-          name: v.publishedByName ?? v.fallbackName,
-          image: v.publishedByImage ?? v.fallbackImage,
+          name: v.publishedByName || v.fallbackName,
+          image: v.publishedByImage || v.fallbackImage,
         },
       })),
     };

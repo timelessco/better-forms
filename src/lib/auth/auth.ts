@@ -64,6 +64,11 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
+        before: async (user) => {
+          if (user.name?.trim()) return { data: user };
+          const derived = user.email.split("@")[0]?.trim();
+          return { data: { ...user, name: derived || user.email } };
+        },
         after: async (user) => {
           try {
             const now = new Date();
