@@ -158,7 +158,7 @@ const CodeBlock = ({
       {/* eslint-disable-next-line react/no-danger -- output of highlight.js applied to a known-safe embed snippet generated server-side */}
       <pre
         className={cn(
-          "w-full max-w-full min-w-0 rounded-xl border border-border/50 bg-muted/30 p-4 pr-12 font-mono text-[12px] [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap text-foreground/90 [tab-size:2]",
+          "w-full max-w-full min-w-0 rounded-xl border border-border/50 bg-muted/30 p-4 pr-12 font-mono text-[12px] [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap [tab-size:2] text-foreground/90",
           hljsClassName,
         )}
       >
