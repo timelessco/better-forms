@@ -106,6 +106,7 @@ const DataGridTableVirtualStatusRow = ({
   </tr>
 );
 
+// eslint-disable-next-line react-doctor/no-many-boolean-props -- vendored Reui virtualized table; flags are independent rendering modes
 const DataGridTableVirtualBody = <TData,>({
   table: _table,
   columnCount,

@@ -57,7 +57,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "@tanstack/react-router";
 import type * as React from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export type WorkspaceWithForms = {
@@ -297,6 +297,7 @@ const LiteSidebarSection = ({
   action?: React.ReactNode;
   initialOpen?: boolean;
 }) => {
+  // eslint-disable-next-line react-doctor/no-derived-useState -- uncontrolled component with initial-value pattern; later prop changes intentionally do not override user toggling
   const [open, setOpen] = useState(initialOpen);
   const toggle = useCallback(() => setOpen((prev) => !prev), []);
 
@@ -430,6 +431,7 @@ const WorkspaceFormMinimal = ({
       className="group/row relative"
     >
       <SidebarItem label={label} linkOptions={linkOptions} isActive={isActive} prefix={prefix}>
+        {/* eslint-disable-next-line react-doctor/rendering-conditional-render -- showCount is a derived boolean (isPublished && submissionCount > 0); cannot render numeric 0 */}
         {showCount && (
           <span className="shrink-0 font-case text-[11px] tracking-5 text-muted-foreground tabular-nums transition-opacity group-hover/row:opacity-0 group-has-[[data-state=open]]/row:opacity-0">
             {submissionCount}
@@ -528,31 +530,37 @@ const InlineRenameForm = ({
   onSubmit: (value: string) => void;
   onClose: () => void;
 }) => {
+  // eslint-disable-next-line react-doctor/no-derived-useState -- uncontrolled rename input; the parent intentionally hands ownership to local state
   const [value, setValue] = useState(initialValue);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const commitOrClose = () => {
+    const trimmed = value.trim();
+    if (trimmed) onSubmit(trimmed);
+    else onClose();
+  };
 
   return (
-    <form
-      className="px-2 py-1"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const trimmed = value.trim();
-        if (trimmed) onSubmit(trimmed);
-        else onClose();
-      }}
-    >
+    <div className="px-2 py-1">
       <input
-        // biome-ignore lint/a11y/noAutofocus: rename input should focus immediately
-        autoFocus
+        ref={inputRef}
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onBlur={onClose}
         onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
+          if (e.key === "Enter") {
+            commitOrClose();
+          } else if (e.key === "Escape") {
+            onClose();
+          }
         }}
         className="w-full rounded-md bg-secondary px-2 py-1 text-[13px] ring-1 ring-foreground/20 outline-hidden"
         aria-label="Rename form"
       />
-    </form>
+    </div>
   );
 };

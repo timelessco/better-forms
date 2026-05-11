@@ -21,10 +21,9 @@ export const DataGridColumnVisibility = <TData,>({
     <DropdownMenuContent align="end" className="max-h-[60vh] min-w-[220px] overflow-y-auto">
       <DropdownMenuGroup>
         <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-        {table
-          .getAllColumns()
-          .filter((column) => typeof column.accessorFn !== "undefined" && column.getCanHide())
-          .map((column) => (
+        {table.getAllColumns().flatMap((column) => {
+          if (typeof column.accessorFn === "undefined" || !column.getCanHide()) return [];
+          return [
             <DropdownMenuCheckboxItem
               key={column.id}
               className="whitespace-nowrap capitalize"
@@ -33,8 +32,9 @@ export const DataGridColumnVisibility = <TData,>({
               onCheckedChange={(value) => column.toggleVisibility(!!value)}
             >
               <span className="truncate">{column.columnDef.meta?.headerTitle || column.id}</span>
-            </DropdownMenuCheckboxItem>
-          ))}
+            </DropdownMenuCheckboxItem>,
+          ];
+        })}
       </DropdownMenuGroup>
     </DropdownMenuContent>
   </DropdownMenu>

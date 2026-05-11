@@ -107,10 +107,10 @@ const DefaultThankYou = ({ onReset }: { onReset?: () => void }) => {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+      <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-green-100">
         {SuccessCheckmarkIcon}
       </div>
-      <h2 className="mb-2 text-2xl font-bold">{t("thankYou")}</h2>
+      <h2 className="mb-2 text-2xl font-semibold">{t("thankYou")}</h2>
       <p className="mb-6 text-muted-foreground">{t("responseSubmitted")}</p>
       {onReset && (
         <Button type="button" onClick={onReset} variant="outline" size="sm" className="rounded-lg">
@@ -328,6 +328,7 @@ const FormPreviewRSCContent = ({
   const { t } = useTranslation();
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
 
+  // eslint-disable-next-line react-doctor/no-cascading-set-state -- single state (redirectCountdown) updated via initial set + interval functional updater; not cascading independent state
   useEffect(() => {
     if (!isSubmitted) return;
     if (!settings?.redirectOnCompletion || !settings?.redirectUrl) return;

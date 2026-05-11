@@ -24,8 +24,10 @@ export const RightSidebarResizeHandle = ({
       startXRef.current = e.clientX;
       startWidthRef.current = sidebarWidth;
       setIsResizing(true);
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
+      Object.assign(document.body.style, {
+        cursor: "col-resize",
+        userSelect: "none",
+      });
 
       const handleMouseMove = (evt: MouseEvent) => {
         // For right sidebar, dragging left increases width
@@ -35,8 +37,10 @@ export const RightSidebarResizeHandle = ({
 
       const handleMouseUp = () => {
         setIsResizing(false);
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
+        Object.assign(document.body.style, {
+          cursor: "",
+          userSelect: "",
+        });
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
       };
@@ -51,18 +55,24 @@ export const RightSidebarResizeHandle = ({
     setSidebarWidth(RIGHT_SIDEBAR_WIDTH_DEFAULT);
   }, [setSidebarWidth]);
 
+  // Track the latest sidebarWidth in a ref so the callback doesn't depend on it
+  // and we can compute the next width without using the previous state value
+  // (the parent setter is wrapped in useCallback and accepts only a number).
+  const sidebarWidthRef = useRef(sidebarWidth);
+  sidebarWidthRef.current = sidebarWidth;
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       const step = e.shiftKey ? 50 : 10;
       if (e.key === "ArrowLeft") {
         e.preventDefault();
-        setSidebarWidth(sidebarWidth + step);
+        setSidebarWidth(sidebarWidthRef.current + step);
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
-        setSidebarWidth(sidebarWidth - step);
+        setSidebarWidth(sidebarWidthRef.current - step);
       }
     },
-    [sidebarWidth, setSidebarWidth],
+    [setSidebarWidth],
   );
 
   return (

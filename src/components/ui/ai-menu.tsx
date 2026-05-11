@@ -222,6 +222,7 @@ export const AIMenu = () => {
               placeholder="Ask AI anything..."
               aria-label="AI command"
               data-plate-focus
+              // eslint-disable-next-line jsx-a11y/no-autofocus -- AI command palette needs immediate focus when opened
               autoFocus
             />
           )}
@@ -675,7 +676,7 @@ export const AILoadingBar = () => {
           "absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-md border border-border bg-muted px-3 py-1.5 text-sm text-muted-foreground shadow-md transition-[opacity,transform] duration-300",
         )}
       >
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+        <span className="size-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
         <span>{status === "submitted" ? "Thinking..." : "Writing..."}</span>
         <Button
           size="sm"
@@ -683,7 +684,7 @@ export const AILoadingBar = () => {
           className="flex items-center gap-1 text-xs"
           onClick={handleStop}
         >
-          <PauseIcon className="h-4 w-4" />
+          <PauseIcon className="size-4" />
           Stop
           <kbd className="ml-1 rounded bg-border px-1 font-mono text-[10px] text-muted-foreground shadow-sm">
             Esc

@@ -1,5 +1,5 @@
 import type React from "react";
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, use, useCallback, useMemo, useState } from "react";
 
 interface MinimalSidebarContextType {
   isPinned: boolean;
@@ -78,7 +78,7 @@ export const MinimalSidebarProvider = ({ children }: { children: React.ReactNode
 };
 
 export const useMinimalSidebar = () => {
-  const context = useContext(MinimalSidebarContext);
+  const context = use(MinimalSidebarContext);
   if (context === undefined) {
     throw new Error("useMinimalSidebar must be used within a MinimalSidebarProvider");
   }

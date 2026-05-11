@@ -37,6 +37,27 @@ const StandaloneIcon = ({ name, color, size }: { name: string; color: string; si
   </svg>
 );
 
+type RenderedIconProps = {
+  color: string;
+  icon: string | null;
+  iconSize: string;
+  matchedIcon: ReturnType<typeof iconMap.get>;
+  standaloneIcon: boolean;
+};
+
+const RenderedIcon = ({
+  color,
+  icon,
+  iconSize,
+  matchedIcon,
+  standaloneIcon,
+}: RenderedIconProps) => {
+  if (standaloneIcon && icon && matchedIcon) {
+    return <StandaloneIcon name={icon} color={color} size={iconSize} />;
+  }
+  return <>{matchedIcon?.icon(color, iconSize)}</>;
+};
+
 export const IconPickerPreview = ({
   icon,
   iconColor,
@@ -49,12 +70,6 @@ export const IconPickerPreview = ({
   const isDarkMode = ref.current?.closest(".dark") != null;
 
   const matchedIcon = icon ? iconMap.get(icon) : undefined;
-  const renderIcon = (color: string) => {
-    if (standaloneIcon && icon && matchedIcon) {
-      return <StandaloneIcon name={icon} color={color} size={iconSize} />;
-    }
-    return matchedIcon?.icon(color, iconSize);
-  };
 
   if (useThemeColor) {
     return (
@@ -66,7 +81,13 @@ export const IconPickerPreview = ({
           height: `${size}px`,
         }}
       >
-        {renderIcon("currentColor")}
+        <RenderedIcon
+          color="currentColor"
+          icon={icon}
+          iconSize={iconSize}
+          matchedIcon={matchedIcon}
+          standaloneIcon={standaloneIcon}
+        />
       </div>
     );
   }
@@ -84,7 +105,13 @@ export const IconPickerPreview = ({
         height: `${size}px`,
       }}
     >
-      {renderIcon(fillColor)}
+      <RenderedIcon
+        color={fillColor}
+        icon={icon}
+        iconSize={iconSize}
+        matchedIcon={matchedIcon}
+        standaloneIcon={standaloneIcon}
+      />
     </div>
   );
 };

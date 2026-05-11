@@ -104,7 +104,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
   return (
     <Sidebar
       collapsible="none"
-      className="h-full w-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
+      className="size-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
     >
       <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
         <div className="flex items-center justify-between">
@@ -112,11 +112,11 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
           <Button
             variant="ghost"
             size="icon-xs"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            className="size-7 text-muted-foreground hover:text-foreground"
             onClick={closeSidebar}
             aria-label="Close"
           >
-            <XIcon className="h-4 w-4" />
+            <XIcon className="size-4" />
           </Button>
         </div>
       </SidebarHeader>

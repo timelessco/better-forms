@@ -206,7 +206,7 @@ const InlineComboboxInput = ({
     inputRef: contextRef,
     showTrigger,
     trigger,
-  } = React.useContext(InlineComboboxContext);
+  } = React.use(InlineComboboxContext);
 
   // eslint-disable-next-line typescript-eslint/no-non-null-assertion -- context is guaranteed by parent provider
   const store = useComboboxContext()!;
@@ -380,7 +380,7 @@ const InlineComboboxItem = ({
   Required<Pick<ComboboxItemProps, "value">>) => {
   const { value } = props;
 
-  const { filter, removeInput } = React.useContext(InlineComboboxContext);
+  const { filter, removeInput } = React.use(InlineComboboxContext);
 
   // eslint-disable-next-line typescript-eslint/no-non-null-assertion -- context is guaranteed by parent provider
   const store = useComboboxContext()!;
@@ -408,7 +408,7 @@ const InlineComboboxItem = ({
 };
 
 const InlineComboboxEmpty = ({ children, className }: React.HTMLAttributes<HTMLDivElement>) => {
-  const { setHasEmpty } = React.useContext(InlineComboboxContext);
+  const { setHasEmpty } = React.use(InlineComboboxContext);
   // eslint-disable-next-line typescript-eslint/no-non-null-assertion -- context is guaranteed by parent provider
   const store = useComboboxContext()!;
   const items = store.useState("items");

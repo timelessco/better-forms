@@ -14,10 +14,13 @@ import {
   usePluginOption,
 } from "platejs/react";
 import * as React from "react";
+import { useSyncExternalStore } from "react";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { BasicMarksKit } from "@/components/editor/plugins/basic-marks-kit";
-import { discussionPlugin } from "@/components/editor/plugins/discussion-kit";
-import type { TDiscussion } from "@/components/editor/plugins/discussion-kit";
+import { discussionPlugin } from "@/components/editor/plugins/discussion-plugin";
+import type { TComment, TDiscussion } from "@/components/editor/plugins/discussion-plugin";
+
+export type { TComment };
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,15 +33,6 @@ import {
 import { cn } from "@/lib/utils";
 
 import { Editor, EditorContainer } from "./editor";
-
-export type TComment = {
-  id: string;
-  contentRich: Value;
-  createdAt: Date;
-  discussionId: string;
-  isEdited: boolean;
-  userId: string;
-};
 
 export const Comment = (props: {
   comment: TComment;
@@ -200,12 +194,12 @@ export const Comment = (props: {
         </h4>
 
         <div className="text-xs text-muted-foreground/80">
-          <span className="mr-1">{formatCommentDate(new Date(comment.createdAt))}</span>
+          <CommentDate createdAt={comment.createdAt} />
           {comment.isEdited && <span>(edited)</span>}
         </div>
 
         {isMyComment && (hovering || dropdownOpen) && (
-          <div className="absolute top-0 right-0 flex space-x-1">
+          <div className="absolute top-0 right-0 flex gap-x-1">
             {index === 0 && (
               <Button
                 variant="ghost"
@@ -541,6 +535,7 @@ export const CommentCreateForm = ({
               onKeyDown={handleEditorKeyDown}
               placeholder="Reply..."
               autoComplete="off"
+              // eslint-disable-next-line jsx-a11y/no-autofocus -- reply editor inside dialog needs focus
               autoFocus={autoFocus}
             />
 
@@ -563,8 +558,7 @@ export const CommentCreateForm = ({
   );
 };
 
-export const formatCommentDate = (date: Date) => {
-  const now = new Date();
+export const formatCommentDate = (date: Date, now: Date) => {
   const diffMinutes = differenceInMinutes(now, date);
   const diffHours = differenceInHours(now, date);
   const diffDays = differenceInDays(now, date);
@@ -580,4 +574,21 @@ export const formatCommentDate = (date: Date) => {
   }
 
   return format(date, "MM/dd/yyyy");
+};
+
+const subscribeNowNoop = () => () => {};
+const getClientNow = () => new Date();
+const getServerNow = () => null;
+
+const CommentDate = ({ createdAt }: { createdAt: string | Date }) => {
+  // useSyncExternalStore avoids the mount-flicker the no-flicker rule warns
+  // about: server snapshot is `null`, client snapshot is the live wall clock.
+  const now = useSyncExternalStore(subscribeNowNoop, getClientNow, getServerNow);
+  const created = createdAt instanceof Date ? createdAt : new Date(createdAt);
+  const label = now ? formatCommentDate(created, now) : format(created, "MM/dd/yyyy");
+  return (
+    <span className="mr-1" suppressHydrationWarning>
+      {label}
+    </span>
+  );
 };

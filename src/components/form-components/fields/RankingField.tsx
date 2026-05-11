@@ -31,9 +31,10 @@ const RankingField = ({ element, form }: FieldRendererProps<"Ranking">) => (
         <>
           <div className="flex flex-col gap-2">
             {[
-              ...rankedValues
-                .map((v) => element.options.find((o) => o.value === v))
-                .filter((o): o is { value: string; label: string } => Boolean(o)),
+              ...rankedValues.flatMap((v) => {
+                const opt = element.options.find((o) => o.value === v);
+                return opt ? [opt] : [];
+              }),
               ...element.options.filter((o) => !rankedValues.includes(o.value)),
             ].map((option) => {
               const rankIndex = rankedValues.indexOf(option.value);

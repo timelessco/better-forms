@@ -1,0 +1,45 @@
+{
+  "ignore": {
+    "files": [
+      "**/routeTree.gen.ts",
+      "**/.output/**",
+      "**/.vinxi/**",
+      "**/dist/**",
+      "**/node_modules/**",
+      "public/**",
+      "src/components/evilcharts/**",
+      "src/components/ui/slash-command-value.tsx"
+    ],
+    "overrides": [
+      {
+        "files": [
+          "src/components/editor/plugins/ai-form-gen-kit.tsx",
+          "src/components/form-builder/embed-config-panel.tsx",
+          "src/components/ui/ai-menu.tsx",
+          "src/components/ui/block-context-menu.tsx",
+          "src/components/ui/block-menu.tsx",
+          "src/components/ui/carousel.tsx",
+          "src/components/ui/inline-combobox.tsx",
+          "src/components/ui/sidebar.tsx",
+          "src/routes/_authenticated.tsx",
+          "src/routes/_authenticated/dashboard.tsx",
+          "src/routes/_authenticated/workspace/$workspaceId/form-builder/-components/preview-mode.tsx"
+        ],
+        "rules": ["react-doctor/rerender-state-only-in-handlers"]
+      },
+      {
+        "files": [
+          "src/components/form-builder/embed-config-panel.tsx",
+          "src/components/ui/block-menu.tsx",
+          "src/components/ui/inline-combobox.tsx",
+          "src/components/ui/sidebar.tsx",
+          "src/routes/_authenticated.tsx",
+          "src/routes/_authenticated/-components/settings/domains-content.tsx",
+          "src/routes/_authenticated/dashboard.tsx",
+          "src/routes/_authenticated/workspace/$workspaceId/form-builder/$formId/submissions.tsx"
+        ],
+        "rules": ["react-doctor/prefer-useReducer"]
+      }
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, use, useCallback, useMemo, useState } from "react";
 
 const filterRegexCache = new Map<string, RegExp>();
 const getFilterRegex = (pattern: string): RegExp => {
@@ -205,7 +205,7 @@ const FilterContext = createContext<FilterContextValue>({
   allowMultiple: true,
 });
 
-const useFilterContext = () => useContext(FilterContext);
+const useFilterContext = () => use(FilterContext);
 
 const filterInputVariants = cva(
   [
@@ -257,9 +257,9 @@ const filterRemoveButtonVariants = cva(
         outline: "border border-s-0 border-border hover:bg-secondary",
       },
       size: {
-        lg: "h-10 w-10 [&_svg:not([class*=size-])]:size-4",
-        md: "h-9 w-9 [&_svg:not([class*=size-])]:size-3.5",
-        sm: "h-8 w-8 [&_svg:not([class*=size-])]:size-3",
+        lg: "size-10 [&_svg:not([class*=size-])]:size-4",
+        md: "size-9 [&_svg:not([class*=size-])]:size-3.5",
+        sm: "size-8 [&_svg:not([class*=size-])]:size-3",
       },
       cursorPointer: {
         true: "cursor-pointer",
@@ -501,11 +501,11 @@ const FilterInput = <T = unknown,>({
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const forwardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange?.(e);
   };
 
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  const validateOnBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const value = e.target.value;
     const pattern = field?.pattern || props.pattern;
 
@@ -582,8 +582,8 @@ const FilterInput = <T = unknown,>({
           aria-describedby={
             !isValid && validationMessage ? `${field?.key || "input"}-error` : undefined
           }
-          onChange={handleChange}
-          onBlur={handleBlur}
+          onChange={forwardChange}
+          onBlur={validateOnBlur}
           onKeyDown={handleKeyDown}
           data-slot="filters-input"
           {...props}
@@ -1540,6 +1540,7 @@ const FilterValueSelector = <T = unknown,>({
           ) : (
             <>
               {selectedOptions.length > 0 && (
+                // eslint-disable-next-line react-doctor/design-no-space-on-flex-children -- intentional negative spacing creates the avatar-stack overlap effect; gap-* would push siblings apart
                 <div className="flex items-center -space-x-1.5">
                   {selectedOptions.slice(0, 3).map((option) => (
                     <div key={String(option.value)}>{option.icon}</div>

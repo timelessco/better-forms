@@ -41,6 +41,7 @@ export const BlockSelectionFloatingToolbar = () => {
     placement: "top",
   });
 
+  // eslint-disable-next-line react-doctor/no-effect-event-handler -- reacts to floating-ui virtual selection changes from editor; not a discrete user event
   useEffect(() => {
     if (hasSelection) update?.();
   }, [hasSelection, selectedNodes, update]);

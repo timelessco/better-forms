@@ -4,6 +4,7 @@ export default {
   entry: [
     "src/routes/**/*.{ts,tsx}", // Routes as entry points
     "src/embed/*.ts", // Embed scripts
+    "src/server.ts", // TanStack Start server entry (framework convention, no static import)
     "instrument.server.mjs", // Sentry
   ],
   project: ["src/**/*.{ts,tsx}"],
@@ -13,6 +14,8 @@ export default {
     "public/**",
     "src/routeTree.gen.ts",
     "src/components/ui/**", // shadcn - used dynamically
+    "src/hooks/use-is-touch-device.ts", // imported only by ignored ui/** components
+    "src/components/editor/use-chat.ts", // imported only by ignored editor/plugins/** files
     "src/components/editor/plugins/**", // plate plugins - library exports
     "src/lib/editor/ai-form-nodes.ts", // AI form builder - consumed by upcoming AI generation task
     "src/lib/editor/ai-icon-matcher.ts", // AI icon matcher - consumed by upcoming AI generation task

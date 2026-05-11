@@ -104,11 +104,7 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
         >
           <div className="bg-sidebar-active flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold">
             {session?.user?.image ? (
-              <img
-                src={session.user.image}
-                alt={displayName}
-                className="h-full w-full object-cover"
-              />
+              <img src={session.user.image} alt={displayName} className="size-full object-cover" />
             ) : (
               getInitials(displayName)
             )}
@@ -135,12 +131,12 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
         >
           {/* User info header */}
           <div className="flex items-start gap-2.5 px-2 py-1.5">
-            <div className="bg-sidebar-active flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg text-sm font-bold">
+            <div className="bg-sidebar-active flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg text-sm font-bold">
               {session?.user?.image ? (
                 <img
                   src={session.user.image}
                   alt={displayName}
-                  className="h-full w-full object-cover"
+                  className="size-full object-cover"
                 />
               ) : (
                 getInitials(displayName)

@@ -1,5 +1,5 @@
-import { animate, motion, useMotionValue } from "motion/react";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { animate, domAnimation, LazyMotion, m, useMotionValue } from "motion/react";
+import { useEffect, useEffectEvent, useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import {
   classifyDirection,
@@ -84,6 +84,8 @@ export const MobileRightDrawer = ({
     animate(x, open ? 0 : w, SPRING_CONFIG);
   }, [open, x]);
 
+  const notifyClose = useEffectEvent(() => onClose());
+
   useEffect(() => {
     const el = drawerRef.current;
     if (!el || !open) return;
@@ -91,6 +93,7 @@ export const MobileRightDrawer = ({
     let moveAttached = false;
     const attachMove = () => {
       if (moveAttached) return;
+      // eslint-disable-next-line react-doctor/client-passive-event-listeners -- handler intentionally calls preventDefault to suppress page scroll during drawer drag; passive listeners would silently ignore preventDefault
       el.addEventListener("touchmove", onTouchMove, { passive: false });
       moveAttached = true;
     };
@@ -166,7 +169,7 @@ export const MobileRightDrawer = ({
 
       if (shouldClose) {
         animate(x, w, { ...SPRING_CONFIG, velocity });
-        onClose();
+        notifyClose();
       } else {
         animate(x, 0, { ...SPRING_CONFIG, velocity });
       }
@@ -182,20 +185,20 @@ export const MobileRightDrawer = ({
       el.removeEventListener("touchcancel", onTouchEnd);
       detachMove();
     };
-  }, [open, onClose, x]);
+  }, [open, x]);
 
   return (
-    <>
-      <motion.div
+    <LazyMotion features={domAnimation}>
+      <m.div
         aria-hidden
         initial={false}
         animate={{ opacity: open ? 0.5 : 0 }}
         transition={{ duration: 0.2 }}
         style={{ pointerEvents: open ? "auto" : "none" }}
-        className="fixed inset-0 z-40 bg-black"
+        className="fixed inset-0 z-40 bg-neutral-950"
         onClick={onClose}
       />
-      <motion.aside
+      <m.aside
         ref={drawerRef}
         role="dialog"
         aria-modal="true"
@@ -209,7 +212,7 @@ export const MobileRightDrawer = ({
         )}
       >
         {children}
-      </motion.aside>
-    </>
+      </m.aside>
+    </LazyMotion>
   );
 };

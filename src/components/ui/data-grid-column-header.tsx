@@ -129,7 +129,7 @@ export const DataGridColumnHeader = <TData, TValue>({
   const headerButtonProps = {
     variant: "ghost" as const,
     className: cn(
-      "h-full w-full justify-between rounded-none px-2 font-normal text-secondary-foreground/80 hover:bg-transparent! aria-expanded:bg-transparent! data-[state=open]:bg-transparent!",
+      "size-full justify-between rounded-none px-2 font-normal text-secondary-foreground/80 hover:bg-transparent! aria-expanded:bg-transparent! data-[state=open]:bg-transparent!",
       className,
     ),
     disabled: isLoading || recordCount === 0,
@@ -257,10 +257,9 @@ export const DataGridColumnHeader = <TData, TValue>({
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuSubContent>
-                  {table
-                    .getAllColumns()
-                    .filter((col) => typeof col.accessorFn !== "undefined" && col.getCanHide())
-                    .map((col) => (
+                  {table.getAllColumns().flatMap((col) => {
+                    if (typeof col.accessorFn === "undefined" || !col.getCanHide()) return [];
+                    return [
                       <DropdownMenuCheckboxItem
                         key={col.id}
                         checked={col.getIsVisible()}
@@ -269,8 +268,9 @@ export const DataGridColumnHeader = <TData, TValue>({
                         className="capitalize"
                       >
                         {col.columnDef.meta?.headerTitle || col.id}
-                      </DropdownMenuCheckboxItem>
-                    ))}
+                      </DropdownMenuCheckboxItem>,
+                    ];
+                  })}
                 </DropdownMenuSubContent>
               </DropdownMenuPortal>
             </DropdownMenuSub>

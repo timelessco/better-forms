@@ -43,7 +43,9 @@ ${error.stack || "No stack trace available"}
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <h1 className="mb-2 text-4xl font-bold text-destructive">Oops! Something went wrong.</h1>
+          <h1 className="mb-2 text-4xl font-semibold text-destructive">
+            Oops! Something went wrong.
+          </h1>
           <p className="text-muted-foreground">
             An unexpected error occurred. Please try refreshing the page or report this issue on
             GitHub.

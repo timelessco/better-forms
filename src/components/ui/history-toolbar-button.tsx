@@ -15,13 +15,13 @@ export const RedoToolbarButton = (props: React.ComponentProps<typeof ToolbarButt
   const editor = useEditorRef();
   const disabled = useEditorSelector(redoDisabledSelector, []);
 
-  const handleClick = useCallback(() => editor.redo(), [editor]);
+  const redo = useCallback(() => editor.redo(), [editor]);
 
   return (
     <ToolbarButton
       {...props}
       disabled={disabled}
-      onClick={handleClick}
+      onClick={redo}
       onMouseDown={preventDefault}
       tooltip="Redo"
     >
@@ -34,13 +34,13 @@ export const UndoToolbarButton = (props: React.ComponentProps<typeof ToolbarButt
   const editor = useEditorRef();
   const disabled = useEditorSelector(undoDisabledSelector, []);
 
-  const handleClick = useCallback(() => editor.undo(), [editor]);
+  const undo = useCallback(() => editor.undo(), [editor]);
 
   return (
     <ToolbarButton
       {...props}
       disabled={disabled}
-      onClick={handleClick}
+      onClick={undo}
       onMouseDown={preventDefault}
       tooltip="Undo"
     >

@@ -1,16 +1,73 @@
 import type { PlateElementProps } from "platejs/react";
 
 import { PlateElement, useReadOnly } from "platejs/react";
-import { useCallback } from "react";
+import { useCallback, useSyncExternalStore } from "react";
+
+const subscribeNoop = () => () => {};
+const getClientToday = () => new Date();
+const getServerToday = () => null;
+const useClientToday = () => useSyncExternalStore(subscribeNoop, getClientToday, getServerToday);
 
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
+const formatRelativeDate = (dateValue: string | undefined, today: Date | null): string | null => {
+  if (!dateValue) return null;
+  const elementDate = new Date(dateValue);
+  if (today) {
+    const isToday =
+      elementDate.getDate() === today.getDate() &&
+      elementDate.getMonth() === today.getMonth() &&
+      elementDate.getFullYear() === today.getFullYear();
+    if (isToday) return "Today";
+
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    if (yesterday.toDateString() === elementDate.toDateString()) return "Yesterday";
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    if (tomorrow.toDateString() === elementDate.toDateString()) return "Tomorrow";
+  }
+  return elementDate.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+};
+
+const parseDate = (dateValue: string | undefined): Date | undefined =>
+  dateValue ? new Date(dateValue) : undefined;
+
+const CalendarForDate = ({
+  dateValue,
+  onSelect,
+}: {
+  dateValue: string | undefined;
+  onSelect: (date: Date | undefined) => void;
+}) => {
+  // Calendar only mounts inside a Popover on user interaction, so parsing
+  // the date string here is safe — never runs during SSR.
+  const selected = parseDate(dateValue);
+  return <Calendar selected={selected} onSelect={onSelect} mode="single" initialFocus />;
+};
+
+const DateLabel = ({ dateValue }: { dateValue: string | undefined }) => {
+  // "today" must only be computed on the client so the SSR'd HTML always
+  // matches the first client paint — relative labels swap in on hydrate.
+  // useSyncExternalStore with a server snapshot of `null` keeps SSR output
+  // stable while the client picks up the real wall clock.
+  const today = useClientToday();
+  if (!dateValue) return null;
+  return <span suppressHydrationWarning>{formatRelativeDate(dateValue, today)}</span>;
+};
+
 export const DateElement = (props: PlateElementProps) => {
   const { editor, element } = props;
 
   const readOnly = useReadOnly();
+  const dateValue = element.date as string | undefined;
 
   const trigger = (
     <span
@@ -18,37 +75,7 @@ export const DateElement = (props: PlateElementProps) => {
       contentEditable={false}
       draggable
     >
-      {element.date ? (
-        (() => {
-          const today = new Date();
-          const dateValue = element.date as string | undefined;
-          if (!dateValue) return null;
-          const elementDate = new Date(dateValue);
-          const isToday =
-            elementDate.getDate() === today.getDate() &&
-            elementDate.getMonth() === today.getMonth() &&
-            elementDate.getFullYear() === today.getFullYear();
-
-          const isYesterday =
-            new Date(today.setDate(today.getDate() - 1)).toDateString() ===
-            elementDate.toDateString();
-          const isTomorrow =
-            new Date(today.setDate(today.getDate() + 2)).toDateString() ===
-            elementDate.toDateString();
-
-          if (isToday) return "Today";
-          if (isYesterday) return "Yesterday";
-          if (isTomorrow) return "Tomorrow";
-
-          return elementDate.toLocaleDateString(undefined, {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          });
-        })()
-      ) : (
-        <span>Pick a date</span>
-      )}
+      {dateValue ? <DateLabel dateValue={dateValue} /> : <span>Pick a date</span>}
     </span>
   );
 
@@ -81,48 +108,14 @@ export const DateElement = (props: PlateElementProps) => {
               className={cn("w-fit cursor-pointer rounded-sm bg-muted px-1 text-muted-foreground")}
               contentEditable={false}
               draggable
+              suppressHydrationWarning
             />
           }
         >
-          {element.date ? (
-            (() => {
-              const today = new Date();
-              const dateValue = element.date as string | undefined;
-              if (!dateValue) return null;
-              const elementDate = new Date(dateValue);
-              const isToday =
-                elementDate.getDate() === today.getDate() &&
-                elementDate.getMonth() === today.getMonth() &&
-                elementDate.getFullYear() === today.getFullYear();
-
-              const isYesterday =
-                new Date(today.setDate(today.getDate() - 1)).toDateString() ===
-                elementDate.toDateString();
-              const isTomorrow =
-                new Date(today.setDate(today.getDate() + 2)).toDateString() ===
-                elementDate.toDateString();
-
-              if (isToday) return "Today";
-              if (isYesterday) return "Yesterday";
-              if (isTomorrow) return "Tomorrow";
-
-              return elementDate.toLocaleDateString(undefined, {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              });
-            })()
-          ) : (
-            <span>Pick a date</span>
-          )}
+          {dateValue ? <DateLabel dateValue={dateValue} /> : <span>Pick a date</span>}
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0">
-          <Calendar
-            selected={new Date(element.date as string)}
-            onSelect={handleDateSelect}
-            mode="single"
-            initialFocus
-          />
+          <CalendarForDate dateValue={dateValue} onSelect={handleDateSelect} />
         </PopoverContent>
       </Popover>
       {props.children}

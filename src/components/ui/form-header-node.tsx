@@ -201,7 +201,7 @@ const CoverUpload = ({
             onClick={openFileDialog}
           >
             <input {...getInputProps()} className="sr-only" />
-            <ImageIcon className="h-5 w-5 text-muted-foreground/60" />
+            <ImageIcon className="size-5 text-muted-foreground/60" />
             <span className="text-sm text-muted-foreground">Upload an image</span>
           </button>
         )}
@@ -238,6 +238,7 @@ const IconUploadTab = ({
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value is read in JSX to gate the crop dialog
   const [showCrop, setShowCrop] = useState(false);
   const [
     { isDragging, errors },
@@ -383,7 +384,7 @@ const IconUploadTab = ({
             onClick={openFileDialog}
           >
             <input {...getInputProps()} className="sr-only" />
-            <ImageIcon className="h-5 w-5 text-muted-foreground/60" />
+            <ImageIcon className="size-5 text-muted-foreground/60" />
             <span className="text-sm text-muted-foreground">Upload an image</span>
           </button>
         )}
@@ -481,10 +482,12 @@ export const FormHeaderElement = (props: PlateElementProps) => {
 
   const autoResizeTitle = useCallback(() => {
     const el = titleRef.current;
-    if (el) {
-      el.style.height = "auto";
-      el.style.height = `${el.scrollHeight}px`;
-    }
+    if (!el) return;
+    // Auto-resize pattern: reset to "auto" so scrollHeight reflects content,
+    // read the measured height, then write the final pixel value in one batch.
+    el.style.height = "auto";
+    const measured = el.scrollHeight;
+    el.style.cssText = `${el.style.cssText};height:${measured}px;`;
   }, []);
 
   const titleFontSize = editorCustomization?.titleFontSize;
@@ -579,14 +582,14 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                     width={800}
                     height={200}
                     className={cn(
-                      "h-full w-full border-0 object-cover",
+                      "size-full border-0 object-cover",
                       cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
                     )}
                   />
                 </>
               ) : (
                 <div
-                  className="h-full w-full"
+                  className="size-full"
                   style={{
                     backgroundColor: cover?.startsWith("#") ? cover : "#FFE4E1",
                   }}
@@ -668,7 +671,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                             alt={item.label}
                             width={200}
                             height={64}
-                            className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
+                            className="relative z-0 size-full object-cover brightness-60 grayscale"
                           />
                         </button>
                       ))}
@@ -718,7 +721,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                           alt="Logo"
                           width={120}
                           height={120}
-                          className="h-[100px] w-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
+                          className="size-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
                           data-bf-logo
                         />
                       ) : (

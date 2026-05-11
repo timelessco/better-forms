@@ -131,15 +131,21 @@ const Field = ({
   children,
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) => {
-  const { errors, isTouched, formItemId, formDescriptionId, formMessageId, handleBlur } =
-    useFieldContext();
+  const {
+    errors,
+    isTouched,
+    formItemId,
+    formDescriptionId,
+    formMessageId,
+    handleBlur: markFieldTouched,
+  } = useFieldContext();
   const hasVisibleErrors = !!errors.length && isTouched;
 
   return (
     <DefaultField
       data-invalid={hasVisibleErrors}
       id={formItemId}
-      onBlur={handleBlur}
+      onBlur={markFieldTouched}
       aria-describedby={
         !hasVisibleErrors ? `${formDescriptionId}` : `${formDescriptionId} ${formMessageId}`
       }

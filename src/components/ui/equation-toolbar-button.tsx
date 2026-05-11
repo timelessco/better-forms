@@ -9,12 +9,12 @@ import { ToolbarButton } from "./toolbar";
 export const InlineEquationToolbarButton = (props: React.ComponentProps<typeof ToolbarButton>) => {
   const editor = useEditorRef();
 
-  const handleClick = useCallback(() => {
+  const insertEquation = useCallback(() => {
     insertInlineEquation(editor);
   }, [editor]);
 
   return (
-    <ToolbarButton {...props} onClick={handleClick} tooltip="Mark as equation">
+    <ToolbarButton {...props} onClick={insertEquation} tooltip="Mark as equation">
       <RadicalIcon />
     </ToolbarButton>
   );

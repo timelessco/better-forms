@@ -56,6 +56,24 @@ import { HOTKEYS, formatForDisplay } from "@/lib/hotkeys";
 
 type FieldStatus = "current" | "deleted";
 const EMPTY_LABELS: Record<string, string> = {};
+
+const SUBMITTED_AT_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "numeric",
+});
+
+const formatDateCellValue = (text: string): string => {
+  try {
+    return new Date(text).toLocaleDateString();
+  } catch {
+    return text;
+  }
+};
+
+const formatSubmittedAt = (value: string | Date): string =>
+  SUBMITTED_AT_FORMATTER.format(new Date(value));
 type PaginatedSubmissionsPage = {
   submissions: SerializedSubmission[];
   nextCursor?: SubmissionCursor;
@@ -182,13 +200,7 @@ const SubmissionCell = ({
     case "Date":
       return (
         <span className="block max-w-[300px] truncate text-[13px] tabular-nums">
-          {(() => {
-            try {
-              return new Date(text).toLocaleDateString();
-            } catch {
-              return text;
-            }
-          })()}
+          {formatDateCellValue(text)}
         </span>
       );
     case "Time":
@@ -261,7 +273,7 @@ const SubmissionCell = ({
               className="h-8 w-auto max-w-[64px] shrink-0 rounded border border-border/40 object-contain"
             />
           ) : (
-            <FileTypeIcon type={file.type} className="h-4 w-4 shrink-0" />
+            <FileTypeIcon type={file.type} className="size-4 shrink-0" />
           )}
           {!isImage && (
             <span className="truncate text-[13px] text-muted-foreground group-hover:text-foreground">
@@ -372,9 +384,11 @@ const SubmissionsPage = () => {
     const currentFieldNames = new Set<string>();
     if (formElements) {
       const editableFields = getEditableFields(formElements);
-      editableFields
-        .filter((field) => EDITABLE_FIELD_TYPES.has(field.fieldType))
-        .forEach((field) => currentFieldNames.add(field.name));
+      for (const field of editableFields) {
+        if (EDITABLE_FIELD_TYPES.has(field.fieldType)) {
+          currentFieldNames.add(field.name);
+        }
+      }
     }
 
     const orphaned = new Set<string>();
@@ -440,12 +454,7 @@ const SubmissionsPage = () => {
             <div className="group/row flex min-w-0 items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="min-w-0 truncate text-[13px]">
-                  {new Intl.DateTimeFormat(undefined, {
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "numeric",
-                  }).format(new Date(info.getValue()))}
+                  {formatSubmittedAt(info.getValue())}
                 </span>
                 {!info.row.original.isCompleted && (
                   <span className="shrink-0 rounded-sm border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-amber-700 uppercase dark:text-amber-400">
@@ -457,14 +466,14 @@ const SubmissionsPage = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                  className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
                   aria-label="Delete submission"
                   onClick={(e) => {
                     e.stopPropagation();
                     void handleDelete(info.row.original.id);
                   }}
                 >
-                  <Trash2Icon className="h-3.5 w-3.5" />
+                  <Trash2Icon className="size-3.5" />
                 </Button>
               </div>
             </div>
@@ -512,7 +521,7 @@ const SubmissionsPage = () => {
                     column={column}
                     title={("label" in field ? field.label : "") || field.name}
                     icon={
-                      <span className="block h-2.5 w-2.5 rounded-full border-[1.5px] border-emerald-500" />
+                      <span className="block size-2.5 rounded-full border-[1.5px] border-emerald-500" />
                     }
                   />
                 ),
@@ -552,7 +561,7 @@ const SubmissionsPage = () => {
                   column={column}
                   title={resolvedLabel}
                   icon={
-                    <span className="block h-2.5 w-2.5 rounded-full border-[1.5px] border-red-500" />
+                    <span className="block size-2.5 rounded-full border-[1.5px] border-red-500" />
                   }
                 />
               ),
@@ -630,11 +639,11 @@ const SubmissionsPage = () => {
       if (rows.length === 0) return;
 
       const headers = columns
-        .filter((col) => col.id !== "select")
-        .map((col) => {
-          if (typeof col.header === "string") return col.header;
-          if (col.id === "submitted_at") return "Submitted At";
-          return col.id || "Field";
+        .flatMap((col) => {
+          if (col.id === "select") return [];
+          if (typeof col.header === "string") return [col.header];
+          if (col.id === "submitted_at") return ["Submitted At"];
+          return [col.id || "Field"];
         })
         .join(",");
 
@@ -642,10 +651,10 @@ const SubmissionsPage = () => {
         .map((row) =>
           row
             .getVisibleCells()
-            .filter((cell: Cell<SerializedSubmission, unknown>) => cell.column.id !== "select")
-            .map((cell: Cell<SerializedSubmission, unknown>) => {
+            .flatMap((cell: Cell<SerializedSubmission, unknown>) => {
+              if (cell.column.id === "select") return [];
               const formatted = csvFormat(cell.getValue()).replaceAll('"', '""');
-              return `"${formatted}"`;
+              return [`"${formatted}"`];
             })
             .join(","),
         )
@@ -800,7 +809,7 @@ const SubmissionsPage = () => {
           {previewFile && (
             <>
               <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-4 py-2.5">
-                <FileTypeIcon type={previewFile.type} className="h-4 w-4 shrink-0" />
+                <FileTypeIcon type={previewFile.type} className="size-4 shrink-0" />
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">
                   {previewFile.name}
                 </span>
@@ -811,7 +820,7 @@ const SubmissionsPage = () => {
                   className="shrink-0"
                 >
                   <Button variant="ghost" size="sm">
-                    <ExternalLink className="mr-1.5 h-4 w-4" />
+                    <ExternalLink className="mr-1.5 size-4" />
                     Open in new tab
                   </Button>
                 </a>
@@ -823,7 +832,7 @@ const SubmissionsPage = () => {
                   className="shrink-0"
                 >
                   <Button variant="outline" size="sm">
-                    <Download className="mr-1.5 h-4 w-4" />
+                    <Download className="mr-1.5 size-4" />
                     Download
                   </Button>
                 </a>
@@ -849,7 +858,7 @@ const SubmissionsPage = () => {
                     className="h-[70vh] w-full"
                   >
                     <div className="flex flex-col items-center gap-3 py-12 text-center">
-                      <FileTypeIcon type={previewFile.type} className="h-16 w-16" />
+                      <FileTypeIcon type={previewFile.type} className="size-16" />
                       <p className="max-w-sm text-sm text-muted-foreground">
                         Your browser blocked the inline preview. Use the buttons above to open or
                         download the file.
@@ -858,7 +867,7 @@ const SubmissionsPage = () => {
                   </object>
                 ) : (
                   <div className="flex flex-col items-center gap-4 py-12">
-                    <FileTypeIcon type={previewFile.type} className="h-16 w-16" />
+                    <FileTypeIcon type={previewFile.type} className="size-16" />
                     <p className="text-sm text-muted-foreground">
                       Preview not available for this file type.
                     </p>
@@ -883,7 +892,7 @@ const SubmissionsPage = () => {
               </div>
               <div className="flex h-6.5 items-center gap-1">
                 <Button variant="ghost" size="sm" onClick={handleExportSelected}>
-                  <Download className="h-3.5 w-3.5" />
+                  <Download className="size-3.5" />
                   Export
                   <span className="ml-1 text-xs text-muted-foreground">
                     {formatForDisplay(HOTKEYS.SUBMISSIONS_EXPORT)}
@@ -896,7 +905,7 @@ const SubmissionsPage = () => {
                   </span>
                 </Button>
                 <Button variant="secondary" size="sm" onClick={handleClearSelection}>
-                  <XIcon className="h-3.5 w-3.5" />
+                  <XIcon className="size-3.5" />
                   Clear
                   <span className="ml-1 text-xs text-muted-foreground">
                     {formatForDisplay(HOTKEYS.SUBMISSIONS_CLEAR_SELECTION)}
@@ -923,9 +932,9 @@ const SubmissionsPage = () => {
             rowBorder: true,
           }}
           emptyMessage={
-            <div className="flex flex-col items-center justify-center space-y-3 py-16 opacity-50">
+            <div className="flex flex-col items-center justify-center gap-y-3 py-16 opacity-50">
               <div className="rounded-full bg-muted p-3">
-                <FilterIcon className="h-6 w-6" />
+                <FilterIcon className="size-6" />
               </div>
               <div className="space-y-1 text-center">
                 <p>No results found</p>
@@ -960,7 +969,7 @@ const SubmissionsPage = () => {
 export const Route = createFileRoute(
   "/_authenticated/workspace/$workspaceId/form-builder/$formId/submissions",
 )({
-  component: SubmissionsPage,
+  ssr: "data-only",
   loader: async ({ context, params }) => {
     await Promise.all([
       context.queryClient.ensureQueryData({
@@ -978,10 +987,10 @@ export const Route = createFileRoute(
   },
   staleTime: 30_000,
   gcTime: 5 * 60_000,
+  component: SubmissionsPage,
   pendingMs: 500,
   pendingMinMs: 300,
   pendingComponent: Loader,
   errorComponent: ErrorBoundary,
   notFoundComponent: NotFound,
-  ssr: "data-only",
 });

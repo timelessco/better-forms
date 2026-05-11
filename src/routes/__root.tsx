@@ -33,9 +33,11 @@ const RootDocument = ({ children }: { children: React.ReactNode }) => (
     <head>
       {/* Theme init script - static trusted content, not user input */}
       {/** biome-ignore lint/security/noDangerouslySetInnerHtml: Needed for theme initialization */}
+      {/* eslint-disable-next-line react/no-danger -- static module-literal, no user input; must run synchronously to avoid theme flash */}
       <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       {import.meta.env.DEV && (
-        <script crossOrigin="anonymous" src="//unpkg.com/react-scan/dist/auto.global.js" />
+        // eslint-disable-next-line react-doctor/rendering-script-defer-async, react-doctor/no-undeferred-third-party -- dev-only react-scan script; not shipped to production
+        <script async crossOrigin="anonymous" src="//unpkg.com/react-scan/dist/auto.global.js" />
       )}
       <HeadContent />
     </head>

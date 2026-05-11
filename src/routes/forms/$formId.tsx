@@ -129,6 +129,21 @@ const PublicFormRoute = () => {
 };
 
 export const Route = createFileRoute("/forms/$formId")({
+  validateSearch: zodValidator(
+    z.object({
+      // No `.default()` on these — TanStack Router would canonicalize the URL
+      // by 307-redirecting `/forms/$formId` to `/forms/$formId?popup=false&…`,
+      // which strips link-preview bots that don't follow redirects.
+      transparentBackground: z.boolean().optional(),
+      transparent: z.coerce.boolean().optional(),
+      popup: z.coerce.boolean().optional(),
+      hideTitle: z.coerce.boolean().optional(),
+      alignLeft: z.coerce.boolean().optional(),
+      originPage: z.string().optional(),
+      dynamicHeight: z.coerce.boolean().optional(),
+      dynamicWidth: z.coerce.boolean().optional(),
+    }),
+  ),
   loader: async ({ params }) => getPublicFormViewRSC({ data: { id: params.formId } }),
   head: ({ loaderData, params }) => {
     const defaultMode = loaderData?.form?.customization?.defaultMode || "system";
@@ -190,19 +205,4 @@ export const Route = createFileRoute("/forms/$formId")({
   pendingComponent: Loader,
   errorComponent: ErrorBoundary,
   notFoundComponent: NotFound,
-  validateSearch: zodValidator(
-    z.object({
-      // No `.default()` on these — TanStack Router would canonicalize the URL
-      // by 307-redirecting `/forms/$formId` to `/forms/$formId?popup=false&…`,
-      // which strips link-preview bots that don't follow redirects.
-      transparentBackground: z.boolean().optional(),
-      transparent: z.coerce.boolean().optional(),
-      popup: z.coerce.boolean().optional(),
-      hideTitle: z.coerce.boolean().optional(),
-      alignLeft: z.coerce.boolean().optional(),
-      originPage: z.string().optional(),
-      dynamicHeight: z.coerce.boolean().optional(),
-      dynamicWidth: z.coerce.boolean().optional(),
-    }),
-  ),
 });

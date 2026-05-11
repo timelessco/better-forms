@@ -72,9 +72,7 @@ const renderToFile = async (variant: Variant): Promise<void> => {
 
 const main = async (): Promise<void> => {
   mkdirSync(OUT_DIR, { recursive: true });
-  for (const variant of VARIANTS) {
-    await renderToFile(variant);
-  }
+  await Promise.all(VARIANTS.map((variant) => renderToFile(variant)));
 };
 
 main().catch((err) => {

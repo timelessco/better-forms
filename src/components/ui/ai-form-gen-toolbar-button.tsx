@@ -7,14 +7,14 @@ import { ToolbarButton } from "./toolbar";
 export const AIFormGenToolbarButton = (props: React.ComponentProps<typeof ToolbarButton>) => {
   const { editor } = useEditorPlugin(AIFormGenPlugin);
 
-  const handleClick = useCallback(() => {
+  const toggleAIFormGen = useCallback(() => {
     const current = editor.getOption(AIFormGenPlugin, "isOpen");
     editor.setOption(AIFormGenPlugin, "isOpen", !current);
   }, [editor]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const preventMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
   }, []);
 
-  return <ToolbarButton {...props} onClick={handleClick} onMouseDown={handleMouseDown} />;
+  return <ToolbarButton {...props} onClick={toggleAIFormGen} onMouseDown={preventMouseDown} />;
 };

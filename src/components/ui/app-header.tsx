@@ -35,7 +35,7 @@ import { cn, parseTimestampAsUTC } from "@/lib/utils";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { Link, useLocation, useNavigate, useParams } from "@tanstack/react-router";
 import { format, formatDistanceToNow } from "date-fns";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { LogoToggle } from "./logo";
 import { useSidebarSafe } from "./sidebar";
@@ -43,6 +43,48 @@ import { useSidebarSafe } from "./sidebar";
 interface AppHeaderProps {
   isDistractionHidden?: boolean;
 }
+
+type SavedDocsTooltipContentProps = {
+  userName?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+};
+
+const subscribeMountedNoop = () => () => {};
+const getMountedClient = () => true;
+const getMountedServer = () => false;
+
+const SavedDocsTooltipContent = ({
+  userName,
+  updatedAt,
+  createdAt,
+}: SavedDocsTooltipContentProps) => {
+  // Use useSyncExternalStore for the mounted flag so SSR and client agree on
+  // the initial render; the relative timestamp swaps in after hydration.
+  const mounted = useSyncExternalStore(subscribeMountedNoop, getMountedClient, getMountedServer);
+
+  const updatedDate = mounted
+    ? (parseTimestampAsUTC(updatedAt ?? undefined) ?? new Date())
+    : undefined;
+  const createdDate = mounted
+    ? (parseTimestampAsUTC(createdAt ?? undefined) ?? new Date())
+    : undefined;
+
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-background/70" suppressHydrationWarning>
+        Edited by <span className="text-background">{userName ?? "You"}</span>{" "}
+        {updatedDate ? `${formatDistanceToNow(updatedDate)} ago` : ""}
+      </p>
+      {createdAt && (
+        <p className="text-xs text-background/70" suppressHydrationWarning>
+          Created by <span className="text-background">{userName ?? "You"}</span>{" "}
+          {createdDate ? format(createdDate, "MMM d, yyyy") : ""}
+        </p>
+      )}
+    </div>
+  );
+};
 
 export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   const { formId, workspaceId } = useParams({ strict: false });
@@ -182,26 +224,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     }
   };
 
-  useHotkey(HOTKEYS.TOGGLE_SETTINGS_SIDEBAR, () => toggleSettingsSidebar(), {
-    enabled: isFormBuilder || isLandingPage,
-  });
-
-  useHotkey(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR, () => toggleCustomizeSidebar(), {
-    enabled: (isFormBuilder && isEditRoute) || isLandingPage,
-  });
-
-  useHotkey(HOTKEYS.TOGGLE_VERSION_HISTORY, () => toggleVersionHistory(), {
-    enabled: isFormBuilder && isEditRoute && hasPublishedVersion,
-  });
-
-  useHotkey(HOTKEYS.TOGGLE_FAVORITE, () => handleToggleFavorite(), {
-    enabled: isFormBuilder && !!formId,
-  });
-
-  useHotkey(HOTKEYS.PUBLISH_FORM, () => handlePublish(), {
-    enabled: isFormBuilder && (isEditRoute || hasUnpublishedChanges) && !isPublishing,
-  });
-
   const handleEditForm = () => {
     if (workspaceId && formId) {
       void navigate({
@@ -211,18 +233,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
       });
     }
   };
-
-  useHotkey(HOTKEYS.EDIT_FORM, () => handleEditForm(), {
-    enabled: isFormBuilder && !isEditRoute && !!workspaceId && !!formId,
-  });
-
-  useHotkey(HOTKEYS.TOGGLE_PREVIEW, () => togglePreview(), {
-    enabled: (isFormBuilder && isEditRoute) || isLandingPage,
-  });
-
-  useHotkey(HOTKEYS.TOGGLE_SHARE_SIDEBAR, () => toggleShareSidebar(), {
-    enabled: isFormBuilder && isEditRoute && canShare,
-  });
 
   const isLeftSidebarOpen = state === "expanded";
 
@@ -240,8 +250,25 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     }
   };
 
-  useHotkey(HOTKEYS.DISMISS_SIDEBARS, () => handleDismissSidebars(), {
-    enabled: isFormBuilder,
+  useAppHeaderHotkeys({
+    isFormBuilder,
+    isLandingPage,
+    isEditRoute,
+    hasPublishedVersion,
+    formId,
+    hasUnpublishedChanges,
+    isPublishing,
+    workspaceId,
+    canShare,
+    toggleSettingsSidebar,
+    toggleCustomizeSidebar,
+    toggleVersionHistory,
+    handleToggleFavorite,
+    handlePublish,
+    handleEditForm,
+    togglePreview,
+    toggleShareSidebar,
+    handleDismissSidebars,
   });
 
   const menuItems = [
@@ -418,30 +445,16 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                 }
               >
                 Edited{" "}
+                {/* eslint-disable-next-line react-doctor/rendering-hydration-mismatch-time -- authenticated layout, client-only render */}
                 {formatDistanceToNow(parseTimestampAsUTC(savedDocs?.[0]?.updatedAt) ?? new Date())}{" "}
                 ago
               </TooltipTrigger>
               <TooltipContent side="bottom" align="end">
-                <div className="space-y-1">
-                  <p className="text-xs text-background/70">
-                    Edited by{" "}
-                    <span className="text-background">{session?.user?.name ?? "You"}</span>{" "}
-                    {formatDistanceToNow(
-                      parseTimestampAsUTC(savedDocs?.[0]?.updatedAt) ?? new Date(),
-                    )}{" "}
-                    ago
-                  </p>
-                  {savedDocs?.[0]?.createdAt && (
-                    <p className="text-xs text-background/70">
-                      Created by{" "}
-                      <span className="text-background">{session?.user?.name ?? "You"}</span>{" "}
-                      {format(
-                        parseTimestampAsUTC(savedDocs?.[0]?.createdAt) ?? new Date(),
-                        "MMM d, yyyy",
-                      )}
-                    </p>
-                  )}
-                </div>
+                <SavedDocsTooltipContent
+                  userName={session?.user?.name}
+                  updatedAt={savedDocs?.[0]?.updatedAt}
+                  createdAt={savedDocs?.[0]?.createdAt}
+                />
               </TooltipContent>
             </Tooltip>
           )}
@@ -514,12 +527,12 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      className="size-7 text-muted-foreground hover:text-foreground"
                       aria-label="More options"
                     />
                   }
                 >
-                  <MoreHorizontalIcon className="h-[18px] w-[18px]" strokeWidth={1.5} />
+                  <MoreHorizontalIcon className="size-[18px]" strokeWidth={1.5} />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
                   <DropdownMenuItem onClick={() => toggleEditorSidebar("customize")}>
@@ -536,7 +549,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               </DropdownMenu>
               <Button
                 size="sm"
-                className="ml-1 rounded-[8px] border-none bg-black py-1.5 pr-2 pl-2.5 text-[14px] text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
+                className="ml-1 rounded-[8px] border-none bg-neutral-950 py-1.5 pr-2 pl-2.5 text-[14px] text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
                 onClick={() => navigate({ to: "/login" })}
               >
                 Publish
@@ -553,16 +566,16 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="hidden h-7 w-7 text-muted-foreground hover:text-foreground md:inline-flex"
+                        className="hidden size-7 text-muted-foreground hover:text-foreground md:inline-flex"
                         onClick={() => setActiveDialog("discard")}
                         disabled={isDiscarding}
                       />
                     }
                   >
                     {isDiscarding ? (
-                      <Loader2Icon className="h-4 w-4 animate-spin" strokeWidth={2} />
+                      <Loader2Icon className="size-4 animate-spin" strokeWidth={2} />
                     ) : (
-                      <RotateCcwIcon className="h-4 w-4" strokeWidth={2} />
+                      <RotateCcwIcon className="size-4" strokeWidth={2} />
                     )}
                   </TooltipTrigger>
                   <TooltipContent>
@@ -673,7 +686,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                     }
                   >
                     {isPublishing ? (
-                      <Loader2Icon className="h-4 w-4 animate-spin" />
+                      <Loader2Icon className="size-4 animate-spin" />
                     ) : savedDocs?.[0]?.status === "published" && !hasUnpublishedChanges ? (
                       "Published"
                     ) : (
@@ -689,7 +702,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               ) : (
                 workspaceId &&
                 formId && (
-                  <div className="ml-1 flex items-stretch overflow-hidden rounded-lg bg-black text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-colors dark:bg-white dark:text-black">
+                  <div className="ml-1 flex items-stretch overflow-hidden rounded-lg bg-neutral-950 text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-colors dark:bg-white dark:text-black">
                     <Tooltip>
                       <TooltipTrigger
                         render={
@@ -739,7 +752,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                             }
                           >
                             {isPublishing ? (
-                              <Loader2Icon className="h-4 w-4 animate-spin" />
+                              <Loader2Icon className="size-4 animate-spin" />
                             ) : (
                               "Publish"
                             )}
@@ -812,4 +825,82 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
       </AlertDialog>
     </>
   );
+};
+
+interface AppHeaderHotkeysOptions {
+  isFormBuilder: boolean;
+  isLandingPage: boolean;
+  isEditRoute: boolean;
+  hasPublishedVersion: boolean;
+  formId: string | undefined;
+  hasUnpublishedChanges: boolean;
+  isPublishing: boolean;
+  workspaceId: string | undefined;
+  canShare: boolean;
+  toggleSettingsSidebar: () => void;
+  toggleCustomizeSidebar: () => void;
+  toggleVersionHistory: () => void;
+  handleToggleFavorite: () => Promise<void> | void;
+  handlePublish: () => Promise<void> | void;
+  handleEditForm: () => void;
+  togglePreview: () => void;
+  toggleShareSidebar: () => void;
+  handleDismissSidebars: () => void;
+}
+
+const useAppHeaderHotkeys = ({
+  isFormBuilder,
+  isLandingPage,
+  isEditRoute,
+  hasPublishedVersion,
+  formId,
+  hasUnpublishedChanges,
+  isPublishing,
+  workspaceId,
+  canShare,
+  toggleSettingsSidebar,
+  toggleCustomizeSidebar,
+  toggleVersionHistory,
+  handleToggleFavorite,
+  handlePublish,
+  handleEditForm,
+  togglePreview,
+  toggleShareSidebar,
+  handleDismissSidebars,
+}: AppHeaderHotkeysOptions) => {
+  useHotkey(HOTKEYS.TOGGLE_SETTINGS_SIDEBAR, () => toggleSettingsSidebar(), {
+    enabled: isFormBuilder || isLandingPage,
+  });
+
+  useHotkey(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR, () => toggleCustomizeSidebar(), {
+    enabled: (isFormBuilder && isEditRoute) || isLandingPage,
+  });
+
+  useHotkey(HOTKEYS.TOGGLE_VERSION_HISTORY, () => toggleVersionHistory(), {
+    enabled: isFormBuilder && isEditRoute && hasPublishedVersion,
+  });
+
+  useHotkey(HOTKEYS.TOGGLE_FAVORITE, () => handleToggleFavorite(), {
+    enabled: isFormBuilder && !!formId,
+  });
+
+  useHotkey(HOTKEYS.PUBLISH_FORM, () => handlePublish(), {
+    enabled: isFormBuilder && (isEditRoute || hasUnpublishedChanges) && !isPublishing,
+  });
+
+  useHotkey(HOTKEYS.EDIT_FORM, () => handleEditForm(), {
+    enabled: isFormBuilder && !isEditRoute && !!workspaceId && !!formId,
+  });
+
+  useHotkey(HOTKEYS.TOGGLE_PREVIEW, () => togglePreview(), {
+    enabled: (isFormBuilder && isEditRoute) || isLandingPage,
+  });
+
+  useHotkey(HOTKEYS.TOGGLE_SHARE_SIDEBAR, () => toggleShareSidebar(), {
+    enabled: isFormBuilder && isEditRoute && canShare,
+  });
+
+  useHotkey(HOTKEYS.DISMISS_SIDEBARS, () => handleDismissSidebars(), {
+    enabled: isFormBuilder,
+  });
 };

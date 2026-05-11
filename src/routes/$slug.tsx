@@ -126,6 +126,18 @@ const CustomDomainSlugRoute = () => {
 };
 
 export const Route = createFileRoute("/$slug")({
+  validateSearch: zodValidator(
+    z.object({
+      transparentBackground: z.boolean().optional().default(false),
+      transparent: z.coerce.boolean().optional(),
+      popup: z.coerce.boolean().optional().default(false),
+      hideTitle: z.coerce.boolean().optional().default(false),
+      alignLeft: z.coerce.boolean().optional().default(false),
+      originPage: z.string().optional(),
+      dynamicHeight: z.coerce.boolean().optional().default(false),
+      dynamicWidth: z.coerce.boolean().optional().default(false),
+    }),
+  ),
   loader: async ({ params }) => {
     try {
       return await getCustomDomainFormBySlugRSC({ data: { slug: params.slug } });
@@ -173,16 +185,4 @@ export const Route = createFileRoute("/$slug")({
   pendingComponent: Loader,
   errorComponent: ErrorBoundary,
   notFoundComponent: CustomDomainNotFound,
-  validateSearch: zodValidator(
-    z.object({
-      transparentBackground: z.boolean().optional().default(false),
-      transparent: z.coerce.boolean().optional(),
-      popup: z.coerce.boolean().optional().default(false),
-      hideTitle: z.coerce.boolean().optional().default(false),
-      alignLeft: z.coerce.boolean().optional().default(false),
-      originPage: z.string().optional(),
-      dynamicHeight: z.coerce.boolean().optional().default(false),
-      dynamicWidth: z.coerce.boolean().optional().default(false),
-    }),
-  ),
 });

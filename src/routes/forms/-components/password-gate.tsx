@@ -1,5 +1,5 @@
 import { EyeIcon, EyeOffIcon, LockIcon } from "@/components/ui/icons";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/contexts/translation-context";
@@ -14,6 +14,7 @@ const getStorageKey = (formId: string) => `bf-unlocked-${formId}`;
 
 export const PasswordGate = ({ formId, children }: PasswordGateProps) => {
   const { t } = useTranslation();
+  // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value gates the children render below
   const [unlocked, setUnlocked] = useState(() => {
     try {
       return sessionStorage.getItem(getStorageKey(formId)) === "1";
@@ -26,6 +27,10 @@ export const PasswordGate = ({ formId, children }: PasswordGateProps) => {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [showPassword, setShowPassword] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    passwordInputRef.current?.focus();
+  }, []);
 
   const handleUnlock = useCallback(async () => {
     if (!password.trim()) {
@@ -74,7 +79,7 @@ export const PasswordGate = ({ formId, children }: PasswordGateProps) => {
           <div className="space-y-4">
             <div className="flex justify-center">
               <div className="rounded-full bg-muted p-3">
-                <LockIcon className="h-8 w-8 text-muted-foreground" />
+                <LockIcon className="size-8 text-muted-foreground" />
               </div>
             </div>
             <div className="space-y-1 text-center">
@@ -98,7 +103,7 @@ export const PasswordGate = ({ formId, children }: PasswordGateProps) => {
                     if (e.key === "Enter") void handleUnlock();
                   }}
                   className="pr-10"
-                  autoFocus
+                  ref={passwordInputRef}
                 />
                 <button
                   type="button"
@@ -107,9 +112,9 @@ export const PasswordGate = ({ formId, children }: PasswordGateProps) => {
                   className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? (
-                    <EyeOffIcon className="h-4 w-4" />
+                    <EyeOffIcon className="size-4" />
                   ) : (
-                    <EyeIcon className="h-4 w-4" />
+                    <EyeIcon className="size-4" />
                   )}
                 </button>
               </div>

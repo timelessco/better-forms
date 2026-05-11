@@ -43,6 +43,7 @@ export const Route = createFileRoute("/api/og/$formId/$hash")({
           return new Response("invalid", { status: 400, headers: NOT_FOUND_HEADERS });
         }
 
+        // eslint-disable-next-line react-doctor/async-defer-await -- the awaited form record IS the data for the immediately-following 404 guard
         const [form] = await db
           .select({
             id: forms.id,
