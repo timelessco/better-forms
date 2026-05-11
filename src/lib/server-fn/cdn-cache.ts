@@ -1,14 +1,17 @@
 import { setResponseHeader } from "@tanstack/react-start/server";
 import { vercel, vercelProjectId, vercelTeamId } from "@/integrations/vercel";
-// Public forms are immutable per published version. We serve a year-long
-// edge cache with stale-while-revalidate, and invalidate the cache tag
-// when the form republishes, its branding changes, or it gets deleted.
-// Clients (browsers) cache briefly so repeated in-session navigation is
-// instant without hiding republish updates from authenticated viewers.
+// Worst-case staleness is bounded by s-maxage. We previously kept it at
+// 1 year and relied on `Cache-Tag` invalidation to evict on republish, but
+// Vercel's tag-purge silently reports success without actually evicting in
+// this project — verified via `vercel cache invalidate --tag` and
+// `dangerously-delete --tag` both returning "Successfully invalidated"
+// while the entry's `Age` kept climbing. Until that platform issue is
+// resolved, cap edge caching at 60s so a stuck purge can leak at most 60s
+// of staleness. Tag-purge stays wired up as a best-effort optimisation.
 const PUBLIC_CACHE_CONTROL = [
   "public",
   "max-age=60",
-  "s-maxage=31536000",
+  "s-maxage=60",
   "stale-while-revalidate=86400",
   "must-revalidate",
 ].join(", ");
