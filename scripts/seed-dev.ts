@@ -265,6 +265,15 @@ const main = async () => {
           isUnique: true,
         }),
         status: f.valuesFromArray({ values: ["pending", "verified", "failed"] }),
+        // CHECK constraint: must be in CUSTOM_DOMAIN_STATUSES or NULL. drizzle-seed
+        // generates random text otherwise, which trips the constraint.
+        previousStatus: f.valuesFromArray({
+          values: ["pending", "verified", "failed", "suspended"],
+        }),
+        vercelDomainId: f.valuesFromArray({ values: [null] }),
+        siteTitle: f.valuesFromArray({ values: [null] }),
+        faviconUrl: f.valuesFromArray({ values: [null] }),
+        ogImageUrl: f.valuesFromArray({ values: [null] }),
       },
     },
     workspaces: {

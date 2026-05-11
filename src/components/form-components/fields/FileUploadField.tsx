@@ -256,7 +256,7 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
                 </div>
               )}
             </button>
-            {showError ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
+            {showError ? <p className="mt-1.5 text-sm text-destructive">{errorMessage}</p> : null}
           </>
         );
       }}

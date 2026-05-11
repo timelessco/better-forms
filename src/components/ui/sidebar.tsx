@@ -155,7 +155,12 @@ export const SidebarProvider = ({
 
   return (
     <SidebarContext.Provider value={contextValue}>
-      <TooltipProvider delay={0}>
+      {/* Inherit the app-wide tooltip delay from __root.tsx's
+          TooltipProvider; do not re-anchor it here, otherwise every
+          tooltip rendered inside the sidebar wrapper (which includes
+          the SidebarInset / main content!) gets reset to a local
+          default and the global delay never takes effect. */}
+      <TooltipProvider>
         <div
           data-slot="sidebar-wrapper"
           data-resizing={isResizing ? "" : undefined}

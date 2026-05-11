@@ -394,16 +394,30 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                 </>
               )}
               {savedDocs?.[0].status === "published" && workspaceId && formId ? (
-                <Link
-                  to="/workspace/$workspaceId/form-builder/$formId/submissions"
-                  params={{ workspaceId, formId }}
-                  className={cn(
-                    buttonVariants({ variant: "ghost", size: "sm" }),
-                    "max-w-[140px] min-w-0 shrink justify-start px-1.5 font-normal text-foreground hover:bg-accent/60 sm:max-w-[200px]",
-                  )}
-                >
-                  <span className="truncate">{savedDocs?.[0].title || "Untitled"}</span>
-                </Link>
+                isEditRoute ? (
+                  <Link
+                    to="/workspace/$workspaceId/form-builder/$formId/submissions"
+                    params={{ workspaceId, formId }}
+                    className={cn(
+                      buttonVariants({ variant: "ghost", size: "sm" }),
+                      "max-w-[140px] min-w-0 shrink justify-start px-1.5 font-normal text-foreground hover:bg-accent/60 sm:max-w-[200px]",
+                    )}
+                  >
+                    <span className="truncate">{savedDocs?.[0].title || "Untitled"}</span>
+                  </Link>
+                ) : (
+                  <Link
+                    to="/workspace/$workspaceId/form-builder/$formId/edit"
+                    params={{ workspaceId, formId }}
+                    search={(prev) => ({ ...prev, force: true })}
+                    className={cn(
+                      buttonVariants({ variant: "ghost", size: "sm" }),
+                      "max-w-[140px] min-w-0 shrink justify-start px-1.5 font-normal text-foreground hover:bg-accent/60 sm:max-w-[200px]",
+                    )}
+                  >
+                    <span className="truncate">{savedDocs?.[0].title || "Untitled"}</span>
+                  </Link>
+                )
               ) : (
                 <span
                   className={cn(

@@ -37,12 +37,11 @@ const config = defineConfig({
     embedCacheHeadersPlugin(),
     devtools({
       editor: {
-        name: "Cursor",
+        name: "VSCode",
         open: async (path, lineNumber, columnNumber) => {
           const { exec } = await import("node:child_process");
           exec(
-            // or windsurf/cursor/webstorm/cursor/cursor
-            `cursor -g "${path.replaceAll("$", "\\$")}${lineNumber ? `:${lineNumber}` : ""}${columnNumber ? `:${columnNumber}` : ""}"`,
+            `code -g "${path.replaceAll("$", "\\$")}${lineNumber ? `:${lineNumber}` : ""}${columnNumber ? `:${columnNumber}` : ""}"`,
           );
         },
       },

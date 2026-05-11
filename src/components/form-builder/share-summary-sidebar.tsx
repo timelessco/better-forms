@@ -454,8 +454,8 @@ const PublishedShareBody = ({
 
 const ShareSidebarFooter = ({ shareUrl }: { shareUrl: string }) => (
   <SidebarFooter className="p-2">
-    <div className="flex h-[30px] items-center gap-[6px] rounded-lg bg-neutral-100 py-[3px] pr-[3px] pl-[10px]">
-      <span className="min-w-0 flex-1 truncate font-case text-sm font-normal text-(--color-gray-alpha-600)">
+    <div className="flex h-[30px] items-center gap-[6px] rounded-lg bg-secondary py-[3px] pr-[3px] pl-[10px]">
+      <span className="min-w-0 flex-1 truncate font-case text-sm font-normal text-muted-foreground">
         {shareUrl}
       </span>
       <CopyButton

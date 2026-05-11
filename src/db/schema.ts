@@ -251,6 +251,14 @@ export const formVersions = pgTable(
     icon: text(), // Visual asset snapshot
     cover: text(), // Visual asset snapshot
     publishedByUserId: text().references(() => user.id, { onDelete: "set null" }),
+    // Denormalized publisher snapshot — captured at publish time so the
+    // version history audit trail survives user deletion, name changes, and
+    // any Better Auth profile drift. Authoritative for "who published this
+    // version"; the FK above is only useful for "is this still the same
+    // active user". Both columns are nullable because legacy rows predate
+    // the snapshot.
+    publishedByName: text(),
+    publishedByImage: text(),
     publishedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },

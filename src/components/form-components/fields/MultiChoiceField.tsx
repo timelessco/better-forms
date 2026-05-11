@@ -1,13 +1,11 @@
 import { LETTER_LABELS } from "@/components/ui/form-option-item-constants";
 import { cn } from "@/lib/utils";
-import { extractErrorMessage } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
 const MultiChoiceField = ({ element, form }: FieldRendererProps<"MultiChoice">) => (
   <form.AppField name={element.name}>
     {(f) => {
       const hasErrors = f.state.meta.errors.length > 0 && f.state.meta.isTouched;
-      const errorMessage = hasErrors ? extractErrorMessage(f.state.meta.errors[0]) : "";
       const selectedValue = (f.state.value as string | undefined) ?? "";
 
       return (
@@ -42,7 +40,7 @@ const MultiChoiceField = ({ element, form }: FieldRendererProps<"MultiChoice">) 
               );
             })}
           </div>
-          {hasErrors && <p className="text-sm text-destructive">{errorMessage}</p>}
+          <f.FieldError />
         </>
       );
     }}

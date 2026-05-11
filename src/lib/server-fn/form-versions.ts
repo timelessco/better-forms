@@ -109,6 +109,8 @@ export const publishFormVersion = createServerFn({ method: "POST" })
             icon: form.icon,
             cover: form.cover,
             publishedByUserId: context.session.user.id,
+            publishedByName: context.session.user.name ?? null,
+            publishedByImage: context.session.user.image ?? null,
             publishedAt: now,
             createdAt: now,
           })
@@ -202,8 +204,13 @@ export const getFormVersions = createServerFn({ method: "GET" })
           title: formVersions.title,
           publishedAt: formVersions.publishedAt,
           publishedByUserId: formVersions.publishedByUserId,
-          publishedByName: user.name,
-          publishedByImage: user.image,
+          // Snapshot first (authoritative for who published this version),
+          // then fall back to the joined user row for legacy versions that
+          // were written before the snapshot columns existed.
+          publishedByName: formVersions.publishedByName,
+          publishedByImage: formVersions.publishedByImage,
+          fallbackName: user.name,
+          fallbackImage: user.image,
         })
         .from(formVersions)
         .leftJoin(user, eq(formVersions.publishedByUserId, user.id))
@@ -219,8 +226,8 @@ export const getFormVersions = createServerFn({ method: "GET" })
         publishedAt: v.publishedAt.toISOString(),
         publishedBy: {
           id: v.publishedByUserId,
-          name: v.publishedByName,
-          image: v.publishedByImage,
+          name: v.publishedByName ?? v.fallbackName,
+          image: v.publishedByImage ?? v.fallbackImage,
         },
       })),
     };

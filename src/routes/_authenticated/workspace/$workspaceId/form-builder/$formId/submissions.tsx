@@ -1,3 +1,12 @@
+// Opt this route out of React Compiler. TanStack Table v8's `useReactTable`
+// calls `table.setOptions(...)` as a side effect during render; the compiler
+// over-memoizes around it, so the table instance's internal state lags behind
+// React state and memoized cells stop receiving re-renders (e.g. "select all"
+// flips `rowSelection` but row checkboxes don't update). Revisit when we
+// migrate to TanStack Table v9 (compiler-compatible) — see
+// docs/plans/2026-05-11-tanstack-table-v9-migration.md.
+"use no memo";
+
 import { cn } from "@/lib/utils";
 import { MULTI_SELECT_COLORS } from "@/components/ui/form-option-item-constants";
 import { Button } from "@/components/ui/button";
