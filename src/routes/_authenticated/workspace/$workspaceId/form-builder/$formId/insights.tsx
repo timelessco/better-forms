@@ -93,12 +93,12 @@ const InsightsPage = () => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="size-8"
             onClick={handleRefresh}
             disabled={isRefetching}
             aria-label="Refresh insights"
           >
-            <RefreshCwIcon className={cn("h-4 w-4", isRefetching && "animate-spin")} />
+            <RefreshCwIcon className={cn("size-4", isRefetching && "animate-spin")} />
           </Button>
           <TimeRangeSelector
             value={filter}

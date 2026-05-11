@@ -161,7 +161,7 @@ export const DropoffFunnel = ({ dropoff }: DropoffFunnelProps) => {
   if (!dropoff || dropoff.questions.length === 0) {
     return (
       <div className="p-6 text-center text-sm text-muted-foreground">
-        No drop-off data yet — multi-step / field-by-field forms only.
+        No drop-off data yet: multi-step / field-by-field forms only.
       </div>
     );
   }

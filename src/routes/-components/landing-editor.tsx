@@ -137,7 +137,7 @@ const LandingLayout = () => {
           width: showSidebar ? `${rightSidebarWidth}px` : 0,
         }}
       >
-        <div className="h-full w-full">
+        <div className="size-full">
           <Suspense fallback={null}>
             <SidebarProvider className="h-full min-h-0">
               <LandingSidebar />
@@ -223,7 +223,7 @@ const LocalEditorApp = () => {
     value: initialContent,
   });
 
-  const handleChange = useCallback(
+  const persistLocalForm = useCallback(
     ({ value }: { value: Value }) => {
       if (skipSaveRef.current) {
         skipSaveRef.current = false;
@@ -279,7 +279,7 @@ const LocalEditorApp = () => {
         )}
         style={hasCustomization ? themeVars : undefined}
       >
-        <Plate editor={editor} readOnly={false} onChange={handleChange}>
+        <Plate editor={editor} readOnly={false} onChange={persistLocalForm}>
           <EditorContainer
             variant="default"
             className="max-w-full overflow-y-visible border-none px-0 shadow-none sm:px-0"
@@ -309,7 +309,7 @@ const LocalPreviewMode = () => {
   return (
     <div
       className={cn(
-        "flex h-full w-full flex-col overflow-x-hidden overflow-y-auto bg-background transition-colors duration-300",
+        "flex size-full flex-col overflow-x-hidden overflow-y-auto bg-background transition-colors duration-300",
         hasCustomization && "bf-themed",
         resolvedAppTheme === "dark" && "dark",
       )}

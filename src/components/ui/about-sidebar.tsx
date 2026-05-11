@@ -15,16 +15,16 @@ export const AboutSidebar = ({ onClose }: AboutSidebarProps) => (
       <Button
         variant="ghost"
         size="icon"
-        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+        className="size-7 text-muted-foreground hover:text-foreground"
         onClick={onClose}
         aria-label="Close"
       >
-        <XIcon className="h-4 w-4" />
+        <XIcon className="size-4" />
       </Button>
     </div>
     <ScrollArea className="flex-1">
       <div className="p-6">
-        <h2 className="mb-6 text-xl font-bold">Got questions?</h2>
+        <h2 className="mb-6 text-xl font-semibold">Got questions?</h2>
         <div className="flex flex-col">
           <FAQItem
             question="How do I embed my form in a Notion page?"

@@ -5,8 +5,8 @@ import type { PlateLeafProps, RenderNodeWrapper } from "platejs/react";
 import { PlateLeaf, useEditorPlugin, usePluginOption } from "platejs/react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { suggestionPlugin } from "@/components/editor/plugins/suggestion-kit";
-import type { SuggestionConfig } from "@/components/editor/plugins/suggestion-kit";
+import { suggestionPlugin } from "@/components/editor/plugins/suggestion-plugin";
+import type { SuggestionConfig } from "@/components/editor/plugins/suggestion-plugin";
 import { cn } from "@/lib/utils";
 
 const suggestionVariants = cva(

@@ -85,11 +85,11 @@ export const MediaToolbarButton = ({
     },
   });
 
-  const handleClick = React.useCallback(() => {
+  const triggerFilePicker = React.useCallback(() => {
     openFilePicker();
   }, [openFilePicker]);
 
-  const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
+  const openMenuOnArrowDown = React.useCallback((e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setOpen(true);
@@ -98,7 +98,11 @@ export const MediaToolbarButton = ({
 
   return (
     <>
-      <ToolbarSplitButton onClick={handleClick} onKeyDown={handleKeyDown} pressed={open}>
+      <ToolbarSplitButton
+        onClick={triggerFilePicker}
+        onKeyDown={openMenuOnArrowDown}
+        pressed={open}
+      >
         <ToolbarSplitButtonPrimary>{currentConfig.icon}</ToolbarSplitButtonPrimary>
 
         <DropdownMenu open={open} onOpenChange={setOpen} modal={false} {...props}>
@@ -143,6 +147,10 @@ const MediaUrlDialogContent = ({
   const editor = useEditorRef();
   const [url, setUrl] = React.useState("");
   const urlInputId = React.useId();
+  const urlInputRef = React.useRef<HTMLInputElement>(null);
+  React.useEffect(() => {
+    urlInputRef.current?.focus();
+  }, []);
 
   const embedMedia = React.useCallback(() => {
     if (!isUrl(url)) return toast.error("Invalid URL");
@@ -179,7 +187,7 @@ const MediaUrlDialogContent = ({
           }}
           placeholder=""
           type="url"
-          autoFocus
+          ref={urlInputRef}
         />
       </AlertDialogDescription>
 

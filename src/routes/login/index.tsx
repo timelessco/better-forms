@@ -18,6 +18,7 @@ const LoginPage = () => {
   const callbackURL =
     redirectTo && SAFE_REDIRECT_PATTERN.test(redirectTo) ? redirectTo : "/dashboard";
 
+  // eslint-disable-next-line react-doctor/query-mutation-missing-invalidation -- social sign-in redirects to OAuth provider; cache invalidation handled on callback
   const socialSignInMutation = useMutation({
     mutationFn: async () => {
       const result = await authClient.signIn.social({

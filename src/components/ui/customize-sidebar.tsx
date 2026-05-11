@@ -23,6 +23,7 @@ import { useForm, useLocalForm } from "@/hooks/use-live-hooks";
 import { FONT_REGISTRY } from "@/lib/theme/font-registry";
 import { TOKEN_NAMES } from "@/lib/theme/generate-theme-css";
 import { loadGoogleFont } from "@/lib/theme/load-google-font";
+import type { BaseColorMap } from "@/lib/theme/theme-presets";
 import { BASE_COLORS, DARK_BASE_COLORS, STYLES, THEME_COLORS } from "@/lib/theme/theme-presets";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -288,360 +289,494 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
     <Sidebar
       side="right"
       collapsible="none"
-      className="h-full w-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
+      className="size-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
     >
-      <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
-        <div className="flex items-center justify-between">
-          <h2 className="pl-2.5 font-sans text-base font-normal text-foreground">Customize</h2>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-            onClick={closeSidebar}
-            aria-label="Close"
-          >
-            <XIcon className="h-4 w-4" />
-          </Button>
-        </div>
-      </SidebarHeader>
+      <CustomizeSidebarHeader closeSidebar={closeSidebar} />
 
       <SidebarContent>
         <div className="space-y-3 p-2">
           <p className="px-1 pb-1 text-[11px] text-muted-foreground/80">
             Changes apply to the public form on next publish.
           </p>
-          <ConfigCard>
-            <ConfigRow label="Preset">
-              <Select value={activePreset} onValueChange={(v) => v && selectStyle(v)}>
-                <SelectTrigger className={selectTriggerCls}>
-                  {STYLE_OPTIONS.find((o) => o.value === activePreset)?.label ?? activePreset}
-                </SelectTrigger>
-                <SelectContent>
-                  {STYLE_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </ConfigRow>
-          </ConfigCard>
-          <SidebarSection label="Theme" className="pb-2.75" action={<></>}>
-            <ConfigCard>
-              <ConfigRow label="Accent">
-                <Select
-                  value={activeThemeColor}
-                  onValueChange={(v) => v && handleThemeColorChange(v)}
-                >
-                  <SelectTrigger className={selectTriggerCls}>
-                    <ColorSwatch color={THEME_COLORS[activeThemeColor]?.primary} />
-                    {THEME_COLOR_OPTIONS.find((o) => o.value === activeThemeColor)?.label ??
-                      activeThemeColor}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {THEME_COLOR_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        <ColorSwatch color={THEME_COLORS[o.value]?.primary} />
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </ConfigRow>
-              <ConfigRow label="Base">
-                <Select
-                  value={activeBaseColor}
-                  onValueChange={(v) => v && handleBaseColorChange(v)}
-                >
-                  <SelectTrigger className={selectTriggerCls}>
-                    <ColorSwatch color={activeBaseColors[activeBaseColor]?.muted} />
-                    {BASE_COLOR_OPTIONS.find((o) => o.value === activeBaseColor)?.label ??
-                      activeBaseColor}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BASE_COLOR_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        <ColorSwatch color={activeBaseColors[o.value]?.muted} />
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </ConfigRow>
-              <ConfigRow label="Font">
-                <Select value={activeFont} onValueChange={(v) => v && handleFontChange(v)}>
-                  <SelectTrigger className={selectTriggerCls}>
-                    {FONT_OPTIONS.find((o) => o.value === activeFont)?.label ?? activeFont}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FONT_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </ConfigRow>
-              <ConfigRow label="Radius">
-                <Select
-                  value={activeRadius}
-                  onValueChange={(v) => v && updateWithCustomPreset("radius", v)}
-                >
-                  <SelectTrigger className={selectTriggerCls}>
-                    {RADIUS_OPTIONS.find((o) => o.value === activeRadius)?.label ?? activeRadius}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RADIUS_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </ConfigRow>
-              <ConfigRow label="Default Theme">
-                <Select
-                  value={customization.defaultMode || "system"}
-                  onValueChange={(v) => v && updateFields({ defaultMode: v })}
-                >
-                  <SelectTrigger className={selectTriggerCls}>
-                    {DEFAULT_MODE_OPTIONS.find(
-                      (o) => o.value === (customization.defaultMode || "system"),
-                    )?.label ?? "System"}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DEFAULT_MODE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </ConfigRow>
-            </ConfigCard>
-          </SidebarSection>
+          <PresetSection activePreset={activePreset} selectStyle={selectStyle} />
+          <ThemeSection
+            activeThemeColor={activeThemeColor}
+            handleThemeColorChange={handleThemeColorChange}
+            activeBaseColor={activeBaseColor}
+            activeBaseColors={activeBaseColors}
+            handleBaseColorChange={handleBaseColorChange}
+            activeFont={activeFont}
+            handleFontChange={handleFontChange}
+            activeRadius={activeRadius}
+            updateWithCustomPreset={updateWithCustomPreset}
+            customization={customization}
+            updateFields={updateFields}
+          />
 
-          <SidebarSection label="Layout" action={<ProBadge />}>
-            <FeatureGate requiredPlan="pro" variant="block">
-              <ConfigCard>
-                <StyleNumberInput
-                  label="Page Width"
-                  value={customization.pageWidth}
-                  onChange={(v) => updateScrubberField("pageWidth", v)}
-                  allowAuto
-                  isAuto={!customization.pageWidth}
-                  onAutoChange={() => resetScrubberField("pageWidth")}
-                  min={30}
-                  max={100}
-                  step={5}
-                  unit="%"
-                  className={CONFIG_INPUT_CLS}
-                />
-                <StyleNumberInput
-                  label="Cover Height"
-                  value={customization.coverHeight}
-                  onChange={(v) => updateScrubberField("coverHeight", v)}
-                  allowAuto
-                  isAuto={!customization.coverHeight}
-                  onAutoChange={() => resetScrubberField("coverHeight")}
-                  min={100}
-                  max={400}
-                  step={10}
-                  unit="px"
-                  displayUnit=""
-                  className={CONFIG_INPUT_CLS}
-                />
-                <StyleNumberInput
-                  label="Logo Width"
-                  value={customization.logoWidth}
-                  onChange={(v) => updateScrubberField("logoWidth", v)}
-                  allowAuto
-                  isAuto={!customization.logoWidth}
-                  onAutoChange={() => resetScrubberField("logoWidth")}
-                  min={0}
-                  max={100}
-                  step={4}
-                  unit="px"
-                  displayUnit=""
-                  className={CONFIG_INPUT_CLS}
-                />
-                <StyleNumberInput
-                  label="Input Width"
-                  value={customization.inputWidth}
-                  onChange={(v) => updateScrubberField("inputWidth", v)}
-                  allowAuto
-                  isAuto={!customization.inputWidth}
-                  onAutoChange={() => resetScrubberField("inputWidth")}
-                  min={20}
-                  max={100}
-                  step={5}
-                  unit="%"
-                  className={CONFIG_INPUT_CLS}
-                />
-              </ConfigCard>
-            </FeatureGate>
-          </SidebarSection>
+          <LayoutSection
+            customization={customization}
+            updateScrubberField={updateScrubberField}
+            resetScrubberField={resetScrubberField}
+          />
 
-          <SidebarSection label="Typography" action={<ProBadge />}>
-            <FeatureGate requiredPlan="pro" variant="block">
-              <ConfigCard>
-                <StyleNumberInput
-                  label="Font Size"
-                  value={customization.baseFontSize}
-                  onChange={(v) => updateScrubberField("baseFontSize", v)}
-                  allowAuto
-                  isAuto={!customization.baseFontSize}
-                  onAutoChange={() => resetScrubberField("baseFontSize")}
-                  min={12}
-                  max={24}
-                  step={1}
-                  unit="px"
-                  displayUnit=""
-                  className={CONFIG_INPUT_CLS}
-                />
-                <StyleNumberInput
-                  label="Letter Spacing"
-                  value={customization.letterSpacing}
-                  onChange={(v) => updateScrubberField("letterSpacing", v)}
-                  allowAuto
-                  isAuto={!customization.letterSpacing}
-                  onAutoChange={() => resetScrubberField("letterSpacing")}
-                  min={0}
-                  max={0.2}
-                  step={0.005}
-                  unit="em"
-                  displayUnit=""
-                  className={CONFIG_INPUT_CLS}
-                />
-              </ConfigCard>
-            </FeatureGate>
-          </SidebarSection>
+          <TypographySection
+            customization={customization}
+            updateScrubberField={updateScrubberField}
+            resetScrubberField={resetScrubberField}
+          />
 
-          <SidebarSection label="Title" action={<ProBadge />}>
-            <FeatureGate requiredPlan="pro" variant="block">
-              <ConfigCard>
-                <ConfigRow label="Font">
-                  <Select
-                    value={getValue("titleFont") || "Timeless Serif"}
-                    onValueChange={(v) => {
-                      if (!v) return;
-                      loadGoogleFont(v);
-                      updateWithCustomPreset("titleFont", v);
-                    }}
-                  >
-                    <SelectTrigger className={selectTriggerCls}>
-                      {FONT_OPTIONS.find(
-                        (o) => o.value === (getValue("titleFont") || "Timeless Serif"),
-                      )?.label ??
-                        (getValue("titleFont") || "Timeless Serif")}
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FONT_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </ConfigRow>
-                <StyleNumberInput
-                  label="Font Size"
-                  value={customization.titleFontSize}
-                  onChange={(v) => updateScrubberField("titleFontSize", v)}
-                  allowAuto
-                  isAuto={!customization.titleFontSize}
-                  onAutoChange={() => resetScrubberField("titleFontSize")}
-                  min={24}
-                  max={72}
-                  step={2}
-                  unit="px"
-                  displayUnit=""
-                  className={CONFIG_INPUT_CLS}
-                />
-                <StyleNumberInput
-                  label="Letter Spacing"
-                  value={customization.titleLetterSpacing}
-                  onChange={(v) => updateScrubberField("titleLetterSpacing", v)}
-                  allowAuto
-                  isAuto={!customization.titleLetterSpacing}
-                  onAutoChange={() => resetScrubberField("titleLetterSpacing")}
-                  min={-3}
-                  max={3}
-                  step={0.25}
-                  unit="px"
-                  displayUnit=""
-                  className={CONFIG_INPUT_CLS}
-                />
-                <ConfigRow label="Italic" variant="switch">
-                  <Switch
-                    aria-label="Italic"
-                    checked={getValue("titleItalic") === "true"}
-                    onCheckedChange={(v: boolean) =>
-                      updateWithCustomPreset("titleItalic", v ? "true" : "")
-                    }
-                    size="default"
-                  />
-                </ConfigRow>
-              </ConfigCard>
-            </FeatureGate>
-          </SidebarSection>
+          <TitleSection
+            getValue={getValue}
+            updateWithCustomPreset={updateWithCustomPreset}
+            customization={customization}
+            updateScrubberField={updateScrubberField}
+            resetScrubberField={resetScrubberField}
+          />
 
-          <SidebarSection
-            label="Colors"
-            action={<ProBadge />}
-            className="!overflow-visible"
-            panelClassName="!overflow-visible"
-          >
-            <FeatureGate requiredPlan="pro" variant="block">
-              <Tabs value={activeMode} onValueChange={handleModeToggle} className="relative mb-2.5">
-                <TabsList className="w-full">
-                  <TabsTrigger value="light">Light</TabsTrigger>
-                  <TabsTrigger value="dark">Dark</TabsTrigger>
-                  <TabsIndicator />
-                </TabsList>
-              </Tabs>
-              <div className="relative isolate z-50 flex flex-col gap-px overflow-visible rounded-lg [&>*:first-child]:rounded-t-lg [&>*:last-child]:rounded-b-lg">
-                <DeferredAdvancedColorPickers
-                  customization={customization}
-                  updateField={updateWithCustomPreset}
-                  mode={activeMode}
-                />
-              </div>
-            </FeatureGate>
-          </SidebarSection>
+          <ColorsSection
+            activeMode={activeMode}
+            handleModeToggle={handleModeToggle}
+            customization={customization}
+            updateWithCustomPreset={updateWithCustomPreset}
+          />
 
-          <SidebarSection label="Custom CSS" action={<ProBadge />}>
-            <FeatureGate requiredPlan="pro" variant="block">
-              <div className="overflow-hidden rounded-lg border border-border/60 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                <Textarea
-                  value={cssValue}
-                  onChange={handleCssChange}
-                  aria-label={`Custom CSS (${activeMode} mode)`}
-                  className="h-32 rounded-none border-0 bg-secondary p-3 font-mono text-[11px] text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                  placeholder=".bf-themed { ... }"
-                  spellCheck={false}
-                />
-              </div>
-              <div className="flex items-center gap-1.5 px-1 pt-2">
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<InfoIcon className="h-3 w-3 cursor-help text-muted-foreground/60" />}
-                  />
-                  <TooltipContent side="bottom" className="max-w-[240px] text-[11px]">
-                    Supports shadcn tokens: --bf-primary, --bf-background, --bf-foreground, etc.
-                  </TooltipContent>
-                </Tooltip>
-                <span className="text-[11px] text-muted-foreground/60">
-                  Use --bf-* tokens for overrides
-                </span>
-              </div>
-            </FeatureGate>
-          </SidebarSection>
+          <CustomCssSection
+            cssValue={cssValue}
+            handleCssChange={handleCssChange}
+            activeMode={activeMode}
+          />
         </div>
       </SidebarContent>
     </Sidebar>
   );
 };
+
+const CustomizeSidebarHeader = ({ closeSidebar }: { closeSidebar: () => void }) => (
+  <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
+    <div className="flex items-center justify-between">
+      <h2 className="pl-2.5 font-sans text-base font-normal text-foreground">Customize</h2>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        className="size-7 text-muted-foreground hover:text-foreground"
+        onClick={closeSidebar}
+        aria-label="Close"
+      >
+        <XIcon className="size-4" />
+      </Button>
+    </div>
+  </SidebarHeader>
+);
+
+const PresetSection = ({
+  activePreset,
+  selectStyle,
+}: {
+  activePreset: string;
+  selectStyle: (styleName: string) => void;
+}) => (
+  <ConfigCard>
+    <ConfigRow label="Preset">
+      <Select value={activePreset} onValueChange={(v) => v && selectStyle(v)}>
+        <SelectTrigger className={selectTriggerCls}>
+          {STYLE_OPTIONS.find((o) => o.value === activePreset)?.label ?? activePreset}
+        </SelectTrigger>
+        <SelectContent>
+          {STYLE_OPTIONS.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </ConfigRow>
+  </ConfigCard>
+);
+
+interface ThemeSectionProps {
+  activeThemeColor: string;
+  handleThemeColorChange: (v: string) => void;
+  activeBaseColor: string;
+  activeBaseColors: BaseColorMap;
+  handleBaseColorChange: (v: string) => void;
+  activeFont: string;
+  handleFontChange: (v: string) => void;
+  activeRadius: string;
+  updateWithCustomPreset: (field: string, value: string) => void;
+  customization: Record<string, string>;
+  updateFields: (fields: Record<string, string | null>) => void;
+}
+
+const ThemeSection = ({
+  activeThemeColor,
+  handleThemeColorChange,
+  activeBaseColor,
+  activeBaseColors,
+  handleBaseColorChange,
+  activeFont,
+  handleFontChange,
+  activeRadius,
+  updateWithCustomPreset,
+  customization,
+  updateFields,
+}: ThemeSectionProps) => (
+  <SidebarSection label="Theme" className="pb-2.75" action={<></>}>
+    <ConfigCard>
+      <ConfigRow label="Accent">
+        <Select value={activeThemeColor} onValueChange={(v) => v && handleThemeColorChange(v)}>
+          <SelectTrigger className={selectTriggerCls}>
+            <ColorSwatch color={THEME_COLORS[activeThemeColor]?.primary} />
+            {THEME_COLOR_OPTIONS.find((o) => o.value === activeThemeColor)?.label ??
+              activeThemeColor}
+          </SelectTrigger>
+          <SelectContent>
+            {THEME_COLOR_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                <ColorSwatch color={THEME_COLORS[o.value]?.primary} />
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </ConfigRow>
+      <ConfigRow label="Base">
+        <Select value={activeBaseColor} onValueChange={(v) => v && handleBaseColorChange(v)}>
+          <SelectTrigger className={selectTriggerCls}>
+            <ColorSwatch color={activeBaseColors[activeBaseColor]?.muted} />
+            {BASE_COLOR_OPTIONS.find((o) => o.value === activeBaseColor)?.label ?? activeBaseColor}
+          </SelectTrigger>
+          <SelectContent>
+            {BASE_COLOR_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                <ColorSwatch color={activeBaseColors[o.value]?.muted} />
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </ConfigRow>
+      <ConfigRow label="Font">
+        <Select value={activeFont} onValueChange={(v) => v && handleFontChange(v)}>
+          <SelectTrigger className={selectTriggerCls}>
+            {FONT_OPTIONS.find((o) => o.value === activeFont)?.label ?? activeFont}
+          </SelectTrigger>
+          <SelectContent>
+            {FONT_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </ConfigRow>
+      <ConfigRow label="Radius">
+        <Select
+          value={activeRadius}
+          onValueChange={(v) => v && updateWithCustomPreset("radius", v)}
+        >
+          <SelectTrigger className={selectTriggerCls}>
+            {RADIUS_OPTIONS.find((o) => o.value === activeRadius)?.label ?? activeRadius}
+          </SelectTrigger>
+          <SelectContent>
+            {RADIUS_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </ConfigRow>
+      <ConfigRow label="Default Theme">
+        <Select
+          value={customization.defaultMode || "system"}
+          onValueChange={(v) => v && updateFields({ defaultMode: v })}
+        >
+          <SelectTrigger className={selectTriggerCls}>
+            {DEFAULT_MODE_OPTIONS.find((o) => o.value === (customization.defaultMode || "system"))
+              ?.label ?? "System"}
+          </SelectTrigger>
+          <SelectContent>
+            {DEFAULT_MODE_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </ConfigRow>
+    </ConfigCard>
+  </SidebarSection>
+);
+
+interface ScrubberSectionProps {
+  customization: Record<string, string>;
+  updateScrubberField: (field: string, value: string) => void;
+  resetScrubberField: (field: string) => void;
+}
+
+const LayoutSection = ({
+  customization,
+  updateScrubberField,
+  resetScrubberField,
+}: ScrubberSectionProps) => (
+  <SidebarSection label="Layout" action={<ProBadge />}>
+    <FeatureGate requiredPlan="pro" variant="block">
+      <ConfigCard>
+        <StyleNumberInput
+          label="Page Width"
+          value={customization.pageWidth}
+          onChange={(v) => updateScrubberField("pageWidth", v)}
+          allowAuto
+          isAuto={!customization.pageWidth}
+          onAutoChange={() => resetScrubberField("pageWidth")}
+          min={30}
+          max={100}
+          step={5}
+          unit="%"
+          className={CONFIG_INPUT_CLS}
+        />
+        <StyleNumberInput
+          label="Cover Height"
+          value={customization.coverHeight}
+          onChange={(v) => updateScrubberField("coverHeight", v)}
+          allowAuto
+          isAuto={!customization.coverHeight}
+          onAutoChange={() => resetScrubberField("coverHeight")}
+          min={100}
+          max={400}
+          step={10}
+          unit="px"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+        <StyleNumberInput
+          label="Logo Width"
+          value={customization.logoWidth}
+          onChange={(v) => updateScrubberField("logoWidth", v)}
+          allowAuto
+          isAuto={!customization.logoWidth}
+          onAutoChange={() => resetScrubberField("logoWidth")}
+          min={0}
+          max={100}
+          step={4}
+          unit="px"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+        <StyleNumberInput
+          label="Input Width"
+          value={customization.inputWidth}
+          onChange={(v) => updateScrubberField("inputWidth", v)}
+          allowAuto
+          isAuto={!customization.inputWidth}
+          onAutoChange={() => resetScrubberField("inputWidth")}
+          min={20}
+          max={100}
+          step={5}
+          unit="%"
+          className={CONFIG_INPUT_CLS}
+        />
+      </ConfigCard>
+    </FeatureGate>
+  </SidebarSection>
+);
+
+const TypographySection = ({
+  customization,
+  updateScrubberField,
+  resetScrubberField,
+}: ScrubberSectionProps) => (
+  <SidebarSection label="Typography" action={<ProBadge />}>
+    <FeatureGate requiredPlan="pro" variant="block">
+      <ConfigCard>
+        <StyleNumberInput
+          label="Font Size"
+          value={customization.baseFontSize}
+          onChange={(v) => updateScrubberField("baseFontSize", v)}
+          allowAuto
+          isAuto={!customization.baseFontSize}
+          onAutoChange={() => resetScrubberField("baseFontSize")}
+          min={12}
+          max={24}
+          step={1}
+          unit="px"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+        <StyleNumberInput
+          label="Letter Spacing"
+          value={customization.letterSpacing}
+          onChange={(v) => updateScrubberField("letterSpacing", v)}
+          allowAuto
+          isAuto={!customization.letterSpacing}
+          onAutoChange={() => resetScrubberField("letterSpacing")}
+          min={0}
+          max={0.2}
+          step={0.005}
+          unit="em"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+      </ConfigCard>
+    </FeatureGate>
+  </SidebarSection>
+);
+
+interface TitleSectionProps {
+  getValue: (field: string) => string;
+  updateWithCustomPreset: (field: string, value: string) => void;
+  customization: Record<string, string>;
+  updateScrubberField: (field: string, value: string) => void;
+  resetScrubberField: (field: string) => void;
+}
+
+const TitleSection = ({
+  getValue,
+  updateWithCustomPreset,
+  customization,
+  updateScrubberField,
+  resetScrubberField,
+}: TitleSectionProps) => (
+  <SidebarSection label="Title" action={<ProBadge />}>
+    <FeatureGate requiredPlan="pro" variant="block">
+      <ConfigCard>
+        <ConfigRow label="Font">
+          <Select
+            value={getValue("titleFont") || "Timeless Serif"}
+            onValueChange={(v) => {
+              if (!v) return;
+              loadGoogleFont(v);
+              updateWithCustomPreset("titleFont", v);
+            }}
+          >
+            <SelectTrigger className={selectTriggerCls}>
+              {FONT_OPTIONS.find((o) => o.value === (getValue("titleFont") || "Timeless Serif"))
+                ?.label ??
+                (getValue("titleFont") || "Timeless Serif")}
+            </SelectTrigger>
+            <SelectContent>
+              {FONT_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </ConfigRow>
+        <StyleNumberInput
+          label="Font Size"
+          value={customization.titleFontSize}
+          onChange={(v) => updateScrubberField("titleFontSize", v)}
+          allowAuto
+          isAuto={!customization.titleFontSize}
+          onAutoChange={() => resetScrubberField("titleFontSize")}
+          min={24}
+          max={72}
+          step={2}
+          unit="px"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+        <StyleNumberInput
+          label="Letter Spacing"
+          value={customization.titleLetterSpacing}
+          onChange={(v) => updateScrubberField("titleLetterSpacing", v)}
+          allowAuto
+          isAuto={!customization.titleLetterSpacing}
+          onAutoChange={() => resetScrubberField("titleLetterSpacing")}
+          min={-3}
+          max={3}
+          step={0.25}
+          unit="px"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+        <ConfigRow label="Italic" variant="switch">
+          <Switch
+            aria-label="Italic"
+            checked={getValue("titleItalic") === "true"}
+            onCheckedChange={(v: boolean) => updateWithCustomPreset("titleItalic", v ? "true" : "")}
+            size="default"
+          />
+        </ConfigRow>
+      </ConfigCard>
+    </FeatureGate>
+  </SidebarSection>
+);
+
+interface ColorsSectionProps {
+  activeMode: "light" | "dark";
+  handleModeToggle: (targetMode: string) => void;
+  customization: Record<string, string>;
+  updateWithCustomPreset: (field: string, value: string) => void;
+}
+
+const ColorsSection = ({
+  activeMode,
+  handleModeToggle,
+  customization,
+  updateWithCustomPreset,
+}: ColorsSectionProps) => (
+  <SidebarSection
+    label="Colors"
+    action={<ProBadge />}
+    className="!overflow-visible"
+    panelClassName="!overflow-visible"
+  >
+    <FeatureGate requiredPlan="pro" variant="block">
+      <Tabs value={activeMode} onValueChange={handleModeToggle} className="relative mb-2.5">
+        <TabsList className="w-full">
+          <TabsTrigger value="light">Light</TabsTrigger>
+          <TabsTrigger value="dark">Dark</TabsTrigger>
+          <TabsIndicator />
+        </TabsList>
+      </Tabs>
+      <div className="relative isolate z-50 flex flex-col gap-px overflow-visible rounded-lg [&>*:first-child]:rounded-t-lg [&>*:last-child]:rounded-b-lg">
+        <DeferredAdvancedColorPickers
+          customization={customization}
+          updateField={updateWithCustomPreset}
+          mode={activeMode}
+        />
+      </div>
+    </FeatureGate>
+  </SidebarSection>
+);
+
+interface CustomCssSectionProps {
+  cssValue: string;
+  handleCssChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  activeMode: string;
+}
+
+const CustomCssSection = ({ cssValue, handleCssChange, activeMode }: CustomCssSectionProps) => (
+  <SidebarSection label="Custom CSS" action={<ProBadge />}>
+    <FeatureGate requiredPlan="pro" variant="block">
+      <div className="overflow-hidden rounded-lg border border-border/60 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+        <Textarea
+          value={cssValue}
+          onChange={handleCssChange}
+          aria-label={`Custom CSS (${activeMode} mode)`}
+          className="h-32 rounded-none border-0 bg-secondary p-3 font-mono text-[11px] text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          placeholder=".bf-themed { ... }"
+          spellCheck={false}
+        />
+      </div>
+      <div className="flex items-center gap-1.5 px-1 pt-2">
+        <Tooltip>
+          <TooltipTrigger
+            render={<InfoIcon className="size-3 cursor-help text-muted-foreground/60" />}
+          />
+          <TooltipContent side="bottom" className="max-w-[240px] text-[11px]">
+            Supports shadcn tokens: --bf-primary, --bf-background, --bf-foreground, etc.
+          </TooltipContent>
+        </Tooltip>
+        <span className="text-[11px] text-muted-foreground/60">
+          Use --bf-* tokens for overrides
+        </span>
+      </div>
+    </FeatureGate>
+  </SidebarSection>
+);
 
 const ADVANCED_COLOR_TOKENS = [
   { key: "primary", label: "Primary" },
@@ -693,7 +828,9 @@ const DeferredAdvancedColorPickers = (props: {
   updateField: (field: string, value: string) => void;
   mode: "light" | "dark";
 }) => {
+  // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value is read in the early-return guard below
   const [ready, setReady] = useState(false);
+  // eslint-disable-next-line react-doctor/rendering-hydration-no-flicker -- intentional client-only deferral to keep the heavy color pickers off the SSR critical path; flash is acceptable
   useEffect(() => {
     setReady(true);
   }, []);

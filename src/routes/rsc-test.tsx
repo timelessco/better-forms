@@ -5,6 +5,7 @@ import { useState } from "react";
 
 const getRscShell = createServerFn({ method: "GET" }).handler(async () => {
   const serverTimestamp = Date.now();
+  const serverIsoTimestamp = new Date(serverTimestamp).toISOString();
   const src = await createCompositeComponent(
     ({ Counter }: { Counter: React.ComponentType<{ label: string }> }) => (
       <section
@@ -19,7 +20,7 @@ const getRscShell = createServerFn({ method: "GET" }).handler(async () => {
         <h1 style={{ margin: 0 }}>RSC plumbing test</h1>
         <p>
           This heading and paragraph were rendered on the <strong>server</strong> at{" "}
-          <code>{new Date(serverTimestamp).toISOString()}</code>.
+          <code>{serverIsoTimestamp}</code>.
         </p>
         <p>
           Below this line is a <em>client</em> slot passed as a component prop. If it ticks, slots

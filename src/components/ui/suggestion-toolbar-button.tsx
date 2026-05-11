@@ -14,7 +14,7 @@ export const SuggestionToolbarButton = () => {
   const { setOption } = useEditorPlugin(SuggestionPlugin);
   const isSuggesting = usePluginOption(SuggestionPlugin, "isSuggesting");
 
-  const handleClick = useCallback(
+  const toggleSuggesting = useCallback(
     () => setOption("isSuggesting", !isSuggesting),
     [setOption, isSuggesting],
   );
@@ -22,7 +22,7 @@ export const SuggestionToolbarButton = () => {
   return (
     <ToolbarButton
       className={cn(isSuggesting && "text-brand/80 hover:text-brand/80")}
-      onClick={handleClick}
+      onClick={toggleSuggesting}
       onMouseDown={preventDefault}
       tooltip={isSuggesting ? "Turn off suggesting" : "Suggestion edits"}
     >

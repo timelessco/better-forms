@@ -38,6 +38,21 @@ const PublicFormRoute = () => {
 };
 
 export const Route = createFileRoute("/forms/$i8n/$formId")({
+  validateSearch: zodValidator(
+    z.object({
+      // No `.default()` here — TanStack Router would canonicalize a bare URL
+      // to `?popup=false&…`, breaking link-preview bots that don't follow
+      // redirects.
+      transparentBackground: z.boolean().optional(),
+      transparent: z.coerce.boolean().optional(), // Alias for transparentBackground
+      popup: z.coerce.boolean().optional(),
+      hideTitle: z.coerce.boolean().optional(),
+      alignLeft: z.coerce.boolean().optional(),
+      originPage: z.string().optional(),
+      dynamicHeight: z.coerce.boolean().optional(),
+      dynamicWidth: z.coerce.boolean().optional(),
+    }),
+  ),
   loader: async ({ params }) => getPublishedFormById({ data: { id: params.formId } }),
   head: ({ loaderData }) => ({
     meta: seo({
@@ -73,19 +88,4 @@ export const Route = createFileRoute("/forms/$i8n/$formId")({
   pendingComponent: Loader,
   errorComponent: ErrorBoundary,
   notFoundComponent: NotFound,
-  validateSearch: zodValidator(
-    z.object({
-      // No `.default()` here — TanStack Router would canonicalize a bare URL
-      // to `?popup=false&…`, breaking link-preview bots that don't follow
-      // redirects.
-      transparentBackground: z.boolean().optional(),
-      transparent: z.coerce.boolean().optional(), // Alias for transparentBackground
-      popup: z.coerce.boolean().optional(),
-      hideTitle: z.coerce.boolean().optional(),
-      alignLeft: z.coerce.boolean().optional(),
-      originPage: z.string().optional(),
-      dynamicHeight: z.coerce.boolean().optional(),
-      dynamicWidth: z.coerce.boolean().optional(),
-    }),
-  ),
 });

@@ -2,7 +2,7 @@
 
 import { CheckIcon, CircleXIcon, CopyIcon } from "@/components/ui/icons";
 import type { HTMLMotionProps, Variants } from "motion/react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, domMax, LazyMotion, m } from "motion/react";
 import { useCallback } from "react";
 import type { ComponentProps } from "react";
 
@@ -31,21 +31,23 @@ export const CopyStateIcon = ({
   state: CopyState;
   className?: string;
 }) => (
-  <AnimatePresence mode="popLayout" initial={false}>
-    {state === "idle" ? (
-      <motion.span key="idle" {...motionIconProps}>
-        <CopyIcon className="size-3.25" />
-      </motion.span>
-    ) : state === "done" ? (
-      <motion.span key="done" {...motionIconProps}>
-        <CheckIcon strokeWidth={3} className="size-3.25" />
-      </motion.span>
-    ) : state === "error" ? (
-      <motion.span key="error" {...motionIconProps}>
-        <CircleXIcon className="size-3.25" />
-      </motion.span>
-    ) : null}
-  </AnimatePresence>
+  <LazyMotion features={domMax} strict>
+    <AnimatePresence mode="popLayout" initial={false}>
+      {state === "idle" ? (
+        <m.span key="idle" {...motionIconProps}>
+          <CopyIcon className="size-3.25" />
+        </m.span>
+      ) : state === "done" ? (
+        <m.span key="done" {...motionIconProps}>
+          <CheckIcon strokeWidth={3} className="size-3.25" />
+        </m.span>
+      ) : state === "error" ? (
+        <m.span key="error" {...motionIconProps}>
+          <CircleXIcon className="size-3.25" />
+        </m.span>
+      ) : null}
+    </AnimatePresence>
+  </LazyMotion>
 );
 
 export type CopyButtonProps = ComponentProps<typeof Button> & {
@@ -73,7 +75,7 @@ export const CopyButton = ({
     onCopyError,
   });
 
-  const handleClick = useCallback(
+  const copyText = useCallback(
     (e: CopyButtonClickEvent) => {
       void copy(text);
       onClick?.(e);
@@ -84,7 +86,7 @@ export const CopyButton = ({
   return (
     <Button
       size={size}
-      onClick={handleClick}
+      onClick={copyText}
       prefix={<CopyStateIcon state={state} className="size-3.25" />}
       aria-label="Copy"
       {...props}

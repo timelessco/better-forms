@@ -51,7 +51,7 @@ const RequiredBadge = () => (
     <svg width="10" height="10" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
       <title>Required</title>
       <path
-        d="M12.3892 5.68944L12.793 6.92754L9.02484 8.21946L11.4741 11.53L10.4244 12.3375L7.94824 8.91925L5.57971 12.3106L4.53002 11.5031L6.89855 8.21946L3.15735 6.95445L3.58799 5.68944L7.27536 7.00828V3.02484H8.64803V6.98137L12.3892 5.68944Z"
+        d="M12.39 5.69L12.79 6.93L9.02 8.22L11.47 11.53L10.42 12.34L7.95 8.92L5.58 12.31L4.53 11.5L6.9 8.22L3.16 6.95L3.59 5.69L7.28 7.01V3.02H8.65V6.98L12.39 5.69Z"
         fill="currentColor"
       />
     </svg>
@@ -282,7 +282,7 @@ export const renderHeaderComponent = async ({
             height={200}
             decoding="async"
             className={cn(
-              "h-full w-full object-cover",
+              "size-full object-cover",
               tinted && "relative z-0 brightness-60 grayscale",
             )}
           />
@@ -300,7 +300,7 @@ export const renderHeaderComponent = async ({
                 width={120}
                 height={120}
                 decoding="async"
-                className="h-[100px] w-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
+                className="size-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
                 data-bf-logo
               />
             </div>

@@ -189,6 +189,7 @@ const EquationPopoverContent = ({
       <EquationInput
         className={cn("max-h-[50vh] grow resize-none p-2 text-sm", className)}
         state={{ isInline, open, onClose }}
+        // eslint-disable-next-line jsx-a11y/no-autofocus -- equation popover needs immediate focus
         autoFocus
         {...props}
       />
@@ -199,7 +200,7 @@ const EquationPopoverContent = ({
         suffix={<CornerDownLeftIcon className="size-3.5" />}
         onClick={onClose}
       >
-        Done
+        Save equation
       </Button>
     </PopoverContent>
   );

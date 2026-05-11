@@ -754,7 +754,7 @@ const DataGridTableBodyRows = <TData,>({ table }: { table: Table<TData> }) => {
         <td colSpan={table.getVisibleFlatColumns().length} className="p-8">
           <div className="flex items-center justify-center">
             <svg
-              className="mr-3 -ml-1 h-5 w-5 animate-spin text-muted-foreground"
+              className="mr-3 -ml-1 size-5 animate-spin text-muted-foreground"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"

@@ -225,9 +225,9 @@ export const EmbedPreviewMockup = ({
     <div className="overflow-hidden rounded-[12px] bg-secondary">
       <div className="flex items-center gap-1 px-2.25 pt-2.5 pb-2">
         <div className="flex gap-1.5">
-          <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/20" />
-          <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/20" />
-          <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/20" />
+          <div className="size-1.5 rounded-full bg-muted-foreground/20" />
+          <div className="size-1.5 rounded-full bg-muted-foreground/20" />
+          <div className="size-1.5 rounded-full bg-muted-foreground/20" />
         </div>
       </div>
 
@@ -298,7 +298,7 @@ export const EmbedPreviewMockup = ({
             {embedType === "fullpage" && (
               <div className="absolute inset-0 flex flex-col">
                 <div className="relative h-1/3 bg-secondary/70">
-                  <div className="absolute -bottom-3 left-3 h-6 w-6 rounded-full bg-secondary shadow-[0_1px_3px_rgba(0,0,0,0.12)]" />
+                  <div className="absolute -bottom-3 left-3 size-6 rounded-full bg-secondary shadow-[0_1px_3px_rgba(0,0,0,0.12)]" />
                 </div>
                 <div className="flex flex-1 flex-col gap-2 px-3 pt-5 pb-2">
                   <div className="h-2 w-2/5 rounded-full bg-secondary" />
@@ -318,10 +318,10 @@ export const EmbedPreviewMockup = ({
               <button
                 type="button"
                 aria-label="Close preview"
-                className="absolute top-1 right-1 z-30 flex h-3.5 w-3.5 cursor-pointer items-center justify-center rounded-full bg-muted-foreground/10 transition-colors hover:bg-muted-foreground/20"
+                className="absolute top-1 right-1 z-30 flex size-3.5 cursor-pointer items-center justify-center rounded-full bg-muted-foreground/10 transition-colors hover:bg-muted-foreground/20"
                 onClick={handleCloseClick}
               >
-                <XIcon className="h-2 w-2 text-muted-foreground" />
+                <XIcon className="size-2 text-muted-foreground" />
               </button>
             )}
 
@@ -346,7 +346,7 @@ export const EmbedPreviewMockup = ({
           <button
             type="button"
             aria-label="Open popup preview"
-            className="absolute z-20 h-[28px] w-[28px] cursor-pointer rounded-full bg-[#e0e0e0] p-0 shadow-[0_2px_10px_rgba(0,0,0,0.04)] dark:bg-card"
+            className="absolute z-20 size-[28px] cursor-pointer rounded-full bg-[#e0e0e0] p-0 shadow-[0_2px_10px_rgba(0,0,0,0.04)] dark:bg-card"
             style={{ left: bubblePos.left, top: bubblePos.top }}
             onMouseEnter={handleBubbleMouseEnter}
             onClick={handleBubbleClick}

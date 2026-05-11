@@ -11,13 +11,13 @@ import { ElementApi, KEYS, PathApi, TextApi } from "platejs";
 import type { NodeEntry, Path, TElement, TSuggestionText } from "platejs";
 import { useEditorPlugin, usePluginOption } from "platejs/react";
 import * as React from "react";
-import { discussionPlugin } from "@/components/editor/plugins/discussion-kit";
-import type { TDiscussion } from "@/components/editor/plugins/discussion-kit";
-import { suggestionPlugin } from "@/components/editor/plugins/suggestion-kit";
+import { discussionPlugin } from "@/components/editor/plugins/discussion-plugin";
+import type { TDiscussion } from "@/components/editor/plugins/discussion-plugin";
+import { suggestionPlugin } from "@/components/editor/plugins/suggestion-plugin";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
-import { Comment, CommentCreateForm, formatCommentDate } from "./comment";
+import { Comment, CommentCreateForm, RelativeDate } from "./comment";
 import type { TComment } from "./comment";
 
 export interface ResolvedSuggestion extends TResolvedSuggestion {
@@ -162,7 +162,7 @@ export const BlockSuggestionCard = ({
           </Avatar>
           <h4 className="mx-2 text-sm font-semibold">{userInfo?.name}</h4>
           <div className="text-xs text-muted-foreground/80">
-            <span className="mr-1">{formatCommentDate(new Date(suggestion.createdAt))}</span>
+            <RelativeDate createdAt={suggestion.createdAt} />
           </div>
         </div>
 
@@ -305,25 +305,25 @@ export const useResolveSuggestion = (
     if (suggestionNodes.length === 0) return [];
 
     const suggestionIds = new Set(
-      suggestionNodes
-        .flatMap(([node]) => {
-          if (TextApi.isText(node)) {
-            const dataList = api.suggestion.dataList(node);
-            const includeUpdate = dataList.some((data) => data.type === "update");
+      suggestionNodes.flatMap(([node]) => {
+        if (TextApi.isText(node)) {
+          const dataList = api.suggestion.dataList(node);
+          const includeUpdate = dataList.some((data) => data.type === "update");
 
-            if (!includeUpdate) {
-              return api.suggestion.nodeId(node) ?? [];
-            }
-
-            return dataList.filter((data) => data.type === "update").map((d) => d.id);
-          }
-          if (ElementApi.isElement(node)) {
-            return api.suggestion.nodeId(node) ?? [];
+          if (!includeUpdate) {
+            const nodeId = api.suggestion.nodeId(node);
+            return nodeId ? [nodeId] : [];
           }
 
-          return [];
-        })
-        .filter(Boolean),
+          return dataList.flatMap((data) => (data.type === "update" ? [data.id] : []));
+        }
+        if (ElementApi.isElement(node)) {
+          const nodeId = api.suggestion.nodeId(node);
+          return nodeId ? [nodeId] : [];
+        }
+
+        return [];
+      }),
     );
 
     const res: ResolvedSuggestion[] = [];

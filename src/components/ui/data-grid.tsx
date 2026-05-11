@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo } from "react";
+import { createContext, use, useMemo } from "react";
 import type { ReactNode, Ref, UIEventHandler } from "react";
 import { ColumnFiltersState, RowData, SortingState, Table } from "@tanstack/react-table";
 
@@ -94,7 +94,7 @@ const DataGridContext = createContext<
 >(undefined);
 
 const useDataGrid = () => {
-  const context = useContext(DataGridContext);
+  const context = use(DataGridContext);
   if (!context) {
     throw new Error("useDataGrid must be used within a DataGridProvider");
   }

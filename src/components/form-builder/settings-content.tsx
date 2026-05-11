@@ -159,503 +159,559 @@ export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?:
     <div className="space-y-3 pb-8">
       <form.AppForm>
         <form.Form className="gap-3 p-0">
-          <SidebarSection label="General" className="pb-2.75" action={<></>}>
-            <ConfigCard>
-              <ConfigRow label="Language" description="Language for default buttons, errors, etc.">
-                <form.AppField name="language">
-                  {(field) => (
-                    <Select
-                      value={field.state.value || "English"}
-                      onValueChange={(value) => field.handleChange(value ?? "English")}
-                    >
-                      <SelectTrigger className={selectTriggerCls}>
-                        <SelectValue placeholder="Select language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="English">English</SelectItem>
-                        <SelectItem value="Spanish">Spanish</SelectItem>
-                        <SelectItem value="French">French</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                </form.AppField>
-              </ConfigRow>
-
-              <ConfigRow
-                label="Redirect on completion"
-                description="Redirect to a custom URL when the form is submitted."
-                variant="switch"
-              >
-                <form.AppField name="redirectOnCompletion">
-                  {(field) => (
-                    <Switch
-                      aria-label="Redirect on completion"
-                      checked={!!field.state.value}
-                      onCheckedChange={field.handleChange}
-                      size="default"
-                    />
-                  )}
-                </form.AppField>
-              </ConfigRow>
-
-              <form.Subscribe selector={selectRedirectOnCompletion}>
-                {(redirectOnCompletion) =>
-                  redirectOnCompletion ? (
-                    <>
-                      <ConfigRow label="Redirect URL">
-                        <form.AppField name="redirectUrl">
-                          {(field) => (
-                            <Input
-                              type="url"
-                              placeholder="https://example.com"
-                              value={(field.state.value as string) || ""}
-                              onChange={(e) => field.handleChange(e.target.value || null)}
-                              className={`w-[160px] text-sm ${CONFIG_INPUT_CLS}`}
-                              aria-label="Redirect URL"
-                              variant="primary"
-                            />
-                          )}
-                        </form.AppField>
-                      </ConfigRow>
-                      <ConfigRow label="Redirect delay">
-                        <form.AppField name="redirectDelay">
-                          {(field) => (
-                            <Input
-                              type="number"
-                              min={0}
-                              max={60}
-                              placeholder="0"
-                              value={field.state.value || 0}
-                              onChange={(e) => field.handleChange(Number(e.target.value) || 0)}
-                              className={`w-[70px] text-sm ${CONFIG_INPUT_CLS}`}
-                              aria-label="Redirect delay"
-                              variant="primary"
-                            />
-                          )}
-                        </form.AppField>
-                      </ConfigRow>
-                    </>
-                  ) : null
-                }
-              </form.Subscribe>
-
-              <ConfigRow
-                label={`${APP_NAME} branding`}
-                description={`Show "Made with ${APP_NAME}" on your form.`}
-                variant="switch"
-              >
-                <div className="flex items-center gap-1.5">
-                  <Badge
-                    variant="secondary"
-                    className="h-4 border-none bg-teal-100 px-1.5 text-[9px] text-teal-600"
-                  >
-                    Pro
-                  </Badge>
-                  <FeatureGate requiredPlan="pro">
-                    <form.AppField name="branding">
-                      {(field) => (
-                        <Switch
-                          aria-label="Branding"
-                          checked={!!field.state.value}
-                          onCheckedChange={field.handleChange}
-                          size="default"
-                        />
-                      )}
-                    </form.AppField>
-                  </FeatureGate>
-                </div>
-              </ConfigRow>
-
-              <ConfigRow
-                label="Data retention"
-                description="Auto-delete submissions after a set period."
-                variant="switch"
-              >
-                <div className="flex items-center gap-1.5">
-                  <Badge
-                    variant="secondary"
-                    className="h-4 border-none bg-teal-100 px-1.5 text-[9px] text-teal-600"
-                  >
-                    Pro
-                  </Badge>
-                  <FeatureGate requiredPlan="pro">
-                    <form.AppField name="dataRetention">
-                      {(field) => (
-                        <Switch
-                          aria-label="Data retention"
-                          checked={!!field.state.value}
-                          onCheckedChange={field.handleChange}
-                          size="default"
-                        />
-                      )}
-                    </form.AppField>
-                  </FeatureGate>
-                </div>
-              </ConfigRow>
-
-              <form.Subscribe selector={selectDataRetention}>
-                {(dataRetention) =>
-                  dataRetention ? (
-                    <ConfigRow label="Retention days">
-                      <form.AppField name="dataRetentionDays">
-                        {(field) => (
-                          <Input
-                            type="number"
-                            min={1}
-                            placeholder="30"
-                            value={(field.state.value as number) || ""}
-                            onChange={(e) =>
-                              field.handleChange(e.target.value ? Number(e.target.value) : null)
-                            }
-                            className={`w-[70px] text-sm ${CONFIG_INPUT_CLS}`}
-                            aria-label="Retention days"
-                            variant="primary"
-                          />
-                        )}
-                      </form.AppField>
-                    </ConfigRow>
-                  ) : null
-                }
-              </form.Subscribe>
-            </ConfigCard>
-          </SidebarSection>
-
-          <SidebarSection label="Notifications" className="pb-2.75" action={<></>}>
-            <ConfigCard>
-              <ConfigRow
-                label="Email notifications"
-                description="Get an email for new form submissions."
-                variant="switch"
-              >
-                <form.AppField name="selfEmailNotifications">
-                  {(field) => (
-                    <Switch
-                      aria-label="Email notifications"
-                      checked={!!field.state.value}
-                      onCheckedChange={field.handleChange}
-                      size="default"
-                    />
-                  )}
-                </form.AppField>
-              </ConfigRow>
-
-              <form.Subscribe selector={selectSelfEmailNotifications}>
-                {(selfEmailNotifications) =>
-                  selfEmailNotifications ? (
-                    <ConfigRow label="Email">
-                      <form.AppField name="notificationEmail">
-                        {(field) => (
-                          <Input
-                            type="email"
-                            placeholder="you@example.com"
-                            value={(field.state.value as string) || ""}
-                            onChange={(e) => field.handleChange(e.target.value || null)}
-                            className={`w-[160px] text-sm ${CONFIG_INPUT_CLS}`}
-                            aria-label="Notification email"
-                            variant="primary"
-                          />
-                        )}
-                      </form.AppField>
-                    </ConfigRow>
-                  ) : null
-                }
-              </form.Subscribe>
-
-              {!isLocal && inAppNotificationPreference.data?.canManageInAppNotifications ? (
-                <>
-                  <ConfigRow
-                    label="In-app notifications"
-                    description="Show new submission alerts in your inbox and browser."
-                    variant="switch"
-                  >
-                    <Switch
-                      aria-label="In-app notifications"
-                      checked={!!inAppNotificationPreference.data.inAppNotifications}
-                      onCheckedChange={handleInAppNotificationsChange}
-                      disabled={setInAppNotificationPreferenceMutation.isPending}
-                      size="default"
-                    />
-                  </ConfigRow>
-
-                  {inAppNotificationPreference.data.inAppNotifications ? (
-                    <ConfigRow
-                      label="Browser status"
-                      description="Native browser popups require browser permission."
-                    >
-                      <span className="text-sm text-foreground">
-                        {getBrowserPermissionLabel(browserPermission)}
-                      </span>
-                    </ConfigRow>
-                  ) : null}
-                </>
-              ) : null}
-
-              <ConfigRow
-                label="Respondent emails"
-                description={
-                  hasEmailField
-                    ? "Send a confirmation email to respondents."
-                    : "Add an email field to your form to enable this."
-                }
-                variant="switch"
-              >
-                <div className="flex items-center gap-1.5">
-                  <Badge
-                    variant="secondary"
-                    className="h-4 border-none bg-teal-100 px-1.5 text-[9px] text-teal-600"
-                  >
-                    Pro
-                  </Badge>
-                  <FeatureGate requiredPlan="pro">
-                    <form.AppField name="respondentEmailNotifications">
-                      {(field) => (
-                        <Switch
-                          aria-label="Respondent email notifications"
-                          checked={!!field.state.value && hasEmailField}
-                          onCheckedChange={field.handleChange}
-                          disabled={!hasEmailField}
-                          size="default"
-                        />
-                      )}
-                    </form.AppField>
-                  </FeatureGate>
-                </div>
-              </ConfigRow>
-
-              <form.Subscribe selector={selectRespondentEmailNotifications}>
-                {(respondentEmailNotifications) =>
-                  respondentEmailNotifications && hasEmailField ? (
-                    <>
-                      <ConfigRow label="Subject">
-                        <form.AppField name="respondentEmailSubject">
-                          {(field) => (
-                            <Input
-                              type="text"
-                              placeholder="Thank you for your submission"
-                              value={(field.state.value as string) || ""}
-                              onChange={(e) => field.handleChange(e.target.value || null)}
-                              className={`w-[160px] text-sm ${CONFIG_INPUT_CLS}`}
-                              aria-label="Email subject"
-                              variant="primary"
-                            />
-                          )}
-                        </form.AppField>
-                      </ConfigRow>
-                      <div className="bg-secondary px-[10px] py-[7px]">
-                        <span className="mb-1.5 block text-sm">Body</span>
-                        <form.AppField name="respondentEmailBody">
-                          {(field) => (
-                            <Textarea
-                              placeholder="Thank you for filling out our form."
-                              value={(field.state.value as string) || ""}
-                              onChange={(e) => field.handleChange(e.target.value || null)}
-                              className="min-h-[60px] w-full !rounded-md border-border/60 !bg-background text-sm"
-                              aria-label="Email body"
-                            />
-                          )}
-                        </form.AppField>
-                      </div>
-                    </>
-                  ) : null
-                }
-              </form.Subscribe>
-            </ConfigCard>
-          </SidebarSection>
-
-          <SidebarSection label="Access" className="pb-2.75" action={<></>}>
-            <ConfigCard>
-              <ConfigRow
-                label="Password protect"
-                description="Require a password before respondents can access the form."
-                variant="switch"
-              >
-                <form.AppField name="passwordProtect">
-                  {(field) => (
-                    <Switch
-                      aria-label="Password protect"
-                      checked={!!field.state.value}
-                      onCheckedChange={field.handleChange}
-                      size="default"
-                    />
-                  )}
-                </form.AppField>
-              </ConfigRow>
-
-              <form.Subscribe selector={selectPasswordProtect}>
-                {(passwordProtect) =>
-                  passwordProtect ? (
-                    <ConfigRow label="Password">
-                      <form.AppField name="password">
-                        {(field) => (
-                          <PasswordInput
-                            value={(field.state.value as string) || ""}
-                            onChange={(val) => field.handleChange(val || null)}
-                          />
-                        )}
-                      </form.AppField>
-                    </ConfigRow>
-                  ) : null
-                }
-              </form.Subscribe>
-
-              <ConfigRow
-                label="Close form"
-                description="People won't be able to respond to this form anymore."
-                variant="switch"
-              >
-                <form.AppField name="closeForm">
-                  {(field) => (
-                    <Switch
-                      aria-label="Close form"
-                      checked={!!field.state.value}
-                      onCheckedChange={field.handleChange}
-                      size="default"
-                    />
-                  )}
-                </form.AppField>
-              </ConfigRow>
-
-              <form.Subscribe selector={selectCloseForm}>
-                {(closeForm) =>
-                  closeForm ? (
-                    <div className="bg-secondary px-[10px] py-[7px]">
-                      <span className="mb-1.5 block text-sm">Closed message</span>
-                      <form.AppField name="closedFormMessage">
-                        {(field) => (
-                          <Textarea
-                            placeholder="This form is now closed."
-                            value={(field.state.value as string) || ""}
-                            onChange={(e) => field.handleChange(e.target.value)}
-                            className="min-h-[50px] w-full !rounded-md border-border/60 !bg-background text-sm"
-                            aria-label="Closed message"
-                          />
-                        )}
-                      </form.AppField>
-                    </div>
-                  ) : null
-                }
-              </form.Subscribe>
-
-              <ConfigRow
-                label="Close on date"
-                description="Schedule a date to close the form for new submissions."
-                variant="switch"
-              >
-                <form.AppField name="closeOnDate">
-                  {(field) => (
-                    <Switch
-                      aria-label="Close on date"
-                      checked={!!field.state.value}
-                      onCheckedChange={field.handleChange}
-                      size="default"
-                    />
-                  )}
-                </form.AppField>
-              </ConfigRow>
-
-              <form.Subscribe selector={selectCloseOnDate}>
-                {(closeOnDate) =>
-                  closeOnDate ? (
-                    <ConfigRow label="Close date">
-                      <form.AppField name="closeDate">
-                        {(field) => (
-                          <DatePicker
-                            value={(field.state.value as string) || ""}
-                            onChange={(val: string | null) => field.handleChange(val)}
-                          />
-                        )}
-                      </form.AppField>
-                    </ConfigRow>
-                  ) : null
-                }
-              </form.Subscribe>
-
-              <ConfigRow
-                label="Limit submissions"
-                description="Set the maximum number of submissions to receive."
-                variant="switch"
-              >
-                <form.AppField name="limitSubmissions">
-                  {(field) => (
-                    <Switch
-                      aria-label="Limit submissions"
-                      checked={!!field.state.value}
-                      onCheckedChange={field.handleChange}
-                      size="default"
-                    />
-                  )}
-                </form.AppField>
-              </ConfigRow>
-
-              <form.Subscribe selector={selectLimitSubmissions}>
-                {(limitSubmissions) =>
-                  limitSubmissions ? (
-                    <ConfigRow label="Max submissions">
-                      <form.AppField name="maxSubmissions">
-                        {(field) => (
-                          <Input
-                            type="number"
-                            min={1}
-                            placeholder="100"
-                            value={(field.state.value as number) || ""}
-                            onChange={(e) =>
-                              field.handleChange(e.target.value ? Number(e.target.value) : null)
-                            }
-                            className={`w-[70px] text-sm ${CONFIG_INPUT_CLS}`}
-                            aria-label="Max submissions"
-                            variant="primary"
-                          />
-                        )}
-                      </form.AppField>
-                    </ConfigRow>
-                  ) : null
-                }
-              </form.Subscribe>
-
-              <ConfigRow
-                label="Prevent duplicates"
-                description="Ensure each respondent can only submit the form once."
-                variant="switch"
-              >
-                <form.AppField name="preventDuplicateSubmissions">
-                  {(field) => (
-                    <Switch
-                      aria-label="Prevent duplicates"
-                      checked={!!field.state.value}
-                      onCheckedChange={field.handleChange}
-                      size="default"
-                    />
-                  )}
-                </form.AppField>
-              </ConfigRow>
-            </ConfigCard>
-          </SidebarSection>
-
-          <SidebarSection label="Behavior" className="pb-2.75" action={<></>}>
-            <ConfigCard>
-              <ConfigRow
-                label="Save for later"
-                description="Save answers so respondents can continue where they left off."
-                variant="switch"
-              >
-                <form.AppField name="saveAnswersForLater">
-                  {(field) => (
-                    <Switch
-                      aria-label="Save for later"
-                      checked={field.state.value}
-                      onCheckedChange={field.handleChange}
-                      size="default"
-                    />
-                  )}
-                </form.AppField>
-              </ConfigRow>
-            </ConfigCard>
-          </SidebarSection>
+          <GeneralSection form={form} CONFIG_INPUT_CLS={CONFIG_INPUT_CLS} />
+          <NotificationsSection
+            form={form}
+            CONFIG_INPUT_CLS={CONFIG_INPUT_CLS}
+            isLocal={isLocal}
+            inAppNotificationPreference={inAppNotificationPreference.data}
+            handleInAppNotificationsChange={handleInAppNotificationsChange}
+            isInAppPending={setInAppNotificationPreferenceMutation.isPending}
+            browserPermission={browserPermission}
+            hasEmailField={hasEmailField}
+          />
+          <AccessSection form={form} CONFIG_INPUT_CLS={CONFIG_INPUT_CLS} />
+          <BehaviorSection form={form} />
         </form.Form>
       </form.AppForm>
     </div>
   );
 };
+
+// eslint-disable-next-line typescript-eslint/no-explicit-any -- form has deep generic types; subcomponents only forward this through to JSX
+type SettingsForm = any;
+
+interface SectionPropsBase {
+  form: SettingsForm;
+  CONFIG_INPUT_CLS: string;
+}
+
+const GeneralSection = ({ form, CONFIG_INPUT_CLS }: SectionPropsBase) => (
+  <>
+    <SidebarSection label="General" className="pb-2.75" action={<></>}>
+      <ConfigCard>
+        <ConfigRow label="Language" description="Language for default buttons, errors, etc.">
+          <form.AppField name="language">
+            {(field: any) => (
+              <Select
+                value={field.state.value || "English"}
+                onValueChange={(value) => field.handleChange(value ?? "English")}
+              >
+                <SelectTrigger className={selectTriggerCls}>
+                  <SelectValue placeholder="Select language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="English">English</SelectItem>
+                  <SelectItem value="Spanish">Spanish</SelectItem>
+                  <SelectItem value="French">French</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </form.AppField>
+        </ConfigRow>
+
+        <ConfigRow
+          label="Redirect on completion"
+          description="Redirect to a custom URL when the form is submitted."
+          variant="switch"
+        >
+          <form.AppField name="redirectOnCompletion">
+            {(field: any) => (
+              <Switch
+                aria-label="Redirect on completion"
+                checked={!!field.state.value}
+                onCheckedChange={field.handleChange}
+                size="default"
+              />
+            )}
+          </form.AppField>
+        </ConfigRow>
+
+        <form.Subscribe selector={selectRedirectOnCompletion}>
+          {(redirectOnCompletion: unknown) =>
+            redirectOnCompletion ? (
+              <>
+                <ConfigRow label="Redirect URL">
+                  <form.AppField name="redirectUrl">
+                    {(field: any) => (
+                      <Input
+                        type="url"
+                        placeholder="https://example.com"
+                        value={(field.state.value as string) || ""}
+                        onChange={(e) => field.handleChange(e.target.value || null)}
+                        className={`w-[160px] text-sm ${CONFIG_INPUT_CLS}`}
+                        aria-label="Redirect URL"
+                        variant="primary"
+                      />
+                    )}
+                  </form.AppField>
+                </ConfigRow>
+                <ConfigRow label="Redirect delay">
+                  <form.AppField name="redirectDelay">
+                    {(field: any) => (
+                      <Input
+                        type="number"
+                        min={0}
+                        max={60}
+                        placeholder="0"
+                        value={field.state.value || 0}
+                        onChange={(e) => field.handleChange(Number(e.target.value) || 0)}
+                        className={`w-[70px] text-sm ${CONFIG_INPUT_CLS}`}
+                        aria-label="Redirect delay"
+                        variant="primary"
+                      />
+                    )}
+                  </form.AppField>
+                </ConfigRow>
+              </>
+            ) : null
+          }
+        </form.Subscribe>
+
+        <ConfigRow
+          label={`${APP_NAME} branding`}
+          description={`Show "Made with ${APP_NAME}" on your form.`}
+          variant="switch"
+        >
+          <div className="flex items-center gap-1.5">
+            <Badge
+              variant="secondary"
+              className="h-4 border-none bg-teal-100 px-1.5 text-[9px] text-teal-600"
+            >
+              Pro
+            </Badge>
+            <FeatureGate requiredPlan="pro">
+              <form.AppField name="branding">
+                {(field: any) => (
+                  <Switch
+                    aria-label="Branding"
+                    checked={!!field.state.value}
+                    onCheckedChange={field.handleChange}
+                    size="default"
+                  />
+                )}
+              </form.AppField>
+            </FeatureGate>
+          </div>
+        </ConfigRow>
+
+        <ConfigRow
+          label="Data retention"
+          description="Auto-delete submissions after a set period."
+          variant="switch"
+        >
+          <div className="flex items-center gap-1.5">
+            <Badge
+              variant="secondary"
+              className="h-4 border-none bg-teal-100 px-1.5 text-[9px] text-teal-600"
+            >
+              Pro
+            </Badge>
+            <FeatureGate requiredPlan="pro">
+              <form.AppField name="dataRetention">
+                {(field: any) => (
+                  <Switch
+                    aria-label="Data retention"
+                    checked={!!field.state.value}
+                    onCheckedChange={field.handleChange}
+                    size="default"
+                  />
+                )}
+              </form.AppField>
+            </FeatureGate>
+          </div>
+        </ConfigRow>
+
+        <form.Subscribe selector={selectDataRetention}>
+          {(dataRetention: unknown) =>
+            dataRetention ? (
+              <ConfigRow label="Retention days">
+                <form.AppField name="dataRetentionDays">
+                  {(field: any) => (
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="30"
+                      value={(field.state.value as number) || ""}
+                      onChange={(e) =>
+                        field.handleChange(e.target.value ? Number(e.target.value) : null)
+                      }
+                      className={`w-[70px] text-sm ${CONFIG_INPUT_CLS}`}
+                      aria-label="Retention days"
+                      variant="primary"
+                    />
+                  )}
+                </form.AppField>
+              </ConfigRow>
+            ) : null
+          }
+        </form.Subscribe>
+      </ConfigCard>
+    </SidebarSection>
+  </>
+);
+
+interface NotificationsSectionProps extends SectionPropsBase {
+  isLocal?: boolean;
+  inAppNotificationPreference:
+    | { canManageInAppNotifications?: boolean; inAppNotifications?: boolean }
+    | undefined;
+  handleInAppNotificationsChange: (checked: boolean) => Promise<void>;
+  isInAppPending: boolean;
+  browserPermission: BrowserNotificationPermission;
+  hasEmailField: boolean;
+}
+
+const NotificationsSection = ({
+  form,
+  CONFIG_INPUT_CLS,
+  isLocal,
+  inAppNotificationPreference,
+  handleInAppNotificationsChange,
+  isInAppPending,
+  browserPermission,
+  hasEmailField,
+}: NotificationsSectionProps) => (
+  <>
+    <SidebarSection label="Notifications" className="pb-2.75" action={<></>}>
+      <ConfigCard>
+        <ConfigRow
+          label="Email notifications"
+          description="Get an email for new form submissions."
+          variant="switch"
+        >
+          <form.AppField name="selfEmailNotifications">
+            {(field: any) => (
+              <Switch
+                aria-label="Email notifications"
+                checked={!!field.state.value}
+                onCheckedChange={field.handleChange}
+                size="default"
+              />
+            )}
+          </form.AppField>
+        </ConfigRow>
+
+        <form.Subscribe selector={selectSelfEmailNotifications}>
+          {(selfEmailNotifications: unknown) =>
+            selfEmailNotifications ? (
+              <ConfigRow label="Email">
+                <form.AppField name="notificationEmail">
+                  {(field: any) => (
+                    <Input
+                      type="email"
+                      placeholder="you@example.com"
+                      value={(field.state.value as string) || ""}
+                      onChange={(e) => field.handleChange(e.target.value || null)}
+                      className={`w-[160px] text-sm ${CONFIG_INPUT_CLS}`}
+                      aria-label="Notification email"
+                      variant="primary"
+                    />
+                  )}
+                </form.AppField>
+              </ConfigRow>
+            ) : null
+          }
+        </form.Subscribe>
+
+        {!isLocal && inAppNotificationPreference?.canManageInAppNotifications ? (
+          <>
+            <ConfigRow
+              label="In-app notifications"
+              description="Show new submission alerts in your inbox and browser."
+              variant="switch"
+            >
+              <Switch
+                aria-label="In-app notifications"
+                checked={!!inAppNotificationPreference.inAppNotifications}
+                onCheckedChange={handleInAppNotificationsChange}
+                disabled={isInAppPending}
+                size="default"
+              />
+            </ConfigRow>
+
+            {inAppNotificationPreference.inAppNotifications ? (
+              <ConfigRow
+                label="Browser status"
+                description="Native browser popups require browser permission."
+              >
+                <span className="text-sm text-foreground">
+                  {getBrowserPermissionLabel(browserPermission)}
+                </span>
+              </ConfigRow>
+            ) : null}
+          </>
+        ) : null}
+
+        <ConfigRow
+          label="Respondent emails"
+          description={
+            hasEmailField
+              ? "Send a confirmation email to respondents."
+              : "Add an email field to your form to enable this."
+          }
+          variant="switch"
+        >
+          <div className="flex items-center gap-1.5">
+            <Badge
+              variant="secondary"
+              className="h-4 border-none bg-teal-100 px-1.5 text-[9px] text-teal-600"
+            >
+              Pro
+            </Badge>
+            <FeatureGate requiredPlan="pro">
+              <form.AppField name="respondentEmailNotifications">
+                {(field: any) => (
+                  <Switch
+                    aria-label="Respondent email notifications"
+                    checked={!!field.state.value && hasEmailField}
+                    onCheckedChange={field.handleChange}
+                    disabled={!hasEmailField}
+                    size="default"
+                  />
+                )}
+              </form.AppField>
+            </FeatureGate>
+          </div>
+        </ConfigRow>
+
+        <form.Subscribe selector={selectRespondentEmailNotifications}>
+          {(respondentEmailNotifications: unknown) =>
+            respondentEmailNotifications && hasEmailField ? (
+              <>
+                <ConfigRow label="Subject">
+                  <form.AppField name="respondentEmailSubject">
+                    {(field: any) => (
+                      <Input
+                        type="text"
+                        placeholder="Thank you for your submission"
+                        value={(field.state.value as string) || ""}
+                        onChange={(e) => field.handleChange(e.target.value || null)}
+                        className={`w-[160px] text-sm ${CONFIG_INPUT_CLS}`}
+                        aria-label="Email subject"
+                        variant="primary"
+                      />
+                    )}
+                  </form.AppField>
+                </ConfigRow>
+                <div className="bg-secondary px-[10px] py-[7px]">
+                  <span className="mb-1.5 block text-sm">Body</span>
+                  <form.AppField name="respondentEmailBody">
+                    {(field: any) => (
+                      <Textarea
+                        placeholder="Thank you for filling out our form."
+                        value={(field.state.value as string) || ""}
+                        onChange={(e) => field.handleChange(e.target.value || null)}
+                        className="min-h-[60px] w-full !rounded-md border-border/60 !bg-background text-sm"
+                        aria-label="Email body"
+                      />
+                    )}
+                  </form.AppField>
+                </div>
+              </>
+            ) : null
+          }
+        </form.Subscribe>
+      </ConfigCard>
+    </SidebarSection>
+  </>
+);
+
+const AccessSection = ({ form, CONFIG_INPUT_CLS }: SectionPropsBase) => (
+  <>
+    <SidebarSection label="Access" className="pb-2.75" action={<></>}>
+      <ConfigCard>
+        <ConfigRow
+          label="Password protect"
+          description="Require a password before respondents can access the form."
+          variant="switch"
+        >
+          <form.AppField name="passwordProtect">
+            {(field: any) => (
+              <Switch
+                aria-label="Password protect"
+                checked={!!field.state.value}
+                onCheckedChange={field.handleChange}
+                size="default"
+              />
+            )}
+          </form.AppField>
+        </ConfigRow>
+
+        <form.Subscribe selector={selectPasswordProtect}>
+          {(passwordProtect: unknown) =>
+            passwordProtect ? (
+              <ConfigRow label="Password">
+                <form.AppField name="password">
+                  {(field: any) => (
+                    <PasswordInput
+                      value={(field.state.value as string) || ""}
+                      onChange={(val) => field.handleChange(val || null)}
+                    />
+                  )}
+                </form.AppField>
+              </ConfigRow>
+            ) : null
+          }
+        </form.Subscribe>
+
+        <ConfigRow
+          label="Close form"
+          description="People won't be able to respond to this form anymore."
+          variant="switch"
+        >
+          <form.AppField name="closeForm">
+            {(field: any) => (
+              <Switch
+                aria-label="Close form"
+                checked={!!field.state.value}
+                onCheckedChange={field.handleChange}
+                size="default"
+              />
+            )}
+          </form.AppField>
+        </ConfigRow>
+
+        <form.Subscribe selector={selectCloseForm}>
+          {(closeForm: unknown) =>
+            closeForm ? (
+              <div className="bg-secondary px-[10px] py-[7px]">
+                <span className="mb-1.5 block text-sm">Closed message</span>
+                <form.AppField name="closedFormMessage">
+                  {(field: any) => (
+                    <Textarea
+                      placeholder="This form is now closed."
+                      value={(field.state.value as string) || ""}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      className="min-h-[50px] w-full !rounded-md border-border/60 !bg-background text-sm"
+                      aria-label="Closed message"
+                    />
+                  )}
+                </form.AppField>
+              </div>
+            ) : null
+          }
+        </form.Subscribe>
+
+        <ConfigRow
+          label="Close on date"
+          description="Schedule a date to close the form for new submissions."
+          variant="switch"
+        >
+          <form.AppField name="closeOnDate">
+            {(field: any) => (
+              <Switch
+                aria-label="Close on date"
+                checked={!!field.state.value}
+                onCheckedChange={field.handleChange}
+                size="default"
+              />
+            )}
+          </form.AppField>
+        </ConfigRow>
+
+        <form.Subscribe selector={selectCloseOnDate}>
+          {(closeOnDate: unknown) =>
+            closeOnDate ? (
+              <ConfigRow label="Close date">
+                <form.AppField name="closeDate">
+                  {(field: any) => (
+                    <DatePicker
+                      value={(field.state.value as string) || ""}
+                      onChange={(val: string | null) => field.handleChange(val)}
+                    />
+                  )}
+                </form.AppField>
+              </ConfigRow>
+            ) : null
+          }
+        </form.Subscribe>
+
+        <ConfigRow
+          label="Limit submissions"
+          description="Set the maximum number of submissions to receive."
+          variant="switch"
+        >
+          <form.AppField name="limitSubmissions">
+            {(field: any) => (
+              <Switch
+                aria-label="Limit submissions"
+                checked={!!field.state.value}
+                onCheckedChange={field.handleChange}
+                size="default"
+              />
+            )}
+          </form.AppField>
+        </ConfigRow>
+
+        <form.Subscribe selector={selectLimitSubmissions}>
+          {(limitSubmissions: unknown) =>
+            limitSubmissions ? (
+              <ConfigRow label="Max submissions">
+                <form.AppField name="maxSubmissions">
+                  {(field: any) => (
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="100"
+                      value={(field.state.value as number) || ""}
+                      onChange={(e) =>
+                        field.handleChange(e.target.value ? Number(e.target.value) : null)
+                      }
+                      className={`w-[70px] text-sm ${CONFIG_INPUT_CLS}`}
+                      aria-label="Max submissions"
+                      variant="primary"
+                    />
+                  )}
+                </form.AppField>
+              </ConfigRow>
+            ) : null
+          }
+        </form.Subscribe>
+
+        <ConfigRow
+          label="Prevent duplicates"
+          description="Ensure each respondent can only submit the form once."
+          variant="switch"
+        >
+          <form.AppField name="preventDuplicateSubmissions">
+            {(field: any) => (
+              <Switch
+                aria-label="Prevent duplicates"
+                checked={!!field.state.value}
+                onCheckedChange={field.handleChange}
+                size="default"
+              />
+            )}
+          </form.AppField>
+        </ConfigRow>
+      </ConfigCard>
+    </SidebarSection>
+  </>
+);
+
+const BehaviorSection = ({ form }: { form: SettingsForm }) => (
+  <SidebarSection label="Behavior" className="pb-2.75" action={<></>}>
+    <ConfigCard>
+      <ConfigRow
+        label="Save for later"
+        description="Save answers so respondents can continue where they left off."
+        variant="switch"
+      >
+        <form.AppField name="saveAnswersForLater">
+          {(field: { state: { value: boolean }; handleChange: (v: boolean) => void }) => (
+            <Switch
+              aria-label="Save for later"
+              checked={field.state.value}
+              onCheckedChange={field.handleChange}
+              size="default"
+            />
+          )}
+        </form.AppField>
+      </ConfigRow>
+    </ConfigCard>
+  </SidebarSection>
+);
 
 const PasswordInput = ({ value, onChange }: { value: string; onChange: (val: string) => void }) => {
   const [show, setShow] = useState(false);
@@ -676,7 +732,7 @@ const PasswordInput = ({ value, onChange }: { value: string; onChange: (val: str
         className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         aria-label="Toggle password visibility"
       >
-        {show ? <EyeOffIcon className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
+        {show ? <EyeOffIcon className="size-3.5" /> : <EyeIcon className="size-3.5" />}
       </button>
     </div>
   );

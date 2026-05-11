@@ -9,10 +9,10 @@ import type { NodeEntry, Path, TCommentText, TElement, TSuggestionText } from "p
 import type { PlateElementProps, RenderNodeWrapper } from "platejs/react";
 import { useEditorPlugin, useEditorRef, usePluginOption } from "platejs/react";
 import * as React from "react";
-import { commentPlugin } from "@/components/editor/plugins/comment-kit";
-import { discussionPlugin } from "@/components/editor/plugins/discussion-kit";
-import type { TDiscussion } from "@/components/editor/plugins/discussion-kit";
-import { suggestionPlugin } from "@/components/editor/plugins/suggestion-kit";
+import { commentPlugin } from "@/components/editor/plugins/comment-plugin";
+import { discussionPlugin } from "@/components/editor/plugins/discussion-plugin";
+import type { TDiscussion } from "@/components/editor/plugins/discussion-plugin";
+import { suggestionPlugin } from "@/components/editor/plugins/suggestion-plugin";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -288,24 +288,29 @@ const useResolvedDiscussion = (commentNodes: NodeEntry<TCommentText>[], blockPat
   });
 
   const commentsIds = new Set(
-    commentNodes.map(([node]) => api.comment.nodeId(node)).filter(Boolean),
+    commentNodes.flatMap(([node]) => {
+      const id = api.comment.nodeId(node);
+      return id ? [id] : [];
+    }),
   );
 
-  const resolvedDiscussions = discussions
-    .map((d: TDiscussion) => ({
+  const resolvedDiscussions = discussions.flatMap((d: TDiscussion) => {
+    const item: TDiscussion = {
       ...d,
       createdAt: new Date(d.createdAt),
-    }))
-    .filter((item: TDiscussion) => {
-      /** If comment cross blocks just show it in the first block */
-      const commentsPathMap = getOption("uniquePathMap");
-      const firstBlockPath = commentsPathMap.get(item.id);
+    };
+    /** If comment cross blocks just show it in the first block */
+    const commentsPathMap = getOption("uniquePathMap");
+    const firstBlockPath = commentsPathMap.get(item.id);
 
-      if (!firstBlockPath) return false;
-      if (!PathApi.equals(firstBlockPath, blockPath)) return false;
+    if (!firstBlockPath) return [];
+    if (!PathApi.equals(firstBlockPath, blockPath)) return [];
 
-      return api.comment.has({ id: item.id }) && commentsIds.has(item.id) && !item.isResolved;
-    });
+    if (api.comment.has({ id: item.id }) && commentsIds.has(item.id) && !item.isResolved) {
+      return [item];
+    }
+    return [];
+  });
 
   return resolvedDiscussions;
 };

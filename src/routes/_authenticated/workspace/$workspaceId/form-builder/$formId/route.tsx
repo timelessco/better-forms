@@ -37,40 +37,38 @@ const FormLayout = () => {
 
 export const Route = createFileRoute("/_authenticated/workspace/$workspaceId/form-builder/$formId")(
   {
+    ssr: false,
     beforeLoad: async ({ context, params, location }) => {
       const isExactParentRoute =
         location.pathname === `/workspace/${params.workspaceId}/form-builder/${params.formId}` ||
         location.pathname === `/workspace/${params.workspaceId}/form-builder/${params.formId}/`;
 
       if (isExactParentRoute) {
+        let status: FormStatus | undefined;
         try {
           const cachedForm = getFormListings().get(params.formId);
-          let status = cachedForm?.status as FormStatus | undefined;
+          status = cachedForm?.status as FormStatus | undefined;
 
           if (!status) {
             status = await getFormStatus(context.queryClient, params.formId);
-          }
-
-          if (status === "published") {
-            throw redirect({
-              to: "/workspace/$workspaceId/form-builder/$formId/submissions",
-              params: { workspaceId: params.workspaceId, formId: params.formId },
-            });
-          } else {
-            throw redirect({
-              to: "/workspace/$workspaceId/form-builder/$formId/edit",
-              params: { workspaceId: params.workspaceId, formId: params.formId },
-            });
           }
         } catch (error: unknown) {
           if (isRedirect(error)) {
             throw error;
           }
+          // Fall through to default redirect to edit
+        }
+
+        if (status === "published") {
           throw redirect({
-            to: "/workspace/$workspaceId/form-builder/$formId/edit",
+            to: "/workspace/$workspaceId/form-builder/$formId/submissions",
             params: { workspaceId: params.workspaceId, formId: params.formId },
           });
         }
+        throw redirect({
+          to: "/workspace/$workspaceId/form-builder/$formId/edit",
+          params: { workspaceId: params.workspaceId, formId: params.formId },
+        });
       }
     },
     loader: async ({ context, params }) => {
@@ -95,7 +93,6 @@ export const Route = createFileRoute("/_authenticated/workspace/$workspaceId/for
     staleTime: 30_000,
     gcTime: 5 * 60_000,
     component: FormLayout,
-    ssr: false,
     pendingComponent: Loader,
     errorComponent: ErrorBoundary,
     notFoundComponent: NotFound,
