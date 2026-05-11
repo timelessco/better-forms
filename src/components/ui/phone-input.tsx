@@ -1,19 +1,16 @@
 /* eslint-disable eslint/func-style, eslint-plugin-react/jsx-no-constructed-context-values */
-import { createContext, use, useMemo, useState, useSyncExternalStore } from "react";
+import { createContext, use, useMemo, useState } from "react";
 import * as BasePhoneInput from "react-phone-number-input";
 
-const subscribeMountedNoop = () => () => {};
-const getMountedClient = () => true;
-const getMountedServer = () => false;
+import { useMounted } from "@/hooks/use-mounted";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 const getBrowserDefaultCountry = (): BasePhoneInput.Country | undefined => {
   if (typeof navigator === "undefined") return undefined;
   const region = navigator.language.split(/[-_]/)[1]?.toUpperCase();
   return region && BasePhoneInput.isSupportedCountry(region) ? region : undefined;
 };
-
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
   Combobox,
   ComboboxContent,
@@ -67,7 +64,7 @@ function PhoneInput({
   // `defaultCountry` is read once on mount by react-phone-number-input, so
   // we wait for hydration before deriving from `navigator.language` and key
   // the underlying component so it remounts with the resolved value.
-  const mounted = useSyncExternalStore(subscribeMountedNoop, getMountedClient, getMountedServer);
+  const mounted = useMounted();
   const defaultCountry = defaultCountryProp ?? (mounted ? getBrowserDefaultCountry() : undefined);
   return (
     <PhoneInputContext.Provider

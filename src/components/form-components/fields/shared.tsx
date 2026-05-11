@@ -13,18 +13,6 @@ export type FieldRendererProps<
   form: AppForm;
 };
 
-export const extractErrorMessage = (error: unknown): string => {
-  if (!error) return "Invalid value";
-  if (Array.isArray(error)) return extractErrorMessage(error[0]);
-  if (typeof error === "object" && error !== null) {
-    if ("message" in error && typeof (error as { message: unknown }).message === "string") {
-      return (error as { message: string }).message;
-    }
-  }
-  if (typeof error === "string") return error;
-  return "Invalid value";
-};
-
 export const getFieldLabelProps = (element: PlateFormField) => ({
   label: "label" in element ? (element.label ?? "") : "",
   required: "required" in element ? !!element.required : false,

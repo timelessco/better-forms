@@ -393,41 +393,43 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                   </span>
                 </>
               )}
-              {savedDocs?.[0].status === "published" && workspaceId && formId ? (
-                isEditRoute ? (
-                  <Link
-                    to="/workspace/$workspaceId/form-builder/$formId/submissions"
-                    params={{ workspaceId, formId }}
+              {(() => {
+                const titleText = savedDocs?.[0].title || "Untitled";
+                const linkClassName = cn(
+                  buttonVariants({ variant: "ghost", size: "sm" }),
+                  "max-w-[140px] min-w-0 shrink justify-start px-1.5 font-normal text-foreground hover:bg-accent/60 sm:max-w-[200px]",
+                );
+                if (savedDocs?.[0].status === "published" && workspaceId && formId) {
+                  return isEditRoute ? (
+                    <Link
+                      to="/workspace/$workspaceId/form-builder/$formId/submissions"
+                      params={{ workspaceId, formId }}
+                      className={linkClassName}
+                    >
+                      <span className="truncate">{titleText}</span>
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/workspace/$workspaceId/form-builder/$formId/edit"
+                      params={{ workspaceId, formId }}
+                      search={(prev) => ({ ...prev, force: true })}
+                      className={linkClassName}
+                    >
+                      <span className="truncate">{titleText}</span>
+                    </Link>
+                  );
+                }
+                return (
+                  <span
                     className={cn(
                       buttonVariants({ variant: "ghost", size: "sm" }),
-                      "max-w-[140px] min-w-0 shrink justify-start px-1.5 font-normal text-foreground hover:bg-accent/60 sm:max-w-[200px]",
+                      "max-w-[140px] min-w-0 shrink cursor-default justify-start px-1.5 font-normal hover:bg-transparent sm:max-w-[200px]",
                     )}
                   >
-                    <span className="truncate">{savedDocs?.[0].title || "Untitled"}</span>
-                  </Link>
-                ) : (
-                  <Link
-                    to="/workspace/$workspaceId/form-builder/$formId/edit"
-                    params={{ workspaceId, formId }}
-                    search={(prev) => ({ ...prev, force: true })}
-                    className={cn(
-                      buttonVariants({ variant: "ghost", size: "sm" }),
-                      "max-w-[140px] min-w-0 shrink justify-start px-1.5 font-normal text-foreground hover:bg-accent/60 sm:max-w-[200px]",
-                    )}
-                  >
-                    <span className="truncate">{savedDocs?.[0].title || "Untitled"}</span>
-                  </Link>
-                )
-              ) : (
-                <span
-                  className={cn(
-                    buttonVariants({ variant: "ghost", size: "sm" }),
-                    "max-w-[140px] min-w-0 shrink cursor-default justify-start px-1.5 font-normal hover:bg-transparent sm:max-w-[200px]",
-                  )}
-                >
-                  <span className="truncate">{savedDocs?.[0].title || "Untitled"}</span>
-                </span>
-              )}
+                    <span className="truncate">{titleText}</span>
+                  </span>
+                );
+              })()}
               {!isEditorSidebarOpen && (
                 <>
                   <span

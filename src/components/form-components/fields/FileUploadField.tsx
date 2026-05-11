@@ -12,7 +12,6 @@ import {
 import type { UploadedFormFile } from "@/lib/server-fn/public-file-uploads";
 import { uploadFormFile } from "@/lib/server-fn/public-file-uploads";
 import { cn } from "@/lib/utils";
-import { extractErrorMessage } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
 const fileToBase64 = (file: File): Promise<string> =>
@@ -191,10 +190,7 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
     >
       {(f) => {
         const hasFieldErrors = f.state.meta.errors.length > 0 && f.state.meta.isTouched;
-        const fieldErrorMessage = hasFieldErrors ? extractErrorMessage(f.state.meta.errors[0]) : "";
         const showError = uploadState.status === "error" || hasFieldErrors;
-        const errorMessage =
-          uploadState.status === "error" ? uploadState.message : fieldErrorMessage;
 
         return (
           <>
@@ -256,7 +252,11 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
                 </div>
               )}
             </button>
-            {showError ? <p className="mt-1.5 text-sm text-destructive">{errorMessage}</p> : null}
+            {uploadState.status === "error" ? (
+              <p className="mt-1.5 text-sm text-destructive">{uploadState.message}</p>
+            ) : (
+              <f.FieldError />
+            )}
           </>
         );
       }}
