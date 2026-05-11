@@ -1,5 +1,5 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
-import { useContext, useMemo, useRef } from "react";
+import { use, useMemo, useRef } from "react";
 import { useFocusFirstField } from "@/hooks/use-focus-first-field";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ export const StepForm = ({
 }: StepFormProps) => {
   const { currentStep, totalSteps, goToPrevStep, isSubmitting, tracking } = useStepForm();
   const { t } = useTranslation();
-  const Renderer = useContext(PreviewRendererContext) ?? RenderStepPreviewInput;
+  const Renderer = use(PreviewRendererContext) ?? RenderStepPreviewInput;
   const fields = useMemo(() => getFieldsFromSegments(segments), [segments]);
   const hasAuthoredButton = useMemo(
     () => segments.some((seg) => seg.type === "field" && seg.field.fieldType === "Button"),

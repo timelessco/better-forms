@@ -9,8 +9,8 @@ const FileUploadSkeleton = () => <Skeleton className="h-20 w-full max-w-[464px] 
 
 const OptionListSkeleton = ({ withBadge = false }: { withBadge?: boolean }) => (
   <div className="flex flex-col gap-2">
-    {[0, 1, 2].map((i) => (
-      <div className="flex items-center gap-2" key={i}>
+    {["a", "b", "c"].map((id) => (
+      <div className="flex items-center gap-2" key={id}>
         <Skeleton className={withBadge ? "size-5 rounded" : "size-4 rounded-[4px]"} />
         <Skeleton className="h-3 w-40 rounded-md" />
       </div>

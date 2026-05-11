@@ -143,14 +143,14 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
           <Button
             variant="ghost"
             size="icon-sm"
-            className="h-7 w-7 opacity-0 group-hover:opacity-100"
+            className="size-7 opacity-0 group-hover:opacity-100"
             aria-label="Button settings"
             onMouseDown={handleGearMouseDown}
             onClick={handleGearClick}
           />
         }
       >
-        <SettingsIcon className="h-4 w-4 text-muted-foreground" />
+        <SettingsIcon className="size-4 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent
         className="w-64 border p-4"
@@ -206,10 +206,10 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
               : "bg-primary text-primary-foreground",
           )}
         >
-          {isPrevious && <ChevronLeftIcon className="h-4 w-4" />}
+          {isPrevious && <ChevronLeftIcon className="size-4" />}
           <span>{displayText}</span>
-          {buttonRole === "submit" && <CheckIcon className="h-4 w-4" />}
-          {buttonRole === "next" && <ChevronRightIcon className="h-4 w-4" />}
+          {buttonRole === "submit" && <CheckIcon className="size-4" />}
+          {buttonRole === "next" && <ChevronRightIcon className="size-4" />}
         </span>
         {/* Gear icon on right when button is left-aligned (so button touches left edge) */}
         {(isPrevious || !isMultiStep) && GearIcon}

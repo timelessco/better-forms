@@ -18,7 +18,9 @@ export interface BaseColorTokens {
   input: string;
 }
 
-export const BASE_COLORS: Record<string, BaseColorTokens> = {
+export type BaseColorMap = Record<string, BaseColorTokens>;
+
+export const BASE_COLORS: BaseColorMap = {
   neutral: {
     background: "#ffffff",
     foreground: "#212121",
@@ -92,7 +94,7 @@ export const BASE_COLORS: Record<string, BaseColorTokens> = {
 };
 
 // Alpha values (border/input) are blended against the preset's background.
-export const DARK_BASE_COLORS: Record<string, BaseColorTokens> = {
+export const DARK_BASE_COLORS: BaseColorMap = {
   neutral: {
     background: "#131313",
     foreground: "#d1d1d1",

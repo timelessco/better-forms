@@ -1,5 +1,5 @@
 /* eslint-disable eslint/func-style, eslint-plugin-react/jsx-no-constructed-context-values */
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, use, useMemo, useState } from "react";
 import * as BasePhoneInput from "react-phone-number-input";
 
 // CDN-hosted flag sprite pattern — avoids bundling the ~240 inline SVG flag
@@ -90,7 +90,7 @@ function PhoneInput({
 }
 
 function InputComponent({ className, ...props }: React.ComponentProps<"input">) {
-  const { variant } = useContext(PhoneInputContext);
+  const { variant } = use(PhoneInputContext);
 
   return (
     <InputGroupInput
@@ -129,7 +129,7 @@ function CountrySelect({
   options: countryList,
   onChange,
 }: CountrySelectProps) {
-  const { variant, popupClassName } = useContext(PhoneInputContext);
+  const { variant, popupClassName } = use(PhoneInputContext);
   const [searchValue, setSearchValue] = useState("");
 
   const filteredCountries = useMemo(() => {
@@ -233,17 +233,17 @@ function CountrySelect({
 function FlagComponent({ country, countryName }: BasePhoneInput.FlagProps) {
   if (!country) {
     return (
-      <span className="flex h-4 w-4 items-center justify-center">
+      <span className="flex size-4 items-center justify-center">
         <GlobeIcon className="size-4 opacity-60" />
       </span>
     );
   }
   return (
-    <span className="flex h-4 w-4 items-center justify-center overflow-hidden rounded-[5px]">
+    <span className="flex size-4 items-center justify-center overflow-hidden rounded-[5px]">
       <img
         src={FLAG_URL.replace("{XX}", country)}
         alt={countryName ?? country}
-        className="h-full w-full object-cover"
+        className="size-full object-cover"
         loading="lazy"
         decoding="async"
       />

@@ -89,21 +89,21 @@ export const FontSizeToolbarButton = () => {
     editor.tf.focus();
   }, [displayValue, tf, editor]);
 
-  const handleBlur = React.useCallback(() => {
+  const commitOnBlur = React.useCallback(() => {
     setIsFocused(false);
     handleInputChange();
   }, [handleInputChange]);
 
-  const handleChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const updateInputValue = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
   }, []);
 
-  const handleFocus = React.useCallback(() => {
+  const enterFocusedMode = React.useCallback(() => {
     setIsFocused(true);
     setInputValue(toUnitLess(cursorFontSize));
   }, [cursorFontSize]);
 
-  const handleKeyDown = React.useCallback(
+  const commitOnEnterKey = React.useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -113,7 +113,7 @@ export const FontSizeToolbarButton = () => {
     [handleInputChange],
   );
 
-  const handleSizeClick = React.useCallback(
+  const applySizePreset = React.useCallback(
     (size: string) => {
       tf.fontSize.addMark(`${size}px`);
       setIsFocused(false);
@@ -136,10 +136,10 @@ export const FontSizeToolbarButton = () => {
                 "h-full w-10 shrink-0 bg-transparent px-1 text-center text-sm hover:bg-muted",
               )}
               value={displayValue}
-              onBlur={handleBlur}
-              onChange={handleChange}
-              onFocus={handleFocus}
-              onKeyDown={handleKeyDown}
+              onBlur={commitOnBlur}
+              onChange={updateInputValue}
+              onFocus={enterFocusedMode}
+              onKeyDown={commitOnEnterKey}
               data-plate-focus="true"
               type="text"
             />
@@ -153,7 +153,7 @@ export const FontSizeToolbarButton = () => {
               className={cn(
                 "flex h-8 w-full items-center justify-center text-sm data-[highlighted=true]:bg-accent",
               )}
-              onClick={() => handleSizeClick(size)}
+              onClick={() => applySizePreset(size)}
               data-highlighted={size === displayValue}
             >
               {size}

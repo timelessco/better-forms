@@ -72,7 +72,7 @@ const CoverUpload = ({ onFileChange }: { onFileChange: (url: string) => void }) 
       >
         <input {...getInputProps()} className="sr-only" />
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
-          <UploadIcon className="h-8 w-8" />
+          <UploadIcon className="size-8" />
           <span className="text-sm">Upload cover image</span>
           <span className="text-xs">Max 5MB</span>
         </div>
@@ -103,14 +103,14 @@ const FormHeaderCover = () => {
             width={800}
             height={200}
             className={cn(
-              "h-full w-full object-cover",
+              "size-full object-cover",
               cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
             )}
           />
         </>
       ) : (
         <div
-          className="h-full w-full"
+          className="size-full"
           style={{
             backgroundColor: cover?.startsWith("#") ? cover : "#FFE4E1",
           }}
@@ -155,7 +155,7 @@ const FormHeaderCover = () => {
                     alt="Abstract mesh"
                     width={200}
                     height={64}
-                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
+                    className="relative z-0 size-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -174,7 +174,7 @@ const FormHeaderCover = () => {
                     alt="Abstract gradient"
                     width={200}
                     height={64}
-                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
+                    className="relative z-0 size-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -193,7 +193,7 @@ const FormHeaderCover = () => {
                     alt="Abstract geometric"
                     width={200}
                     height={64}
-                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
+                    className="relative z-0 size-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -212,7 +212,7 @@ const FormHeaderCover = () => {
                     alt="Abstract liquid"
                     width={200}
                     height={64}
-                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
+                    className="relative z-0 size-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -231,7 +231,7 @@ const FormHeaderCover = () => {
                     alt="3D shapes"
                     width={200}
                     height={64}
-                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
+                    className="relative z-0 size-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -250,7 +250,7 @@ const FormHeaderCover = () => {
                     alt="Gradient curves"
                     width={200}
                     height={64}
-                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
+                    className="relative z-0 size-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -269,7 +269,7 @@ const FormHeaderCover = () => {
                     alt="Geometric waves"
                     width={200}
                     height={64}
-                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
+                    className="relative z-0 size-full object-cover brightness-60 grayscale"
                   />
                 </button>
                 <button
@@ -288,7 +288,7 @@ const FormHeaderCover = () => {
                     alt="Abstract paint"
                     width={200}
                     height={64}
-                    className="relative z-0 h-full w-full object-cover brightness-60 grayscale"
+                    className="relative z-0 size-full object-cover brightness-60 grayscale"
                   />
                 </button>
 
@@ -297,7 +297,7 @@ const FormHeaderCover = () => {
                   onClick={() => setCoverUrl(null)}
                   className="col-span-4 mt-2 flex items-center justify-center gap-2 rounded-md border py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-destructive"
                 >
-                  <XIcon className="h-4 w-4" /> Remove cover
+                  <XIcon className="size-4" /> Remove cover
                 </button>
               </TabsContent>
               <TabsContent value="upload" className="pt-4">
@@ -307,7 +307,7 @@ const FormHeaderCover = () => {
                   onClick={() => setCoverUrl(null)}
                   className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-destructive"
                 >
-                  <XIcon className="h-4 w-4" /> Remove cover
+                  <XIcon className="size-4" /> Remove cover
                 </button>
               </TabsContent>
             </Tabs>
@@ -335,21 +335,15 @@ const FormHeaderIcon = () => {
       <Dialog>
         <DialogTrigger
           render={
-            <div className="group/logo h-[60px] w-[60px] cursor-pointer overflow-hidden rounded-full bg-background shadow-sm transition-all hover:ring-2 hover:ring-muted-foreground/20 sm:h-[80px] sm:w-[80px]" />
+            <div className="group/logo size-[60px] cursor-pointer overflow-hidden rounded-full bg-background shadow-sm transition-all hover:ring-2 hover:ring-muted-foreground/20 sm:h-[80px] sm:w-[80px]" />
           }
         >
           {icon && icon !== "default-icon" ? (
-            <img
-              src={icon}
-              alt="Logo"
-              width={80}
-              height={80}
-              className="h-full w-full object-cover"
-            />
+            <img src={icon} alt="Logo" width={80} height={80} className="size-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-black text-white">
+            <div className="flex size-full items-center justify-center bg-neutral-950 text-white">
               <svg
-                className="h-6 w-6 sm:h-10 sm:w-10"
+                className="size-6 sm:h-10 sm:w-10"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -383,7 +377,7 @@ const FormHeaderIcon = () => {
                 onClick={() => setLogoUrl(null)}
                 className="text-destructive hover:text-destructive"
               >
-                <XIcon className="mr-2 h-4 w-4" /> Remove icon
+                <XIcon className="mr-2 size-4" /> Remove icon
               </Button>
             </TabsContent>
             <TabsContent value="upload" className="flex flex-col items-center pt-4">
@@ -448,7 +442,7 @@ const ActionButtons = () => {
           className="h-6 px-2 text-xs text-muted-foreground hover:bg-muted"
           onClick={handleAddIcon}
         >
-          <SmileIcon className="mr-1.5 h-3.5 w-3.5" />
+          <SmileIcon className="mr-1.5 size-3.5" />
           Add icon
         </Button>
       )}
@@ -459,7 +453,7 @@ const ActionButtons = () => {
           className="h-6 px-2 text-xs text-muted-foreground hover:bg-muted"
           onClick={handleAddCover}
         >
-          <ImageIcon className="mr-1.5 h-3.5 w-3.5" />
+          <ImageIcon className="mr-1.5 size-3.5" />
           Add cover
         </Button>
       )}

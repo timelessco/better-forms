@@ -58,7 +58,7 @@ const RequiredBadge = () => (
           >
             <title>Required</title>
             <path
-              d="M12.3892 5.68944L12.793 6.92754L9.02484 8.21946L11.4741 11.53L10.4244 12.3375L7.94824 8.91925L5.57971 12.3106L4.53002 11.5031L6.89855 8.21946L3.15735 6.95445L3.58799 5.68944L7.27536 7.00828V3.02484H8.64803V6.98137L12.3892 5.68944Z"
+              d="M12.39 5.69L12.79 6.93L9.02 8.22L11.47 11.53L10.42 12.34L7.95 8.92L5.58 12.31L4.53 11.5L6.9 8.22L3.16 6.95L3.59 5.69L7.28 7.01V3.02H8.65V6.98L12.39 5.69Z"
               fill="currentColor"
             />
           </svg>
@@ -86,7 +86,7 @@ export const FieldLabelText = ({
   if (labelType === "h1") {
     return (
       <div className="flex w-full items-center py-2.5">
-        <h1 className="font-heading flex-1 text-4xl font-bold">{text}</h1>
+        <h1 className="font-heading flex-1 text-4xl font-semibold">{text}</h1>
         {badge}
       </div>
     );

@@ -1,6 +1,14 @@
 "use client";
 
-import { PointerEvent, ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import {
+  PointerEvent,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import { useLazyRef } from "@/hooks/use-lazy-ref";
 import { useDataGrid } from "@/components/ui/data-grid";
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
@@ -88,8 +96,10 @@ const DataGridScrollArea = ({
 
   const clearDragState = useCallback(() => {
     dragRef.current = null;
-    document.body.style.userSelect = "";
-    document.body.style.webkitUserSelect = "";
+    Object.assign(document.body.style, {
+      userSelect: "",
+      webkitUserSelect: "",
+    });
   }, []);
 
   const resetMetrics = useCallback(() => {
@@ -167,6 +177,10 @@ const DataGridScrollArea = ({
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- ref.current values are intentionally not deps
   }, [resetMetrics, showHorizontal, usesCustomVerticalScrollbar]);
 
+  const onSyncEvent = useEffectEvent(() => syncCustomVerticalScrollbar());
+  const onResetEvent = useEffectEvent(() => resetMetrics());
+  const onClearDragEvent = useEffectEvent(() => clearDragState());
+
   useEffect(() => {
     const container = containerRef.current;
     const viewport = viewportRef.current;
@@ -174,7 +188,7 @@ const DataGridScrollArea = ({
     if (!container || !viewport) return;
 
     if (!usesCustomVerticalScrollbar) {
-      resetMetrics();
+      onResetEvent();
       return;
     }
 
@@ -191,7 +205,7 @@ const DataGridScrollArea = ({
 
     const scheduleSync = () => {
       cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(syncCustomVerticalScrollbar);
+      frame = window.requestAnimationFrame(onSyncEvent);
     };
 
     scheduleSync();
@@ -215,10 +229,10 @@ const DataGridScrollArea = ({
       cancelAnimationFrame(frame);
       observer?.disconnect();
       viewport.removeEventListener("scroll", scheduleSync);
-      clearDragState();
+      onClearDragEvent();
     };
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- ref.current values are intentionally not deps
-  }, [clearDragState, resetMetrics, syncCustomVerticalScrollbar, usesCustomVerticalScrollbar]);
+  }, [usesCustomVerticalScrollbar]);
 
   const scrollToThumbOffset = (nextThumbTop: number) => {
     const viewport = viewportRef.current;
@@ -253,8 +267,10 @@ const DataGridScrollArea = ({
       startY: event.clientY,
     };
 
-    document.body.style.userSelect = "none";
-    document.body.style.webkitUserSelect = "none";
+    Object.assign(document.body.style, {
+      userSelect: "none",
+      webkitUserSelect: "none",
+    });
   };
 
   const handleThumbPointerMove = (event: PointerEvent<HTMLDivElement>) => {
@@ -313,62 +329,78 @@ const DataGridScrollArea = ({
           </ScrollAreaPrimitive.Content>
         </ScrollAreaPrimitive.Viewport>
 
-        {showHorizontal && (
-          <ScrollAreaPrimitive.Scrollbar
-            data-slot="data-grid-scrollbar"
-            data-orientation="horizontal"
-            orientation="horizontal"
-            className="flex touch-none p-px transition-colors select-none data-[orientation=horizontal]:h-2.5 data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:border-t data-[orientation=horizontal]:border-t-transparent data-[orientation=vertical]:h-full data-[orientation=vertical]:w-2 data-[orientation=vertical]:border-s data-[orientation=vertical]:border-s-transparent"
-          >
-            <ScrollAreaPrimitive.Thumb
-              data-slot="data-grid-thumb"
-              className="relative flex-1 rounded-full bg-border"
-            />
-          </ScrollAreaPrimitive.Scrollbar>
-        )}
+        {showHorizontal && <DataGridScrollbar orientation="horizontal" />}
 
         {showVertical && !usesCustomVerticalScrollbar && (
-          <ScrollAreaPrimitive.Scrollbar
-            data-slot="data-grid-scrollbar"
-            data-orientation="vertical"
-            orientation="vertical"
-            className="flex touch-none p-px transition-colors select-none data-[orientation=horizontal]:h-2.5 data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:border-t data-[orientation=horizontal]:border-t-transparent data-[orientation=vertical]:h-full data-[orientation=vertical]:w-2 data-[orientation=vertical]:border-s data-[orientation=vertical]:border-s-transparent"
-          >
-            <ScrollAreaPrimitive.Thumb
-              data-slot="data-grid-thumb"
-              className="relative flex-1 rounded-full bg-border"
-            />
-          </ScrollAreaPrimitive.Scrollbar>
+          <DataGridScrollbar orientation="vertical" />
         )}
       </ScrollAreaPrimitive.Root>
 
       {usesCustomVerticalScrollbar && hasCustomVerticalOverflow && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-e-0 top-(--data-grid-scrollbar-header-height) z-20 h-(--data-grid-scrollbar-track-height)"
-        >
-          <div
-            className="pointer-events-auto relative h-full w-2 touch-none p-px"
-            onPointerDown={handleTrackPointerDown}
-          >
-            <div
-              className={cn(
-                "absolute end-px w-2 bg-border",
-                "top-(--data-grid-scrollbar-thumb-top) h-(--data-grid-scrollbar-thumb-height)",
-                "rounded-full",
-              )}
-              onLostPointerCapture={clearDragState}
-              onPointerCancel={handleThumbPointerUp}
-              onPointerDown={handleThumbPointerDown}
-              onPointerMove={handleThumbPointerMove}
-              onPointerUp={handleThumbPointerUp}
-            />
-          </div>
-        </div>
+        <CustomVerticalScrollbar
+          handleTrackPointerDown={handleTrackPointerDown}
+          handleThumbPointerDown={handleThumbPointerDown}
+          handleThumbPointerMove={handleThumbPointerMove}
+          handleThumbPointerUp={handleThumbPointerUp}
+          clearDragState={clearDragState}
+        />
       )}
     </div>
   );
 };
+
+const DataGridScrollbar = ({ orientation }: { orientation: "horizontal" | "vertical" }) => (
+  <ScrollAreaPrimitive.Scrollbar
+    data-slot="data-grid-scrollbar"
+    data-orientation={orientation}
+    orientation={orientation}
+    className="flex touch-none p-px transition-colors select-none data-[orientation=horizontal]:h-2.5 data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:border-t data-[orientation=horizontal]:border-t-transparent data-[orientation=vertical]:h-full data-[orientation=vertical]:w-2 data-[orientation=vertical]:border-s data-[orientation=vertical]:border-s-transparent"
+  >
+    <ScrollAreaPrimitive.Thumb
+      data-slot="data-grid-thumb"
+      className="relative flex-1 rounded-full bg-border"
+    />
+  </ScrollAreaPrimitive.Scrollbar>
+);
+
+interface CustomVerticalScrollbarProps {
+  handleTrackPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
+  handleThumbPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
+  handleThumbPointerMove: (event: PointerEvent<HTMLDivElement>) => void;
+  handleThumbPointerUp: (event: PointerEvent<HTMLDivElement>) => void;
+  clearDragState: () => void;
+}
+
+const CustomVerticalScrollbar = ({
+  handleTrackPointerDown,
+  handleThumbPointerDown,
+  handleThumbPointerMove,
+  handleThumbPointerUp,
+  clearDragState,
+}: CustomVerticalScrollbarProps) => (
+  <div
+    aria-hidden="true"
+    className="pointer-events-none absolute inset-e-0 top-(--data-grid-scrollbar-header-height) z-20 h-(--data-grid-scrollbar-track-height)"
+  >
+    <div
+      className="pointer-events-auto relative h-full w-2 touch-none p-px"
+      onPointerDown={handleTrackPointerDown}
+    >
+      <div
+        className={cn(
+          "absolute end-px w-2 bg-border",
+          "top-(--data-grid-scrollbar-thumb-top) h-(--data-grid-scrollbar-thumb-height)",
+          "rounded-full",
+        )}
+        onLostPointerCapture={clearDragState}
+        onPointerCancel={handleThumbPointerUp}
+        onPointerDown={handleThumbPointerDown}
+        onPointerMove={handleThumbPointerMove}
+        onPointerUp={handleThumbPointerUp}
+      />
+    </div>
+  </div>
+);
 
 export { DataGridScrollArea };
 export type { DataGridScrollAreaOrientation, DataGridScrollAreaProps };

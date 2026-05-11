@@ -1,5 +1,14 @@
 import type React from "react";
-import { createContext, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  use,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
 interface EditorHeaderVisibilityContextType {
@@ -55,14 +64,18 @@ export const EditorHeaderVisibilityProvider = ({
   // When disabled, visibility is always true (derived, not via effect)
   const effectiveVisible = enabled ? visible : true;
 
+  const onMouseMoveEvent = useEffectEvent(() => {
+    reportPointerActivity();
+  });
+
   useEffect(() => {
     if (!enabled || visible) return;
     const onMouseMove = () => {
-      reportPointerActivity();
+      onMouseMoveEvent();
     };
     window.addEventListener("mousemove", onMouseMove, { passive: true });
     return () => window.removeEventListener("mousemove", onMouseMove);
-  }, [enabled, visible, reportPointerActivity]);
+  }, [enabled, visible]);
 
   useMountEffect(() => () => {
     clearHideTimer();

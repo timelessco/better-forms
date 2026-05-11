@@ -78,8 +78,8 @@ export const MediaPreviewDialog = () => {
         !isOpen && "hidden",
       )}
     >
-      <div className="absolute inset-0 size-full bg-black opacity-30" />
-      <div className="absolute inset-0 size-full bg-black opacity-30" />
+      <div className="absolute inset-0 size-full bg-neutral-950 opacity-30" />
+      <div className="absolute inset-0 size-full bg-neutral-950 opacity-30" />
       <Button
         variant="ghost"
         {...maskLayerProps}
@@ -146,7 +146,7 @@ export const MediaPreviewDialog = () => {
                 {isEditingScale ? (
                   <>
                     <ScaleInput
-                      className="w-10 rounded px-1 text-slate-500 outline"
+                      className="w-10 rounded px-1 text-neutral-500 outline"
                       aria-label="Zoom level"
                     />
                     <span>%</span>

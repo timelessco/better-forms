@@ -130,6 +130,20 @@ const CustomDomainFormIdRoute = () => {
 };
 
 export const Route = createFileRoute("/f/$formId")({
+  validateSearch: zodValidator(
+    z.object({
+      // No `.default()` — would 307-redirect bare URLs to a canonical form
+      // with all defaults appended, breaking link-preview crawlers.
+      transparentBackground: z.boolean().optional(),
+      transparent: z.coerce.boolean().optional(),
+      popup: z.coerce.boolean().optional(),
+      hideTitle: z.coerce.boolean().optional(),
+      alignLeft: z.coerce.boolean().optional(),
+      originPage: z.string().optional(),
+      dynamicHeight: z.coerce.boolean().optional(),
+      dynamicWidth: z.coerce.boolean().optional(),
+    }),
+  ),
   loader: async ({ params }) => {
     try {
       return await getCustomDomainFormByIdRSC({ data: { formId: params.formId } });
@@ -177,18 +191,4 @@ export const Route = createFileRoute("/f/$formId")({
   pendingComponent: Loader,
   errorComponent: ErrorBoundary,
   notFoundComponent: CustomDomainNotFound,
-  validateSearch: zodValidator(
-    z.object({
-      // No `.default()` — would 307-redirect bare URLs to a canonical form
-      // with all defaults appended, breaking link-preview crawlers.
-      transparentBackground: z.boolean().optional(),
-      transparent: z.coerce.boolean().optional(),
-      popup: z.coerce.boolean().optional(),
-      hideTitle: z.coerce.boolean().optional(),
-      alignLeft: z.coerce.boolean().optional(),
-      originPage: z.string().optional(),
-      dynamicHeight: z.coerce.boolean().optional(),
-      dynamicWidth: z.coerce.boolean().optional(),
-    }),
-  ),
 });

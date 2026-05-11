@@ -104,7 +104,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
   return (
     <Sidebar
       collapsible="none"
-      className="h-full w-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
+      className="size-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
     >
       <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
         <div className="flex items-center justify-between">
@@ -112,28 +112,34 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
           <Button
             variant="ghost"
             size="icon-xs"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            className="size-7 text-muted-foreground hover:text-foreground"
             onClick={closeSidebar}
             aria-label="Close"
           >
-            <XIcon className="h-4 w-4" />
+            <XIcon className="size-4" />
           </Button>
         </div>
       </SidebarHeader>
 
       <SidebarContent className="relative px-2 pt-[10px]">
-        {/* Vertical timeline line */}
-        {versionList.length > 1 && (
-          <div
-            className="absolute left-[26px] w-px bg-border/60"
-            style={{
-              top: `${10 + 8 + 10}px`,
-              height: `${(versionList.length - 1) * 55}px`,
-            }}
-          />
-        )}
+        <div className="relative flex flex-col gap-1">
+          {versionList.length > 1 && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute left-[18px] w-px overflow-hidden"
+              style={{ top: 18, bottom: 33 }}
+            >
+              <div className="absolute inset-0 bg-border/60" />
+              <div
+                className="absolute inset-x-0 h-32 animate-[timeline-glow-up_3s_linear_infinite]"
+                style={{
+                  background:
+                    "linear-gradient(to top, transparent 0%, color-mix(in oklab, var(--color-primary) 70%, transparent) 50%, transparent 100%)",
+                }}
+              />
+            </div>
+          )}
 
-        <div className="flex flex-col gap-1">
           {versionList.map((version, index) => {
             const publisher = getPublisherInfo(version.publishedBy);
             const isSelected = effectiveVersionId === version.id;
@@ -150,7 +156,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                 )}
               >
                 {/* Avatar */}
-                <div className="shrink-0">
+                <div className="relative z-10 shrink-0">
                   <Avatar className="size-5 rounded-full">
                     <AvatarImage src={publisher.image} alt={publisher.name} />
                     <AvatarFallback className="rounded-full bg-muted text-[13px] text-muted-foreground">

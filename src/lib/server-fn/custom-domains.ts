@@ -167,7 +167,7 @@ export const removeDomain = createServerFn({ method: "POST" })
       return affected.filter((f) => f.lastPublishedVersionId).map((f) => f.id);
     });
 
-    void purgeFormCacheBatch(everPublished);
+    await purgeFormCacheBatch(everPublished);
 
     return { success: true };
   });
@@ -255,7 +255,7 @@ export const updateDomainMeta = createServerFn({ method: "POST" })
 
     // siteTitle / faviconUrl / ogImageUrl land in the rendered <head> of
     // every bound form's public response.
-    void purgeFormCacheBatch(boundFormIds);
+    await purgeFormCacheBatch(boundFormIds);
 
     return serializeDomain(updated);
   });

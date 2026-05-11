@@ -102,9 +102,10 @@ const parseMathHtml = (html: string): React.ReactNode[] | null => {
   const parser = new DOMParser();
   const document = parser.parseFromString(html, "text/html");
 
-  const nodes = Array.from(document.body.childNodes)
-    .map((node, index) => convertNodeToReact(node, `${index}`))
-    .filter((node): node is React.ReactNode => node !== null);
+  const nodes = Array.from(document.body.childNodes).flatMap((node, index) => {
+    const result = convertNodeToReact(node, `${index}`);
+    return result === null ? [] : [result];
+  });
 
   return nodes.length ? nodes : null;
 };
@@ -120,9 +121,10 @@ const convertNodeToReact = (node: ChildNode, key: string): React.ReactNode | nul
 
   const element = node as Element;
   const props = convertAttributes(element);
-  const children = Array.from(element.childNodes)
-    .map((child, index) => convertNodeToReact(child, `${key}-${index}`))
-    .filter((child): child is React.ReactNode => child !== null);
+  const children = Array.from(element.childNodes).flatMap((child, index) => {
+    const result = convertNodeToReact(child, `${key}-${index}`);
+    return result === null ? [] : [result];
+  });
   const content =
     children.length === 0 ? undefined : children.length === 1 ? children[0] : children;
 

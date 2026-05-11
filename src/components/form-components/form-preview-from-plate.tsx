@@ -14,7 +14,7 @@ import { DEFAULT_ICON } from "@/lib/config/app-config";
 import { cn, DEFAULT_ICON_NAME, isValidUrl } from "@/lib/utils";
 import type { PublicFormSettings } from "@/types/form-settings";
 import { IconPickerPreview } from "@/components/icon-picker";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
 import type { Value } from "platejs";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -171,7 +171,7 @@ const PreviewFormHeader = ({
             width={1200}
             height={200}
             className={cn(
-              "h-full w-full object-cover",
+              "size-full object-cover",
               cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
             )}
             onError={handleImageError}
@@ -213,7 +213,7 @@ const PreviewFormHeader = ({
             alt="Form icon"
             width={120}
             height={120}
-            className="h-[100px] w-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
+            className="size-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
             data-bf-logo
             onError={handleIconError}
           />
@@ -360,10 +360,10 @@ const DefaultThankYou = ({ onReset, shareUrl }: { onReset?: () => void; shareUrl
   const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+      <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-green-100">
         {SuccessCheckmarkIcon}
       </div>
-      <h2 className="mb-2 text-2xl font-bold">{t("thankYou")}</h2>
+      <h2 className="mb-2 text-2xl font-semibold">{t("thankYou")}</h2>
       <p className="mb-6 text-muted-foreground">{t("responseSubmitted")}</p>
       {onReset && (
         <Button type="button" onClick={onReset} variant="outline" size="sm" className="rounded-lg">
@@ -542,6 +542,7 @@ const FormPreviewContent = ({
   const { t } = useTranslation();
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
 
+  // eslint-disable-next-line react-doctor/no-cascading-set-state -- single state (redirectCountdown) updated via initial set + interval functional updater; not cascading independent state
   useEffect(() => {
     if (!isSubmitted) return;
     if (!settings?.redirectOnCompletion || !settings?.redirectUrl) return;
@@ -586,25 +587,27 @@ const FormPreviewContent = ({
   }, [formId]);
 
   const thankYouContent = (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      {thankYouNodes && thankYouNodes.length > 0 ? (
-        <RenderThankYouContent nodes={thankYouNodes} onReset={reset} shareUrl={shareUrl} />
-      ) : (
-        <DefaultThankYou onReset={reset} shareUrl={shareUrl} />
-      )}
-      {redirectCountdown !== null && (
-        <p className="mt-4 text-center text-muted-foreground">
-          {t("redirecting", {
-            n: redirectCountdown,
-            s: redirectCountdown !== 1 ? "s" : "",
-          })}
-        </p>
-      )}
-    </motion.div>
+    <LazyMotion features={domAnimation} strict>
+      <m.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        {thankYouNodes && thankYouNodes.length > 0 ? (
+          <RenderThankYouContent nodes={thankYouNodes} onReset={reset} shareUrl={shareUrl} />
+        ) : (
+          <DefaultThankYou onReset={reset} shareUrl={shareUrl} />
+        )}
+        {redirectCountdown !== null && (
+          <p className="mt-4 text-center text-muted-foreground">
+            {t("redirecting", {
+              n: redirectCountdown,
+              s: redirectCountdown !== 1 ? "s" : "",
+            })}
+          </p>
+        )}
+      </m.div>
+    </LazyMotion>
   );
 
   // Show thank you content after submission (non-field-by-field layout).
@@ -643,7 +646,7 @@ const FormPreviewContent = ({
     return (
       <div
         className={cn(
-          "relative flex h-full w-full flex-col overflow-hidden",
+          "relative flex size-full flex-col overflow-hidden",
           layout === "public"
             ? isPopup
               ? "max-h-full min-h-full"
@@ -697,7 +700,7 @@ const FormPreviewContent = ({
                   alt=""
                   width={80}
                   height={80}
-                  className="h-20 w-20 flex-shrink-0 rounded-md object-cover"
+                  className="size-20 flex-shrink-0 rounded-md object-cover"
                   data-bf-logo
                 />
               ) : (
@@ -747,29 +750,31 @@ const FormPreviewContent = ({
             {isSubmitted ? (
               thankYouContent
             ) : (
-              <AnimatePresence mode="wait" custom={direction}>
-                <motion.div
-                  key={currentStep}
-                  custom={direction}
-                  variants={stepVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{
-                    x: { type: "spring", stiffness: 300, damping: 30 },
-                    opacity: { duration: 0.2 },
-                  }}
-                  className="w-full"
-                >
-                  <StepForm
+              <LazyMotion features={domAnimation} strict>
+                <AnimatePresence mode="wait" custom={direction}>
+                  <m.div
                     key={currentStep}
-                    stepIndex={currentStep}
-                    segments={currentStepSegments}
-                    isLastStep={isLastStep}
-                    autoActionButton
-                  />
-                </motion.div>
-              </AnimatePresence>
+                    custom={direction}
+                    variants={stepVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{
+                      x: { type: "spring", stiffness: 300, damping: 30 },
+                      opacity: { duration: 0.2 },
+                    }}
+                    className="w-full"
+                  >
+                    <StepForm
+                      key={currentStep}
+                      stepIndex={currentStep}
+                      segments={currentStepSegments}
+                      isLastStep={isLastStep}
+                      autoActionButton
+                    />
+                  </m.div>
+                </AnimatePresence>
+              </LazyMotion>
             )}
           </div>
         </div>
@@ -809,28 +814,30 @@ const FormPreviewContent = ({
         }}
         data-bf-form-container
       >
-        <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
-            key={currentStep}
-            custom={direction}
-            variants={stepVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{
-              x: { type: "spring", stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 },
-            }}
-            className="w-full"
-          >
-            <StepForm
+        <LazyMotion features={domAnimation} strict>
+          <AnimatePresence mode="wait" custom={direction}>
+            <m.div
               key={currentStep}
-              stepIndex={currentStep}
-              segments={currentStepSegments}
-              isLastStep={isLastStep}
-            />
-          </motion.div>
-        </AnimatePresence>
+              custom={direction}
+              variants={stepVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{
+                x: { type: "spring", stiffness: 300, damping: 30 },
+                opacity: { duration: 0.2 },
+              }}
+              className="w-full"
+            >
+              <StepForm
+                key={currentStep}
+                stepIndex={currentStep}
+                segments={currentStepSegments}
+                isLastStep={isLastStep}
+              />
+            </m.div>
+          </AnimatePresence>
+        </LazyMotion>
       </div>
     </div>
   );

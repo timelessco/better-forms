@@ -155,12 +155,14 @@ const CodeBlock = ({
 
   return (
     <div className="group relative mt-3 w-full max-w-full min-w-0 overflow-hidden">
+      {/* eslint-disable-next-line react/no-danger -- output of highlight.js applied to a known-safe embed snippet generated server-side */}
       <pre
         className={cn(
           "w-full max-w-full min-w-0 rounded-xl border border-border/50 bg-muted/30 p-4 pr-12 font-mono text-[12px] [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap text-foreground/90 [tab-size:2]",
           hljsClassName,
         )}
       >
+        {/* eslint-disable-next-line react/no-danger -- highlighted output comes from highlight.js sanitization of escaped HTML; no user-controlled content */}
         <code dangerouslySetInnerHTML={{ __html: highlighted }} />
       </pre>
       <div className="absolute top-2 right-2">
@@ -244,7 +246,7 @@ export const EmbedCodeDialog = ({
                   <code className="rounded border border-border/50 bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground">
                     data-*
                   </code>{" "}
-                  attributes on the script itself — no separate button required.
+                  attributes on the script itself, no separate button required.
                 </p>
                 <CodeBlock
                   code={`<script
@@ -366,7 +368,7 @@ Reform.close();`}
                           <code className="rounded bg-muted px-1 font-mono text-foreground">
                             data-*
                           </code>{" "}
-                          attributes on the script tag when the page loads — there's nothing to pass
+                          attributes on the script tag when the page loads: there's nothing to pass
                           at the call site.
                         </p>
                       </div>

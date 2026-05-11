@@ -9,12 +9,12 @@ import { ToolbarButton } from "./toolbar";
 export const CommentToolbarButton = () => {
   const editor = useEditorRef();
 
-  const handleClick = useCallback(() => {
+  const startCommentDraft = useCallback(() => {
     editor.getTransforms(commentPlugin).comment.setDraft();
   }, [editor]);
 
   return (
-    <ToolbarButton onClick={handleClick} data-plate-prevent-overlay tooltip="Comment">
+    <ToolbarButton onClick={startCommentDraft} data-plate-prevent-overlay tooltip="Comment">
       <MessageSquareTextIcon />
     </ToolbarButton>
   );

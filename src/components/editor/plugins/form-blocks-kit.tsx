@@ -10,6 +10,11 @@ import { PageBreakElement } from "@/components/ui/page-break-node";
 import { FormFileUploadElement } from "@/components/ui/form-file-upload-node";
 import { FormMultiSelectInputElement } from "@/components/ui/form-multi-select-input-node";
 import { FormOptionItemElement } from "@/components/ui/form-option-item-node";
+import {
+  findNextNonButtonPath,
+  findPrevNonButtonPath,
+  moveToPath,
+} from "@/components/editor/plugins/form-blocks-utils";
 
 const FORM_FIELD_TYPES = new Set([
   "formInput",
@@ -32,6 +37,17 @@ const FORM_FIELD_TYPES = new Set([
 const PROTECTED_BUTTON_TYPES = new Set(["formButton"]);
 
 const VOID_FORM_INPUT_TYPES = new Set(["formFileUpload", "formMultiSelectInput"]);
+
+const PAGE_FIELD_TYPES = new Set([
+  "formInput",
+  "formTextarea",
+  "formLabel",
+  "formRadioGroup",
+  "formCheckbox",
+  "formOptionItem",
+  "formSelect",
+  "formDatePicker",
+]);
 const NON_EDITABLE_BLOCK_TYPES = new Set([
   "formButton",
   "pageBreak",
@@ -39,67 +55,6 @@ const NON_EDITABLE_BLOCK_TYPES = new Set([
   "formFileUpload",
   "formMultiSelectInput",
 ]);
-
-export const moveToPath = (editor: PlateEditor, path: Path): boolean => {
-  const node = editor.api.node(path);
-  if (node) {
-    editor.tf.select({ path: [...path, 0], offset: 0 });
-    return true;
-  }
-  return false;
-};
-
-/**
- * Find the next block after the given path, skipping form buttons and page breaks.
- * - If next is a "submit" button (last page), return null (stay in place)
- * - If next is a "next/previous" button, skip to first element after page break
- */
-export const findNextNonButtonPath = (editor: PlateEditor, currentPath: Path): Path | null => {
-  const children = editor.children as TElement[];
-  const currentIndex = currentPath[0];
-
-  for (let i = currentIndex + 1; i < children.length; i++) {
-    const node = children[i];
-    if (!node) continue;
-
-    if (node.type === "formButton") {
-      const buttonRole = (node as Record<string, unknown>).buttonRole || "submit";
-
-      if (buttonRole === "submit") {
-        let hasThankYouPage = false;
-        for (let j = i + 1; j < children.length; j++) {
-          const nextNode = children[j];
-          if (
-            nextNode.type === "pageBreak" &&
-            (nextNode as Record<string, unknown>).isThankYouPage
-          ) {
-            hasThankYouPage = true;
-            break;
-          }
-        }
-        if (!hasThankYouPage) {
-          return null;
-        }
-        continue;
-      }
-
-      continue;
-    }
-
-    if (node.type === "pageBreak") {
-      continue;
-    }
-
-    // Skip form header (shouldn't navigate into it)
-    if (node.type === "formHeader") {
-      continue;
-    }
-
-    return [i];
-  }
-
-  return null;
-};
 
 /**
  * If the block at `blockPath` is the only content block after a preceding pageBreak,
@@ -145,24 +100,6 @@ const tryDeletePageBreakWithEmptyBlock = (editor: PlateEditor, blockPath: Path):
     }
   }
   return true;
-};
-
-export const findPrevNonButtonPath = (editor: PlateEditor, currentPath: Path): Path | null => {
-  const children = editor.children as TElement[];
-  const currentIndex = currentPath[0];
-
-  for (let i = currentIndex - 1; i >= 0; i--) {
-    const node = children[i];
-    if (!node) continue;
-
-    if (node.type === "formButton") continue;
-    if (node.type === "pageBreak") continue;
-    if (node.type === "formHeader") continue;
-
-    return [i];
-  }
-
-  return null;
 };
 
 /**
@@ -594,6 +531,7 @@ export const FormButtonPlugin = createPlatePlugin({
           return;
         }
 
+        const { insertNodes: tfInsertNodes, moveNodes: tfMoveNodes } = editorRef.tf;
         let pageStartIndex = 0;
         for (let i = 0; i <= getChildren().length; i++) {
           const node = getChildren()[i];
@@ -629,18 +567,7 @@ export const FormButtonPlugin = createPlatePlugin({
             for (let j = pageStartIndex; j < pageEndIndex; j++) {
               const n = getChildren()[j];
 
-              if (
-                [
-                  "formInput",
-                  "formTextarea",
-                  "formLabel",
-                  "formRadioGroup",
-                  "formCheckbox",
-                  "formOptionItem",
-                  "formSelect",
-                  "formDatePicker",
-                ].includes(n.type)
-              ) {
+              if (PAGE_FIELD_TYPES.has(n.type)) {
                 hasFields = true;
               }
 
@@ -696,19 +623,7 @@ export const FormButtonPlugin = createPlatePlugin({
               let hasFormFields = false;
               for (let j = pageStartIndex; j < pageEndIndex; j++) {
                 const n = getChildren()[j];
-                if (
-                  n &&
-                  [
-                    "formInput",
-                    "formTextarea",
-                    "formLabel",
-                    "formRadioGroup",
-                    "formCheckbox",
-                    "formOptionItem",
-                    "formSelect",
-                    "formDatePicker",
-                  ].includes(n.type)
-                ) {
+                if (n && PAGE_FIELD_TYPES.has(n.type)) {
                   hasFormFields = true;
                   break;
                 }
@@ -742,7 +657,7 @@ export const FormButtonPlugin = createPlatePlugin({
                 // Found orphaned content after action button - MOVE it before the button
                 // This allows "Type to Add" behavior
                 // Even for Thank You pages, content should be BEFORE the button.
-                editorRef.tf.moveNodes({ at: [j], to: [actionButtonIndex] });
+                tfMoveNodes({ at: [j], to: [actionButtonIndex] });
                 return;
               }
             }
@@ -759,7 +674,7 @@ export const FormButtonPlugin = createPlatePlugin({
             if (actionButtonIndex === -1) {
               const role = isLastPage ? "submit" : "next";
               const labelText = role === "next" ? "Next" : "Submit";
-              editorRef.tf.insertNodes(
+              tfInsertNodes(
                 {
                   type: "formButton",
                   buttonRole: role,
@@ -795,7 +710,7 @@ export const FormButtonPlugin = createPlatePlugin({
 
               // Replace the entire button node (use originalRemoveNodes to bypass override)
               originalRemoveNodes({ at: [actionButtonIndex] });
-              editorRef.tf.insertNodes(
+              tfInsertNodes(
                 {
                   type: "formButton",
                   buttonRole: expectedRole,
@@ -809,7 +724,7 @@ export const FormButtonPlugin = createPlatePlugin({
 
             // 4. Ensure Previous Button (Non-First Page)
             if (!isFirstPage && previousButtonIndex === -1) {
-              editorRef.tf.insertNodes(
+              tfInsertNodes(
                 {
                   type: "formButton",
                   buttonRole: "previous",
@@ -828,7 +743,7 @@ export const FormButtonPlugin = createPlatePlugin({
               previousButtonIndex !== -1 &&
               previousButtonIndex !== actionButtonIndex - 1
             ) {
-              editorRef.tf.moveNodes({
+              tfMoveNodes({
                 at: [previousButtonIndex],
                 to: [actionButtonIndex],
               });

@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { createContext, useContext } from "react";
+import { createContext, use } from "react";
 
 const SECTION_VALUE = "section";
 
@@ -23,6 +23,16 @@ const SECTION_VALUE = "section";
  */
 const SidebarSectionResetContext = createContext(0);
 export const SidebarSectionResetProvider = SidebarSectionResetContext.Provider;
+
+const DEFAULT_ACTION = (
+  <Button
+    variant="ghost"
+    className="hover:bg-sidebar-active size-[26px] overflow-hidden rounded-lg p-[5px] text-muted-foreground hover:text-foreground"
+    aria-label="Section actions"
+  >
+    <MoreHorizontalIcon className="size-4" />
+  </Button>
+);
 
 /** Collapsible sidebar section with label, chevron, and optional action (Figma system-flat). */
 export const SidebarSection = ({
@@ -41,17 +51,7 @@ export const SidebarSection = ({
   /** Additional classes for the accordion Panel itself (use to allow popups to escape). */
   panelClassName?: string;
 }) => {
-  const defaultAction = (
-    <Button
-      variant="ghost"
-      className="hover:bg-sidebar-active size-[26px] overflow-hidden rounded-lg p-[5px] text-muted-foreground hover:text-foreground"
-      aria-label="Section actions"
-    >
-      <MoreHorizontalIcon className="size-4" />
-    </Button>
-  );
-
-  const resetKey = useContext(SidebarSectionResetContext);
+  const resetKey = use(SidebarSectionResetContext);
 
   return (
     <Accordion
@@ -62,7 +62,7 @@ export const SidebarSection = ({
       <AccordionItem value={SECTION_VALUE} className="border-none">
         <AccordionTrigger
           iconPosition="inline"
-          action={action ?? defaultAction}
+          action={action ?? DEFAULT_ACTION}
           className="ml-[0.55px] h-7.5 cursor-pointer overflow-hidden rounded-lg px-1 py-1.5"
         >
           <span className="truncate font-case text-[13px] font-medium tracking-4 text-muted-foreground">

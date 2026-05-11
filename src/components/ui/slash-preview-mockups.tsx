@@ -233,7 +233,7 @@ export const FormTextAreaPreview = () => (
   <div className="flex h-[130px] flex-col justify-center px-3">
     <FormFieldLabel />
     <div className="flex h-16 items-start rounded-md border border-input px-2 pt-2">
-      <span className="text-xs text-muted-foreground/60">Tell us more...</span>
+      <span className="text-xs text-muted-foreground/60">Tell us more…</span>
     </div>
   </div>
 );

@@ -98,6 +98,7 @@ export const SidebarProvider = ({
     localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clamped));
   }, []);
 
+  // eslint-disable-next-line react-doctor/no-derived-useState -- standard controlled/uncontrolled pattern; defaultOpen is the initial value, openProp takes over when provided
   const [_open, _setOpen] = useState(defaultOpen);
   const open = openProp ?? _open;
   const setOpen = useCallback(
@@ -332,7 +333,7 @@ export const SidebarTrigger = ({
 }: React.ComponentProps<typeof Button>) => {
   const { toggleSidebar } = useSidebar();
 
-  const handleClick = useCallback(
+  const toggleAndForward = useCallback(
     (event: Parameters<NonNullable<typeof onClick>>[0]) => {
       onClick?.(event);
       toggleSidebar();
@@ -347,7 +348,7 @@ export const SidebarTrigger = ({
       variant="ghost"
       size="icon-sm"
       className={cn(className)}
-      onClick={handleClick}
+      onClick={toggleAndForward}
       {...props}
     >
       <PanelLeftIcon className="rtl:rotate-180" />

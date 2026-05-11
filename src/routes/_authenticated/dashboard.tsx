@@ -76,7 +76,7 @@ const SyncOverlay = () => {
 
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-20">
-      <Loader2Icon className="h-6 w-6 animate-spin text-muted-foreground" />
+      <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
       <div className="h-6 overflow-hidden">
         <p
           key={messageIndex}
@@ -92,6 +92,43 @@ const SyncOverlay = () => {
 
 // Module-level flag survives component unmount/remount during navigation
 let _hasSynced = false;
+
+const useLocalDataSync = (
+  sessionUser: unknown,
+  activeOrgId: string | undefined,
+): { isSyncing: boolean } => {
+  const [isSyncing, setIsSyncing] = useState(false);
+  useEffect(() => {
+    const syncData = async () => {
+      if (!sessionUser || !activeOrgId) return;
+      if (_hasSynced) return;
+
+      const hasData = await hasLocalDataToSync();
+      if (!hasData) {
+        _hasSynced = true;
+        return;
+      }
+
+      setIsSyncing(true);
+      try {
+        const result = await syncLocalDataToCloud(activeOrgId);
+        if (result?.syncedForms && result.syncedForms.length > 0) {
+          clearLocalDraftIds();
+          sessionStorage.removeItem("shouldSyncAfterLogin");
+          toast.success("Local data synced!");
+        }
+        _hasSynced = true;
+      } catch (error) {
+        console.error("Failed to sync local data:", error);
+        toast.error("Signed in but failed to sync local data");
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+    void syncData();
+  }, [sessionUser, activeOrgId]);
+  return { isSyncing };
+};
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -109,7 +146,7 @@ const DashboardPage = () => {
   const [duplicatingFormId, setDuplicatingFormId] = useState<string | null>(null);
 
   const { data: session } = useSession();
-  const [isSyncing, setIsSyncing] = useState(false);
+  const { isSyncing } = useLocalDataSync(session?.user, activeOrg?.id);
 
   const { data: liveWorkspaces, isLoading: wsLoading } = useOrgWorkspaces(activeOrg?.id);
   const { data: liveForms, isLoading: formsLoading } = useOrgForms(activeOrg?.id);
@@ -132,36 +169,6 @@ const DashboardPage = () => {
   const totalPages = Math.ceil(orgForms.length / FORMS_PER_PAGE);
   const startIndex = (currentPage - 1) * FORMS_PER_PAGE;
   const paginatedForms = orgForms.slice(startIndex, startIndex + FORMS_PER_PAGE);
-
-  useEffect(() => {
-    const syncData = async () => {
-      if (!session?.user || !activeOrg?.id) return;
-      if (_hasSynced) return;
-
-      const hasData = await hasLocalDataToSync();
-      if (!hasData) {
-        _hasSynced = true;
-        return;
-      }
-
-      setIsSyncing(true);
-      try {
-        const result = await syncLocalDataToCloud(activeOrg.id);
-        if (result?.syncedForms && result.syncedForms.length > 0) {
-          clearLocalDraftIds();
-          sessionStorage.removeItem("shouldSyncAfterLogin");
-          toast.success("Local data synced!");
-        }
-        _hasSynced = true;
-      } catch (error) {
-        console.error("Failed to sync local data:", error);
-        toast.error("Signed in but failed to sync local data");
-      } finally {
-        setIsSyncing(false);
-      }
-    };
-    void syncData();
-  }, [session?.user, activeOrg?.id]);
 
   const handleCreateWorkspace = useCallback(async () => {
     if (!activeOrg?.id) return;
@@ -304,355 +311,535 @@ const DashboardPage = () => {
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-background text-foreground">
       <main className="mx-auto w-full max-w-6xl flex-1 p-6 md:p-12 lg:p-20">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Home</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isLoading
-                ? "Loading..."
-                : `${orgForms.length} form${orgForms.length !== 1 ? "s" : ""} across ${orgWorkspaces.length} workspace${orgWorkspaces.length !== 1 ? "s" : ""}`}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              className="ml-1"
-              size="sm"
-              variant="secondary"
-              prefix={<FolderPlus className="size-4" />}
-              onClick={handleCreateWorkspace}
-              disabled={isLoading}
-            >
-              New workspace
-            </Button>
-            <Button
-              size="sm"
-              prefix={
-                isCreating ? (
-                  <Loader2Icon className="animate-spin" />
-                ) : (
-                  <PlusIcon className="size-4" />
-                )
-              }
-              onClick={handleCreateForm}
-              disabled={isLoading || isCreating || orgWorkspaces.length === 0}
-            >
-              New form
-            </Button>
-          </div>
-        </div>
+        <DashboardHeader
+          isLoading={isLoading}
+          orgFormsCount={orgForms.length}
+          orgWorkspacesCount={orgWorkspaces.length}
+          isCreating={isCreating}
+          handleCreateWorkspace={handleCreateWorkspace}
+          handleCreateForm={handleCreateForm}
+        />
 
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-2">
-            {isSyncing ? (
-              <SyncOverlay />
-            ) : isLoading ? (
-              [1, 2, 3, 4, 5].map((i) => (
-                <div
-                  key={`skeleton-${i}`}
-                  className="-mx-2 flex animate-pulse flex-col rounded-xl p-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col gap-2">
-                        <div className="h-5 w-48 rounded bg-muted" />
-                        <div className="h-3 w-32 rounded bg-muted" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              paginatedForms.map((form) => {
-                const isSelected = selectedFormIds.has(form.id);
-                return (
-                  <Card
-                    key={form.id}
-                    className={`group cursor-pointer gap-0 bg-transparent px-3 py-2 ring-0 transition-[background-color,box-shadow] duration-200 hover:bg-muted/30 ${isSelected ? "bg-muted/50" : ""}`}
-                  >
-                    <Link
-                      to={
-                        form.status === "published"
-                          ? "/workspace/$workspaceId/form-builder/$formId/submissions"
-                          : "/workspace/$workspaceId/form-builder/$formId/edit"
-                      }
-                      params={{
-                        workspaceId: form.workspaceId,
-                        formId: form.id,
-                      }}
-                      preload="intent"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold transition-colors">
-                                {form.title || "Untitled"}
-                              </span>
-                              <Badge
-                                variant="secondary"
-                                className={`h-4 px-1.5 text-[10px] font-normal ${
-                                  form.status === "published"
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-muted/80 text-muted-foreground"
-                                } rounded-full`}
-                              >
-                                {form.status === "published" ? "Published" : "Draft"}
-                              </Badge>
-                            </div>
-                            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <span>
-                                {workspaceNameMap.get(form.workspaceId) || "Unknown workspace"}
-                              </span>
-                              <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/30"></span>
-                              <span>{formatLastEdited(form.updatedAt)}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div
-                          className={`flex items-center gap-1 transition-opacity ${duplicatingFormId === form.id || isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-                        >
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label="Duplicate form"
-                                    disabled={duplicatingFormId === form.id}
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      void handleDuplicate(form.id);
-                                    }}
-                                  />
-                                }
-                              >
-                                {duplicatingFormId === form.id ? (
-                                  <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
-                                ) : (
-                                  <CopyIcon className="h-4 w-4 text-muted-foreground" />
-                                )}
-                              </TooltipTrigger>
-                              <TooltipContent>Duplicate</TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label="Delete form"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleDeleteClick({
-                                        id: form.id,
-                                        title: form.title || "Untitled",
-                                      });
-                                    }}
-                                  />
-                                }
-                              >
-                                <Trash2Icon className="h-4 w-4 text-muted-foreground" />
-                              </TooltipTrigger>
-                              <TooltipContent>Delete</TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label={isSelected ? "Deselect form" : "Select form"}
-                                    className={
-                                      isSelected
-                                        ? "border border-muted-foreground/30 bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/30"
-                                        : "text-muted-foreground"
-                                    }
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleToggleSelect(form.id);
-                                    }}
-                                  />
-                                }
-                              >
-                                <CheckIcon className="size-3.5" />
-                              </TooltipTrigger>
-                              <TooltipContent>{isSelected ? "Deselect" : "Select"}</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      </div>
-                    </Link>
-                  </Card>
-                );
-              })
-            )}
-          </div>
+          <DashboardFormList
+            isSyncing={isSyncing}
+            isLoading={isLoading}
+            paginatedForms={paginatedForms}
+            selectedFormIds={selectedFormIds}
+            workspaceNameMap={workspaceNameMap}
+            duplicatingFormId={duplicatingFormId}
+            formatLastEdited={formatLastEdited}
+            handleDuplicate={handleDuplicate}
+            handleDeleteClick={handleDeleteClick}
+            handleToggleSelect={handleToggleSelect}
+          />
 
           {!isLoading && totalPages > 1 && (
-            <div className="flex items-center justify-between border-t pt-4">
-              <p className="text-sm text-muted-foreground">
-                Showing {startIndex + 1}-{Math.min(startIndex + FORMS_PER_PAGE, orgForms.length)} of{" "}
-                {orgForms.length} forms
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePrevPage}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeftIcon className="h-4 w-4" />
-                  Previous
-                </Button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "ghost"}
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </Button>
-                  ))}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleNextPage}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                  <ChevronRightIcon className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+            <DashboardPagination
+              startIndex={startIndex}
+              totalForms={orgForms.length}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPrevPage={handlePrevPage}
+              onNextPage={handleNextPage}
+              onSetPage={setCurrentPage}
+            />
           )}
 
           {!isLoading && orgForms.length === 0 && (
-            <div className="flex flex-col items-center justify-center space-y-4 rounded-2xl border-2 border-dashed bg-muted/20 py-20 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                <FileTextIcon className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <div className="space-y-1">
-                <p>No forms yet</p>
-                <p className="max-w-xs text-sm text-muted-foreground">
-                  Create your first form to get started.
-                </p>
-              </div>
-              <Button
-                size="sm"
-                onClick={handleCreateForm}
-                disabled={isLoading || isCreating || orgWorkspaces.length === 0}
-              >
-                {isCreating && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
-                Create my first form
-              </Button>
-            </div>
+            <DashboardEmptyState
+              isCreating={isCreating}
+              disabled={isLoading || isCreating || orgWorkspaces.length === 0}
+              onCreate={handleCreateForm}
+            />
           )}
         </div>
       </main>
 
       {hasSelection && (
-        <div className="fixed bottom-6 left-1/2 z-50 w-[min(560px,90vw)] -translate-x-1/2 animate-in duration-300 fade-in slide-in-from-bottom-4">
-          <div className="shadow-card-elevated flex items-center justify-between rounded-2xl border border-border/40 bg-background px-4 py-3">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-background">
-                <CheckIcon className="h-4 w-4" strokeWidth={3} />
-              </div>
-              <span className="text-sm font-medium">{selectedFormIds.size} selected</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={handleBulkDelete}>
-                Delete
-                <span className="ml-1 text-xs text-muted-foreground">
-                  {formatForDisplay(HOTKEYS.DASHBOARD_DELETE)}
-                </span>
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="border border-border/50"
-                onClick={handleClearSelection}
-              >
-                <XIcon className="h-3.5 w-3.5" />
-                Clear
-                <span className="ml-1 text-xs text-muted-foreground">
-                  {formatForDisplay(HOTKEYS.DASHBOARD_CLEAR_SELECTION)}
-                </span>
-              </Button>
-            </div>
-          </div>
-        </div>
+        <BulkSelectionToolbar
+          count={selectedFormIds.size}
+          onBulkDelete={handleBulkDelete}
+          onClearSelection={handleClearSelection}
+        />
       )}
 
-      {!hasSelection && (
-        <div className="fixed right-6 bottom-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 rounded-full border bg-muted/50 shadow-sm hover:bg-secondary"
-            aria-label="Help"
-          >
-            <HelpCircleIcon className="h-5 w-5 text-muted-foreground" />
-          </Button>
-        </div>
-      )}
+      {!hasSelection && <FloatingHelpButton />}
 
-      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Delete {selectedFormIds.size} form
-              {selectedFormIds.size !== 1 ? "s" : ""}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {selectedFormIds.size} form
-              {selectedFormIds.size !== 1 ? "s" : ""}? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmBulkDelete}
-              className="bg-destructive text-white hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <BulkDeleteDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        count={selectedFormIds.size}
+        onConfirm={handleConfirmBulkDelete}
+      />
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete form</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{formToDelete?.title}"? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-destructive text-white hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <SingleDeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title={formToDelete?.title}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 };
+
+interface DashboardHeaderProps {
+  isLoading: boolean;
+  orgFormsCount: number;
+  orgWorkspacesCount: number;
+  isCreating: boolean;
+  handleCreateWorkspace: () => void;
+  handleCreateForm: () => void;
+}
+
+const DashboardHeader = ({
+  isLoading,
+  orgFormsCount,
+  orgWorkspacesCount,
+  isCreating,
+  handleCreateWorkspace,
+  handleCreateForm,
+}: DashboardHeaderProps) => (
+  <div className="mb-8 flex items-center justify-between">
+    <div>
+      <h1 className="text-2xl font-semibold">Home</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {isLoading
+          ? "Loading..."
+          : `${orgFormsCount} form${orgFormsCount !== 1 ? "s" : ""} across ${orgWorkspacesCount} workspace${orgWorkspacesCount !== 1 ? "s" : ""}`}
+      </p>
+    </div>
+    <div className="flex items-center gap-3">
+      <Button
+        className="ml-1"
+        size="sm"
+        variant="secondary"
+        prefix={<FolderPlus className="size-4" />}
+        onClick={handleCreateWorkspace}
+        disabled={isLoading}
+      >
+        New workspace
+      </Button>
+      <Button
+        size="sm"
+        prefix={
+          isCreating ? <Loader2Icon className="animate-spin" /> : <PlusIcon className="size-4" />
+        }
+        onClick={handleCreateForm}
+        disabled={isLoading || isCreating || orgWorkspacesCount === 0}
+      >
+        New form
+      </Button>
+    </div>
+  </div>
+);
+
+interface DashboardFormListProps {
+  isSyncing: boolean;
+  isLoading: boolean;
+  paginatedForms: ReadonlyArray<{ id: string }>;
+  selectedFormIds: Set<string>;
+  workspaceNameMap: Map<string, string>;
+  duplicatingFormId: string | null;
+  formatLastEdited: (timestamp: string) => string;
+  handleDuplicate: (formId: string) => Promise<void> | void;
+  handleDeleteClick: (form: { id: string; title: string }) => void;
+  handleToggleSelect: (formId: string) => void;
+}
+
+const DashboardFormList = ({
+  isSyncing,
+  isLoading,
+  paginatedForms,
+  selectedFormIds,
+  workspaceNameMap,
+  duplicatingFormId,
+  formatLastEdited,
+  handleDuplicate,
+  handleDeleteClick,
+  handleToggleSelect,
+}: DashboardFormListProps) => (
+  <div className="grid grid-cols-1 gap-2">
+    {isSyncing ? (
+      <SyncOverlay />
+    ) : isLoading ? (
+      ["a", "b", "c", "d", "e"].map((id) => (
+        <div key={`skeleton-${id}`} className="-mx-2 flex animate-pulse flex-col rounded-xl p-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-2">
+                <div className="h-5 w-48 rounded bg-muted" />
+                <div className="h-3 w-32 rounded bg-muted" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))
+    ) : (
+      paginatedForms.map((form) => (
+        <FormListItem
+          // eslint-disable-next-line typescript-eslint/no-explicit-any -- form shape inferred at site of use
+          key={form.id}
+          form={form as any}
+          isSelected={selectedFormIds.has(form.id)}
+          workspaceNameMap={workspaceNameMap}
+          duplicatingFormId={duplicatingFormId}
+          formatLastEdited={formatLastEdited}
+          onDuplicate={handleDuplicate}
+          onDeleteClick={handleDeleteClick}
+          onToggleSelect={handleToggleSelect}
+        />
+      ))
+    )}
+  </div>
+);
+
+const FloatingHelpButton = () => (
+  <div className="fixed right-6 bottom-6">
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-10 rounded-full border bg-muted/50 shadow-sm hover:bg-secondary"
+      aria-label="Help"
+    >
+      <HelpCircleIcon className="size-5 text-muted-foreground" />
+    </Button>
+  </div>
+);
+
+type DashboardPaginationProps = {
+  startIndex: number;
+  totalForms: number;
+  currentPage: number;
+  totalPages: number;
+  onPrevPage: () => void;
+  onNextPage: () => void;
+  onSetPage: (page: number) => void;
+};
+
+const DashboardPagination = ({
+  startIndex,
+  totalForms,
+  currentPage,
+  totalPages,
+  onPrevPage,
+  onNextPage,
+  onSetPage,
+}: DashboardPaginationProps) => (
+  <div className="flex items-center justify-between border-t pt-4">
+    <p className="text-sm text-muted-foreground">
+      Showing {startIndex + 1}-{Math.min(startIndex + FORMS_PER_PAGE, totalForms)} of {totalForms}{" "}
+      forms
+    </p>
+    <div className="flex items-center gap-2">
+      <Button variant="outline" size="sm" onClick={onPrevPage} disabled={currentPage === 1}>
+        <ChevronLeftIcon className="size-4" />
+        Previous
+      </Button>
+      <div className="flex items-center gap-1">
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+          <Button
+            key={page}
+            variant={currentPage === page ? "default" : "ghost"}
+            size="sm"
+            className="size-8 p-0"
+            onClick={() => onSetPage(page)}
+          >
+            {page}
+          </Button>
+        ))}
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onNextPage}
+        disabled={currentPage === totalPages}
+      >
+        Next
+        <ChevronRightIcon className="size-4" />
+      </Button>
+    </div>
+  </div>
+);
+
+type DashboardEmptyStateProps = {
+  isCreating: boolean;
+  disabled: boolean;
+  onCreate: () => void;
+};
+
+const DashboardEmptyState = ({ isCreating, disabled, onCreate }: DashboardEmptyStateProps) => (
+  <div className="flex flex-col items-center justify-center gap-y-4 rounded-2xl border-2 border-dashed bg-muted/20 py-20 text-center">
+    <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+      <FileTextIcon className="size-6 text-muted-foreground" />
+    </div>
+    <div className="space-y-1">
+      <p>No forms yet</p>
+      <p className="max-w-xs text-sm text-muted-foreground">
+        Create your first form to get started.
+      </p>
+    </div>
+    <Button size="sm" onClick={onCreate} disabled={disabled}>
+      {isCreating && <Loader2Icon className="mr-2 size-4 animate-spin" />}
+      Create my first form
+    </Button>
+  </div>
+);
+
+type BulkDeleteDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  count: number;
+  onConfirm: () => void;
+};
+
+const BulkDeleteDialog = ({ open, onOpenChange, count, onConfirm }: BulkDeleteDialogProps) => (
+  <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>
+          Delete {count} form{count !== 1 ? "s" : ""}
+        </AlertDialogTitle>
+        <AlertDialogDescription>
+          Are you sure you want to delete {count} form{count !== 1 ? "s" : ""}? This action cannot
+          be undone.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          onClick={onConfirm}
+          className="bg-destructive text-white hover:bg-destructive/90"
+        >
+          Delete
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
+
+type SingleDeleteDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string | undefined;
+  onConfirm: () => void;
+};
+
+const SingleDeleteDialog = ({ open, onOpenChange, title, onConfirm }: SingleDeleteDialogProps) => (
+  <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Delete form</AlertDialogTitle>
+        <AlertDialogDescription>
+          Are you sure you want to delete "{title}"? This action cannot be undone.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          onClick={onConfirm}
+          className="bg-destructive text-white hover:bg-destructive/90"
+        >
+          Delete
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
+
+type FormListItemForm = {
+  id: string;
+  title: string | null;
+  status: "draft" | "published" | "archived" | string;
+  workspaceId: string;
+  updatedAt: string;
+};
+
+type FormListItemProps = {
+  form: FormListItemForm;
+  isSelected: boolean;
+  workspaceNameMap: Map<string, string>;
+  duplicatingFormId: string | null;
+  formatLastEdited: (timestamp: string) => string;
+  onDuplicate: (formId: string) => void;
+  onDeleteClick: (form: { id: string; title: string }) => void;
+  onToggleSelect: (formId: string) => void;
+};
+
+const FormListItem = ({
+  form,
+  isSelected,
+  workspaceNameMap,
+  duplicatingFormId,
+  formatLastEdited,
+  onDuplicate,
+  onDeleteClick,
+  onToggleSelect,
+}: FormListItemProps) => (
+  <Card
+    className={`group cursor-pointer gap-0 bg-transparent px-3 py-2 ring-0 transition-[background-color,box-shadow] duration-200 hover:bg-muted/30 ${isSelected ? "bg-muted/50" : ""}`}
+  >
+    <Link
+      to={
+        form.status === "published"
+          ? "/workspace/$workspaceId/form-builder/$formId/submissions"
+          : "/workspace/$workspaceId/form-builder/$formId/edit"
+      }
+      params={{
+        workspaceId: form.workspaceId,
+        formId: form.id,
+      }}
+      preload="intent"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold transition-colors">{form.title || "Untitled"}</span>
+              <Badge
+                variant="secondary"
+                className={`h-4 px-1.5 text-[10px] font-normal ${
+                  form.status === "published"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-muted/80 text-muted-foreground"
+                } rounded-full`}
+              >
+                {form.status === "published" ? "Published" : "Draft"}
+              </Badge>
+            </div>
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span>{workspaceNameMap.get(form.workspaceId) || "Unknown workspace"}</span>
+              <span className="size-0.5 rounded-full bg-muted-foreground/30"></span>
+              <span>{formatLastEdited(form.updatedAt)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className={`flex items-center gap-1 transition-opacity ${duplicatingFormId === form.id || isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+        >
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Duplicate form"
+                    disabled={duplicatingFormId === form.id}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onDuplicate(form.id);
+                    }}
+                  />
+                }
+              >
+                {duplicatingFormId === form.id ? (
+                  <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <CopyIcon className="size-4 text-muted-foreground" />
+                )}
+              </TooltipTrigger>
+              <TooltipContent>Duplicate</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Delete form"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onDeleteClick({
+                        id: form.id,
+                        title: form.title || "Untitled",
+                      });
+                    }}
+                  />
+                }
+              >
+                <Trash2Icon className="size-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent>Delete</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={isSelected ? "Deselect form" : "Select form"}
+                    className={
+                      isSelected
+                        ? "border border-muted-foreground/30 bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/30"
+                        : "text-muted-foreground"
+                    }
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onToggleSelect(form.id);
+                    }}
+                  />
+                }
+              >
+                <CheckIcon className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent>{isSelected ? "Deselect" : "Select"}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
+    </Link>
+  </Card>
+);
+
+type BulkSelectionToolbarProps = {
+  count: number;
+  onBulkDelete: () => void;
+  onClearSelection: () => void;
+};
+
+const BulkSelectionToolbar = ({
+  count,
+  onBulkDelete,
+  onClearSelection,
+}: BulkSelectionToolbarProps) => (
+  <div className="fixed bottom-6 left-1/2 z-50 w-[min(560px,90vw)] -translate-x-1/2 animate-in duration-300 fade-in slide-in-from-bottom-4">
+    <div className="shadow-card-elevated flex items-center justify-between rounded-2xl border border-border/40 bg-background px-4 py-3">
+      <div className="flex items-center gap-2.5">
+        <div className="flex size-6 items-center justify-center rounded-md bg-foreground text-background">
+          <CheckIcon className="size-4" strokeWidth={3} />
+        </div>
+        <span className="text-sm font-medium">{count} selected</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={onBulkDelete}>
+          Delete
+          <span className="ml-1 text-xs text-muted-foreground">
+            {formatForDisplay(HOTKEYS.DASHBOARD_DELETE)}
+          </span>
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="border border-border/50"
+          onClick={onClearSelection}
+        >
+          <XIcon className="size-3.5" />
+          Clear
+          <span className="ml-1 text-xs text-muted-foreground">
+            {formatForDisplay(HOTKEYS.DASHBOARD_CLEAR_SELECTION)}
+          </span>
+        </Button>
+      </div>
+    </div>
+  </div>
+);
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardPage,

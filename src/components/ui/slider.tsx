@@ -39,10 +39,12 @@ export const Slider = ({
             className="bg-primary select-none data-horizontal:h-full data-vertical:w-full"
           />
         </SliderPrimitive.Track>
-        {Array.from({ length: _values.length }, (_, index) => (
+        {_values.map((value) => (
           <SliderPrimitive.Thumb
             data-slot="slider-thumb"
-            key={index}
+            // Thumbs map 1:1 to values; the value itself is a stable identity
+            // because Radix doesn't allow duplicates in a single slider.
+            key={`thumb-${value}`}
             className="relative block size-3 shrink-0 rounded-full border border-ring bg-white ring-ring/50 transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-3 focus-visible:ring-3 focus-visible:outline-hidden active:ring-3 disabled:pointer-events-none disabled:opacity-50"
           />
         ))}

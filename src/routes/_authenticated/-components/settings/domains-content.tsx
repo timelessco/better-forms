@@ -126,6 +126,7 @@ export const DomainsContent = () => {
   // Move focus to Cancel when entering confirm-delete state. Without this the
   // trash button (where focus was) gets unmounted and focus falls back to body —
   // keyboard users have to tab from the top to reach the confirm controls.
+  // eslint-disable-next-line react-doctor/no-effect-event-handler -- focus restoration must wait for the trash→cancel-button mount swap; can't run inside the click handler
   useEffect(() => {
     if (confirmDeleteId) {
       cancelDeleteButtonRef.current?.focus();
@@ -230,7 +231,10 @@ export const DomainsContent = () => {
 
   const recheckMutation = useMutation({
     mutationFn: (domainId: string) => recheckDomainStatus({ data: { domainId } }),
-    onSuccess: handleStatusResult,
+    onSuccess: (result) => {
+      handleStatusResult(result);
+      void queryClient.invalidateQueries({ queryKey: ["org-domains", orgId] });
+    },
     onError: (error: unknown) => {
       toast.error(error instanceof Error ? error.message : "Failed to verify domain");
     },
@@ -402,7 +406,7 @@ export const DomainsContent = () => {
               variant="default"
               onClick={handleAddDomain}
               disabled={addMutation.isPending}
-              className="h-[24px] w-[47px] rounded-lg bg-gray-50 px-3 text-sm text-gray-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-gray-200"
+              className="h-[24px] w-[47px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
             >
               {addMutation.isPending ? <Loader2Icon className="size-3 animate-spin" /> : "Add"}
             </InputGroupButton>
@@ -440,7 +444,7 @@ export const DomainsContent = () => {
                           ref={cancelDeleteButtonRef}
                           variant="outline"
                           size="icon"
-                          className="h-7 w-7"
+                          className="size-7"
                           onClick={handleCancelDelete}
                           disabled={removeMutation.isPending}
                           aria-label="Cancel removing domain"
@@ -450,7 +454,7 @@ export const DomainsContent = () => {
                         <Button
                           variant="destructive"
                           size="icon"
-                          className="h-7 w-7"
+                          className="size-7"
                           onClick={() => removeMutation.mutate(domain.id)}
                           disabled={removeMutation.isPending}
                           aria-label="Confirm remove domain"
@@ -512,7 +516,7 @@ export const DomainsContent = () => {
                           data-trash-for={domain.id}
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          className="size-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => setConfirmDeleteId(domain.id)}
                           aria-label={`Remove ${domain.domain}`}
                         >
@@ -534,7 +538,7 @@ export const DomainsContent = () => {
                         dnsRecordsByDomainId[domain.id].some((r) => r.type === "CNAME") && (
                           <>
                             {" "}
-                            The TXT proves ownership; the CNAME makes the subdomain resolve — both
+                            The TXT proves ownership; the CNAME makes the subdomain resolve, both
                             are required.
                           </>
                         )}
@@ -542,7 +546,7 @@ export const DomainsContent = () => {
                         <>
                           {" "}
                           Some providers strip your zone from the Name and store it in the short
-                          form — both work.
+                          form, both work.
                         </>
                       )}
                     </p>
@@ -597,7 +601,7 @@ export const DomainsContent = () => {
                 )}
 
                 {isConfiguring && (
-                  <div className="space-y-5 border-t px-4 py-4">
+                  <div className="space-y-5 border-t p-4">
                     <div className="flex flex-col gap-2">
                       <label
                         className="text-base tracking-[0.28px] text-muted-foreground"
@@ -624,7 +628,7 @@ export const DomainsContent = () => {
                             variant="default"
                             onClick={() => handleSaveSiteTitle(domain.id)}
                             disabled={updateMetaMutation.isPending}
-                            className="h-[24px] w-[47px] rounded-lg bg-gray-50 px-3 text-sm text-gray-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-gray-200"
+                            className="h-[24px] w-[47px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
                           >
                             {updateMetaMutation.isPending ? (
                               <Loader2Icon className="size-3 animate-spin" />
@@ -654,7 +658,7 @@ export const DomainsContent = () => {
                             size="sm"
                             onClick={handleFaviconButtonClick}
                             disabled={isUploadingFavicon}
-                            className="h-[30px] rounded-lg bg-gray-50 px-3 text-sm text-gray-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-gray-200"
+                            className="h-[30px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
                             prefix={
                               isUploadingFavicon ? (
                                 <Loader2Icon className="size-3 animate-spin" />
@@ -692,7 +696,7 @@ export const DomainsContent = () => {
                             size="sm"
                             onClick={handleOgButtonClick}
                             disabled={isUploadingOg}
-                            className="h-[30px] rounded-lg bg-gray-50 px-3 text-sm text-gray-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-gray-200"
+                            className="h-[30px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
                             prefix={
                               isUploadingOg ? (
                                 <Loader2Icon className="size-3 animate-spin" />

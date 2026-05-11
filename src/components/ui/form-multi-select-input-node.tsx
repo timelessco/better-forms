@@ -9,7 +9,7 @@ import {
   findNextNonButtonPath,
   findPrevNonButtonPath,
   moveToPath,
-} from "@/components/editor/plugins/form-blocks-kit";
+} from "@/components/editor/plugins/form-blocks-utils";
 import { BlockSelection } from "@/components/ui/block-selection";
 import { TagIcon, XIcon } from "@/components/ui/icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -72,7 +72,7 @@ export const FormMultiSelectInputElement = ({ children, ...props }: PlateElement
         if (focusedChipIndex >= options.length - 1) {
           setFocusedChipIndex(null);
         } else {
-          setFocusedChipIndex(focusedChipIndex + 1);
+          setFocusedChipIndex((prev) => (prev === null ? null : prev + 1));
         }
         return;
       }

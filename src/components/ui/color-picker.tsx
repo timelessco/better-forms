@@ -2,7 +2,7 @@
 
 import { Slider as SliderPrimitive } from "@base-ui/react/slider";
 import { PipetteIcon } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
 import * as React from "react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -151,6 +151,7 @@ interface SaturationPanelProps {
 const SaturationPanel = ({ hue, saturation, lightness, onChange }: SaturationPanelProps) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const draggingRef = React.useRef(false);
+  // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value is read in JSX to apply the dragging class
   const [isDragging, setIsDragging] = React.useState(false);
   const [posX, setPosX] = React.useState(saturation / 100);
   const [posY, setPosY] = React.useState(0);
@@ -185,9 +186,11 @@ const SaturationPanel = ({ hue, saturation, lightness, onChange }: SaturationPan
     [onChangeRef],
   );
 
+  const onMoveEvent = React.useEffectEvent((e: PointerEvent) => move(e));
+
   React.useEffect(() => {
     if (!isDragging) return;
-    const onMove = (e: PointerEvent) => move(e);
+    const onMove = (e: PointerEvent) => onMoveEvent(e);
     const onUp = () => {
       draggingRef.current = false;
       setIsDragging(false);
@@ -198,7 +201,7 @@ const SaturationPanel = ({ hue, saturation, lightness, onChange }: SaturationPan
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [isDragging, move]);
+  }, [isDragging]);
 
   return (
     <div
@@ -215,7 +218,7 @@ const SaturationPanel = ({ hue, saturation, lightness, onChange }: SaturationPan
       }}
     >
       <div
-        className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"
+        className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"
         style={{
           left: `${posX * 100}%`,
           top: `${posY * 100}%`,
@@ -536,56 +539,58 @@ const ColorPickerPanel = ({ value, onChange }: ColorPickerPanelProps) => {
   }, [hsla]);
 
   return (
-    <div className="flex flex-col gap-2.5">
-      <SaturationPanel
-        hue={hsla.h}
-        saturation={hsla.s}
-        lightness={hsla.l}
-        onChange={(s, l) => updateAndEmit({ s, l })}
-      />
-      <SliderRow
-        value={hsla.h}
-        max={360}
-        onValueChange={(h) => updateAndEmit({ h })}
-        trackBackground={HUE_TRACK}
-        ariaLabel="Hue"
-      />
-      <SliderRow
-        value={round(hsla.a * 100)}
-        max={100}
-        onValueChange={(a) => updateAndEmit({ a: a / 100 })}
-        trackBackground={alphaTrack}
-        ariaLabel="Alpha"
-      />
-      <div className="flex items-center gap-2">
-        <EyedropperButton
-          onPick={(hex) => {
-            const parsed = parseHex(hex);
-            if (!parsed) return;
-            const [h, s, l] = rgbToHsl(parsed.r, parsed.g, parsed.b);
-            updateAndEmit({ h, s, l, a: parsed.a });
-          }}
+    <LazyMotion features={domAnimation} strict>
+      <div className="flex flex-col gap-2.5">
+        <SaturationPanel
+          hue={hsla.h}
+          saturation={hsla.s}
+          lightness={hsla.l}
+          onChange={(s, l) => updateAndEmit({ s, l })}
         />
-        <div
-          className="size-7 shrink-0 overflow-hidden rounded-md border border-border/60"
-          style={{ backgroundImage: CHECKERED_BG }}
-        >
-          <div className="size-full" style={{ backgroundColor: currentHex }} />
+        <SliderRow
+          value={hsla.h}
+          max={360}
+          onValueChange={(h) => updateAndEmit({ h })}
+          trackBackground={HUE_TRACK}
+          ariaLabel="Hue"
+        />
+        <SliderRow
+          value={round(hsla.a * 100)}
+          max={100}
+          onValueChange={(a) => updateAndEmit({ a: a / 100 })}
+          trackBackground={alphaTrack}
+          ariaLabel="Alpha"
+        />
+        <div className="flex items-center gap-2">
+          <EyedropperButton
+            onPick={(hex) => {
+              const parsed = parseHex(hex);
+              if (!parsed) return;
+              const [h, s, l] = rgbToHsl(parsed.r, parsed.g, parsed.b);
+              updateAndEmit({ h, s, l, a: parsed.a });
+            }}
+          />
+          <div
+            className="size-7 shrink-0 overflow-hidden rounded-md border border-border/60"
+            style={{ backgroundImage: CHECKERED_BG }}
+          >
+            <div className="size-full" style={{ backgroundColor: currentHex }} />
+          </div>
+          <FormatToggle mode={mode} onChange={setMode} className="ml-auto" />
         </div>
-        <FormatToggle mode={mode} onChange={setMode} className="ml-auto" />
+        <AnimatePresence mode="wait" initial={false}>
+          <m.div
+            key={mode}
+            initial={{ opacity: 0, filter: "blur(8px)" }}
+            animate={{ opacity: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, filter: "blur(8px)" }}
+            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <FormatInputs mode={mode} hsla={hsla} onChangeHsla={(next) => updateAndEmit(next)} />
+          </m.div>
+        </AnimatePresence>
       </div>
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={mode}
-          initial={{ opacity: 0, filter: "blur(8px)" }}
-          animate={{ opacity: 1, filter: "blur(0px)" }}
-          exit={{ opacity: 0, filter: "blur(8px)" }}
-          transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-        >
-          <FormatInputs mode={mode} hsla={hsla} onChangeHsla={(next) => updateAndEmit(next)} />
-        </motion.div>
-      </AnimatePresence>
-    </div>
+    </LazyMotion>
   );
 };
 
@@ -634,7 +639,7 @@ export const ColorPicker = ({ label, value, onChange, className }: ColorPickerPr
               <button
                 type="button"
                 aria-label={`${label} color picker`}
-                className="relative h-[18px] w-[18px] shrink-0 cursor-pointer overflow-hidden rounded-[4px] border border-border/60"
+                className="relative size-[18px] shrink-0 cursor-pointer overflow-hidden rounded-[4px] border border-border/60"
                 style={{ backgroundImage: CHECKERED_BG }}
               >
                 <span className="absolute inset-0" style={{ backgroundColor: swatchHex }} />

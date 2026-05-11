@@ -374,6 +374,7 @@ export const Route = createFileRoute("/_authenticated")({
   server: {
     middleware: [authMiddleware],
   },
+  ssr: "data-only",
   loader: async ({ context }) => {
     const [orgResult] = await Promise.all([
       context.queryClient.ensureQueryData({
@@ -393,7 +394,6 @@ export const Route = createFileRoute("/_authenticated")({
   pendingComponent: Loader,
   errorComponent: ErrorBoundary,
   notFoundComponent: NotFound,
-  ssr: "data-only",
 });
 
 const AuthLayoutContent = () => {
@@ -517,7 +517,7 @@ const AuthLayoutContent = () => {
                 width: showEditorSidebar ? `${rightSidebarWidth}px` : 0,
               }}
             >
-              <div className="h-full w-full">{rightSidebarContent}</div>
+              <div className="size-full">{rightSidebarContent}</div>
             </div>
           );
         })()}
@@ -584,11 +584,11 @@ const AppSidebar = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                className="size-7 text-muted-foreground hover:text-foreground"
                 onClick={closeInbox}
                 aria-label="Back"
               >
-                <ArrowLeftIcon className="h-4 w-4" />
+                <ArrowLeftIcon className="size-4" />
               </Button>
             }
           />
@@ -837,12 +837,13 @@ const TrashDialog = ({
 
     const orgWorkspaceIds = new Set(orgWorkspacesData.map((ws) => ws.id));
 
+    const lowerQuery = searchQuery.toLowerCase();
     return archivedFormsData
-      .filter((form) => orgWorkspaceIds.has(form.workspaceId))
-      .filter(
-        (form) =>
-          !searchQuery || (form?.title ?? "").toLowerCase().includes(searchQuery.toLowerCase()),
-      )
+      .filter((form) => {
+        if (!orgWorkspaceIds.has(form.workspaceId)) return false;
+        if (!searchQuery) return true;
+        return (form?.title ?? "").toLowerCase().includes(lowerQuery);
+      })
       .toSorted((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }, [archivedFormsData, orgWorkspacesData, activeOrgId, searchQuery]);
 
@@ -1016,12 +1017,12 @@ const TrashDialog = ({
         <div className="max-h-[400px] overflow-y-auto">
           {archivedFormsData === undefined && isFetchingArchived ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Loader2Icon className="mb-3 h-6 w-6 animate-spin opacity-60" />
+              <Loader2Icon className="mb-3 size-6 animate-spin opacity-60" />
               <p className="text-sm">Loading trash…</p>
             </div>
           ) : archivedForms.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Trash2Icon className="mb-3 h-10 w-10 opacity-30" />
+              <Trash2Icon className="mb-3 size-10 opacity-30" />
               <p className="text-sm">Trash is empty</p>
             </div>
           ) : (
@@ -1044,16 +1045,16 @@ const TrashDialog = ({
                     aria-busy={isRowBusy}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded">
+                      <div className="flex size-5 shrink-0 items-center justify-center rounded">
                         {isSelected ? (
-                          <div className="flex h-5 w-5 items-center justify-center rounded bg-foreground text-background transition-colors">
-                            <CheckIcon className="h-3.5 w-3.5" strokeWidth={3} />
+                          <div className="flex size-5 items-center justify-center rounded bg-foreground text-background transition-colors">
+                            <CheckIcon className="size-3.5" strokeWidth={3} />
                           </div>
                         ) : (
                           <>
-                            <FileTextIcon className="h-4 w-4 text-muted-foreground group-hover:hidden" />
-                            <div className="hidden h-5 w-5 items-center justify-center rounded border border-muted-foreground/30 text-muted-foreground transition-colors group-hover:flex">
-                              <CheckIcon className="h-3.5 w-3.5" />
+                            <FileTextIcon className="size-4 text-muted-foreground group-hover:hidden" />
+                            <div className="hidden size-5 items-center justify-center rounded border border-muted-foreground/30 text-muted-foreground transition-colors group-hover:flex">
+                              <CheckIcon className="size-3.5" />
                             </div>
                           </>
                         )}
@@ -1078,14 +1079,14 @@ const TrashDialog = ({
                           void handleRestore(form.id);
                         }}
                         disabled={isRowBusy}
-                        className="h-7 w-7"
+                        className="size-7"
                         title="Restore"
                         aria-label="Restore"
                       >
                         {isRestoring ? (
-                          <Loader2Icon className="h-4 w-4 animate-spin" />
+                          <Loader2Icon className="size-4 animate-spin" />
                         ) : (
-                          <Undo2Icon className="h-4 w-4" />
+                          <Undo2Icon className="size-4" />
                         )}
                       </Button>
                       <Button
@@ -1096,14 +1097,14 @@ const TrashDialog = ({
                           void handlePermanentDelete(form.id);
                         }}
                         disabled={isRowBusy}
-                        className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
+                        className="size-7 hover:bg-destructive/10 hover:text-destructive"
                         title="Delete permanently"
                         aria-label="Delete permanently"
                       >
                         {isRowDeleting ? (
-                          <Loader2Icon className="h-4 w-4 animate-spin" />
+                          <Loader2Icon className="size-4 animate-spin" />
                         ) : (
-                          <Trash2Icon className="h-4 w-4" />
+                          <Trash2Icon className="size-4" />
                         )}
                       </Button>
                     </div>
@@ -1139,7 +1140,7 @@ const TrashDialog = ({
               >
                 {isDeleting ? (
                   <>
-                    <Loader2Icon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
                     Deleting…
                   </>
                 ) : (
@@ -1155,10 +1156,10 @@ const TrashDialog = ({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className="h-7 w-7 text-muted-foreground/40 hover:text-muted-foreground"
+                className="size-7 text-muted-foreground/40 hover:text-muted-foreground"
                 aria-label="Help"
               >
-                <HelpCircleIcon className="h-4 w-4" />
+                <HelpCircleIcon className="size-4" />
               </Button>
             </>
           )}
@@ -1234,7 +1235,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
   const hasPendingInvitations = pendingInvitations.length > 0;
 
   return (
-    <div className="flex h-full w-full flex-col">
+    <div className="flex size-full flex-col">
       <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
         <div className="flex items-center justify-between gap-1">
           <div className="flex min-w-0 items-center gap-1">
@@ -1248,7 +1249,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
             onClick={onClose}
             aria-label="Close"
           >
-            <XIcon className="h-4 w-4" />
+            <XIcon className="size-4" />
           </Button>
         </div>
       </SidebarHeader>
@@ -1288,7 +1289,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
                       onClick={() => void openNotification(notification)}
                       disabled={readingFormId === notification.formId}
                     >
-                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-foreground/5">
+                      <div className="flex size-6 shrink-0 items-center justify-center rounded bg-foreground/5">
                         <ThemedFormIcon
                           icon={notification.formIcon}
                           customization={undefined}
@@ -1317,7 +1318,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
                           <Button
                             variant="ghost"
                             size="icon-xs"
-                            className="h-5 w-5 text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
+                            className="size-5 text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
                             disabled={isBusy}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -1325,10 +1326,10 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
                             }}
                             aria-label="Clear notification"
                           >
-                            <XIcon className="h-3 w-3" />
+                            <XIcon className="size-3" />
                           </Button>
                         ) : (
-                          <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                          <div className="size-1.5 rounded-full bg-primary" />
                         )}
                       </div>
                     </button>
@@ -1357,8 +1358,8 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
                       className="group flex flex-col gap-2 rounded-md border border-transparent p-2 transition-colors hover:border-foreground/5 hover:bg-muted/50"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-foreground/5">
-                          <UsersIcon className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded bg-foreground/5">
+                          <UsersIcon className="size-4 text-muted-foreground" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-[12px] text-foreground">
@@ -1443,6 +1444,7 @@ const SidebarInbox = () => {
   const { state } = useSidebar();
   const isMobile = useIsMobile();
   const prevOpenRef = useRef(isInboxOpen);
+  // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value is read in JSX to apply exit animation styling
   const [isExiting, setIsExiting] = useState(false);
   const [applyExitClass, setApplyExitClass] = useState(false);
 
@@ -1613,11 +1615,14 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
       // in the same order — this stabilises both the array and any per-form
       // identity churn upstream.
       const previousForms = formsArrayCacheRef.current.get(ws.id);
-      if (
-        previousForms &&
-        previousForms.length === sortedForms.length &&
-        previousForms.every((f, i) => f === sortedForms[i])
-      ) {
+      const arraysAreShallowEqual = (a: typeof sortedForms, b: typeof sortedForms) => {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+          if (a[i] !== b[i]) return false;
+        }
+        return true;
+      };
+      if (previousForms && arraysAreShallowEqual(previousForms, sortedForms)) {
         sortedForms = previousForms;
       }
       nextFormsCache.set(ws.id, sortedForms);
@@ -1893,7 +1898,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
           {isLoading ? (
             ["collection-skeleton-1", "collection-skeleton-2"].map((key) => (
               <div key={key} className="flex items-center gap-2 px-2 py-1.5">
-                <div className="h-4 w-4 animate-pulse rounded bg-muted" />
+                <div className="size-4 animate-pulse rounded bg-muted" />
                 <div className="h-4 flex-1 animate-pulse rounded bg-muted" />
               </div>
             ))
@@ -1972,7 +1977,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
             >
               {isDeletingWorkspace ? (
                 <>
-                  <Loader2Icon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
                   Deleting…
                 </>
               ) : (
@@ -2010,7 +2015,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
             >
               {isRenamingWorkspace ? (
                 <>
-                  <Loader2Icon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
                   Saving…
                 </>
               ) : (
@@ -2039,7 +2044,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
             >
               {isDeletingForm ? (
                 <>
-                  <Loader2Icon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
                   Deleting…
                 </>
               ) : (
@@ -2247,30 +2252,35 @@ const FavoriteInlineRename = ({
   onSubmit: (value: string) => void;
   onClose: () => void;
 }) => {
+  // eslint-disable-next-line react-doctor/no-derived-useState -- uncontrolled rename input; parent hands ownership to local state
   const [value, setValue] = useState(initialValue);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+  const commitOrClose = () => {
+    const trimmed = value.trim();
+    if (trimmed) onSubmit(trimmed);
+    else onClose();
+  };
   return (
-    <form
-      className="px-2 py-1"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const trimmed = value.trim();
-        if (trimmed) onSubmit(trimmed);
-        else onClose();
-      }}
-    >
+    <div className="px-2 py-1">
       <input
-        // biome-ignore lint/a11y/noAutofocus: rename input should focus immediately
-        autoFocus
+        ref={inputRef}
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onBlur={onClose}
         onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
+          if (e.key === "Enter") {
+            commitOrClose();
+          } else if (e.key === "Escape") {
+            onClose();
+          }
         }}
         className="w-full rounded-md bg-secondary px-2 py-1 text-[13px] ring-1 ring-foreground/20 outline-hidden"
         aria-label="Rename form"
       />
-    </form>
+    </div>
   );
 };

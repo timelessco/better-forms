@@ -147,7 +147,7 @@ export const ComboboxItem = ({ className, children, ...props }: ComboboxPrimitiv
         <span className="text-plain data-selected:text-plain ml-auto flex size-4 shrink-0 items-center justify-center opacity-0 data-selected:opacity-100" />
       }
     >
-      <CheckIcon className="pointer-events-none text-gray-800" />
+      <CheckIcon className="pointer-events-none text-neutral-800" />
     </ComboboxPrimitive.ItemIndicator>
   </ComboboxPrimitive.Item>
 );
