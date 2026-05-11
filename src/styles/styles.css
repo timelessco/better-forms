@@ -624,6 +624,18 @@
   }
 }
 
+/* Vertical glow that travels bottom→top inside an overflow:hidden track.
+   Used by the version-history sidebar timeline. Exit offset must match
+   the glow element's height (h-32 = 8rem) so it fully clears the track. */
+@keyframes timeline-glow-up {
+  0% {
+    top: 100%;
+  }
+  100% {
+    top: calc(0% - 8rem);
+  }
+}
+
 @utility font-case {
   font-feature-settings: "case";
 }

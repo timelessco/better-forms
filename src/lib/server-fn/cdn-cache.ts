@@ -1,11 +1,13 @@
 import { setResponseHeader } from "@tanstack/react-start/server";
 import { vercel, vercelProjectId, vercelTeamId } from "@/integrations/vercel";
-// Public forms are immutable per published version. We serve a year-long
-// edge cache with stale-while-revalidate, and invalidate the cache tag
-// when the form republishes, its branding changes, or it gets deleted.
-// Clients (browsers) cache briefly so repeated in-session navigation is
-// instant without hiding republish updates from authenticated viewers.
-const PUBLIC_CACHE_CONTROL = [
+// Feature flag for the public-form edge cache. Default: OFF (dev mode +
+// Vercel's tag-purge silently reports success without actually evicting
+// this project's entries). Set `ENABLE_FORM_CDN_CACHE=1` in the Vercel
+// project to turn it back on once the platform issue is sorted out.
+const isCdnCacheEnabled = (): boolean =>
+  process.env.ENABLE_FORM_CDN_CACHE === "1" || process.env.ENABLE_FORM_CDN_CACHE === "true";
+
+const PUBLIC_CACHE_CONTROL_ENABLED = [
   "public",
   "max-age=60",
   "s-maxage=31536000",
@@ -13,6 +15,7 @@ const PUBLIC_CACHE_CONTROL = [
   "must-revalidate",
 ].join(", ");
 
+// Used for both gated forms (always) and all forms when the CDN flag is off.
 const PRIVATE_CACHE_CONTROL = "private, no-store";
 
 export const formCacheTag = (formId: string) => `form:${formId}`;
@@ -24,9 +27,9 @@ export const formCacheHeaders = (
   formId: string,
   { gated }: { gated: boolean },
 ): Record<string, string> => {
-  if (gated) return { "Cache-Control": PRIVATE_CACHE_CONTROL };
+  if (gated || !isCdnCacheEnabled()) return { "Cache-Control": PRIVATE_CACHE_CONTROL };
   return {
-    "Cache-Control": PUBLIC_CACHE_CONTROL,
+    "Cache-Control": PUBLIC_CACHE_CONTROL_ENABLED,
     "Cache-Tag": formCacheTag(formId),
   };
 };
@@ -36,11 +39,11 @@ export const formCacheHeaders = (
 // responses — all of which must bypass the shared cache to avoid leaking
 // per-viewer state or stale gate decisions.
 export const applyFormCacheHeaders = (formId: string, { gated }: { gated: boolean }) => {
-  if (gated) {
+  if (gated || !isCdnCacheEnabled()) {
     setResponseHeader("Cache-Control", PRIVATE_CACHE_CONTROL);
     return;
   }
-  setResponseHeader("Cache-Control", PUBLIC_CACHE_CONTROL);
+  setResponseHeader("Cache-Control", PUBLIC_CACHE_CONTROL_ENABLED);
   // Vercel honours Cache-Tag on the Edge Network for tag-based purging;
   // non-Vercel CDNs ignore it harmlessly.
   setResponseHeader("Cache-Tag", formCacheTag(formId));
@@ -58,6 +61,8 @@ const log = (msg: string, data?: unknown) =>
 export const purgeFormCache = (formId: string): Promise<void> => purgeFormCacheBatch([formId]);
 
 export const purgeFormCacheBatch = async (formIds: string[]): Promise<void> => {
+  if (!isCdnCacheEnabled()) return;
+
   log("called", {
     formIds,
     hasToken: Boolean(process.env.VERCEL_TOKEN),
