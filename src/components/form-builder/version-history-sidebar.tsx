@@ -122,22 +122,14 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
       </SidebarHeader>
 
       <SidebarContent className="relative px-2 pt-[10px]">
-        {/* Vertical timeline line */}
-        {versionList.length > 1 && (
-          <div
-            className="absolute left-[26px] w-px bg-border/60"
-            style={{
-              top: `${10 + 8 + 10}px`,
-              height: `${(versionList.length - 1) * 55}px`,
-            }}
-          />
-        )}
-
         <div className="flex flex-col gap-1">
           {versionList.map((version, index) => {
             const publisher = getPublisherInfo(version.publishedBy);
             const isSelected = effectiveVersionId === version.id;
             const isCurrent = index === 0;
+            const isFirst = index === 0;
+            const isLast = index === versionList.length - 1;
+            const hasLine = versionList.length > 1 && !(isFirst && isLast);
 
             return (
               <button
@@ -149,8 +141,20 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                   isSelected ? "bg-accent" : "hover:bg-accent/50",
                 )}
               >
+                {/* Connector segment: avatars (z-10) cover the line through their bounds */}
+                {hasLine && (
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute left-[18px] w-px bg-border/60"
+                    style={{
+                      top: isFirst ? 18 : 0,
+                      bottom: isLast ? "auto" : -4,
+                      height: isLast ? 18 : undefined,
+                    }}
+                  />
+                )}
                 {/* Avatar */}
-                <div className="shrink-0">
+                <div className="relative z-10 shrink-0">
                   <Avatar className="size-5 rounded-full">
                     <AvatarImage src={publisher.image} alt={publisher.name} />
                     <AvatarFallback className="rounded-full bg-muted text-[13px] text-muted-foreground">
