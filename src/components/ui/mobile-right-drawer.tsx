@@ -188,7 +188,7 @@ export const MobileRightDrawer = ({
   }, [open, x]);
 
   return (
-    <LazyMotion features={domAnimation}>
+    <LazyMotion features={domAnimation} strict>
       <m.div
         aria-hidden
         initial={false}

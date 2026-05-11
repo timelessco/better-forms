@@ -500,7 +500,7 @@ export const ElasticSlider = ({
   };
 
   return (
-    <LazyMotion features={domAnimation}>
+    <LazyMotion features={domAnimation} strict>
       <div
         ref={wrapperRef}
         data-slot="elastic-slider"

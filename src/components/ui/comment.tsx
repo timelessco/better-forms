@@ -14,7 +14,7 @@ import {
   usePluginOption,
 } from "platejs/react";
 import * as React from "react";
-import { useSyncExternalStore } from "react";
+import { useClientNow } from "@/hooks/use-client-now";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { BasicMarksKit } from "@/components/editor/plugins/basic-marks-kit";
 import { discussionPlugin } from "@/components/editor/plugins/discussion-plugin";
@@ -576,19 +576,23 @@ export const formatCommentDate = (date: Date, now: Date) => {
   return format(date, "MM/dd/yyyy");
 };
 
-const subscribeNowNoop = () => () => {};
-const getClientNow = () => new Date();
-const getServerNow = () => null;
-
-const CommentDate = ({ createdAt }: { createdAt: string | Date }) => {
-  // useSyncExternalStore avoids the mount-flicker the no-flicker rule warns
-  // about: server snapshot is `null`, client snapshot is the live wall clock.
-  const now = useSyncExternalStore(subscribeNowNoop, getClientNow, getServerNow);
+export const RelativeDate = ({
+  createdAt,
+  className = "mr-1",
+}: {
+  createdAt: string | Date;
+  className?: string;
+}) => {
+  const nowMs = useClientNow();
   const created = createdAt instanceof Date ? createdAt : new Date(createdAt);
-  const label = now ? formatCommentDate(created, now) : format(created, "MM/dd/yyyy");
+  const label = nowMs ? formatCommentDate(created, new Date(nowMs)) : format(created, "MM/dd/yyyy");
   return (
-    <span className="mr-1" suppressHydrationWarning>
+    <span className={className} suppressHydrationWarning>
       {label}
     </span>
   );
 };
+
+const CommentDate = ({ createdAt }: { createdAt: string | Date }) => (
+  <RelativeDate createdAt={createdAt} />
+);

@@ -23,6 +23,7 @@ import { useForm, useLocalForm } from "@/hooks/use-live-hooks";
 import { FONT_REGISTRY } from "@/lib/theme/font-registry";
 import { TOKEN_NAMES } from "@/lib/theme/generate-theme-css";
 import { loadGoogleFont } from "@/lib/theme/load-google-font";
+import type { BaseColorMap } from "@/lib/theme/theme-presets";
 import { BASE_COLORS, DARK_BASE_COLORS, STYLES, THEME_COLORS } from "@/lib/theme/theme-presets";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -396,8 +397,7 @@ interface ThemeSectionProps {
   activeThemeColor: string;
   handleThemeColorChange: (v: string) => void;
   activeBaseColor: string;
-  // eslint-disable-next-line typescript-eslint/no-explicit-any -- color tables
-  activeBaseColors: any;
+  activeBaseColors: BaseColorMap;
   handleBaseColorChange: (v: string) => void;
   activeFont: string;
   handleFontChange: (v: string) => void;

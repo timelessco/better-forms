@@ -17,26 +17,7 @@ import { suggestionPlugin } from "@/components/editor/plugins/suggestion-plugin"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
-import { format } from "date-fns";
-import { useSyncExternalStore } from "react";
-import { Comment, CommentCreateForm, formatCommentDate } from "./comment";
-
-const subscribeNowNoop = () => () => {};
-const getClientNow = () => new Date();
-const getServerNow = () => null;
-
-const SuggestionDate = ({ createdAt }: { createdAt: string | Date }) => {
-  // Use useSyncExternalStore so the SSR pass and first client render produce
-  // identical markup; the relative timestamp swaps in only after hydration.
-  const now = useSyncExternalStore(subscribeNowNoop, getClientNow, getServerNow);
-  const created = createdAt instanceof Date ? createdAt : new Date(createdAt);
-  const label = now ? formatCommentDate(created, now) : format(created, "MM/dd/yyyy");
-  return (
-    <span className="mr-1" suppressHydrationWarning>
-      {label}
-    </span>
-  );
-};
+import { Comment, CommentCreateForm, RelativeDate } from "./comment";
 import type { TComment } from "./comment";
 
 export interface ResolvedSuggestion extends TResolvedSuggestion {
@@ -181,7 +162,7 @@ export const BlockSuggestionCard = ({
           </Avatar>
           <h4 className="mx-2 text-sm font-semibold">{userInfo?.name}</h4>
           <div className="text-xs text-muted-foreground/80">
-            <SuggestionDate createdAt={suggestion.createdAt} />
+            <RelativeDate createdAt={suggestion.createdAt} />
           </div>
         </div>
 

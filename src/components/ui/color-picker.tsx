@@ -539,7 +539,7 @@ const ColorPickerPanel = ({ value, onChange }: ColorPickerPanelProps) => {
   }, [hsla]);
 
   return (
-    <LazyMotion features={domAnimation}>
+    <LazyMotion features={domAnimation} strict>
       <div className="flex flex-col gap-2.5">
         <SaturationPanel
           hue={hsla.h}

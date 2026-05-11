@@ -2,7 +2,7 @@
 
 import { CheckIcon, CircleXIcon, CopyIcon } from "@/components/ui/icons";
 import type { HTMLMotionProps, Variants } from "motion/react";
-import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
+import { AnimatePresence, domMax, LazyMotion, m } from "motion/react";
 import { useCallback } from "react";
 import type { ComponentProps } from "react";
 
@@ -31,7 +31,7 @@ export const CopyStateIcon = ({
   state: CopyState;
   className?: string;
 }) => (
-  <LazyMotion features={domAnimation}>
+  <LazyMotion features={domMax} strict>
     <AnimatePresence mode="popLayout" initial={false}>
       {state === "idle" ? (
         <m.span key="idle" {...motionIconProps}>

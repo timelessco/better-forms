@@ -251,7 +251,7 @@ export const StyleSelect = ({
   }, [isOpen]);
 
   return (
-    <LazyMotion features={domAnimation}>
+    <LazyMotion features={domAnimation} strict>
       <div className={cn("relative", className)}>
         <button
           ref={triggerRef}
@@ -408,7 +408,7 @@ export const StyleToggle = ({
   }, [value]);
 
   return (
-    <LazyMotion features={domAnimation}>
+    <LazyMotion features={domAnimation} strict>
       <div
         className={cn(
           "flex h-[34px] items-center justify-between rounded-lg border border-border/60 bg-transparent pr-1 pl-4",
@@ -500,7 +500,7 @@ export const StyleAlignToggle = ({
   }, [value]);
 
   return (
-    <LazyMotion features={domAnimation}>
+    <LazyMotion features={domAnimation} strict>
       <div
         className={cn(
           "flex h-[32px] items-center overflow-hidden rounded-lg border border-border/60 bg-transparent text-[13px]",

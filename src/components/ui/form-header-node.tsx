@@ -483,11 +483,10 @@ export const FormHeaderElement = (props: PlateElementProps) => {
   const autoResizeTitle = useCallback(() => {
     const el = titleRef.current;
     if (!el) return;
-    // Auto-resize pattern: reset to "auto" so scrollHeight reflects content,
-    // read the measured height, then write the final pixel value in one batch.
+    /* eslint-disable react-doctor/js-batch-dom-css -- auto-resize needs write→read→write to measure scrollHeight */
     el.style.height = "auto";
-    const measured = el.scrollHeight;
-    el.style.cssText = `${el.style.cssText};height:${measured}px;`;
+    el.style.height = `${el.scrollHeight}px`;
+    /* eslint-enable react-doctor/js-batch-dom-css */
   }, []);
 
   const titleFontSize = editorCustomization?.titleFontSize;

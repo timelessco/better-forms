@@ -1,8 +1,11 @@
 import { useSyncExternalStore } from "react";
 
 type SettingsTab = "account" | "members" | "billing" | "domains";
+type SettingsState = { isOpen: boolean; activeTab: SettingsTab };
 const listeners = new Set<() => void>();
-let state = { isOpen: false, activeTab: "account" as SettingsTab };
+let state: SettingsState = { isOpen: false, activeTab: "account" };
+const SERVER_SNAPSHOT: SettingsState = { isOpen: false, activeTab: "account" };
+const getServerSnapshot = () => SERVER_SNAPSHOT;
 
 const emit = () => {
   listeners.forEach((l) => l());
@@ -31,10 +34,7 @@ const store = {
 export type { SettingsTab };
 
 export const useSettingsDialog = () => {
-  const current = useSyncExternalStore(store.subscribe, store.getSnapshot, () => ({
-    isOpen: false,
-    activeTab: "account" as SettingsTab,
-  }));
+  const current = useSyncExternalStore(store.subscribe, store.getSnapshot, getServerSnapshot);
   return {
     ...current,
     open: store.open,

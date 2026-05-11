@@ -1,13 +1,9 @@
 import type { PlateElementProps } from "platejs/react";
 
 import { PlateElement, useReadOnly } from "platejs/react";
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback } from "react";
 
-const subscribeNoop = () => () => {};
-const getClientToday = () => new Date();
-const getServerToday = () => null;
-const useClientToday = () => useSyncExternalStore(subscribeNoop, getClientToday, getServerToday);
-
+import { useClientToday } from "@/hooks/use-client-now";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -54,10 +50,6 @@ const CalendarForDate = ({
 };
 
 const DateLabel = ({ dateValue }: { dateValue: string | undefined }) => {
-  // "today" must only be computed on the client so the SSR'd HTML always
-  // matches the first client paint — relative labels swap in on hydrate.
-  // useSyncExternalStore with a server snapshot of `null` keeps SSR output
-  // stable while the client picks up the real wall clock.
   const today = useClientToday();
   if (!dateValue) return null;
   return <span suppressHydrationWarning>{formatRelativeDate(dateValue, today)}</span>;

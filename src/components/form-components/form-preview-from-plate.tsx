@@ -587,7 +587,7 @@ const FormPreviewContent = ({
   }, [formId]);
 
   const thankYouContent = (
-    <LazyMotion features={domAnimation}>
+    <LazyMotion features={domAnimation} strict>
       <m.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -750,7 +750,7 @@ const FormPreviewContent = ({
             {isSubmitted ? (
               thankYouContent
             ) : (
-              <LazyMotion features={domAnimation}>
+              <LazyMotion features={domAnimation} strict>
                 <AnimatePresence mode="wait" custom={direction}>
                   <m.div
                     key={currentStep}
@@ -814,7 +814,7 @@ const FormPreviewContent = ({
         }}
         data-bf-form-container
       >
-        <LazyMotion features={domAnimation}>
+        <LazyMotion features={domAnimation} strict>
           <AnimatePresence mode="wait" custom={direction}>
             <m.div
               key={currentStep}

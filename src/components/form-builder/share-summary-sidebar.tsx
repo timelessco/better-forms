@@ -1,3 +1,4 @@
+import type { AnyFieldApi } from "@tanstack/react-form";
 import { useForm as useTanstackForm } from "@tanstack/react-form";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { RocketIcon, XIcon } from "@/components/ui/icons";
@@ -246,8 +247,7 @@ const ShareSidebarHeader = ({ isDraft, form, navigate, closeSidebar }: ShareSide
 
     {!isDraft && (
       <form.Field name="embedType">
-        {/* eslint-disable-next-line typescript-eslint/no-explicit-any -- form is loosely typed due to deep generics; field is the underlying tanstack field */}
-        {(field: any) => (
+        {(field: AnyFieldApi) => (
           <Tabs
             value={field.state.value}
             defaultValue={"fullpage"}

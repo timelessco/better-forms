@@ -184,7 +184,7 @@ export const MobileSidebarDrawer = ({
   }, [x]);
 
   return (
-    <LazyMotion features={domAnimation}>
+    <LazyMotion features={domAnimation} strict>
       <m.div
         aria-hidden
         style={{
