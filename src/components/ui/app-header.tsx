@@ -163,8 +163,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   const canShare = savedDocs?.[0]?.status === "published" || hasPublishedVersion;
 
   type WorkflowState = "idle" | "publishing" | "discarding";
-  type ActiveDialog = "delete" | "discard" | null;
-  type ActiveMenu = "main" | "local" | null;
   const [workflowState, setWorkflowState] = useState<WorkflowState>("idle");
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>(null);
@@ -174,10 +172,244 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
 
   useIsFavorite(session?.user?.id, formId);
 
+  const isLeftSidebarOpen = state === "expanded";
+
+  const {
+    handleToggleFavorite,
+    handleDeleteForm,
+    handlePublish,
+    handleDiscardChanges,
+    handleEditForm,
+    handleDismissSidebars,
+  } = useAppHeaderFormActions({
+    formId,
+    workspaceId,
+    sessionUserId: session?.user?.id,
+    isEditorSidebarOpen,
+    isLeftSidebarOpen,
+    navigate,
+    openShare,
+    handleCloseSidebar,
+    toggleMainSidebar,
+    toggleShareSidebar,
+    setWorkflowState,
+  });
+
+  useAppHeaderHotkeys({
+    isFormBuilder,
+    isLandingPage,
+    isEditRoute,
+    hasPublishedVersion,
+    formId,
+    hasUnpublishedChanges,
+    isPublishing,
+    workspaceId,
+    canShare,
+    toggleSettingsSidebar,
+    toggleCustomizeSidebar,
+    toggleVersionHistory,
+    handleToggleFavorite,
+    handlePublish,
+    handleEditForm,
+    togglePreview,
+    toggleShareSidebar,
+    handleDismissSidebars,
+  });
+
+  const menuItems = buildFormBuilderMenuItems({
+    isEditRoute,
+    hasPublishedVersion,
+    hasUnpublishedChanges,
+    isMobile,
+    canShare,
+    workspaceId,
+    formId,
+    onToggleFavorite: handleToggleFavorite,
+    onNavigateInsights: () => {
+      if (workspaceId && formId) {
+        void navigate({
+          to: "/workspace/$workspaceId/form-builder/$formId/insights",
+          params: { workspaceId, formId },
+        });
+      }
+    },
+    onToggleCustomizeSidebar: toggleCustomizeSidebar,
+    onToggleVersionHistory: toggleVersionHistory,
+    onToggleShareSidebar: toggleShareSidebar,
+    onToggleSettingsSidebar: toggleSettingsSidebar,
+    onSetActiveDialog: setActiveDialog,
+  });
+
+  return (
+    <>
+      <header
+        className={cn(
+          "group/header -z-10 flex h-10 w-full shrink-0 items-center justify-between bg-background px-2 text-[13px] transition-opacity duration-150 select-none",
+          isDistractionHidden && "pointer-events-none opacity-0",
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {isLandingPage && <LogoToggle static className="-ml-1" />}
+          {/* Logo doubles as the sidebar trigger on mobile (always visible)
+              and on desktop when the sidebar is collapsed. The primary open
+              gesture on mobile is a rightward swipe from anywhere on the
+              page; this is the discoverability safety net. */}
+          {!isLandingPage && (state === "collapsed" || isMobile) && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <LogoToggle
+                    direction="right"
+                    onClick={() => toggleMainSidebar()}
+                    className="-ml-1"
+                  />
+                }
+              />
+              <TooltipContent side="right">
+                <p>{isMobile ? "Open sidebar" : "Expand sidebar"}</p>
+                {!isMobile && (
+                  <p className="text-xs text-muted-foreground">
+                    {formatForDisplay(HOTKEYS.DISMISS_SIDEBARS)}
+                  </p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {isFormBuilder && savedDocs?.[0] && (
+            <HeaderBreadcrumb
+              workspace={workspace}
+              savedDoc={savedDocs[0]}
+              workspaceId={workspaceId}
+              formId={formId}
+              isEditRoute={isEditRoute}
+              isEditorSidebarOpen={isEditorSidebarOpen}
+              breadcrumbLabel={breadcrumbLabel}
+            />
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1">
+          {isFormBuilder && savedDocs?.[0]?.updatedAt && !isLoadingSavedDocs && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span className="mr-1 hidden h-7 items-center rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] font-normal whitespace-nowrap text-muted-foreground/70 md:inline-flex" />
+                }
+              >
+                Edited{" "}
+                {/* eslint-disable-next-line react-doctor/rendering-hydration-mismatch-time -- authenticated layout, client-only render */}
+                {formatDistanceToNow(parseTimestampAsUTC(savedDocs?.[0]?.updatedAt) ?? new Date())}{" "}
+                ago
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end">
+                <SavedDocsTooltipContent
+                  userName={session?.user?.name}
+                  updatedAt={savedDocs?.[0]?.updatedAt}
+                  createdAt={savedDocs?.[0]?.createdAt}
+                />
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {isDashboard && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "px-2.5 font-normal text-muted-foreground hover:text-foreground",
+                activeSidebar === "about" && "bg-accent/50 text-foreground",
+              )}
+              onClick={() => toggleEditorSidebar("about")}
+            >
+              About
+            </Button>
+          )}
+
+          {isLandingPage && (
+            <LandingPageActions
+              previewMode={previewMode}
+              activeSidebar={activeSidebar}
+              activeMenu={activeMenu}
+              onTogglePreview={togglePreview}
+              onToggleEditorSidebar={toggleEditorSidebar}
+              onSetActiveMenu={setActiveMenu}
+              onSignIn={() => navigate({ to: "/login" })}
+            />
+          )}
+
+          {isFormBuilder && (
+            <FormBuilderHeaderActions
+              flags={{
+                isEditRoute,
+                hasUnpublishedChanges,
+                isDiscarding,
+                isPublishing,
+                previewMode,
+                canShare,
+                isShareSidebarOpen,
+                isLoadingSavedDocs,
+              }}
+              activeMenu={activeMenu}
+              workspaceId={workspaceId}
+              formId={formId}
+              savedDocs={savedDocs}
+              menuItems={menuItems}
+              onTogglePreview={togglePreview}
+              onToggleShareSidebar={toggleShareSidebar}
+              onToggleSettingsSidebar={toggleSettingsSidebar}
+              onPublish={handlePublish}
+              onSetActiveDialog={setActiveDialog}
+              onSetActiveMenu={setActiveMenu}
+            />
+          )}
+        </div>
+      </header>
+
+      <AppHeaderDialogs
+        activeDialog={activeDialog}
+        onDialogChange={setActiveDialog}
+        onDeleteForm={handleDeleteForm}
+        onDiscardChanges={handleDiscardChanges}
+      />
+    </>
+  );
+};
+
+type ActiveDialog = "delete" | "discard" | null;
+type ActiveMenu = "main" | "local" | null;
+
+interface UseAppHeaderFormActionsOptions {
+  formId: string | undefined;
+  workspaceId: string | undefined;
+  sessionUserId: string | undefined;
+  isEditorSidebarOpen: boolean;
+  isLeftSidebarOpen: boolean;
+  navigate: ReturnType<typeof useNavigate>;
+  openShare: () => void;
+  handleCloseSidebar: () => void;
+  toggleMainSidebar: () => void;
+  toggleShareSidebar: () => void;
+  setWorkflowState: (state: "idle" | "publishing" | "discarding") => void;
+}
+
+const useAppHeaderFormActions = ({
+  formId,
+  workspaceId,
+  sessionUserId,
+  isEditorSidebarOpen,
+  isLeftSidebarOpen,
+  navigate,
+  openShare,
+  handleCloseSidebar,
+  toggleMainSidebar,
+  toggleShareSidebar,
+  setWorkflowState,
+}: UseAppHeaderFormActionsOptions) => {
   const handleToggleFavorite = async () => {
-    if (!session?.user?.id || !formId) return;
-    await toggleFavoriteLocal(session.user.id, formId);
+    if (!sessionUserId || !formId) return;
+    await toggleFavoriteLocal(sessionUserId, formId);
   };
+
   const handleDeleteForm = async () => {
     if (!formId) return;
     try {
@@ -188,6 +420,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
       toast.error("Failed to delete form");
     }
   };
+
   const handlePublish = async () => {
     if (formId && workspaceId) {
       setWorkflowState("publishing");
@@ -234,8 +467,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     }
   };
 
-  const isLeftSidebarOpen = state === "expanded";
-
   const handleDismissSidebars = () => {
     if (isEditorSidebarOpen && isLeftSidebarOpen) {
       handleCloseSidebar();
@@ -250,464 +481,547 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     }
   };
 
-  useAppHeaderHotkeys({
-    isFormBuilder,
-    isLandingPage,
-    isEditRoute,
-    hasPublishedVersion,
-    formId,
-    hasUnpublishedChanges,
-    isPublishing,
-    workspaceId,
-    canShare,
-    toggleSettingsSidebar,
-    toggleCustomizeSidebar,
-    toggleVersionHistory,
+  return {
     handleToggleFavorite,
+    handleDeleteForm,
     handlePublish,
+    handleDiscardChanges,
     handleEditForm,
-    togglePreview,
-    toggleShareSidebar,
     handleDismissSidebars,
-  });
+  };
+};
 
-  const menuItems = [
+interface BuildFormBuilderMenuItemsOptions {
+  isEditRoute: boolean;
+  hasPublishedVersion: boolean;
+  hasUnpublishedChanges: boolean;
+  isMobile: boolean;
+  canShare: boolean;
+  workspaceId: string | undefined;
+  formId: string | undefined;
+  onToggleFavorite: () => Promise<void> | void;
+  onNavigateInsights: () => void;
+  onToggleCustomizeSidebar: () => void;
+  onToggleVersionHistory: () => void;
+  onToggleShareSidebar: () => void;
+  onToggleSettingsSidebar: () => void;
+  onSetActiveDialog: (dialog: ActiveDialog) => void;
+}
+
+const buildFormBuilderMenuItems = ({
+  isEditRoute,
+  hasPublishedVersion,
+  hasUnpublishedChanges,
+  isMobile,
+  canShare,
+  onToggleFavorite,
+  onNavigateInsights,
+  onToggleCustomizeSidebar,
+  onToggleVersionHistory,
+  onToggleShareSidebar,
+  onToggleSettingsSidebar,
+  onSetActiveDialog,
+}: BuildFormBuilderMenuItemsOptions): MenuItem[] =>
+  [
     {
       key: "favorite",
       label: "Favorite",
       shortcut: formatForDisplay(HOTKEYS.TOGGLE_FAVORITE),
-      onClick: () => handleToggleFavorite(),
+      onClick: () => onToggleFavorite(),
     },
     {
       key: "analytics",
       label: "Analytics",
-      onClick: () => {
-        if (workspaceId && formId) {
-          void navigate({
-            to: "/workspace/$workspaceId/form-builder/$formId/insights",
-            params: { workspaceId, formId },
-          });
-        }
-      },
+      onClick: onNavigateInsights,
     },
     {
       key: "customization",
       label: "Customization",
       shortcut: formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR),
-      onClick: () => toggleCustomizeSidebar(),
+      onClick: onToggleCustomizeSidebar,
       show: isEditRoute,
     },
     {
       key: "versionHistory",
       label: "Version History",
       shortcut: formatForDisplay(HOTKEYS.TOGGLE_VERSION_HISTORY),
-      onClick: () => toggleVersionHistory(),
+      onClick: onToggleVersionHistory,
       show: isEditRoute && hasPublishedVersion,
     },
-    // Share + Settings buttons are hidden from the header on mobile. Surface
-    // them in the menu only when the header button isn't visible — no
-    // duplicate entry point on desktop.
     {
       key: "share",
       label: "Share",
       shortcut: formatForDisplay(HOTKEYS.TOGGLE_SHARE_SIDEBAR),
-      onClick: () => toggleShareSidebar(),
+      onClick: onToggleShareSidebar,
       show: isMobile && canShare,
     },
     {
       key: "settings",
       label: "Settings",
       shortcut: formatForDisplay(HOTKEYS.TOGGLE_SETTINGS_SIDEBAR),
-      onClick: () => toggleSettingsSidebar(),
+      onClick: onToggleSettingsSidebar,
       show: isMobile,
     },
-    // Mirror of the standalone icon buttons that are hidden on mobile. Kept
-    // in the menu on desktop too so there's a single discoverable surface for
-    // these actions — and so the mobile experience never loses functionality.
     {
       key: "discard",
       label: "Discard changes",
-      onClick: () => setActiveDialog("discard"),
+      onClick: () => onSetActiveDialog("discard"),
       show: hasUnpublishedChanges,
     },
     {
       key: "delete",
       label: "Delete form",
-      onClick: () => setActiveDialog("delete"),
+      onClick: () => onSetActiveDialog("delete"),
     },
-  ].filter((item) => item.show ?? true);
+  ].filter((item: { show?: boolean }) => item.show ?? true);
+
+interface HeaderBreadcrumbProps {
+  workspace: ReturnType<typeof useWorkspace>["data"];
+  savedDoc: NonNullable<ReturnType<typeof useForm>["data"]>[0];
+  workspaceId: string | undefined;
+  formId: string | undefined;
+  isEditRoute: boolean;
+  isEditorSidebarOpen: boolean;
+  breadcrumbLabel: string;
+}
+
+const HeaderBreadcrumb = ({
+  workspace,
+  savedDoc,
+  workspaceId,
+  formId,
+  isEditRoute,
+  isEditorSidebarOpen,
+  breadcrumbLabel,
+}: HeaderBreadcrumbProps) => {
+  const titleText = savedDoc.title || "Untitled";
+  const linkClassName = cn(
+    buttonVariants({ variant: "ghost", size: "sm" }),
+    "max-w-[140px] min-w-0 shrink justify-start px-1.5 font-normal text-foreground hover:bg-accent/60 sm:max-w-[200px]",
+  );
+  const isPublished = savedDoc.status === "published" && workspaceId && formId;
 
   return (
-    <>
-      <header
-        className={cn(
-          "group/header -z-10 flex h-10 w-full shrink-0 items-center justify-between bg-background px-2 text-[13px] transition-opacity duration-150 select-none",
-          isDistractionHidden && "pointer-events-none opacity-0",
-        )}
+    <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center text-sm">
+      {workspace && (
+        <>
+          <Link
+            to="/dashboard"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "hidden max-w-[150px] shrink truncate px-1.5 font-normal text-muted-foreground hover:bg-accent/60 hover:text-foreground md:inline-flex",
+            )}
+          >
+            <span className="truncate">{workspace.name}</span>
+          </Link>
+          <span
+            aria-hidden="true"
+            className="hidden shrink-0 px-0.5 text-muted-foreground/40 md:inline"
+          >
+            /
+          </span>
+        </>
+      )}
+      {isPublished ? (
+        isEditRoute ? (
+          <Link
+            to="/workspace/$workspaceId/form-builder/$formId/submissions"
+            params={{ workspaceId, formId }}
+            className={linkClassName}
+          >
+            <span className="truncate">{titleText}</span>
+          </Link>
+        ) : (
+          <Link
+            to="/workspace/$workspaceId/form-builder/$formId/edit"
+            params={{ workspaceId, formId }}
+            search={(prev) => ({ ...prev, force: true })}
+            className={linkClassName}
+          >
+            <span className="truncate">{titleText}</span>
+          </Link>
+        )
+      ) : (
+        <span
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "max-w-[140px] min-w-0 shrink cursor-default justify-start px-1.5 font-normal hover:bg-transparent sm:max-w-[200px]",
+          )}
+        >
+          <span className="truncate">{titleText}</span>
+        </span>
+      )}
+      {!isEditorSidebarOpen && (
+        <>
+          <span
+            aria-hidden="true"
+            className="hidden shrink-0 px-0.5 text-muted-foreground/40 lg:inline"
+          >
+            /
+          </span>
+          <span
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "hidden shrink-0 cursor-default px-1.5 font-normal text-muted-foreground hover:bg-transparent lg:inline-flex",
+            )}
+          >
+            {breadcrumbLabel}
+          </span>
+        </>
+      )}
+    </nav>
+  );
+};
+
+interface LandingPageActionsProps {
+  previewMode: boolean;
+  activeSidebar: string | null;
+  activeMenu: ActiveMenu;
+  onTogglePreview: () => void;
+  onToggleEditorSidebar: (id: "about" | "settings" | "customize") => void;
+  onSetActiveMenu: (menu: ActiveMenu) => void;
+  onSignIn: () => void;
+}
+
+const LandingPageActions = ({
+  previewMode,
+  activeSidebar,
+  activeMenu,
+  onTogglePreview,
+  onToggleEditorSidebar,
+  onSetActiveMenu,
+  onSignIn,
+}: LandingPageActionsProps) => (
+  <>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "px-2.5 font-normal text-muted-foreground hover:text-foreground",
+              previewMode && "bg-accent/50 text-foreground",
+            )}
+            onClick={onTogglePreview}
+          />
+        }
       >
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          {isLandingPage && <LogoToggle static className="-ml-1" />}
-          {/* Logo doubles as the sidebar trigger on mobile (always visible)
-              and on desktop when the sidebar is collapsed. The primary open
-              gesture on mobile is a rightward swipe from anywhere on the
-              page; this is the discoverability safety net. */}
-          {!isLandingPage && (state === "collapsed" || isMobile) && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <LogoToggle
-                    direction="right"
-                    onClick={() => toggleMainSidebar()}
-                    className="-ml-1"
-                  />
-                }
-              />
-              <TooltipContent side="right">
-                <p>{isMobile ? "Open sidebar" : "Expand sidebar"}</p>
-                {!isMobile && (
-                  <p className="text-xs text-muted-foreground">
-                    {formatForDisplay(HOTKEYS.DISMISS_SIDEBARS)}
-                  </p>
-                )}
-              </TooltipContent>
-            </Tooltip>
-          )}
-          {isFormBuilder && savedDocs?.[0] && (
-            <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center text-sm">
-              {workspace && (
-                <>
-                  <Link
-                    to="/dashboard"
-                    className={cn(
-                      buttonVariants({ variant: "ghost", size: "sm" }),
-                      "hidden max-w-[150px] shrink truncate px-1.5 font-normal text-muted-foreground hover:bg-accent/60 hover:text-foreground md:inline-flex",
-                    )}
-                  >
-                    <span className="truncate">{workspace.name}</span>
-                  </Link>
-                  <span
-                    aria-hidden="true"
-                    className="hidden shrink-0 px-0.5 text-muted-foreground/40 md:inline"
-                  >
-                    /
-                  </span>
-                </>
-              )}
-              {(() => {
-                const titleText = savedDocs?.[0].title || "Untitled";
-                const linkClassName = cn(
-                  buttonVariants({ variant: "ghost", size: "sm" }),
-                  "max-w-[140px] min-w-0 shrink justify-start px-1.5 font-normal text-foreground hover:bg-accent/60 sm:max-w-[200px]",
-                );
-                if (savedDocs?.[0].status === "published" && workspaceId && formId) {
-                  return isEditRoute ? (
-                    <Link
-                      to="/workspace/$workspaceId/form-builder/$formId/submissions"
-                      params={{ workspaceId, formId }}
-                      className={linkClassName}
-                    >
-                      <span className="truncate">{titleText}</span>
-                    </Link>
-                  ) : (
-                    <Link
-                      to="/workspace/$workspaceId/form-builder/$formId/edit"
-                      params={{ workspaceId, formId }}
-                      search={(prev) => ({ ...prev, force: true })}
-                      className={linkClassName}
-                    >
-                      <span className="truncate">{titleText}</span>
-                    </Link>
-                  );
-                }
-                return (
-                  <span
-                    className={cn(
-                      buttonVariants({ variant: "ghost", size: "sm" }),
-                      "max-w-[140px] min-w-0 shrink cursor-default justify-start px-1.5 font-normal hover:bg-transparent sm:max-w-[200px]",
-                    )}
-                  >
-                    <span className="truncate">{titleText}</span>
-                  </span>
-                );
-              })()}
-              {!isEditorSidebarOpen && (
-                <>
-                  <span
-                    aria-hidden="true"
-                    className="hidden shrink-0 px-0.5 text-muted-foreground/40 lg:inline"
-                  >
-                    /
-                  </span>
-                  <span
-                    className={cn(
-                      buttonVariants({ variant: "ghost", size: "sm" }),
-                      "hidden shrink-0 cursor-default px-1.5 font-normal text-muted-foreground hover:bg-transparent lg:inline-flex",
-                    )}
-                  >
-                    {breadcrumbLabel}
-                  </span>
-                </>
-              )}
-            </nav>
-          )}
-        </div>
+        {previewMode ? "Editor" : "Preview"}
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="end">
+        <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
+        <p className="text-xs text-muted-foreground">{formatForDisplay(HOTKEYS.TOGGLE_PREVIEW)}</p>
+      </TooltipContent>
+    </Tooltip>
+    <Button
+      variant="ghost"
+      size="sm"
+      className={cn(
+        "px-2.5 font-normal text-muted-foreground hover:text-foreground",
+        activeSidebar === "about" && "bg-accent/50 text-foreground",
+      )}
+      onClick={() => onToggleEditorSidebar("about")}
+    >
+      About
+    </Button>
+    <Button
+      variant="ghost"
+      size="icon"
+      className="rounded-lg text-muted-foreground hover:text-foreground"
+      onClick={() => onToggleEditorSidebar("settings")}
+      aria-label="Settings"
+    >
+      <SettingsIcon fill="transparent" />
+    </Button>
+    <DropdownMenu
+      open={activeMenu === "local"}
+      onOpenChange={(open) => onSetActiveMenu(open ? "local" : null)}
+    >
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 text-muted-foreground hover:text-foreground"
+            aria-label="More options"
+          />
+        }
+      >
+        <MoreHorizontalIcon className="size-[18px]" strokeWidth={1.5} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
+        <DropdownMenuItem onClick={() => onToggleEditorSidebar("customize")}>
+          <span className="flex-1 text-left">Customization</span>
+          <DropdownMenuShortcut>
+            {formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR)}
+          </DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onSignIn}>
+          <span className="flex-1 text-left">Sign in</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+    <Button
+      size="sm"
+      className="ml-1 rounded-[8px] border-none bg-neutral-950 py-1.5 pr-2 pl-2.5 text-[14px] text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
+      onClick={onSignIn}
+    >
+      Publish
+    </Button>
+  </>
+);
 
-        <div className="flex shrink-0 items-center gap-1">
-          {isFormBuilder && savedDocs?.[0]?.updatedAt && !isLoadingSavedDocs && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <span className="mr-1 hidden h-7 items-center rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] font-normal whitespace-nowrap text-muted-foreground/70 md:inline-flex" />
-                }
-              >
-                Edited{" "}
-                {/* eslint-disable-next-line react-doctor/rendering-hydration-mismatch-time -- authenticated layout, client-only render */}
-                {formatDistanceToNow(parseTimestampAsUTC(savedDocs?.[0]?.updatedAt) ?? new Date())}{" "}
-                ago
-              </TooltipTrigger>
-              <TooltipContent side="bottom" align="end">
-                <SavedDocsTooltipContent
-                  userName={session?.user?.name}
-                  updatedAt={savedDocs?.[0]?.updatedAt}
-                  createdAt={savedDocs?.[0]?.createdAt}
-                />
-              </TooltipContent>
-            </Tooltip>
-          )}
+interface MenuItem {
+  key: string;
+  label: string;
+  shortcut?: string;
+  onClick: () => void;
+}
 
-          {isDashboard && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "px-2.5 font-normal text-muted-foreground hover:text-foreground",
-                activeSidebar === "about" && "bg-accent/50 text-foreground",
-              )}
-              onClick={() => toggleEditorSidebar("about")}
-            >
-              About
-            </Button>
-          )}
+interface FormBuilderHeaderActionsFlags {
+  isEditRoute: boolean;
+  hasUnpublishedChanges: boolean;
+  isDiscarding: boolean;
+  isPublishing: boolean;
+  previewMode: boolean;
+  canShare: boolean;
+  isShareSidebarOpen: boolean;
+  isLoadingSavedDocs: boolean;
+}
 
-          {isLandingPage && (
-            <>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        "px-2.5 font-normal text-muted-foreground hover:text-foreground",
-                        previewMode && "bg-accent/50 text-foreground",
-                      )}
-                      onClick={togglePreview}
-                    />
-                  }
-                >
-                  {previewMode ? "Editor" : "Preview"}
-                </TooltipTrigger>
-                <TooltipContent side="bottom" align="end">
-                  <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatForDisplay(HOTKEYS.TOGGLE_PREVIEW)}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "px-2.5 font-normal text-muted-foreground hover:text-foreground",
-                  activeSidebar === "about" && "bg-accent/50 text-foreground",
-                )}
-                onClick={() => toggleEditorSidebar("about")}
-              >
-                About
-              </Button>
+interface FormBuilderHeaderActionsProps {
+  flags: FormBuilderHeaderActionsFlags;
+  activeMenu: ActiveMenu;
+  workspaceId: string | undefined;
+  formId: string | undefined;
+  savedDocs: ReturnType<typeof useForm>["data"];
+  menuItems: MenuItem[];
+  onTogglePreview: () => void;
+  onToggleShareSidebar: () => void;
+  onToggleSettingsSidebar: () => void;
+  onPublish: () => Promise<void> | void;
+  onSetActiveDialog: (dialog: ActiveDialog) => void;
+  onSetActiveMenu: (menu: ActiveMenu) => void;
+}
+
+const FormBuilderHeaderActions = ({
+  flags,
+  activeMenu,
+  workspaceId,
+  formId,
+  savedDocs,
+  menuItems,
+  onTogglePreview,
+  onToggleShareSidebar,
+  onToggleSettingsSidebar,
+  onPublish,
+  onSetActiveDialog,
+  onSetActiveMenu,
+}: FormBuilderHeaderActionsProps) => {
+  const {
+    isEditRoute,
+    hasUnpublishedChanges,
+    isDiscarding,
+    isPublishing,
+    previewMode,
+    canShare,
+    isShareSidebarOpen,
+    isLoadingSavedDocs,
+  } = flags;
+  return (
+    <>
+      {isEditRoute && hasUnpublishedChanges && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-lg text-muted-foreground hover:text-foreground"
-                onClick={() => toggleEditorSidebar("settings")}
-                aria-label="Settings"
-              >
-                <SettingsIcon fill="transparent" />
-              </Button>
-              <DropdownMenu
-                open={activeMenu === "local"}
-                onOpenChange={(open) => setActiveMenu(open ? "local" : null)}
-              >
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 text-muted-foreground hover:text-foreground"
-                      aria-label="More options"
-                    />
-                  }
-                >
-                  <MoreHorizontalIcon className="size-[18px]" strokeWidth={1.5} />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
-                  <DropdownMenuItem onClick={() => toggleEditorSidebar("customize")}>
-                    <span className="flex-1 text-left">Customization</span>
-                    <DropdownMenuShortcut>
-                      {formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR)}
-                    </DropdownMenuShortcut>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate({ to: "/login" })}>
-                    <span className="flex-1 text-left">Sign in</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button
-                size="sm"
-                className="ml-1 rounded-[8px] border-none bg-neutral-950 py-1.5 pr-2 pl-2.5 text-[14px] text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
-                onClick={() => navigate({ to: "/login" })}
-              >
-                Publish
-              </Button>
-            </>
-          )}
+                className="hidden size-7 text-muted-foreground hover:text-foreground md:inline-flex"
+                onClick={() => onSetActiveDialog("discard")}
+                disabled={isDiscarding}
+              />
+            }
+          >
+            {isDiscarding ? (
+              <Loader2Icon className="size-4 animate-spin" strokeWidth={2} />
+            ) : (
+              <RotateCcwIcon className="size-4" strokeWidth={2} />
+            )}
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Reset to last published version</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
 
-          {isFormBuilder && (
-            <>
-              {isEditRoute && hasUnpublishedChanges && (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="hidden size-7 text-muted-foreground hover:text-foreground md:inline-flex"
-                        onClick={() => setActiveDialog("discard")}
-                        disabled={isDiscarding}
-                      />
-                    }
-                  >
-                    {isDiscarding ? (
-                      <Loader2Icon className="size-4 animate-spin" strokeWidth={2} />
-                    ) : (
-                      <RotateCcwIcon className="size-4" strokeWidth={2} />
-                    )}
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Reset to last published version</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-
-              <div className="flex items-center gap-1">
-                {isEditRoute && (
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn(
-                            "px-2.5 font-normal text-muted-foreground hover:text-foreground",
-                            previewMode && "bg-accent/50 text-foreground",
-                          )}
-                          onClick={togglePreview}
-                        />
-                      }
-                    >
-                      {previewMode ? "Editor" : "Preview"}
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" align="end">
-                      <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatForDisplay(HOTKEYS.TOGGLE_PREVIEW)}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-
-                {canShare && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                      "hidden px-2.5 font-normal text-muted-foreground hover:text-foreground md:inline-flex",
-                      isShareSidebarOpen && "bg-accent/50 text-foreground",
-                    )}
-                    onClick={() => toggleShareSidebar()}
-                  >
-                    Share
-                  </Button>
-                )}
-
+      <div className="flex items-center gap-1">
+        {isEditRoute && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="hidden text-muted-foreground hover:text-foreground md:inline-flex"
-                  aria-label="Settings"
-                  onClick={() => toggleSettingsSidebar()}
-                >
-                  <SettingsIcon fill="transparent" />
-                </Button>
+                  size="sm"
+                  className={cn(
+                    "px-2.5 font-normal text-muted-foreground hover:text-foreground",
+                    previewMode && "bg-accent/50 text-foreground",
+                  )}
+                  onClick={onTogglePreview}
+                />
+              }
+            >
+              {previewMode ? "Editor" : "Preview"}
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="end">
+              <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatForDisplay(HOTKEYS.TOGGLE_PREVIEW)}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        )}
 
-                <DropdownMenu
-                  open={activeMenu === "main"}
-                  onOpenChange={(open) => setActiveMenu(open ? "main" : null)}
-                >
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="hover:bg-sidebar-active mr-1 overflow-hidden rounded-lg p-[5px] text-muted-foreground hover:text-foreground"
-                        aria-label="More options"
-                      />
-                    }
-                  >
-                    <MoreHorizontalIcon />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
-                    {menuItems.map((item) => (
-                      <DropdownMenuItem key={item.key} onClick={() => item.onClick()}>
-                        <span className="flex-1 text-left">{item.label}</span>
-                        {item.shortcut && (
-                          <DropdownMenuShortcut>{item.shortcut}</DropdownMenuShortcut>
-                        )}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+        {canShare && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "hidden px-2.5 font-normal text-muted-foreground hover:text-foreground md:inline-flex",
+              isShareSidebarOpen && "bg-accent/50 text-foreground",
+            )}
+            onClick={onToggleShareSidebar}
+          >
+            Share
+          </Button>
+        )}
 
-              {isEditRoute ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="hidden text-muted-foreground hover:text-foreground md:inline-flex"
+          aria-label="Settings"
+          onClick={onToggleSettingsSidebar}
+        >
+          <SettingsIcon fill="transparent" />
+        </Button>
+
+        <DropdownMenu
+          open={activeMenu === "main"}
+          onOpenChange={(open) => onSetActiveMenu(open ? "main" : null)}
+        >
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hover:bg-sidebar-active mr-1 overflow-hidden rounded-lg p-[5px] text-muted-foreground hover:text-foreground"
+                aria-label="More options"
+              />
+            }
+          >
+            <MoreHorizontalIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
+            {menuItems.map((item) => (
+              <DropdownMenuItem key={item.key} onClick={() => item.onClick()}>
+                <span className="flex-1 text-left">{item.label}</span>
+                {item.shortcut && <DropdownMenuShortcut>{item.shortcut}</DropdownMenuShortcut>}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {isEditRoute ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="sm"
+                className={cn(
+                  "ml-1 rounded-[8px] border-none py-1.5 pr-2 pl-2 text-[14px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all",
+                  !isLoadingSavedDocs &&
+                    (hasUnpublishedChanges || savedDocs?.[0]?.status !== "published")
+                    ? "bg-black text-white hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80",
+                )}
+                onClick={onPublish}
+                disabled={
+                  isPublishing || (!hasUnpublishedChanges && savedDocs?.[0]?.status === "published")
+                }
+              />
+            }
+          >
+            {isPublishing ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : savedDocs?.[0]?.status === "published" && !hasUnpublishedChanges ? (
+              "Published"
+            ) : (
+              "Publish"
+            )}
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="end">
+            <p className="text-xs text-muted-foreground">
+              {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        workspaceId &&
+        formId && (
+          <div className="ml-1 flex items-stretch overflow-hidden rounded-lg bg-neutral-950 text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-colors dark:bg-white dark:text-black">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Link
+                    to="/workspace/$workspaceId/form-builder/$formId/edit"
+                    params={() => ({ workspaceId, formId })}
+                    search={(prev) => ({ ...prev, force: true })}
+                    aria-label="Edit form"
+                    className="inline-flex h-7 items-center gap-1 pr-2 pl-2.5 text-[14px] transition-colors hover:bg-stone-800 dark:hover:bg-stone-200"
+                  />
+                }
+              >
+                <PencilIcon className="size-3.5 shrink-0" />
+                Edit
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end">
+                <p className="text-xs text-muted-foreground">
+                  {formatForDisplay(HOTKEYS.EDIT_FORM)}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+
+            <div
+              aria-hidden={!hasUnpublishedChanges}
+              className={cn(
+                "grid items-stretch overflow-hidden transition-[grid-template-columns,opacity] duration-300 ease-out motion-reduce:transition-none",
+                hasUnpublishedChanges
+                  ? "grid-cols-[1fr] opacity-100"
+                  : "pointer-events-none grid-cols-[0fr] opacity-0",
+              )}
+            >
+              <div className="flex min-w-0 items-stretch">
+                <span
+                  aria-hidden
+                  className="my-1.5 w-px self-stretch bg-white/25 dark:bg-black/20"
+                />
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <Button
-                        size="sm"
-                        className={cn(
-                          "ml-1 rounded-[8px] border-none py-1.5 pr-2 pl-2 text-[14px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all",
-                          !isLoadingSavedDocs &&
-                            (hasUnpublishedChanges || savedDocs?.[0]?.status !== "published")
-                            ? "bg-black text-white hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80",
-                        )}
-                        onClick={handlePublish}
-                        disabled={
-                          isPublishing ||
-                          (!hasUnpublishedChanges && savedDocs?.[0]?.status === "published")
-                        }
+                      <button
+                        type="button"
+                        onClick={onPublish}
+                        disabled={isPublishing || !hasUnpublishedChanges}
+                        tabIndex={hasUnpublishedChanges ? 0 : -1}
+                        className="inline-flex h-7 items-center pr-2 pl-2.5 text-[14px] transition-colors hover:bg-stone-800 disabled:opacity-60 dark:hover:bg-stone-200"
                       />
                     }
                   >
-                    {isPublishing ? (
-                      <Loader2Icon className="size-4 animate-spin" />
-                    ) : savedDocs?.[0]?.status === "published" && !hasUnpublishedChanges ? (
-                      "Published"
-                    ) : (
-                      "Publish"
-                    )}
+                    {isPublishing ? <Loader2Icon className="size-4 animate-spin" /> : "Publish"}
                   </TooltipTrigger>
                   <TooltipContent side="bottom" align="end">
                     <p className="text-xs text-muted-foreground">
@@ -715,133 +1029,81 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                     </p>
                   </TooltipContent>
                 </Tooltip>
-              ) : (
-                workspaceId &&
-                formId && (
-                  <div className="ml-1 flex items-stretch overflow-hidden rounded-lg bg-neutral-950 text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-colors dark:bg-white dark:text-black">
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <Link
-                            to="/workspace/$workspaceId/form-builder/$formId/edit"
-                            params={() => ({ workspaceId, formId })}
-                            search={(prev) => ({ ...prev, force: true })}
-                            aria-label="Edit form"
-                            className="inline-flex h-7 items-center gap-1 pr-2 pl-2.5 text-[14px] transition-colors hover:bg-stone-800 dark:hover:bg-stone-200"
-                          />
-                        }
-                      >
-                        <PencilIcon className="size-3.5 shrink-0" />
-                        Edit
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" align="end">
-                        <p className="text-xs text-muted-foreground">
-                          {formatForDisplay(HOTKEYS.EDIT_FORM)}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-
-                    <div
-                      aria-hidden={!hasUnpublishedChanges}
-                      className={cn(
-                        "grid items-stretch overflow-hidden transition-[grid-template-columns,opacity] duration-300 ease-out motion-reduce:transition-none",
-                        hasUnpublishedChanges
-                          ? "grid-cols-[1fr] opacity-100"
-                          : "pointer-events-none grid-cols-[0fr] opacity-0",
-                      )}
-                    >
-                      <div className="flex min-w-0 items-stretch">
-                        <span
-                          aria-hidden
-                          className="my-1.5 w-px self-stretch bg-white/25 dark:bg-black/20"
-                        />
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <button
-                                type="button"
-                                onClick={handlePublish}
-                                disabled={isPublishing || !hasUnpublishedChanges}
-                                tabIndex={hasUnpublishedChanges ? 0 : -1}
-                                className="inline-flex h-7 items-center pr-2 pl-2.5 text-[14px] transition-colors hover:bg-stone-800 disabled:opacity-60 dark:hover:bg-stone-200"
-                              />
-                            }
-                          >
-                            {isPublishing ? (
-                              <Loader2Icon className="size-4 animate-spin" />
-                            ) : (
-                              "Publish"
-                            )}
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom" align="end">
-                            <p className="text-xs text-muted-foreground">
-                              {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </div>
-                  </div>
-                )
-              )}
-            </>
-          )}
-        </div>
-      </header>
-
-      <AlertDialog
-        open={activeDialog === "delete"}
-        onOpenChange={(open) => setActiveDialog(open ? "delete" : null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete form</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this form? This action will move it to trash and
-              cannot be easily undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteForm}
-              className="bg-destructive text-white hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={activeDialog === "discard"}
-        onOpenChange={(open) => setActiveDialog(open ? "discard" : null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Discard unpublished changes?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will revert the form to the last published version. Any unsaved changes will be
-              lost.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                void handleDiscardChanges();
-                setActiveDialog(null);
-              }}
-              className="bg-destructive text-white hover:bg-destructive/90"
-            >
-              Discard changes
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              </div>
+            </div>
+          </div>
+        )
+      )}
     </>
   );
 };
+
+interface AppHeaderDialogsProps {
+  activeDialog: ActiveDialog;
+  onDialogChange: (dialog: ActiveDialog) => void;
+  onDeleteForm: () => Promise<void> | void;
+  onDiscardChanges: () => Promise<void> | void;
+}
+
+const AppHeaderDialogs = ({
+  activeDialog,
+  onDialogChange,
+  onDeleteForm,
+  onDiscardChanges,
+}: AppHeaderDialogsProps) => (
+  <>
+    <AlertDialog
+      open={activeDialog === "delete"}
+      onOpenChange={(open) => onDialogChange(open ? "delete" : null)}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete form</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete this form? This action will move it to trash and cannot
+            be easily undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onDeleteForm}
+            className="bg-destructive text-white hover:bg-destructive/90"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog
+      open={activeDialog === "discard"}
+      onOpenChange={(open) => onDialogChange(open ? "discard" : null)}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Discard unpublished changes?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will revert the form to the last published version. Any unsaved changes will be
+            lost.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              void onDiscardChanges();
+              onDialogChange(null);
+            }}
+            className="bg-destructive text-white hover:bg-destructive/90"
+          >
+            Discard changes
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </>
+);
 
 interface AppHeaderHotkeysOptions {
   isFormBuilder: boolean;

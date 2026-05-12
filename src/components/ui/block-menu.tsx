@@ -202,92 +202,8 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
   const blockMenuTriggerRef = React.useRef<HTMLDivElement | null>(null);
   const turnIntoCloseTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const selectedNodes = useEditorSelector(
-    (ed) => {
-      if (!isOpen) return [];
-      try {
-        return ed.getApi(BlockSelectionPlugin).blockSelection.getNodes();
-      } catch {
-        return [];
-      }
-    },
-    [isOpen],
-  );
-
-  const firstNode = selectedNodes[0]?.[0] as
-    | {
-        type?: string;
-        variant?: string;
-        required?: boolean;
-        placeholder?: string;
-        minLength?: number;
-        maxLength?: number;
-        defaultValue?: string;
-        buttonText?: string;
-        children?: Array<{ text?: string }>;
-        minValue?: number;
-        maxValue?: number;
-        allowDecimals?: boolean;
-        maxFileSize?: number;
-        maxFiles?: number;
-        allowedFileTypes?: string;
-        allowedFileExtensions?: string[];
-        minSelections?: number;
-        maxSelections?: number;
-        randomizeOrder?: boolean;
-        allowOther?: boolean;
-      }
-    | undefined;
-  const firstPath = selectedNodes[0]?.[1];
-
-  const nodeType = firstNode?.type;
-
-  const labelNode = React.useMemo(() => {
-    if (nodeType === "formLabel" || nodeType === "formButton") return firstNode;
-    if (FORM_INPUT_NODE_TYPES.has(nodeType ?? "") && firstPath) {
-      const prevPath = [...firstPath];
-      prevPath[prevPath.length - 1] -= 1;
-      try {
-        const prev = editor.api.node(prevPath);
-        if (prev && ALLOWED_LABEL_TYPES.has(prev[0]?.type as string)) {
-          return prev[0] as typeof firstNode;
-        }
-      } catch {}
-    }
-    return null;
-  }, [nodeType, firstNode, firstPath, editor]);
-
-  const inputNode = React.useMemo(() => {
-    if (FORM_INPUT_NODE_TYPES.has(nodeType ?? "")) return firstNode;
-    if (ALLOWED_LABEL_TYPES.has(nodeType ?? "") && firstPath) {
-      const nextPath = [...firstPath];
-      nextPath[nextPath.length - 1] += 1;
-      try {
-        const next = editor.api.node(nextPath);
-        if (next && FORM_INPUT_NODE_TYPES.has(next[0]?.type as string)) {
-          return next[0] as typeof firstNode;
-        }
-      } catch {}
-    }
-    return null;
-  }, [nodeType, firstNode, firstPath, editor]);
-
-  const fieldType = React.useMemo(() => {
-    if (inputNode) return getFieldType(inputNode as { type?: string; variant?: string });
-    return getFieldType(firstNode as { type?: string; variant?: string });
-  }, [inputNode, firstNode]);
-
-  const getInputPath = React.useCallback(() => {
-    if (!firstPath) return null;
-    if (FORM_INPUT_NODE_TYPES.has(nodeType ?? "")) return firstPath;
-    if (nodeType === "formOptionItem") return firstPath;
-    if (ALLOWED_LABEL_TYPES.has(nodeType ?? "")) {
-      const inputPath = [...firstPath];
-      inputPath[inputPath.length - 1] += 1;
-      return inputPath;
-    }
-    return null;
-  }, [nodeType, firstPath]);
+  const { firstNode, firstPath, nodeType, labelNode, inputNode, fieldType, getInputPath } =
+    useBlockMenuSelection({ editor, isOpen });
 
   const [wasOpen, setWasOpen] = React.useState(false);
   if (isOpen && !wasOpen) {
@@ -305,229 +221,33 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     setWasOpen(false);
   }
 
-  const handleToggleRequired = React.useCallback(() => {
-    const inputPath = getInputPath();
-    if (!inputPath) return;
-    const currentRequired = Boolean(inputNode?.required);
-    editor.tf.setNodes({ required: !currentRequired }, { at: inputPath });
-  }, [getInputPath, inputNode?.required, editor.tf]);
-
-  const handleUpdateMinLength = React.useCallback(
-    (value: string) => {
-      const inputPath = getInputPath();
-      if (!inputPath) return;
-      const num = parseInt(value, 10) || 0;
-      if (num === 0) {
-        editor.tf.unsetNodes(["minLength"], { at: inputPath });
-      } else {
-        editor.tf.setNodes({ minLength: num }, { at: inputPath });
-      }
-    },
-    [getInputPath, editor.tf],
-  );
-
-  const handleUpdateMaxLength = React.useCallback(
-    (value: string) => {
-      const inputPath = getInputPath();
-      if (!inputPath) return;
-      const num = parseInt(value, 10) || 0;
-      if (num === 0) {
-        editor.tf.unsetNodes(["maxLength"], { at: inputPath });
-      } else {
-        editor.tf.setNodes({ maxLength: num }, { at: inputPath });
-      }
-    },
-    [getInputPath, editor.tf],
-  );
-
-  const handleUpdateMinValue = React.useCallback(
-    (value: string) => {
-      const inputPath = getInputPath();
-      if (!inputPath) return;
-      const num = parseInt(value, 10) || 0;
-      if (num === 0) {
-        editor.tf.unsetNodes(["minValue"], { at: inputPath });
-      } else {
-        editor.tf.setNodes({ minValue: num }, { at: inputPath });
-      }
-    },
-    [getInputPath, editor.tf],
-  );
-
-  const handleUpdateMaxValue = React.useCallback(
-    (value: string) => {
-      const inputPath = getInputPath();
-      if (!inputPath) return;
-      const num = parseInt(value, 10) || 0;
-      if (num === 0) {
-        editor.tf.unsetNodes(["maxValue"], { at: inputPath });
-      } else {
-        editor.tf.setNodes({ maxValue: num }, { at: inputPath });
-      }
-    },
-    [getInputPath, editor.tf],
-  );
-
-  const handleToggleAllowDecimals = React.useCallback(() => {
-    const inputPath = getInputPath();
-    if (!inputPath) return;
-    const current = Boolean(inputNode?.allowDecimals);
-    if (current) {
-      editor.tf.unsetNodes(["allowDecimals"], { at: inputPath });
-    } else {
-      editor.tf.setNodes({ allowDecimals: true }, { at: inputPath });
-    }
-  }, [getInputPath, inputNode?.allowDecimals, editor.tf]);
-
-  const handleUpdateMaxFileSize = React.useCallback(
-    (value: string) => {
-      const inputPath = getInputPath();
-      if (!inputPath) return;
-      const num = parseInt(value, 10) || 10;
-      editor.tf.setNodes({ maxFileSize: num }, { at: inputPath });
-    },
-    [getInputPath, editor.tf],
-  );
-
-  const handleUpdateMaxFiles = React.useCallback(
-    (value: string) => {
-      const inputPath = getInputPath();
-      if (!inputPath) return;
-      const num = parseInt(value, 10) || 0;
-      if (num === 0) {
-        editor.tf.unsetNodes(["maxFiles"], { at: inputPath });
-      } else {
-        editor.tf.setNodes({ maxFiles: num }, { at: inputPath });
-      }
-    },
-    [getInputPath, editor.tf],
-  );
-
-  const handleUpdateAllowedFileTypes = React.useCallback(
-    (value: string) => {
-      const inputPath = getInputPath();
-      if (!inputPath) return;
-      editor.tf.setNodes({ allowedFileTypes: value }, { at: inputPath });
-      editor.tf.unsetNodes(["allowedFileExtensions"], { at: inputPath });
-    },
-    [getInputPath, editor.tf],
-  );
-
-  const handleToggleFileExtension = React.useCallback(
-    (subtypeId: string) => {
-      const inputPath = getInputPath();
-      if (!inputPath) return;
-      const category = isFileTypeCategory(inputNode?.allowedFileTypes)
-        ? inputNode.allowedFileTypes
-        : "all";
-      if (category === "all") return;
-      const allSubtypes = FILE_SUBTYPES[category].map((s) => s.id);
-      const current = inputNode?.allowedFileExtensions;
-      // Empty/undefined means "all selected" — materialize the full list
-      // before applying the toggle so removing one keeps the rest.
-      const selected =
-        Array.isArray(current) && current.length > 0
-          ? current.filter((id): id is string => typeof id === "string" && allSubtypes.includes(id))
-          : allSubtypes;
-      const next = selected.includes(subtypeId)
-        ? selected.filter((id) => id !== subtypeId)
-        : [...selected, subtypeId];
-      if (next.length === 0) return;
-      // When the user re-selects everything, drop the field so the default
-      // ("all subtypes") representation persists in the document.
-      if (next.length === allSubtypes.length) {
-        editor.tf.unsetNodes(["allowedFileExtensions"], { at: inputPath });
-        return;
-      }
-      editor.tf.setNodes({ allowedFileExtensions: next }, { at: inputPath });
-    },
-    [getInputPath, editor.tf, inputNode?.allowedFileTypes, inputNode?.allowedFileExtensions],
-  );
-
-  const handleUpdateMinSelections = React.useCallback(
-    (value: string) => {
-      const inputPath = getInputPath();
-      if (!inputPath) return;
-      const num = parseInt(value, 10) || 0;
-      if (num === 0) {
-        editor.tf.unsetNodes(["minSelections"], { at: inputPath });
-      } else {
-        editor.tf.setNodes({ minSelections: num }, { at: inputPath });
-      }
-    },
-    [getInputPath, editor.tf],
-  );
-
-  const handleUpdateMaxSelections = React.useCallback(
-    (value: string) => {
-      const inputPath = getInputPath();
-      if (!inputPath) return;
-      const num = parseInt(value, 10) || 0;
-      if (num === 0) {
-        editor.tf.unsetNodes(["maxSelections"], { at: inputPath });
-      } else {
-        editor.tf.setNodes({ maxSelections: num }, { at: inputPath });
-      }
-    },
-    [getInputPath, editor.tf],
-  );
-
-  const handleToggleRandomizeOrder = React.useCallback(() => {
-    const inputPath = getInputPath();
-    if (!inputPath) return;
-    const current = Boolean(inputNode?.randomizeOrder);
-    if (current) {
-      editor.tf.unsetNodes(["randomizeOrder"], { at: inputPath });
-    } else {
-      editor.tf.setNodes({ randomizeOrder: true }, { at: inputPath });
-    }
-  }, [getInputPath, inputNode?.randomizeOrder, editor.tf]);
-
-  const handleToggleAllowOther = React.useCallback(() => {
-    const inputPath = getInputPath();
-    if (!inputPath) return;
-    const current = Boolean(inputNode?.allowOther);
-    if (current) {
-      editor.tf.unsetNodes(["allowOther"], { at: inputPath });
-    } else {
-      editor.tf.setNodes({ allowOther: true }, { at: inputPath });
-    }
-  }, [getInputPath, inputNode?.allowOther, editor.tf]);
-
-  const handleToggleDefaultValue = React.useCallback(() => {
-    const inputPath = getInputPath();
-    if (!inputPath) return;
-    const hasDefault = inputNode?.defaultValue !== undefined;
-    if (hasDefault) {
-      editor.tf.unsetNodes(["defaultValue"], { at: inputPath });
-    } else {
-      editor.tf.setNodes({ defaultValue: "" }, { at: inputPath });
-    }
-  }, [getInputPath, inputNode?.defaultValue, editor.tf]);
-
-  const handleUpdateDefaultValue = React.useCallback(
-    (value: string) => {
-      const inputPath = getInputPath();
-      if (!inputPath) return;
-      editor.tf.setNodes({ defaultValue: value }, { at: inputPath });
-    },
-    [getInputPath, editor.tf],
-  );
-
-  const handleUpdateButtonText = React.useCallback(
-    (value: string) => {
-      if (!firstPath || nodeType !== "formButton") return;
-      setButtonText(value);
-
-      editor.tf.withoutNormalizing(() => {
-        editor.tf.insertNodes({ text: value }, { at: [...firstPath, 0], select: false });
-        editor.tf.removeNodes({ at: [...firstPath, 1] });
-      });
-
-      editor.tf.setNodes({ buttonText: value }, { at: firstPath });
-    },
-    [firstPath, nodeType, editor.tf],
-  );
+  const handlers = useBlockMenuFieldHandlers({
+    editor,
+    getInputPath,
+    inputNode,
+    firstPath,
+    nodeType,
+    setButtonText,
+  });
+  const {
+    handleToggleRequired,
+    handleUpdateMinLength,
+    handleUpdateMaxLength,
+    handleUpdateMinValue,
+    handleUpdateMaxValue,
+    handleToggleAllowDecimals,
+    handleUpdateMaxFileSize,
+    handleUpdateMaxFiles,
+    handleUpdateAllowedFileTypes,
+    handleToggleFileExtension,
+    handleUpdateMinSelections,
+    handleUpdateMaxSelections,
+    handleToggleRandomizeOrder,
+    handleToggleAllowOther,
+    handleToggleDefaultValue,
+    handleUpdateDefaultValue,
+    handleUpdateButtonText,
+  } = handlers;
 
   const handleDelete = React.useCallback(() => {
     editor.getTransforms(BlockSelectionPlugin).blockSelection.removeNodes();
@@ -558,51 +278,14 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     [editor, api.blockMenu],
   );
 
-  React.useEffect(() => {
-    const node = blockMenuTriggerRef.current;
-    if (!node) return;
-
-    const handleContextMenu = (event: MouseEvent) => {
-      event.preventDefault();
-      api.blockMenu.show(BLOCK_CONTEXT_MENU_ID, {
-        x: event.clientX,
-        y: event.clientY,
-      });
-    };
-
-    node.addEventListener("contextmenu", handleContextMenu);
-    return () => {
-      node.removeEventListener("contextmenu", handleContextMenu);
-    };
-  }, [api.blockMenu]);
-
-  useHotkeys(
-    "delete, backspace",
-    handleDelete,
-    { enabled: isOpen && !isEditingName, preventDefault: true },
-    [isOpen, isEditingName, handleDelete],
-  );
-
-  useHotkeys(
-    "mod+d",
-    handleDuplicate,
-    { enabled: isOpen && !isEditingName, preventDefault: true },
-    [isOpen, isEditingName, handleDuplicate],
-  );
-
-  useHotkeys(
-    "mod+alt+h",
-    () => api.blockMenu.hide(),
-    { enabled: isOpen && !isEditingName, preventDefault: true },
-    [isOpen, isEditingName, api.blockMenu],
-  );
-
-  useHotkeys(
-    "mod+alt+l",
-    () => api.blockMenu.hide(),
-    { enabled: isOpen && !isEditingName, preventDefault: true },
-    [isOpen, isEditingName, api.blockMenu],
-  );
+  useBlockMenuContextMenuAndHotkeys({
+    triggerRef: blockMenuTriggerRef,
+    api,
+    isOpen,
+    isEditingName,
+    onDelete: handleDelete,
+    onDuplicate: handleDuplicate,
+  });
 
   const isRequired = Boolean(inputNode?.required);
   const hasDefaultValue = inputNode?.defaultValue !== undefined;
@@ -712,343 +395,818 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
             </DropdownMenuItem>
           )}
 
-          {fieldType === "textLike" && (
-            <>
-              <DropdownMenuItem closeOnClick={false} onClick={handleToggleDefaultValue}>
-                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
-                  Default answer
-                </span>
-                <Switch
-                  aria-label="Default answer"
-                  size="sm"
-                  checked={hasDefaultValue}
-                  onCheckedChange={handleToggleDefaultValue}
-                  onClick={handleStopPropagation}
-                />
-              </DropdownMenuItem>
-              {hasDefaultValue && (
-                <div className="px-2 pb-2">
-                  <Input
-                    value={currentDefaultValue || ""}
-                    onChange={handleDefaultValueChange}
-                    onKeyDown={handleInputKeyDown}
-                    placeholder="Enter default value"
-                    className="h-7 rounded-lg text-[13px]"
-                    aria-label="Default value"
-                  />
-                </div>
-              )}
+          <FieldTypeSettings
+            fieldType={fieldType}
+            inputNode={inputNode}
+            buttonText={buttonText}
+            hasDefaultValue={hasDefaultValue}
+            currentDefaultValue={currentDefaultValue}
+            handlers={{
+              handleToggleDefaultValue,
+              handleDefaultValueChange,
+              handleInputKeyDown,
+              handleStopPropagation,
+              handleUpdateMinLength,
+              handleUpdateMaxLength,
+              handleUpdateMinValue,
+              handleUpdateMaxValue,
+              handleToggleAllowDecimals,
+              handleUpdateMaxFileSize,
+              handleUpdateMaxFiles,
+              handleUpdateAllowedFileTypes,
+              handleToggleFileExtension,
+              handleUpdateMinSelections,
+              handleUpdateMaxSelections,
+              handleToggleRandomizeOrder,
+              handleToggleAllowOther,
+              handleButtonTextChange,
+            }}
+          />
 
-              <NumberRow
-                label="Min characters"
-                value={inputNode?.minLength}
-                onChange={handleUpdateMinLength}
-                min={0}
-                max={1000}
-                defaultHint={0}
-              />
-
-              {inputNode?.type !== "formTextarea" && (
-                <NumberRow
-                  label="Max characters"
-                  value={inputNode?.maxLength}
-                  onChange={handleUpdateMaxLength}
-                  min={0}
-                  max={1000}
-                  defaultHint={100}
-                />
-              )}
-
-              <DropdownMenuSeparator />
-            </>
-          )}
-
-          {fieldType === "formNumber" && (
-            <>
-              <DropdownMenuItem closeOnClick={false} onClick={handleToggleDefaultValue}>
-                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
-                  Default answer
-                </span>
-                <Switch
-                  aria-label="Default answer"
-                  size="sm"
-                  checked={hasDefaultValue}
-                  onCheckedChange={handleToggleDefaultValue}
-                  onClick={handleStopPropagation}
-                />
-              </DropdownMenuItem>
-              {hasDefaultValue && (
-                <div className="px-2 pb-2">
-                  <Input
-                    type="number"
-                    value={currentDefaultValue || ""}
-                    onChange={handleDefaultValueChange}
-                    onKeyDown={handleInputKeyDown}
-                    placeholder="Enter default value"
-                    className="h-7 rounded-lg text-[13px]"
-                    aria-label="Default value"
-                  />
-                </div>
-              )}
-
-              <NumberRow
-                label="Min value"
-                value={inputNode?.minValue}
-                onChange={handleUpdateMinValue}
-                min={0}
-                max={999999}
-                defaultHint={0}
-              />
-
-              <NumberRow
-                label="Max value"
-                value={inputNode?.maxValue}
-                onChange={handleUpdateMaxValue}
-                min={0}
-                max={999999}
-                defaultHint={100}
-              />
-
-              <DropdownMenuItem closeOnClick={false} onClick={handleToggleAllowDecimals}>
-                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
-                  Allow decimals
-                </span>
-                <Switch
-                  aria-label="Allow decimals"
-                  size="sm"
-                  checked={Boolean(inputNode?.allowDecimals)}
-                  onCheckedChange={handleToggleAllowDecimals}
-                  onClick={handleStopPropagation}
-                />
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-            </>
-          )}
-
-          {fieldType === "formFileUpload" && (
-            <>
-              <NumberRow
-                label="Max file size"
-                value={inputNode?.maxFileSize}
-                onChange={handleUpdateMaxFileSize}
-                min={1}
-                max={50}
-                suffix="MB"
-                defaultHint={10}
-              />
-
-              <NumberRow
-                label="Max files"
-                value={inputNode?.maxFiles}
-                onChange={handleUpdateMaxFiles}
-                min={0}
-                max={20}
-                defaultHint={1}
-              />
-
-              <DropdownMenuItem closeOnClick={false}>
-                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
-                  File types
-                </span>
-                <Select
-                  value={(inputNode?.allowedFileTypes as string) ?? "all"}
-                  onValueChange={(v) => v && handleUpdateAllowedFileTypes(v)}
-                >
-                  <SelectTrigger className="h-[20px] w-[100px] rounded-[4px] border border-transparent bg-transparent px-1 text-[12px] shadow-none focus:border-border/70 focus-visible:border-border/70 focus-visible:ring-0 dark:border-transparent dark:focus:border-border/70 dark:focus-visible:border-border/70">
-                    <SelectValue>
-                      {(value) =>
-                        FILE_TYPE_CATEGORY_LABELS[value as FileTypeCategory] ?? (value as string)
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All files</SelectItem>
-                    <SelectItem value="images">Images</SelectItem>
-                    <SelectItem value="documents">Documents</SelectItem>
-                    <SelectItem value="spreadsheets">Spreadsheets</SelectItem>
-                  </SelectContent>
-                </Select>
-              </DropdownMenuItem>
-
-              <FileExtensionToggleRow
-                category={
-                  isFileTypeCategory(inputNode?.allowedFileTypes)
-                    ? inputNode.allowedFileTypes
-                    : "all"
-                }
-                selected={inputNode?.allowedFileExtensions}
-                onToggle={handleToggleFileExtension}
-              />
-
-              <DropdownMenuSeparator />
-            </>
-          )}
-
-          {fieldType === "optionCheckbox" && (
-            <>
-              <NumberRow
-                label="Min selections"
-                value={inputNode?.minSelections}
-                onChange={handleUpdateMinSelections}
-                min={0}
-                max={50}
-                defaultHint={0}
-              />
-              <NumberRow
-                label="Max selections"
-                value={inputNode?.maxSelections}
-                onChange={handleUpdateMaxSelections}
-                min={0}
-                max={50}
-                defaultHint={3}
-              />
-              <DropdownMenuItem closeOnClick={false} onClick={handleToggleRandomizeOrder}>
-                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
-                  Randomize order
-                </span>
-                <Switch
-                  aria-label="Randomize order"
-                  size="sm"
-                  checked={Boolean(inputNode?.randomizeOrder)}
-                  onCheckedChange={handleToggleRandomizeOrder}
-                  onClick={handleStopPropagation}
-                />
-              </DropdownMenuItem>
-              <DropdownMenuItem closeOnClick={false} onClick={handleToggleAllowOther}>
-                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
-                  &quot;Other&quot; option
-                </span>
-                <Switch
-                  aria-label="Other option"
-                  size="sm"
-                  checked={Boolean(inputNode?.allowOther)}
-                  onCheckedChange={handleToggleAllowOther}
-                  onClick={handleStopPropagation}
-                />
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-            </>
-          )}
-
-          {fieldType === "formMultiSelect" && (
-            <>
-              <NumberRow
-                label="Min selections"
-                value={inputNode?.minSelections}
-                onChange={handleUpdateMinSelections}
-                min={0}
-                max={50}
-                defaultHint={0}
-              />
-              <NumberRow
-                label="Max selections"
-                value={inputNode?.maxSelections}
-                onChange={handleUpdateMaxSelections}
-                min={0}
-                max={50}
-                defaultHint={3}
-              />
-              <DropdownMenuSeparator />
-            </>
-          )}
-
-          {fieldType === "optionMultiChoice" && (
-            <>
-              <DropdownMenuItem closeOnClick={false} onClick={handleToggleRandomizeOrder}>
-                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
-                  Randomize order
-                </span>
-                <Switch
-                  aria-label="Randomize order"
-                  size="sm"
-                  checked={Boolean(inputNode?.randomizeOrder)}
-                  onCheckedChange={handleToggleRandomizeOrder}
-                  onClick={handleStopPropagation}
-                />
-              </DropdownMenuItem>
-              <DropdownMenuItem closeOnClick={false} onClick={handleToggleAllowOther}>
-                <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
-                  &quot;Other&quot; option
-                </span>
-                <Switch
-                  aria-label="Other option"
-                  size="sm"
-                  checked={Boolean(inputNode?.allowOther)}
-                  onCheckedChange={handleToggleAllowOther}
-                  onClick={handleStopPropagation}
-                />
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-            </>
-          )}
-
-          {/* Ranking - only Required (handled above) */}
-          {fieldType === "optionRanking" && <DropdownMenuSeparator />}
-
-          {/* Date/Time fields only get Required (handled above) + separator */}
-          {(fieldType === "formDate" || fieldType === "formTime") && <DropdownMenuSeparator />}
-
-          {fieldType === "formButton" && (
-            <>
-              <div className="space-y-2 px-2 py-1.5">
-                <Label className="text-[12px] text-muted-foreground">Button Name</Label>
-                <Input
-                  value={buttonText}
-                  onChange={handleButtonTextChange}
-                  onKeyDown={handleInputKeyDown}
-                  placeholder="Enter button name"
-                  className="h-8 rounded-lg text-[13px]"
-                />
-              </div>
-              <DropdownMenuSeparator />
-            </>
-          )}
-
-          <DropdownMenuItem variant="destructive" onClick={handleDelete}>
-            <TrashIcon />
-            <span className="flex-1 text-left">Delete</span>
-            <DropdownMenuShortcut>Del</DropdownMenuShortcut>
-          </DropdownMenuItem>
-          <DropdownMenuItem className="text-foreground/80" onClick={handleDuplicate}>
-            <CopyIcon />
-            <span className="flex-1 text-left">Duplicate</span>
-            <DropdownMenuShortcut>⌘D</DropdownMenuShortcut>
-          </DropdownMenuItem>
-          <DropdownMenuItem className="text-foreground/80" onClick={handleHideMenu}>
-            <EyeOffIcon />
-            <span className="flex-1 text-left">Hide</span>
-            <DropdownMenuShortcut>⌘⌥H</DropdownMenuShortcut>
-          </DropdownMenuItem>
-          <DropdownMenuItem className="text-foreground/80" onClick={handleHideMenu}>
-            <PlusIcon />
-            <span className="flex-1 text-left">Add conditional logic</span>
-            <DropdownMenuShortcut>⌘⌥L</DropdownMenuShortcut>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-
-          <DropdownMenuSub open={turnIntoOpen}>
-            <DropdownMenuSubTrigger
-              className="text-foreground/80"
-              onPointerEnter={handleTurnIntoPointerEnter}
-              onPointerLeave={handleTurnIntoPointerLeave}
-            >
-              <span className="text-[13px]">↺</span>
-              <span className="flex-1 text-left">Turn into</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent
-              onPointerEnter={handleTurnIntoPointerEnter}
-              onPointerLeave={handleTurnIntoPointerLeave}
-            >
-              <DropdownMenuItem onClick={handleTurnIntoParagraph}>Paragraph</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleTurnIntoH1}>Heading 1</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleTurnIntoH2}>Heading 2</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleTurnIntoH3}>Heading 3</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleTurnIntoBlockquote}>Blockquote</DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
+          <BlockMenuActions
+            onDelete={handleDelete}
+            onDuplicate={handleDuplicate}
+            onHide={handleHideMenu}
+            turnIntoOpen={turnIntoOpen}
+            onTurnIntoPointerEnter={handleTurnIntoPointerEnter}
+            onTurnIntoPointerLeave={handleTurnIntoPointerLeave}
+            onTurnIntoParagraph={handleTurnIntoParagraph}
+            onTurnIntoH1={handleTurnIntoH1}
+            onTurnIntoH2={handleTurnIntoH2}
+            onTurnIntoH3={handleTurnIntoH3}
+            onTurnIntoBlockquote={handleTurnIntoBlockquote}
+          />
         </DropdownMenuContent>
       </DropdownMenu>
     </>
   );
+};
+
+type EditorRef = ReturnType<typeof useEditorPlugin<typeof BlockMenuPlugin>>["editor"];
+
+interface BlockMenuInputNode {
+  type?: string;
+  required?: boolean;
+  defaultValue?: string;
+  minLength?: number;
+  maxLength?: number;
+  minValue?: number;
+  maxValue?: number;
+  allowDecimals?: boolean;
+  maxFileSize?: number;
+  maxFiles?: number;
+  allowedFileTypes?: string;
+  allowedFileExtensions?: string[];
+  minSelections?: number;
+  maxSelections?: number;
+  randomizeOrder?: boolean;
+  allowOther?: boolean;
+}
+
+interface UseBlockMenuFieldHandlersOptions {
+  editor: EditorRef;
+  getInputPath: () => number[] | null;
+  inputNode: BlockMenuInputNode | null | undefined;
+  firstPath: number[] | undefined;
+  nodeType: string | undefined;
+  setButtonText: (value: string) => void;
+}
+
+const useBlockMenuFieldHandlers = ({
+  editor,
+  getInputPath,
+  inputNode,
+  firstPath,
+  nodeType,
+  setButtonText,
+}: UseBlockMenuFieldHandlersOptions) => {
+  const handleToggleRequired = React.useCallback(() => {
+    const inputPath = getInputPath();
+    if (!inputPath) return;
+    const currentRequired = Boolean(inputNode?.required);
+    editor.tf.setNodes({ required: !currentRequired }, { at: inputPath });
+  }, [getInputPath, inputNode?.required, editor.tf]);
+
+  const updateNumericNode = React.useCallback(
+    (key: string, value: string) => {
+      const inputPath = getInputPath();
+      if (!inputPath) return;
+      const num = parseInt(value, 10) || 0;
+      if (num === 0) {
+        editor.tf.unsetNodes([key], { at: inputPath });
+      } else {
+        editor.tf.setNodes({ [key]: num }, { at: inputPath });
+      }
+    },
+    [getInputPath, editor.tf],
+  );
+
+  const handleUpdateMinLength = React.useCallback(
+    (v: string) => updateNumericNode("minLength", v),
+    [updateNumericNode],
+  );
+  const handleUpdateMaxLength = React.useCallback(
+    (v: string) => updateNumericNode("maxLength", v),
+    [updateNumericNode],
+  );
+  const handleUpdateMinValue = React.useCallback(
+    (v: string) => updateNumericNode("minValue", v),
+    [updateNumericNode],
+  );
+  const handleUpdateMaxValue = React.useCallback(
+    (v: string) => updateNumericNode("maxValue", v),
+    [updateNumericNode],
+  );
+  const handleUpdateMaxFiles = React.useCallback(
+    (v: string) => updateNumericNode("maxFiles", v),
+    [updateNumericNode],
+  );
+  const handleUpdateMinSelections = React.useCallback(
+    (v: string) => updateNumericNode("minSelections", v),
+    [updateNumericNode],
+  );
+  const handleUpdateMaxSelections = React.useCallback(
+    (v: string) => updateNumericNode("maxSelections", v),
+    [updateNumericNode],
+  );
+
+  const handleUpdateMaxFileSize = React.useCallback(
+    (value: string) => {
+      const inputPath = getInputPath();
+      if (!inputPath) return;
+      const num = parseInt(value, 10) || 10;
+      editor.tf.setNodes({ maxFileSize: num }, { at: inputPath });
+    },
+    [getInputPath, editor.tf],
+  );
+
+  const toggleBooleanNode = React.useCallback(
+    (key: keyof BlockMenuInputNode) => {
+      const inputPath = getInputPath();
+      if (!inputPath) return;
+      const current = Boolean(inputNode?.[key]);
+      if (current) {
+        editor.tf.unsetNodes([key as string], { at: inputPath });
+      } else {
+        editor.tf.setNodes({ [key]: true }, { at: inputPath });
+      }
+    },
+    [getInputPath, inputNode, editor.tf],
+  );
+
+  const handleToggleAllowDecimals = React.useCallback(
+    () => toggleBooleanNode("allowDecimals"),
+    [toggleBooleanNode],
+  );
+  const handleToggleRandomizeOrder = React.useCallback(
+    () => toggleBooleanNode("randomizeOrder"),
+    [toggleBooleanNode],
+  );
+  const handleToggleAllowOther = React.useCallback(
+    () => toggleBooleanNode("allowOther"),
+    [toggleBooleanNode],
+  );
+
+  const handleUpdateAllowedFileTypes = React.useCallback(
+    (value: string) => {
+      const inputPath = getInputPath();
+      if (!inputPath) return;
+      editor.tf.setNodes({ allowedFileTypes: value }, { at: inputPath });
+      editor.tf.unsetNodes(["allowedFileExtensions"], { at: inputPath });
+    },
+    [getInputPath, editor.tf],
+  );
+
+  const handleToggleFileExtension = React.useCallback(
+    (subtypeId: string) => {
+      const inputPath = getInputPath();
+      if (!inputPath) return;
+      const category = isFileTypeCategory(inputNode?.allowedFileTypes)
+        ? inputNode.allowedFileTypes
+        : "all";
+      if (category === "all") return;
+      const allSubtypes = FILE_SUBTYPES[category].map((s) => s.id);
+      const current = inputNode?.allowedFileExtensions;
+      const selected =
+        Array.isArray(current) && current.length > 0
+          ? current.filter((id): id is string => typeof id === "string" && allSubtypes.includes(id))
+          : allSubtypes;
+      const next = selected.includes(subtypeId)
+        ? selected.filter((id) => id !== subtypeId)
+        : [...selected, subtypeId];
+      if (next.length === 0) return;
+      if (next.length === allSubtypes.length) {
+        editor.tf.unsetNodes(["allowedFileExtensions"], { at: inputPath });
+        return;
+      }
+      editor.tf.setNodes({ allowedFileExtensions: next }, { at: inputPath });
+    },
+    [getInputPath, editor.tf, inputNode?.allowedFileTypes, inputNode?.allowedFileExtensions],
+  );
+
+  const handleToggleDefaultValue = React.useCallback(() => {
+    const inputPath = getInputPath();
+    if (!inputPath) return;
+    const hasDefault = inputNode?.defaultValue !== undefined;
+    if (hasDefault) {
+      editor.tf.unsetNodes(["defaultValue"], { at: inputPath });
+    } else {
+      editor.tf.setNodes({ defaultValue: "" }, { at: inputPath });
+    }
+  }, [getInputPath, inputNode?.defaultValue, editor.tf]);
+
+  const handleUpdateDefaultValue = React.useCallback(
+    (value: string) => {
+      const inputPath = getInputPath();
+      if (!inputPath) return;
+      editor.tf.setNodes({ defaultValue: value }, { at: inputPath });
+    },
+    [getInputPath, editor.tf],
+  );
+
+  const handleUpdateButtonText = React.useCallback(
+    (value: string) => {
+      if (!firstPath || nodeType !== "formButton") return;
+      setButtonText(value);
+      editor.tf.withoutNormalizing(() => {
+        editor.tf.insertNodes({ text: value }, { at: [...firstPath, 0], select: false });
+        editor.tf.removeNodes({ at: [...firstPath, 1] });
+      });
+      editor.tf.setNodes({ buttonText: value }, { at: firstPath });
+    },
+    [firstPath, nodeType, editor.tf, setButtonText],
+  );
+
+  return {
+    handleToggleRequired,
+    handleUpdateMinLength,
+    handleUpdateMaxLength,
+    handleUpdateMinValue,
+    handleUpdateMaxValue,
+    handleToggleAllowDecimals,
+    handleUpdateMaxFileSize,
+    handleUpdateMaxFiles,
+    handleUpdateAllowedFileTypes,
+    handleToggleFileExtension,
+    handleUpdateMinSelections,
+    handleUpdateMaxSelections,
+    handleToggleRandomizeOrder,
+    handleToggleAllowOther,
+    handleToggleDefaultValue,
+    handleUpdateDefaultValue,
+    handleUpdateButtonText,
+  };
+};
+
+interface FieldTypeSettingsHandlers {
+  handleToggleDefaultValue: () => void;
+  handleDefaultValueChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleInputKeyDown: (e: React.KeyboardEvent) => void;
+  handleStopPropagation: (e: React.MouseEvent) => void;
+  handleUpdateMinLength: (v: string) => void;
+  handleUpdateMaxLength: (v: string) => void;
+  handleUpdateMinValue: (v: string) => void;
+  handleUpdateMaxValue: (v: string) => void;
+  handleToggleAllowDecimals: () => void;
+  handleUpdateMaxFileSize: (v: string) => void;
+  handleUpdateMaxFiles: (v: string) => void;
+  handleUpdateAllowedFileTypes: (v: string) => void;
+  handleToggleFileExtension: (subtypeId: string) => void;
+  handleUpdateMinSelections: (v: string) => void;
+  handleUpdateMaxSelections: (v: string) => void;
+  handleToggleRandomizeOrder: () => void;
+  handleToggleAllowOther: () => void;
+  handleButtonTextChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+interface FieldTypeSettingsProps {
+  fieldType: BlockFieldType;
+  inputNode: BlockMenuInputNode | null | undefined;
+  buttonText: string;
+  hasDefaultValue: boolean;
+  currentDefaultValue: string | undefined;
+  handlers: FieldTypeSettingsHandlers;
+}
+
+const FieldTypeSettings = (props: FieldTypeSettingsProps) => {
+  const { fieldType } = props;
+  if (fieldType === "textLike") return <TextLikeSettings {...props} />;
+  if (fieldType === "formNumber") return <NumberFieldSettings {...props} />;
+  if (fieldType === "formFileUpload") return <FileUploadSettings {...props} />;
+  if (fieldType === "optionCheckbox") return <OptionCheckboxSettings {...props} />;
+  if (fieldType === "formMultiSelect") return <MultiSelectSettings {...props} />;
+  if (fieldType === "optionMultiChoice") return <OptionMultiChoiceSettings {...props} />;
+  if (fieldType === "optionRanking" || fieldType === "formDate" || fieldType === "formTime") {
+    return <DropdownMenuSeparator />;
+  }
+  if (fieldType === "formButton") return <ButtonFieldSettings {...props} />;
+  return null;
+};
+
+const DefaultValueRow = ({
+  hasDefaultValue,
+  currentDefaultValue,
+  numeric,
+  handlers,
+}: {
+  hasDefaultValue: boolean;
+  currentDefaultValue: string | undefined;
+  numeric?: boolean;
+  handlers: FieldTypeSettingsHandlers;
+}) => (
+  <>
+    <DropdownMenuItem closeOnClick={false} onClick={handlers.handleToggleDefaultValue}>
+      <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
+        Default answer
+      </span>
+      <Switch
+        aria-label="Default answer"
+        size="sm"
+        checked={hasDefaultValue}
+        onCheckedChange={handlers.handleToggleDefaultValue}
+        onClick={handlers.handleStopPropagation}
+      />
+    </DropdownMenuItem>
+    {hasDefaultValue && (
+      <div className="px-2 pb-2">
+        <Input
+          type={numeric ? "number" : undefined}
+          value={currentDefaultValue || ""}
+          onChange={handlers.handleDefaultValueChange}
+          onKeyDown={handlers.handleInputKeyDown}
+          placeholder="Enter default value"
+          className="h-7 rounded-lg text-[13px]"
+          aria-label="Default value"
+        />
+      </div>
+    )}
+  </>
+);
+
+const SwitchRow = ({
+  label,
+  ariaLabel,
+  checked,
+  onToggle,
+  onStopPropagation,
+}: {
+  label: React.ReactNode;
+  ariaLabel: string;
+  checked: boolean;
+  onToggle: () => void;
+  onStopPropagation: (e: React.MouseEvent) => void;
+}) => (
+  <DropdownMenuItem closeOnClick={false} onClick={onToggle}>
+    <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">{label}</span>
+    <Switch
+      aria-label={ariaLabel}
+      size="sm"
+      checked={checked}
+      onCheckedChange={onToggle}
+      onClick={onStopPropagation}
+    />
+  </DropdownMenuItem>
+);
+
+const TextLikeSettings = ({
+  inputNode,
+  hasDefaultValue,
+  currentDefaultValue,
+  handlers,
+}: FieldTypeSettingsProps) => (
+  <>
+    <DefaultValueRow
+      hasDefaultValue={hasDefaultValue}
+      currentDefaultValue={currentDefaultValue}
+      handlers={handlers}
+    />
+    <NumberRow
+      label="Min characters"
+      value={inputNode?.minLength}
+      onChange={handlers.handleUpdateMinLength}
+      min={0}
+      max={1000}
+      defaultHint={0}
+    />
+    {inputNode?.type !== "formTextarea" && (
+      <NumberRow
+        label="Max characters"
+        value={inputNode?.maxLength}
+        onChange={handlers.handleUpdateMaxLength}
+        min={0}
+        max={1000}
+        defaultHint={100}
+      />
+    )}
+    <DropdownMenuSeparator />
+  </>
+);
+
+const NumberFieldSettings = ({
+  inputNode,
+  hasDefaultValue,
+  currentDefaultValue,
+  handlers,
+}: FieldTypeSettingsProps) => (
+  <>
+    <DefaultValueRow
+      hasDefaultValue={hasDefaultValue}
+      currentDefaultValue={currentDefaultValue}
+      numeric
+      handlers={handlers}
+    />
+    <NumberRow
+      label="Min value"
+      value={inputNode?.minValue}
+      onChange={handlers.handleUpdateMinValue}
+      min={0}
+      max={999999}
+      defaultHint={0}
+    />
+    <NumberRow
+      label="Max value"
+      value={inputNode?.maxValue}
+      onChange={handlers.handleUpdateMaxValue}
+      min={0}
+      max={999999}
+      defaultHint={100}
+    />
+    <SwitchRow
+      label="Allow decimals"
+      ariaLabel="Allow decimals"
+      checked={Boolean(inputNode?.allowDecimals)}
+      onToggle={handlers.handleToggleAllowDecimals}
+      onStopPropagation={handlers.handleStopPropagation}
+    />
+    <DropdownMenuSeparator />
+  </>
+);
+
+const FileUploadSettings = ({ inputNode, handlers }: FieldTypeSettingsProps) => (
+  <>
+    <NumberRow
+      label="Max file size"
+      value={inputNode?.maxFileSize}
+      onChange={handlers.handleUpdateMaxFileSize}
+      min={1}
+      max={50}
+      suffix="MB"
+      defaultHint={10}
+    />
+    <NumberRow
+      label="Max files"
+      value={inputNode?.maxFiles}
+      onChange={handlers.handleUpdateMaxFiles}
+      min={0}
+      max={20}
+      defaultHint={1}
+    />
+    <DropdownMenuItem closeOnClick={false}>
+      <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">File types</span>
+      <Select
+        value={inputNode?.allowedFileTypes ?? "all"}
+        onValueChange={(v) => v && handlers.handleUpdateAllowedFileTypes(v)}
+      >
+        <SelectTrigger className="h-[20px] w-[100px] rounded-[4px] border border-transparent bg-transparent px-1 text-[12px] shadow-none focus:border-border/70 focus-visible:border-border/70 focus-visible:ring-0 dark:border-transparent dark:focus:border-border/70 dark:focus-visible:border-border/70">
+          <SelectValue>
+            {(value) => FILE_TYPE_CATEGORY_LABELS[value as FileTypeCategory] ?? (value as string)}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All files</SelectItem>
+          <SelectItem value="images">Images</SelectItem>
+          <SelectItem value="documents">Documents</SelectItem>
+          <SelectItem value="spreadsheets">Spreadsheets</SelectItem>
+        </SelectContent>
+      </Select>
+    </DropdownMenuItem>
+    <FileExtensionToggleRow
+      category={
+        isFileTypeCategory(inputNode?.allowedFileTypes) ? inputNode.allowedFileTypes : "all"
+      }
+      selected={inputNode?.allowedFileExtensions}
+      onToggle={handlers.handleToggleFileExtension}
+    />
+    <DropdownMenuSeparator />
+  </>
+);
+
+const OptionCheckboxSettings = ({ inputNode, handlers }: FieldTypeSettingsProps) => (
+  <>
+    <NumberRow
+      label="Min selections"
+      value={inputNode?.minSelections}
+      onChange={handlers.handleUpdateMinSelections}
+      min={0}
+      max={50}
+      defaultHint={0}
+    />
+    <NumberRow
+      label="Max selections"
+      value={inputNode?.maxSelections}
+      onChange={handlers.handleUpdateMaxSelections}
+      min={0}
+      max={50}
+      defaultHint={3}
+    />
+    <SwitchRow
+      label="Randomize order"
+      ariaLabel="Randomize order"
+      checked={Boolean(inputNode?.randomizeOrder)}
+      onToggle={handlers.handleToggleRandomizeOrder}
+      onStopPropagation={handlers.handleStopPropagation}
+    />
+    <SwitchRow
+      label={<>&quot;Other&quot; option</>}
+      ariaLabel="Other option"
+      checked={Boolean(inputNode?.allowOther)}
+      onToggle={handlers.handleToggleAllowOther}
+      onStopPropagation={handlers.handleStopPropagation}
+    />
+    <DropdownMenuSeparator />
+  </>
+);
+
+const MultiSelectSettings = ({ inputNode, handlers }: FieldTypeSettingsProps) => (
+  <>
+    <NumberRow
+      label="Min selections"
+      value={inputNode?.minSelections}
+      onChange={handlers.handleUpdateMinSelections}
+      min={0}
+      max={50}
+      defaultHint={0}
+    />
+    <NumberRow
+      label="Max selections"
+      value={inputNode?.maxSelections}
+      onChange={handlers.handleUpdateMaxSelections}
+      min={0}
+      max={50}
+      defaultHint={3}
+    />
+    <DropdownMenuSeparator />
+  </>
+);
+
+const OptionMultiChoiceSettings = ({ inputNode, handlers }: FieldTypeSettingsProps) => (
+  <>
+    <SwitchRow
+      label="Randomize order"
+      ariaLabel="Randomize order"
+      checked={Boolean(inputNode?.randomizeOrder)}
+      onToggle={handlers.handleToggleRandomizeOrder}
+      onStopPropagation={handlers.handleStopPropagation}
+    />
+    <SwitchRow
+      label={<>&quot;Other&quot; option</>}
+      ariaLabel="Other option"
+      checked={Boolean(inputNode?.allowOther)}
+      onToggle={handlers.handleToggleAllowOther}
+      onStopPropagation={handlers.handleStopPropagation}
+    />
+    <DropdownMenuSeparator />
+  </>
+);
+
+const ButtonFieldSettings = ({ buttonText, handlers }: FieldTypeSettingsProps) => (
+  <>
+    <div className="space-y-2 px-2 py-1.5">
+      <Label className="text-[12px] text-muted-foreground">Button Name</Label>
+      <Input
+        value={buttonText}
+        onChange={handlers.handleButtonTextChange}
+        onKeyDown={handlers.handleInputKeyDown}
+        placeholder="Enter button name"
+        className="h-8 rounded-lg text-[13px]"
+      />
+    </div>
+    <DropdownMenuSeparator />
+  </>
+);
+
+interface BlockMenuActionsProps {
+  onDelete: () => void;
+  onDuplicate: () => void;
+  onHide: () => void;
+  turnIntoOpen: boolean;
+  onTurnIntoPointerEnter: () => void;
+  onTurnIntoPointerLeave: () => void;
+  onTurnIntoParagraph: () => void;
+  onTurnIntoH1: () => void;
+  onTurnIntoH2: () => void;
+  onTurnIntoH3: () => void;
+  onTurnIntoBlockquote: () => void;
+}
+
+const BlockMenuActions = ({
+  onDelete,
+  onDuplicate,
+  onHide,
+  turnIntoOpen,
+  onTurnIntoPointerEnter,
+  onTurnIntoPointerLeave,
+  onTurnIntoParagraph,
+  onTurnIntoH1,
+  onTurnIntoH2,
+  onTurnIntoH3,
+  onTurnIntoBlockquote,
+}: BlockMenuActionsProps) => (
+  <>
+    <DropdownMenuItem variant="destructive" onClick={onDelete}>
+      <TrashIcon />
+      <span className="flex-1 text-left">Delete</span>
+      <DropdownMenuShortcut>Del</DropdownMenuShortcut>
+    </DropdownMenuItem>
+    <DropdownMenuItem className="text-foreground/80" onClick={onDuplicate}>
+      <CopyIcon />
+      <span className="flex-1 text-left">Duplicate</span>
+      <DropdownMenuShortcut>⌘D</DropdownMenuShortcut>
+    </DropdownMenuItem>
+    <DropdownMenuItem className="text-foreground/80" onClick={onHide}>
+      <EyeOffIcon />
+      <span className="flex-1 text-left">Hide</span>
+      <DropdownMenuShortcut>⌘⌥H</DropdownMenuShortcut>
+    </DropdownMenuItem>
+    <DropdownMenuItem className="text-foreground/80" onClick={onHide}>
+      <PlusIcon />
+      <span className="flex-1 text-left">Add conditional logic</span>
+      <DropdownMenuShortcut>⌘⌥L</DropdownMenuShortcut>
+    </DropdownMenuItem>
+    <DropdownMenuSeparator />
+
+    <DropdownMenuSub open={turnIntoOpen}>
+      <DropdownMenuSubTrigger
+        className="text-foreground/80"
+        onPointerEnter={onTurnIntoPointerEnter}
+        onPointerLeave={onTurnIntoPointerLeave}
+      >
+        <span className="text-[13px]">↺</span>
+        <span className="flex-1 text-left">Turn into</span>
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent
+        onPointerEnter={onTurnIntoPointerEnter}
+        onPointerLeave={onTurnIntoPointerLeave}
+      >
+        <DropdownMenuItem onClick={onTurnIntoParagraph}>Paragraph</DropdownMenuItem>
+        <DropdownMenuItem onClick={onTurnIntoH1}>Heading 1</DropdownMenuItem>
+        <DropdownMenuItem onClick={onTurnIntoH2}>Heading 2</DropdownMenuItem>
+        <DropdownMenuItem onClick={onTurnIntoH3}>Heading 3</DropdownMenuItem>
+        <DropdownMenuItem onClick={onTurnIntoBlockquote}>Blockquote</DropdownMenuItem>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  </>
+);
+
+interface UseBlockMenuContextMenuAndHotkeysOptions {
+  triggerRef: React.RefObject<HTMLDivElement | null>;
+  api: ReturnType<typeof useEditorPlugin<typeof BlockMenuPlugin>>["api"];
+  isOpen: boolean;
+  isEditingName: boolean;
+  onDelete: () => void;
+  onDuplicate: () => void;
+}
+
+const useBlockMenuContextMenuAndHotkeys = ({
+  triggerRef,
+  api,
+  isOpen,
+  isEditingName,
+  onDelete,
+  onDuplicate,
+}: UseBlockMenuContextMenuAndHotkeysOptions) => {
+  React.useEffect(() => {
+    const node = triggerRef.current;
+    if (!node) return;
+
+    const handleContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+      api.blockMenu.show(BLOCK_CONTEXT_MENU_ID, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+    };
+
+    node.addEventListener("contextmenu", handleContextMenu);
+    return () => {
+      node.removeEventListener("contextmenu", handleContextMenu);
+    };
+  }, [api.blockMenu, triggerRef]);
+
+  useHotkeys(
+    "delete, backspace",
+    onDelete,
+    { enabled: isOpen && !isEditingName, preventDefault: true },
+    [isOpen, isEditingName, onDelete],
+  );
+
+  useHotkeys("mod+d", onDuplicate, { enabled: isOpen && !isEditingName, preventDefault: true }, [
+    isOpen,
+    isEditingName,
+    onDuplicate,
+  ]);
+
+  useHotkeys(
+    "mod+alt+h",
+    () => api.blockMenu.hide(),
+    { enabled: isOpen && !isEditingName, preventDefault: true },
+    [isOpen, isEditingName, api.blockMenu],
+  );
+
+  useHotkeys(
+    "mod+alt+l",
+    () => api.blockMenu.hide(),
+    { enabled: isOpen && !isEditingName, preventDefault: true },
+    [isOpen, isEditingName, api.blockMenu],
+  );
+};
+
+interface BlockMenuFirstNode {
+  type?: string;
+  variant?: string;
+  required?: boolean;
+  placeholder?: string;
+  minLength?: number;
+  maxLength?: number;
+  defaultValue?: string;
+  buttonText?: string;
+  children?: Array<{ text?: string }>;
+  minValue?: number;
+  maxValue?: number;
+  allowDecimals?: boolean;
+  maxFileSize?: number;
+  maxFiles?: number;
+  allowedFileTypes?: string;
+  allowedFileExtensions?: string[];
+  minSelections?: number;
+  maxSelections?: number;
+  randomizeOrder?: boolean;
+  allowOther?: boolean;
+}
+
+const useBlockMenuSelection = ({ editor, isOpen }: { editor: EditorRef; isOpen: boolean }) => {
+  const selectedNodes = useEditorSelector(
+    (ed) => {
+      if (!isOpen) return [];
+      try {
+        return ed.getApi(BlockSelectionPlugin).blockSelection.getNodes();
+      } catch {
+        return [];
+      }
+    },
+    [isOpen],
+  );
+
+  const firstNode = selectedNodes[0]?.[0] as BlockMenuFirstNode | undefined;
+  const firstPath = selectedNodes[0]?.[1];
+  const nodeType = firstNode?.type;
+
+  const labelNode = React.useMemo(() => {
+    if (nodeType === "formLabel" || nodeType === "formButton") return firstNode;
+    if (FORM_INPUT_NODE_TYPES.has(nodeType ?? "") && firstPath) {
+      const prevPath = [...firstPath];
+      prevPath[prevPath.length - 1] -= 1;
+      try {
+        const prev = editor.api.node(prevPath);
+        if (prev && ALLOWED_LABEL_TYPES.has(prev[0]?.type as string)) {
+          return prev[0] as BlockMenuFirstNode;
+        }
+      } catch {}
+    }
+    return null;
+  }, [nodeType, firstNode, firstPath, editor]);
+
+  const inputNode = React.useMemo(() => {
+    if (FORM_INPUT_NODE_TYPES.has(nodeType ?? "")) return firstNode;
+    if (ALLOWED_LABEL_TYPES.has(nodeType ?? "") && firstPath) {
+      const nextPath = [...firstPath];
+      nextPath[nextPath.length - 1] += 1;
+      try {
+        const next = editor.api.node(nextPath);
+        if (next && FORM_INPUT_NODE_TYPES.has(next[0]?.type as string)) {
+          return next[0] as BlockMenuFirstNode;
+        }
+      } catch {}
+    }
+    return null;
+  }, [nodeType, firstNode, firstPath, editor]);
+
+  const fieldType = React.useMemo(() => {
+    if (inputNode) return getFieldType(inputNode as { type?: string; variant?: string });
+    return getFieldType(firstNode as { type?: string; variant?: string });
+  }, [inputNode, firstNode]);
+
+  const getInputPath = React.useCallback(() => {
+    if (!firstPath) return null;
+    if (FORM_INPUT_NODE_TYPES.has(nodeType ?? "")) return firstPath;
+    if (nodeType === "formOptionItem") return firstPath;
+    if (ALLOWED_LABEL_TYPES.has(nodeType ?? "")) {
+      const inputPath = [...firstPath];
+      inputPath[inputPath.length - 1] += 1;
+      return inputPath;
+    }
+    return null;
+  }, [nodeType, firstPath]);
+
+  return { firstNode, firstPath, nodeType, labelNode, inputNode, fieldType, getInputPath };
 };
