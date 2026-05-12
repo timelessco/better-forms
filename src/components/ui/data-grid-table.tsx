@@ -10,13 +10,15 @@ import {
   TouchEvent,
   useMemo,
 } from "react";
+/* eslint-disable import/no-cycle -- registered in data-grid.tsx's tableComponents */
 import {
   useDataGrid,
   useRowExpanded,
   useRowPinned,
   useRowSelected,
 } from "@/components/ui/data-grid";
-import type { DataGridFeatures, DataGridTable } from "@/components/ui/data-grid";
+/* eslint-enable import/no-cycle */
+import type { DataGridApi, DataGridFeatures } from "@/components/ui/data-grid";
 import { flexRender } from "@tanstack/react-table";
 import type { Cell, Column, Header, HeaderGroup, Row, RowData } from "@tanstack/table-core";
 import { cva } from "class-variance-authority";
@@ -79,7 +81,7 @@ const getPinningStyles = <TData extends RowData>(
 type DataGridTablePinnedBoundary = "top" | "bottom";
 
 const getDataGridTableRowSections = <TData extends RowData>(
-  table: DataGridTable<TData>,
+  table: DataGridApi<TData>,
   rowsPinnable?: boolean,
 ) => {
   if (!rowsPinnable) {
@@ -98,7 +100,7 @@ const getDataGridTableRowSections = <TData extends RowData>(
 };
 
 const getDataGridTableResolvedRows = <TData extends RowData>(
-  table: DataGridTable<TData>,
+  table: DataGridApi<TData>,
   rowsPinnable?: boolean,
 ) => {
   const { topRows, centerRows, bottomRows } = getDataGridTableRowSections(table, rowsPinnable);
@@ -768,11 +770,7 @@ const DataGridTableRowSelectAll = () => {
   );
 };
 
-const DataGridTableBodyRows = <TData extends RowData>({
-  table,
-}: {
-  table: DataGridTable<TData>;
-}) => {
+const DataGridTableBodyRows = <TData extends RowData>({ table }: { table: DataGridApi<TData> }) => {
   const { isLoading, props } = useDataGrid();
   const pagination = table.state.pagination;
 

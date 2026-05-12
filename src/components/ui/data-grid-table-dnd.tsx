@@ -1,7 +1,9 @@
 import { CSSProperties, Fragment, useId } from "react";
 import { Button } from "@/components/ui/button";
+// eslint-disable-next-line import/no-cycle -- registered in data-grid.tsx's tableComponents
 import { useDataGrid, useRowExpanded } from "@/components/ui/data-grid";
 import type { DataGridFeatures } from "@/components/ui/data-grid";
+/* eslint-disable import/no-cycle -- data-grid-table imports back from data-grid which imports us */
 import {
   DataGridTableBase,
   DataGridTableBody,
@@ -17,6 +19,7 @@ import {
   DataGridTableHeadRowCellResize,
   DataGridTableRowSpacer,
 } from "@/components/ui/data-grid-table";
+/* eslint-enable import/no-cycle */
 import {
   closestCenter,
   DndContext,

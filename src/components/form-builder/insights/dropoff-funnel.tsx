@@ -1,15 +1,9 @@
 import type { ColumnDef, SortingState } from "@tanstack/table-core";
 import { useMemo, useState } from "react";
 
-import {
-  createAppColumnHelper,
-  DataGrid,
-  DataGridContainer,
-  useAppTable,
-} from "@/components/ui/data-grid";
+import { createAppColumnHelper, useAppTable } from "@/components/ui/data-grid";
 import type { DataGridFeatures } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
-import { DataGridTable } from "@/components/ui/data-grid-table";
 import type { QuestionDropoffMetrics } from "@/types/analytics";
 
 interface DropoffFunnelProps {
@@ -166,33 +160,34 @@ export const DropoffFunnel = ({ dropoff }: DropoffFunnelProps) => {
   }
 
   return (
-    <div className="space-y-4">
-      <DataGrid
-        table={table}
-        recordCount={sortedQuestions.length}
-        tableLayout={{
-          dense: true,
-          headerBackground: false,
-          headerBorder: true,
-          rowBorder: true,
-          width: "auto",
-        }}
-      >
-        <DataGridContainer border={false}>
-          <DataGridTable />
-        </DataGridContainer>
-      </DataGrid>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <SummaryStat label="Total started" value={numberFormatter.format(dropoff.totalStarted)} />
-        <SummaryStat
-          label="Total completed"
-          value={numberFormatter.format(dropoff.totalCompleted)}
-        />
-        <SummaryStat
-          label="Overall completion"
-          value={formatPercent(dropoff.overallCompletionRate)}
-        />
+    <table.AppTable>
+      <div className="space-y-4">
+        <table.DataGrid
+          recordCount={sortedQuestions.length}
+          tableLayout={{
+            dense: true,
+            headerBackground: false,
+            headerBorder: true,
+            rowBorder: true,
+            width: "auto",
+          }}
+        >
+          <table.DataGridContainer border={false}>
+            <table.DataGridTable />
+          </table.DataGridContainer>
+        </table.DataGrid>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <SummaryStat label="Total started" value={numberFormatter.format(dropoff.totalStarted)} />
+          <SummaryStat
+            label="Total completed"
+            value={numberFormatter.format(dropoff.totalCompleted)}
+          />
+          <SummaryStat
+            label="Overall completion"
+            value={formatPercent(dropoff.overallCompletionRate)}
+          />
+        </div>
       </div>
-    </div>
+    </table.AppTable>
   );
 };

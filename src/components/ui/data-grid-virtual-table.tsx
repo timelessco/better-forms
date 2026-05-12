@@ -1,6 +1,8 @@
 import { memo, ReactNode, useCallback, useMemo, useRef, useState } from "react";
+// eslint-disable-next-line import/no-cycle -- registered in data-grid.tsx's tableComponents
 import { useDataGrid } from "@/components/ui/data-grid";
-import type { DataGridFeatures, DataGridTable } from "@/components/ui/data-grid";
+import type { DataGridFeatures, DataGridApi } from "@/components/ui/data-grid";
+/* eslint-disable import/no-cycle -- data-grid-table imports back from data-grid which imports us */
 import {
   DataGridTableBase,
   DataGridTableBody,
@@ -15,6 +17,7 @@ import {
   DataGridTableViewport,
   getDataGridTableRowSections,
 } from "@/components/ui/data-grid-table";
+/* eslint-enable import/no-cycle */
 import { flexRender } from "@tanstack/react-table";
 import type { Row, RowData } from "@tanstack/table-core";
 import {
@@ -27,23 +30,23 @@ import {
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 
-type DataGridTableVirtualScrollElements = {
+type DataGridApiVirtualScrollElements = {
   containerElement: HTMLDivElement | null;
   scrollElement: HTMLElement | null;
 };
 
-type DataGridTableVirtualizerInstance = Virtualizer<HTMLElement, HTMLTableRowElement>;
+type DataGridApiVirtualizerInstance = Virtualizer<HTMLElement, HTMLTableRowElement>;
 
-type DataGridTableVirtualizerOptions<TData extends RowData> = Omit<
+type DataGridApiVirtualizerOptions<TData extends RowData> = Omit<
   VirtualizerOptions<HTMLElement, HTMLTableRowElement>,
   "count" | "estimateSize" | "getItemKey" | "getScrollElement"
 > & {
   estimateSize?: (index: number, row: Row<DataGridFeatures, TData>) => number;
   getItemKey?: (index: number, row: Row<DataGridFeatures, TData>) => string | number;
-  getScrollElement?: (elements: DataGridTableVirtualScrollElements) => HTMLElement | null;
+  getScrollElement?: (elements: DataGridApiVirtualScrollElements) => HTMLElement | null;
 };
 
-interface DataGridTableVirtualProps<TData extends RowData> {
+interface DataGridApiVirtualProps<TData extends RowData> {
   height?: number | string;
   estimateSize?: number;
   overscan?: number;
@@ -53,11 +56,11 @@ interface DataGridTableVirtualProps<TData extends RowData> {
   isFetchingMore?: boolean;
   hasMore?: boolean;
   fetchMoreOffset?: number;
-  virtualizerOptions?: DataGridTableVirtualizerOptions<TData>;
+  virtualizerOptions?: DataGridApiVirtualizerOptions<TData>;
 }
 
 interface VirtualBodyProps<TData extends RowData> {
-  table: DataGridTable<TData>;
+  table: DataGridApi<TData>;
   columnCount: number;
   topRows: Row<DataGridFeatures, TData>[];
   centerRows: Row<DataGridFeatures, TData>[];
@@ -73,7 +76,7 @@ interface VirtualBodyProps<TData extends RowData> {
   measureRowRef?: (element: HTMLTableRowElement | null) => void;
 }
 
-const DataGridTableVirtualSpacer = ({
+const DataGridApiVirtualSpacer = ({
   columnCount,
   height,
 }: {
@@ -89,7 +92,7 @@ const DataGridTableVirtualSpacer = ({
   );
 };
 
-const DataGridTableVirtualStatusRow = ({
+const DataGridApiVirtualStatusRow = ({
   children,
   className,
   columnCount,
@@ -109,7 +112,7 @@ const DataGridTableVirtualStatusRow = ({
 );
 
 // eslint-disable-next-line react-doctor/no-many-boolean-props -- vendored Reui virtualized table; flags are independent rendering modes
-const DataGridTableVirtualBody = <TData extends RowData>({
+const DataGridApiVirtualBody = <TData extends RowData>({
   table: _table,
   columnCount,
   topRows,
@@ -157,7 +160,7 @@ const DataGridTableVirtualBody = <TData extends RowData>({
   if (isVirtualizationEnabled) {
     if (leadingSpacerHeight > 0) {
       renderedRows.push(
-        <DataGridTableVirtualSpacer
+        <DataGridApiVirtualSpacer
           key="virtual-spacer-start"
           columnCount={columnCount}
           height={leadingSpacerHeight}
@@ -175,7 +178,7 @@ const DataGridTableVirtualBody = <TData extends RowData>({
 
     if (trailingSpacerHeight > 0) {
       renderedRows.push(
-        <DataGridTableVirtualSpacer
+        <DataGridApiVirtualSpacer
           key="virtual-spacer-end"
           columnCount={columnCount}
           height={trailingSpacerHeight}
@@ -190,24 +193,24 @@ const DataGridTableVirtualBody = <TData extends RowData>({
 
   if (showFetchingRow) {
     renderedRows.push(
-      <DataGridTableVirtualStatusRow key="virtual-status-loading" columnCount={columnCount}>
+      <DataGridApiVirtualStatusRow key="virtual-status-loading" columnCount={columnCount}>
         <div className="flex items-center justify-center gap-2">
           <Spinner className="size-4 opacity-60" />
           {loadingMoreMessage}
         </div>
-      </DataGridTableVirtualStatusRow>,
+      </DataGridApiVirtualStatusRow>,
     );
   }
 
   if (showCompleteRow) {
     renderedRows.push(
-      <DataGridTableVirtualStatusRow
+      <DataGridApiVirtualStatusRow
         key="virtual-status-complete"
         columnCount={columnCount}
         className="py-3 text-xs"
       >
         {allRowsLoadedMessage}
-      </DataGridTableVirtualStatusRow>,
+      </DataGridApiVirtualStatusRow>,
     );
   }
 
@@ -232,11 +235,11 @@ const DataGridTableVirtualBody = <TData extends RowData>({
  * so the browser handles width changes without React re-renders.
  */
 const MemoizedVirtualBody = memo(
-  DataGridTableVirtualBody,
+  DataGridApiVirtualBody,
   (_prev, next) => !!next.table.state.columnResizing.isResizingColumn,
-) as typeof DataGridTableVirtualBody;
+) as typeof DataGridApiVirtualBody;
 
-const DataGridTableVirtual = <TData extends RowData>({
+const DataGridApiVirtual = <TData extends RowData>({
   height,
   estimateSize = 48,
   overscan = 10,
@@ -247,7 +250,7 @@ const DataGridTableVirtual = <TData extends RowData>({
   hasMore,
   fetchMoreOffset = 0,
   virtualizerOptions,
-}: DataGridTableVirtualProps<TData>) => {
+}: DataGridApiVirtualProps<TData>) => {
   const { table, props } = useDataGrid();
   const { topRows, centerRows, bottomRows } = getDataGridTableRowSections(
     table,
@@ -255,7 +258,7 @@ const DataGridTableVirtual = <TData extends RowData>({
   );
   const columnCount = table.getVisibleFlatColumns().length;
   const isInfiniteMode = typeof onFetchMore === "function";
-  const [viewportElements, setViewportElements] = useState<DataGridTableVirtualScrollElements>({
+  const [viewportElements, setViewportElements] = useState<DataGridApiVirtualScrollElements>({
     containerElement: null,
     scrollElement: null,
   });
@@ -299,7 +302,9 @@ const DataGridTableVirtual = <TData extends RowData>({
 
       if (!row) return index;
 
-      return customGetItemKey?.(index, row as Row<DataGridFeatures, TData>) ?? row.id ?? index;
+      return (
+        customGetItemKey?.(index, row as unknown as Row<DataGridFeatures, TData>) ?? row.id ?? index
+      );
     },
     [centerRows, customGetItemKey],
   );
@@ -309,7 +314,8 @@ const DataGridTableVirtual = <TData extends RowData>({
       const row = centerRows[index];
 
       return row
-        ? (customEstimateSize?.(index, row as Row<DataGridFeatures, TData>) ?? estimateSize)
+        ? (customEstimateSize?.(index, row as unknown as Row<DataGridFeatures, TData>) ??
+            estimateSize)
         : estimateSize;
     },
     [centerRows, customEstimateSize, estimateSize],
@@ -337,7 +343,7 @@ const DataGridTableVirtual = <TData extends RowData>({
     onFetchMore,
   };
 
-  const handleVirtualizerChange = useCallback((instance: DataGridTableVirtualizerInstance) => {
+  const handleVirtualizerChange = useCallback((instance: DataGridApiVirtualizerInstance) => {
     const {
       isVirtualizationEnabled: enabled,
       isInfiniteMode: infinite,
@@ -367,7 +373,7 @@ const DataGridTableVirtual = <TData extends RowData>({
     measureElement: customMeasureElement,
     onChange: handleVirtualizerChange,
     ...virtualizerOptionsRest,
-  }) as DataGridTableVirtualizerInstance;
+  }) as DataGridApiVirtualizerInstance;
 
   const virtualItems = isVirtualizationEnabled ? virtualizer.getVirtualItems() : [];
   const totalSize = isVirtualizationEnabled ? virtualizer.getTotalSize() : 0;
@@ -440,9 +446,9 @@ const DataGridTableVirtual = <TData extends RowData>({
   );
 };
 
-export { DataGridTableVirtual, DataGridTableVirtual as DataGridVirtualTable };
+export { DataGridApiVirtual, DataGridApiVirtual as DataGridVirtualTable };
 export type {
-  DataGridTableVirtualProps,
-  DataGridTableVirtualScrollElements,
-  DataGridTableVirtualizerOptions,
+  DataGridApiVirtualProps,
+  DataGridApiVirtualScrollElements,
+  DataGridApiVirtualizerOptions,
 };

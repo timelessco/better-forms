@@ -5,8 +5,6 @@ import { Image } from "@/components/ui/image";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
-import { DataGridColumnVisibility } from "@/components/ui/data-grid-column-visibility";
-import { DataGridVirtualTable } from "@/components/ui/data-grid-virtual-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,13 +35,8 @@ import type {
   RowSelectionState,
   SortingState,
 } from "@tanstack/table-core";
-import {
-  createAppColumnHelper,
-  DataGrid,
-  DataGridContainer,
-  useAppTable,
-} from "@/components/ui/data-grid";
-import type { DataGridFeatures, DataGridTable } from "@/components/ui/data-grid";
+import { createAppColumnHelper, useAppTable } from "@/components/ui/data-grid";
+import type { DataGridApi, DataGridFeatures } from "@/components/ui/data-grid";
 
 import { ChevronDownIcon, FilterIcon, Trash2Icon, XIcon } from "@/components/ui/icons";
 import { Columns, Download, ExternalLink, FileText, Paperclip, Search } from "lucide-react";
@@ -647,80 +640,81 @@ const SubmissionsPage = () => {
   });
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col bg-background">
-      <SubmissionsToolbar
-        activeTab={activeTab}
-        allCount={allSubmissions.length}
-        completedCount={completedCount}
-        partialCount={partialCount}
-        globalFilter={globalFilter}
-        table={table}
-        onSetTabAll={handleSetActiveTabAll}
-        onSetTabCompleted={handleSetActiveTabCompleted}
-        onSetTabPartial={handleSetActiveTabPartial}
-        onGlobalFilterChange={handleGlobalFilterChange}
-        onDownloadCSV={handleDownloadCSV}
-      />
-
-      <SubmissionPreviewDialog file={previewFile} onClose={closePreview} />
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {Object.keys(rowSelection).length > 0 && (
-          <SubmissionBulkActionBar
-            count={Object.keys(rowSelection).length}
-            onExport={handleExportSelected}
-            onDelete={handleBulkDelete}
-            onClear={handleClearSelection}
-          />
-        )}
-
-        <DataGrid
+    <table.AppTable>
+      <div className="flex h-full min-h-0 min-w-0 flex-col bg-background">
+        <SubmissionsToolbar
+          activeTab={activeTab}
+          allCount={allSubmissions.length}
+          completedCount={completedCount}
+          partialCount={partialCount}
+          globalFilter={globalFilter}
           table={table}
-          recordCount={totalCount}
-          isLoading={isLoadingSubmissions}
-          tableLayout={{
-            dense: true,
-            columnsResizable: true,
-            columnsPinnable: false,
-            columnsVisibility: true,
-            columnsMovable: true,
-            headerSticky: true,
-            headerBackground: false,
-            headerBorder: true,
-            rowBorder: true,
-          }}
-          emptyMessage={
-            <div className="flex flex-col items-center justify-center gap-y-3 py-16 opacity-50">
-              <div className="rounded-full bg-muted p-3">
-                <FilterIcon className="size-6" />
+          onSetTabAll={handleSetActiveTabAll}
+          onSetTabCompleted={handleSetActiveTabCompleted}
+          onSetTabPartial={handleSetActiveTabPartial}
+          onGlobalFilterChange={handleGlobalFilterChange}
+          onDownloadCSV={handleDownloadCSV}
+        />
+
+        <SubmissionPreviewDialog file={previewFile} onClose={closePreview} />
+
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {Object.keys(rowSelection).length > 0 && (
+            <SubmissionBulkActionBar
+              count={Object.keys(rowSelection).length}
+              onExport={handleExportSelected}
+              onDelete={handleBulkDelete}
+              onClear={handleClearSelection}
+            />
+          )}
+
+          <table.DataGrid
+            recordCount={totalCount}
+            isLoading={isLoadingSubmissions}
+            tableLayout={{
+              dense: true,
+              columnsResizable: true,
+              columnsPinnable: false,
+              columnsVisibility: true,
+              columnsMovable: true,
+              headerSticky: true,
+              headerBackground: false,
+              headerBorder: true,
+              rowBorder: true,
+            }}
+            emptyMessage={
+              <div className="flex flex-col items-center justify-center gap-y-3 py-16 opacity-50">
+                <div className="rounded-full bg-muted p-3">
+                  <FilterIcon className="size-6" />
+                </div>
+                <div className="space-y-1 text-center">
+                  <p>No results found</p>
+                  <p className="text-xs text-muted-foreground">
+                    {globalFilter
+                      ? "Try adjusting your search query."
+                      : "When people fill out your form, their responses will appear here."}
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1 text-center">
-                <p>No results found</p>
-                <p className="text-xs text-muted-foreground">
-                  {globalFilter
-                    ? "Try adjusting your search query."
-                    : "When people fill out your form, their responses will appear here."}
-                </p>
-              </div>
+            }
+          >
+            <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+              <table.DataGridContainer
+                border={false}
+                className="min-h-0 flex-1 content-start overflow-x-auto overflow-y-hidden border-b border-border"
+              >
+                <table.DataGridVirtualTable
+                  onFetchMore={fetchNextPage}
+                  hasMore={hasNextPage}
+                  isFetchingMore={isFetchingNextPage}
+                  fetchMoreOffset={5}
+                />
+              </table.DataGridContainer>
             </div>
-          }
-        >
-          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-            <DataGridContainer
-              border={false}
-              className="min-h-0 flex-1 content-start overflow-x-auto overflow-y-hidden border-b border-border"
-            >
-              <DataGridVirtualTable
-                onFetchMore={fetchNextPage}
-                hasMore={hasNextPage}
-                isFetchingMore={isFetchingNextPage}
-                fetchMoreOffset={5}
-              />
-            </DataGridContainer>
-          </div>
-        </DataGrid>
+          </table.DataGrid>
+        </div>
       </div>
-    </div>
+    </table.AppTable>
   );
 };
 
@@ -728,7 +722,7 @@ interface UseSubmissionExportAndDeleteOptions {
   formId: string;
   queryClient: ReturnType<typeof useQueryClient>;
   columns: ColumnDef<DataGridFeatures, SerializedSubmission>[];
-  table: DataGridTable<SerializedSubmission>;
+  table: DataGridApi<SerializedSubmission>;
   rowSelection: RowSelectionState;
   setRowSelection: (selection: RowSelectionState) => void;
 }
@@ -810,7 +804,7 @@ const useSubmissionExportAndDelete = ({
 };
 
 interface UseSubmissionsHotkeysOptions {
-  table: DataGridTable<SerializedSubmission>;
+  table: DataGridApi<SerializedSubmission>;
   rowSelection: RowSelectionState;
   setRowSelection: (selection: RowSelectionState) => void;
   onExport: () => void;
@@ -857,7 +851,7 @@ interface SubmissionsToolbarProps {
   completedCount: number;
   partialCount: number;
   globalFilter: string;
-  table: DataGridTable<SerializedSubmission>;
+  table: DataGridApi<SerializedSubmission>;
   onSetTabAll: () => void;
   onSetTabCompleted: () => void;
   onSetTabPartial: () => void;
@@ -929,8 +923,7 @@ const SubmissionsToolbar = ({
               />
             </ButtonGroupText>
           </ButtonGroup>
-          <DataGridColumnVisibility
-            table={table}
+          <table.DataGridColumnVisibility
             trigger={
               <Button
                 variant="ghost"

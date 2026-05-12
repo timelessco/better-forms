@@ -30,13 +30,23 @@ import type {
   ColumnFiltersState,
   RowData,
   SortingState,
-  Table,
   TableFeatures,
-  TableState,
 } from "@tanstack/table-core";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+
+// Cycle: these files import `useTableContext` / `useDataGrid` back from this
+// file. createTableHook needs them as values at registration time; they only
+// read from us inside their function bodies, so runtime resolution is safe.
+// Same shape as the official TanStack composable-tables example.
+/* eslint-disable import/no-cycle -- layout components register into tableComponents below */
+import { DataGridColumnVisibility } from "@/components/ui/data-grid-column-visibility";
+import { DataGridTable } from "@/components/ui/data-grid-table";
+import { DataGridTableDnd } from "@/components/ui/data-grid-table-dnd";
+import { DataGridTableDndRows } from "@/components/ui/data-grid-table-dnd-rows";
+import { DataGridVirtualTable } from "@/components/ui/data-grid-virtual-table";
+/* eslint-enable import/no-cycle */
 
 // Stable module-level reference required by v9's `_features`.
 export const DATA_GRID_FEATURES = tableFeatures({
@@ -56,55 +66,10 @@ export const DATA_GRID_FEATURES = tableFeatures({
 });
 export type DataGridFeatures = typeof DATA_GRID_FEATURES;
 
-// `state` lives on the `useTable` return, not on the base `Table` type.
-export type DataGridTable<TData extends RowData> = Table<DataGridFeatures, TData> & {
-  state: TableState<DataGridFeatures>;
-};
-
-// React Compiler caches cell renders against the stable Row reference, so a
-// direct `row.getIsSelected()` read in a column's `cell:` function returns
-// stale state. Subscribing to the row's selection slice inside its own
-// component forces this checkbox alone to re-render when the row's selection
-// flips. Registered via `cellComponents` so column defs use it as
-// `cell: ({ cell }) => <cell.SelectionCheckbox />`.
-const SelectionCheckbox = () => {
-  const cell = useCellContext();
-  const table = useTableContext();
-  const rowId = cell.row.id;
-  const isSelected = useSelector(table.store, (state) => !!state.rowSelection?.[rowId]);
-  return (
-    <Checkbox
-      checked={isSelected}
-      onCheckedChange={(value) => cell.row.toggleSelected(!!value)}
-      aria-label="Select row"
-      className="translate-y-[2px]"
-    />
-  );
-};
-
-// Mirror of `tanstack-form.tsx`'s `createFormHook` setup. Pre-binds features,
-// row models, and `cellComponents` so consumers get a `useAppTable` hook +
-// `createAppColumnHelper<T>()` without repeating the `<DataGridFeatures, T>`
-// boilerplate.
-export const {
-  useAppTable,
-  createAppColumnHelper,
-  useTableContext,
-  useCellContext,
-  useHeaderContext,
-} = createTableHook({
-  _features: DATA_GRID_FEATURES,
-  _rowModels: {
-    facetedRowModel: createFacetedRowModel(),
-    facetedUniqueValues: createFacetedUniqueValues(),
-    filteredRowModel: createFilteredRowModel(filterFns),
-    paginatedRowModel: createPaginatedRowModel(),
-    sortedRowModel: createSortedRowModel(sortFns),
-  },
-  cellComponents: {
-    SelectionCheckbox,
-  },
-});
+// The full `useAppTable` return — includes `state`, the registered
+// `tableComponents` (`table.DataGrid`, `table.DataGridVirtualTable`, etc.),
+// and `table.AppTable` / `table.AppCell` / `table.AppHeader` wrappers.
+export type DataGridApi<TData extends RowData> = ReturnType<typeof useAppTable<TData>>;
 
 // Subscribes to `table.store` instead of per-slice `table.atoms.<slice>`: in
 // v9 alpha.45 the per-slice derived atoms don't fire reliably when state is
@@ -113,22 +78,17 @@ export const {
 // `useTable` subscribes to. React Compiler can't track `row.getIsSelected()`
 // reads via the stable Row reference, so the subscription is what forces the
 // re-render on selection changes.
-export const useRowSelected = <T extends RowData>(
-  table: DataGridTable<T>,
-  rowId: string,
-): boolean => useSelector(table.store, (state) => !!state.rowSelection?.[rowId]);
+export const useRowSelected = <T extends RowData>(table: DataGridApi<T>, rowId: string): boolean =>
+  useSelector(table.store, (state) => !!state.rowSelection?.[rowId]);
 
-export const useRowExpanded = <T extends RowData>(
-  table: DataGridTable<T>,
-  rowId: string,
-): boolean =>
+export const useRowExpanded = <T extends RowData>(table: DataGridApi<T>, rowId: string): boolean =>
   useSelector(table.store, (state) =>
     typeof state.expanded === "object" ? !!state.expanded?.[rowId] : !!state.expanded,
   );
 
 export type RowPinPosition = "top" | "bottom" | false;
 export const useRowPinned = <T extends RowData>(
-  table: DataGridTable<T>,
+  table: DataGridApi<T>,
   rowId: string,
 ): RowPinPosition =>
   useSelector(table.store, (state) => {
@@ -139,7 +99,7 @@ export const useRowPinned = <T extends RowData>(
 
 export type ColumnSortDirection = "asc" | "desc" | false;
 export const useColumnSorted = <T extends RowData>(
-  table: DataGridTable<T>,
+  table: DataGridApi<T>,
   columnId: string,
 ): ColumnSortDirection =>
   useSelector(table.store, (state) => {
@@ -150,7 +110,7 @@ export const useColumnSorted = <T extends RowData>(
 
 export type ColumnPinPosition = "left" | "right" | false;
 export const useColumnPinned = <T extends RowData>(
-  table: DataGridTable<T>,
+  table: DataGridApi<T>,
   columnId: string,
 ): ColumnPinPosition =>
   useSelector(table.store, (state) => {
@@ -159,7 +119,7 @@ export const useColumnPinned = <T extends RowData>(
     return false;
   });
 
-export const useColumnResizingId = <T extends RowData>(table: DataGridTable<T>): false | string =>
+export const useColumnResizingId = <T extends RowData>(table: DataGridApi<T>): false | string =>
   useSelector(table.store, (state) => state.columnResizing?.isResizingColumn ?? false);
 
 declare module "@tanstack/table-core" {
@@ -194,11 +154,17 @@ export type DataGridApiResponse<T> = {
   };
 };
 
-export interface DataGridContextProps<TData extends RowData> {
+// Layout context — only props/recordCount/isLoading. The `table` instance
+// flows separately via `useTableContext()` (from createTableHook). The public
+// `useDataGrid()` hook below merges both for callers that need everything.
+interface DataGridLayoutContext<TData extends RowData> {
   props: DataGridProps<TData>;
-  table: DataGridTable<TData>;
   recordCount: number;
   isLoading: boolean;
+}
+
+export interface DataGridContextProps<TData extends RowData> extends DataGridLayoutContext<TData> {
+  table: DataGridApi<TData>;
 }
 
 export type DataGridRequestParams = {
@@ -210,7 +176,6 @@ export type DataGridRequestParams = {
 
 export interface DataGridProps<TData extends RowData> {
   className?: string;
-  table?: DataGridTable<TData>;
   recordCount: number;
   children?: ReactNode;
   onRowClick?: (row: TData) => void;
@@ -250,61 +215,21 @@ export interface DataGridProps<TData extends RowData> {
   };
 }
 
-const DataGridContext = createContext<
+const DataGridLayoutContextCtx = createContext<
   // eslint-disable-next-line typescript-eslint/no-explicit-any
-  DataGridContextProps<any> | undefined
+  DataGridLayoutContext<any> | undefined
 >(undefined);
 
 const useDataGrid = () => {
-  const context = use(DataGridContext);
-  if (!context) {
-    throw new Error("useDataGrid must be used within a DataGridProvider");
+  const layout = use(DataGridLayoutContextCtx);
+  if (!layout) {
+    throw new Error("useDataGrid must be used within a DataGrid");
   }
-  return context;
+  const table = useTableContext();
+  return { ...layout, table } as DataGridContextProps<object>;
 };
 
-const DataGridProvider = <TData extends RowData>({
-  children,
-  table,
-  ...props
-}: DataGridProps<TData> & { table: DataGridTable<TData> }) => {
-  // Intentionally stable across state changes — leaf components subscribe via
-  // `useRowSelected` etc. Including `tableState.*` here would force every
-  // consumer to re-render on any state change.
-  const value = useMemo(
-    () => ({
-      props,
-      table,
-      recordCount: props.recordCount,
-      isLoading: props.isLoading || false,
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      table,
-      props.recordCount,
-      props.isLoading,
-      props.loadingMode,
-      props.loadingMessage,
-      props.fetchingMoreMessage,
-      props.allRowsLoadedMessage,
-      props.emptyMessage,
-      props.onRowClick,
-      props.className,
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      JSON.stringify(props.tableLayout),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      JSON.stringify(props.tableClassNames),
-    ],
-  );
-
-  return (
-    <DataGridContext.Provider value={value as unknown as DataGridContextProps<object>}>
-      {children}
-    </DataGridContext.Provider>
-  );
-};
-
-const DataGrid = <TData extends RowData>({ children, table, ...props }: DataGridProps<TData>) => {
+const DataGrid = <TData extends RowData>({ children, ...props }: DataGridProps<TData>) => {
   const defaultProps: Partial<DataGridProps<TData>> = {
     loadingMode: "skeleton",
     tableLayout: {
@@ -340,24 +265,40 @@ const DataGrid = <TData extends RowData>({ children, table, ...props }: DataGrid
   const mergedProps: DataGridProps<TData> = {
     ...defaultProps,
     ...props,
-    tableLayout: {
-      ...defaultProps.tableLayout,
-      ...props.tableLayout,
-    },
-    tableClassNames: {
-      ...defaultProps.tableClassNames,
-      ...props.tableClassNames,
-    },
+    tableLayout: { ...defaultProps.tableLayout, ...props.tableLayout },
+    tableClassNames: { ...defaultProps.tableClassNames, ...props.tableClassNames },
   };
 
-  if (!table) {
-    throw new Error('DataGrid requires a "table" prop');
-  }
+  // Stable across table state changes — leaf components subscribe via
+  // `useRowSelected` etc. instead.
+  const value = useMemo<DataGridLayoutContext<TData>>(
+    () => ({
+      props: mergedProps,
+      recordCount: mergedProps.recordCount,
+      isLoading: mergedProps.isLoading || false,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      mergedProps.recordCount,
+      mergedProps.isLoading,
+      mergedProps.loadingMode,
+      mergedProps.loadingMessage,
+      mergedProps.fetchingMoreMessage,
+      mergedProps.allRowsLoadedMessage,
+      mergedProps.emptyMessage,
+      mergedProps.onRowClick,
+      mergedProps.className,
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      JSON.stringify(mergedProps.tableLayout),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      JSON.stringify(mergedProps.tableClassNames),
+    ],
+  );
 
   return (
-    <DataGridProvider table={table} {...mergedProps}>
+    <DataGridLayoutContextCtx.Provider value={value as DataGridLayoutContext<object>}>
       {children}
-    </DataGridProvider>
+    </DataGridLayoutContextCtx.Provider>
   );
 };
 
@@ -384,4 +325,55 @@ const DataGridContainer = ({
   </div>
 );
 
-export { useDataGrid, DataGridProvider, DataGrid, DataGridContainer };
+// Registered as a `cellComponent` so the row-selection checkbox subscribes
+// to its own slice — React Compiler can't track `row.getIsSelected()` reads
+// via the stable Row reference and would cache stale JSX otherwise.
+const SelectionCheckbox = () => {
+  const cell = useCellContext();
+  const table = useTableContext();
+  const rowId = cell.row.id;
+  const isSelected = useSelector(table.store, (state) => !!state.rowSelection?.[rowId]);
+  return (
+    <Checkbox
+      checked={isSelected}
+      onCheckedChange={(value) => cell.row.toggleSelected(!!value)}
+      aria-label="Select row"
+      className="translate-y-[2px]"
+    />
+  );
+};
+
+// Mirror of `tanstack-form.tsx`'s `createFormHook` setup. All layout
+// components register here, so call sites use `<table.DataGrid>` /
+// `<table.DataGridVirtualTable>` etc. instead of importing each one.
+// `<table.AppTable>` must wrap so `useTableContext()` works inside.
+export const {
+  useAppTable,
+  createAppColumnHelper,
+  useTableContext,
+  useCellContext,
+  useHeaderContext,
+} = createTableHook({
+  _features: DATA_GRID_FEATURES,
+  _rowModels: {
+    facetedRowModel: createFacetedRowModel(),
+    facetedUniqueValues: createFacetedUniqueValues(),
+    filteredRowModel: createFilteredRowModel(filterFns),
+    paginatedRowModel: createPaginatedRowModel(),
+    sortedRowModel: createSortedRowModel(sortFns),
+  },
+  cellComponents: {
+    SelectionCheckbox,
+  },
+  tableComponents: {
+    DataGrid,
+    DataGridContainer,
+    DataGridTable,
+    DataGridVirtualTable,
+    DataGridTableDnd,
+    DataGridTableDndRows,
+    DataGridColumnVisibility,
+  },
+});
+
+export { useDataGrid };
