@@ -1,12 +1,141 @@
 import { createContext, use, useMemo } from "react";
 import type { ReactNode, Ref, UIEventHandler } from "react";
-import { ColumnFiltersState, RowData, SortingState, Table } from "@tanstack/react-table";
+import { useSelector } from "@tanstack/react-store";
+import {
+  columnFacetingFeature,
+  columnFilteringFeature,
+  columnOrderingFeature,
+  columnPinningFeature,
+  columnResizingFeature,
+  columnSizingFeature,
+  columnVisibilityFeature,
+  createFacetedRowModel,
+  createFacetedUniqueValues,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  filterFns,
+  globalFilteringFeature,
+  rowExpandingFeature,
+  rowPaginationFeature,
+  rowPinningFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  sortFns,
+  tableFeatures,
+} from "@tanstack/table-core";
+import type {
+  CellData,
+  ColumnFiltersState,
+  RowData,
+  SortingState,
+  Table,
+  TableFeatures,
+  TableState,
+} from "@tanstack/table-core";
 
 import { cn } from "@/lib/utils";
 
-declare module "@tanstack/react-table" {
+// Stable module-level reference required by v9's `_features`.
+export const DATA_GRID_FEATURES = tableFeatures({
+  columnFacetingFeature,
+  columnFilteringFeature,
+  columnOrderingFeature,
+  columnPinningFeature,
+  columnResizingFeature,
+  columnSizingFeature,
+  columnVisibilityFeature,
+  globalFilteringFeature,
+  rowExpandingFeature,
+  rowPaginationFeature,
+  rowPinningFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+});
+export type DataGridFeatures = typeof DATA_GRID_FEATURES;
+
+// `state` lives on the `useTable` return, not on the base `Table` type.
+export type DataGridTable<TData extends RowData> = Table<DataGridFeatures, TData> & {
+  state: TableState<DataGridFeatures>;
+};
+
+// `any` is intentional: row-model factories are contravariant in `TData`, so a
+// single module-level value can't be typed both as `Partial<...<RowData>>` and
+// be accepted by call sites with specific `TData`. The factories' runtime
+// logic is data-agnostic. Consumers that want tighter typing construct inline
+// (see `dropoff-funnel.tsx`).
+// eslint-disable-next-line typescript-eslint/no-explicit-any
+export const DATA_GRID_ROW_MODELS: any = {
+  facetedRowModel: createFacetedRowModel(),
+  facetedUniqueValues: createFacetedUniqueValues(),
+  filteredRowModel: createFilteredRowModel(filterFns),
+  paginatedRowModel: createPaginatedRowModel(),
+  sortedRowModel: createSortedRowModel(sortFns),
+};
+
+// Subscribes to `table.store` instead of per-slice `table.atoms.<slice>`: in
+// v9 alpha.45 the per-slice derived atoms don't fire reliably when state is
+// owned via `options.state.X` (sync into baseAtoms happens during render and
+// the derived atom doesn't re-track in time). `table.store` is what v9's own
+// `useTable` subscribes to. React Compiler can't track `row.getIsSelected()`
+// reads via the stable Row reference, so the subscription is what forces the
+// re-render on selection changes.
+export const useRowSelected = <T extends RowData>(
+  table: DataGridTable<T>,
+  rowId: string,
+): boolean => useSelector(table.store, (state) => !!state.rowSelection?.[rowId]);
+
+export const useRowExpanded = <T extends RowData>(
+  table: DataGridTable<T>,
+  rowId: string,
+): boolean =>
+  useSelector(table.store, (state) =>
+    typeof state.expanded === "object" ? !!state.expanded?.[rowId] : !!state.expanded,
+  );
+
+export type RowPinPosition = "top" | "bottom" | false;
+export const useRowPinned = <T extends RowData>(
+  table: DataGridTable<T>,
+  rowId: string,
+): RowPinPosition =>
+  useSelector(table.store, (state) => {
+    if (state.rowPinning?.top?.includes(rowId)) return "top";
+    if (state.rowPinning?.bottom?.includes(rowId)) return "bottom";
+    return false;
+  });
+
+export type ColumnSortDirection = "asc" | "desc" | false;
+export const useColumnSorted = <T extends RowData>(
+  table: DataGridTable<T>,
+  columnId: string,
+): ColumnSortDirection =>
+  useSelector(table.store, (state) => {
+    const found = state.sorting?.find((s) => s.id === columnId);
+    if (!found) return false;
+    return found.desc ? "desc" : "asc";
+  });
+
+export type ColumnPinPosition = "left" | "right" | false;
+export const useColumnPinned = <T extends RowData>(
+  table: DataGridTable<T>,
+  columnId: string,
+): ColumnPinPosition =>
+  useSelector(table.store, (state) => {
+    if (state.columnPinning?.left?.includes(columnId)) return "left";
+    if (state.columnPinning?.right?.includes(columnId)) return "right";
+    return false;
+  });
+
+export const useColumnResizingId = <T extends RowData>(table: DataGridTable<T>): false | string =>
+  useSelector(table.store, (state) => state.columnResizing?.isResizingColumn ?? false);
+
+declare module "@tanstack/table-core" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  interface ColumnMeta<TData extends RowData, TValue> {
+  interface ColumnMeta<
+    TFeatures extends TableFeatures,
+    TData extends RowData,
+    TValue extends CellData = CellData,
+  > {
     headerTitle?: string;
     headerClassName?: string;
     cellClassName?: string;
@@ -32,9 +161,9 @@ export type DataGridApiResponse<T> = {
   };
 };
 
-export interface DataGridContextProps<TData extends object> {
+export interface DataGridContextProps<TData extends RowData> {
   props: DataGridProps<TData>;
-  table: Table<TData>;
+  table: DataGridTable<TData>;
   recordCount: number;
   isLoading: boolean;
 }
@@ -46,9 +175,9 @@ export type DataGridRequestParams = {
   columnFilters?: ColumnFiltersState;
 };
 
-export interface DataGridProps<TData extends object> {
+export interface DataGridProps<TData extends RowData> {
   className?: string;
-  table?: Table<TData>;
+  table?: DataGridTable<TData>;
   recordCount: number;
   children?: ReactNode;
   onRowClick?: (row: TData) => void;
@@ -101,16 +230,14 @@ const useDataGrid = () => {
   return context;
 };
 
-const DataGridProvider = <TData extends object>({
+const DataGridProvider = <TData extends RowData>({
   children,
   table,
   ...props
-}: DataGridProps<TData> & { table: Table<TData> }) => {
-  const tableState = table.getState();
-
-  // Memoize context value so consumers don't re-render during column resize.
-  // Column sizing state is intentionally excluded from deps -- CSS variables
-  // on the <table> element handle width updates without React re-renders.
+}: DataGridProps<TData> & { table: DataGridTable<TData> }) => {
+  // Intentionally stable across state changes — leaf components subscribe via
+  // `useRowSelected` etc. Including `tableState.*` here would force every
+  // consumer to re-render on any state change.
   const value = useMemo(
     () => ({
       props,
@@ -134,22 +261,17 @@ const DataGridProvider = <TData extends object>({
       JSON.stringify(props.tableLayout),
       // eslint-disable-next-line react-hooks/exhaustive-deps
       JSON.stringify(props.tableClassNames),
-      tableState.sorting,
-      tableState.pagination,
-      tableState.columnFilters,
-      tableState.rowSelection,
-      tableState.expanded,
-      tableState.columnVisibility,
-      tableState.columnOrder,
-      tableState.columnPinning,
-      tableState.globalFilter,
     ],
   );
 
-  return <DataGridContext.Provider value={value}>{children}</DataGridContext.Provider>;
+  return (
+    <DataGridContext.Provider value={value as unknown as DataGridContextProps<object>}>
+      {children}
+    </DataGridContext.Provider>
+  );
 };
 
-const DataGrid = <TData extends object>({ children, table, ...props }: DataGridProps<TData>) => {
+const DataGrid = <TData extends RowData>({ children, table, ...props }: DataGridProps<TData>) => {
   const defaultProps: Partial<DataGridProps<TData>> = {
     loadingMode: "skeleton",
     tableLayout: {

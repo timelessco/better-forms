@@ -8,6 +8,14 @@ allowBuilds:
 # affect runtime.
 strictPeerDependencies: false
 
+# Quarantine bypass for @tanstack/react-table & table-core: alpha.42 has a
+# broken-on-arrival infinite render loop (setOptions inside useEffect with an
+# inline-object dep). alpha.45 fixes it by calling setOptions during render
+# instead. Once v9 ships a stable release we can remove these entries.
+minimumReleaseAgeExclude:
+  - "@tanstack/react-table"
+  - "@tanstack/table-core"
+
 # Hoist these transitive deps to the node_modules root so direct imports keep
 # resolving:
 #  - @tanstack/*: the codebase imports `@tanstack/query-core` through

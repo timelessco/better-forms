@@ -1,5 +1,6 @@
 import { memo, ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { useDataGrid } from "@/components/ui/data-grid";
+import type { DataGridFeatures, DataGridTable } from "@/components/ui/data-grid";
 import {
   DataGridTableBase,
   DataGridTableBody,
@@ -14,7 +15,8 @@ import {
   DataGridTableViewport,
   getDataGridTableRowSections,
 } from "@/components/ui/data-grid-table";
-import { flexRender, HeaderGroup, Row, Table } from "@tanstack/react-table";
+import { flexRender } from "@tanstack/react-table";
+import type { Row, RowData } from "@tanstack/table-core";
 import {
   useVirtualizer,
   VirtualItem,
@@ -32,16 +34,16 @@ type DataGridTableVirtualScrollElements = {
 
 type DataGridTableVirtualizerInstance = Virtualizer<HTMLElement, HTMLTableRowElement>;
 
-type DataGridTableVirtualizerOptions<TData> = Omit<
+type DataGridTableVirtualizerOptions<TData extends RowData> = Omit<
   VirtualizerOptions<HTMLElement, HTMLTableRowElement>,
   "count" | "estimateSize" | "getItemKey" | "getScrollElement"
 > & {
-  estimateSize?: (index: number, row: Row<TData>) => number;
-  getItemKey?: (index: number, row: Row<TData>) => string | number;
+  estimateSize?: (index: number, row: Row<DataGridFeatures, TData>) => number;
+  getItemKey?: (index: number, row: Row<DataGridFeatures, TData>) => string | number;
   getScrollElement?: (elements: DataGridTableVirtualScrollElements) => HTMLElement | null;
 };
 
-interface DataGridTableVirtualProps<TData> {
+interface DataGridTableVirtualProps<TData extends RowData> {
   height?: number | string;
   estimateSize?: number;
   overscan?: number;
@@ -54,12 +56,12 @@ interface DataGridTableVirtualProps<TData> {
   virtualizerOptions?: DataGridTableVirtualizerOptions<TData>;
 }
 
-interface VirtualBodyProps<TData> {
-  table: Table<TData>;
+interface VirtualBodyProps<TData extends RowData> {
+  table: DataGridTable<TData>;
   columnCount: number;
-  topRows: Row<TData>[];
-  centerRows: Row<TData>[];
-  bottomRows: Row<TData>[];
+  topRows: Row<DataGridFeatures, TData>[];
+  centerRows: Row<DataGridFeatures, TData>[];
+  bottomRows: Row<DataGridFeatures, TData>[];
   virtualItems: VirtualItem[];
   totalSize: number;
   isVirtualizationEnabled: boolean;
@@ -107,7 +109,7 @@ const DataGridTableVirtualStatusRow = ({
 );
 
 // eslint-disable-next-line react-doctor/no-many-boolean-props -- vendored Reui virtualized table; flags are independent rendering modes
-const DataGridTableVirtualBody = <TData,>({
+const DataGridTableVirtualBody = <TData extends RowData>({
   table: _table,
   columnCount,
   topRows,
@@ -231,10 +233,10 @@ const DataGridTableVirtualBody = <TData,>({
  */
 const MemoizedVirtualBody = memo(
   DataGridTableVirtualBody,
-  (_prev, next) => !!next.table.getState().columnSizingInfo.isResizingColumn,
+  (_prev, next) => !!next.table.state.columnResizing.isResizingColumn,
 ) as typeof DataGridTableVirtualBody;
 
-const DataGridTableVirtual = <TData,>({
+const DataGridTableVirtual = <TData extends RowData>({
   height,
   estimateSize = 48,
   overscan = 10,
@@ -297,7 +299,7 @@ const DataGridTableVirtual = <TData,>({
 
       if (!row) return index;
 
-      return customGetItemKey?.(index, row) ?? row.id ?? index;
+      return customGetItemKey?.(index, row as Row<DataGridFeatures, TData>) ?? row.id ?? index;
     },
     [centerRows, customGetItemKey],
   );
@@ -306,7 +308,9 @@ const DataGridTableVirtual = <TData,>({
     (index: number) => {
       const row = centerRows[index];
 
-      return row ? (customEstimateSize?.(index, row) ?? estimateSize) : estimateSize;
+      return row
+        ? (customEstimateSize?.(index, row as Row<DataGridFeatures, TData>) ?? estimateSize)
+        : estimateSize;
     },
     [centerRows, customEstimateSize, estimateSize],
   );
@@ -381,7 +385,7 @@ const DataGridTableVirtual = <TData,>({
       <DataGridTableBase>
         {renderHeader && (
           <DataGridTableHead>
-            {table.getHeaderGroups().map((headerGroup: HeaderGroup<TData>) => (
+            {table.getHeaderGroups().map((headerGroup) => (
               <DataGridTableHeadRow headerGroup={headerGroup} key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   const { column } = header;

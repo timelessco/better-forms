@@ -1,19 +1,9 @@
-// Opt this route out of React Compiler. TanStack Table v8's `useReactTable`
-// calls `table.setOptions(...)` as a side effect during render; the compiler
-// over-memoizes around it, so the table instance's internal state lags behind
-// React state and memoized cells stop receiving re-renders (e.g. "select all"
-// flips `rowSelection` but row checkboxes don't update). Revisit when we
-// migrate to TanStack Table v9 (compiler-compatible) — see
-// docs/plans/2026-05-11-tanstack-table-v9-migration.md.
-"use no memo";
-
 import { cn } from "@/lib/utils";
 import { MULTI_SELECT_COLORS } from "@/components/ui/form-option-item-constants";
 import { Button } from "@/components/ui/button";
 import { Image } from "@/components/ui/image";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DataGrid, DataGridContainer } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridColumnVisibility } from "@/components/ui/data-grid-column-visibility";
 import { DataGridVirtualTable } from "@/components/ui/data-grid-virtual-table";
@@ -38,22 +28,26 @@ import {
 } from "@/lib/editor/transform-plate-to-form";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  createColumnHelper,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { useTable } from "@tanstack/react-table";
+import { createColumnHelper } from "@tanstack/table-core";
 import type {
   Cell,
   ColumnDef,
   ColumnPinningState,
+  ColumnVisibilityState as VisibilityState,
   Row,
   RowSelectionState,
   SortingState,
-  VisibilityState,
-} from "@tanstack/react-table";
+} from "@tanstack/table-core";
+import {
+  DATA_GRID_FEATURES,
+  DATA_GRID_ROW_MODELS,
+  DataGrid,
+  DataGridContainer,
+  useDataGrid,
+  useRowSelected,
+} from "@/components/ui/data-grid";
+import type { DataGridFeatures, DataGridTable } from "@/components/ui/data-grid";
 
 import { ChevronDownIcon, FilterIcon, Trash2Icon, XIcon } from "@/components/ui/icons";
 import { Columns, Download, ExternalLink, FileText, Paperclip, Search } from "lucide-react";
@@ -295,9 +289,23 @@ const SubmissionCell = ({
   }
 };
 
+const SelectionRowCheckbox = ({ row }: { row: Row<DataGridFeatures, SerializedSubmission> }) => {
+  const { table } = useDataGrid();
+  const isSelected = useRowSelected(table, row.id);
+  return (
+    <Checkbox
+      checked={isSelected}
+      onCheckedChange={(value) => row.toggleSelected(!!value)}
+      aria-label="Select row"
+      className="translate-y-[2px]"
+    />
+  );
+};
+
 const toSubmissionColumn = <TValue,>(
-  column: ColumnDef<SerializedSubmission, TValue>,
-): ColumnDef<SerializedSubmission> => column as ColumnDef<SerializedSubmission>;
+  column: ColumnDef<DataGridFeatures, SerializedSubmission, TValue>,
+): ColumnDef<DataGridFeatures, SerializedSubmission> =>
+  column as ColumnDef<DataGridFeatures, SerializedSubmission>;
 
 interface BuildSubmissionColumnsOptions {
   formElements: ReturnType<typeof transformPlateStateToFormElements> | null;
@@ -316,10 +324,10 @@ const buildSubmissionColumns = ({
   onDelete,
   onPreview,
 }: BuildSubmissionColumnsOptions) => {
-  const columnHelper = createColumnHelper<SerializedSubmission>();
+  const columnHelper = createColumnHelper<DataGridFeatures, SerializedSubmission>();
   const counts: Record<FieldStatus, number> = { current: 0, deleted: 0 };
 
-  const baseColumns: ColumnDef<SerializedSubmission>[] = [
+  const baseColumns: ColumnDef<DataGridFeatures, SerializedSubmission>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -331,14 +339,7 @@ const buildSubmissionColumns = ({
           className="translate-y-[2px]"
         />
       ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-          className="translate-y-[2px]"
-        />
-      ),
+      cell: ({ row }) => <SelectionRowCheckbox row={row} />,
       size: 48,
       minSize: 48,
       maxSize: 48,
@@ -491,7 +492,7 @@ const SubmissionsPage = () => {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
     last_step_reached: false,
   });
-  const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({});
+  const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({ left: [], right: [] });
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
   const [previewFile, setPreviewFile] = useState<UploadedFileValue | null>(null);
   const openPreview = useCallback((file: UploadedFileValue) => setPreviewFile(file), []);
@@ -621,31 +622,33 @@ const SubmissionsPage = () => {
     ],
   );
 
-  const table = useReactTable({
-    data: submissions,
-    columns,
-    state: {
-      sorting,
-      globalFilter,
-      rowSelection,
-      columnVisibility,
-      columnPinning,
-      columnOrder,
+  const table = useTable(
+    {
+      _features: DATA_GRID_FEATURES,
+      _rowModels: DATA_GRID_ROW_MODELS,
+      data: submissions,
+      columns,
+      state: {
+        sorting,
+        globalFilter,
+        rowSelection,
+        columnVisibility,
+        columnPinning,
+        columnOrder,
+      },
+      enableRowSelection: true,
+      onRowSelectionChange: setRowSelection,
+      onColumnVisibilityChange: setColumnVisibility,
+      onColumnPinningChange: setColumnPinning,
+      onColumnOrderChange: setColumnOrder,
+      onSortingChange: setSorting,
+      onGlobalFilterChange: setGlobalFilter,
+      autoResetPageIndex: false,
+      columnResizeMode: "onChange",
+      getRowId: (row) => row.id,
     },
-    enableRowSelection: true,
-    onRowSelectionChange: setRowSelection,
-    onColumnVisibilityChange: setColumnVisibility,
-    onColumnPinningChange: setColumnPinning,
-    onColumnOrderChange: setColumnOrder,
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    autoResetPageIndex: false,
-    columnResizeMode: "onChange",
-    getRowId: (row) => row.id,
-  });
+    (state) => state,
+  );
 
   const { handleBulkDelete, handleExportSelected, handleDownloadCSV } =
     useSubmissionExportAndDelete({
@@ -746,8 +749,8 @@ const SubmissionsPage = () => {
 interface UseSubmissionExportAndDeleteOptions {
   formId: string;
   queryClient: ReturnType<typeof useQueryClient>;
-  columns: ColumnDef<SerializedSubmission>[];
-  table: ReturnType<typeof useReactTable<SerializedSubmission>>;
+  columns: ColumnDef<DataGridFeatures, SerializedSubmission>[];
+  table: DataGridTable<SerializedSubmission>;
   rowSelection: RowSelectionState;
   setRowSelection: (selection: RowSelectionState) => void;
 }
@@ -777,7 +780,7 @@ const useSubmissionExportAndDelete = ({
   }, [formId, queryClient, rowSelection, setRowSelection]);
 
   const downloadCSV = useCallback(
-    (rows: Row<SerializedSubmission>[], filename: string) => {
+    (rows: Row<DataGridFeatures, SerializedSubmission>[], filename: string) => {
       if (rows.length === 0) return;
 
       const headers = columns
@@ -793,7 +796,7 @@ const useSubmissionExportAndDelete = ({
         .map((row) =>
           row
             .getVisibleCells()
-            .flatMap((cell: Cell<SerializedSubmission, unknown>) => {
+            .flatMap((cell: Cell<DataGridFeatures, SerializedSubmission, unknown>) => {
               if (cell.column.id === "select") return [];
               const formatted = csvFormat(cell.getValue()).replaceAll('"', '""');
               return [`"${formatted}"`];
@@ -829,7 +832,7 @@ const useSubmissionExportAndDelete = ({
 };
 
 interface UseSubmissionsHotkeysOptions {
-  table: ReturnType<typeof useReactTable<SerializedSubmission>>;
+  table: DataGridTable<SerializedSubmission>;
   rowSelection: RowSelectionState;
   setRowSelection: (selection: RowSelectionState) => void;
   onExport: () => void;
@@ -876,7 +879,7 @@ interface SubmissionsToolbarProps {
   completedCount: number;
   partialCount: number;
   globalFilter: string;
-  table: ReturnType<typeof useReactTable<SerializedSubmission>>;
+  table: DataGridTable<SerializedSubmission>;
   onSetTabAll: () => void;
   onSetTabCompleted: () => void;
   onSetTabPartial: () => void;

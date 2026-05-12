@@ -1,13 +1,10 @@
-import {
-  createColumnHelper,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import { useTable } from "@tanstack/react-table";
+import { createColumnHelper, createSortedRowModel, sortFns } from "@tanstack/table-core";
+import type { ColumnDef, SortingState } from "@tanstack/table-core";
 import { useMemo, useState } from "react";
 
-import { DataGrid, DataGridContainer } from "@/components/ui/data-grid";
+import { DATA_GRID_FEATURES, DataGrid, DataGridContainer } from "@/components/ui/data-grid";
+import type { DataGridFeatures } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import type { QuestionDropoffMetrics } from "@/types/analytics";
@@ -56,8 +53,9 @@ const SummaryStat = ({ label, value }: SummaryStatProps) => (
   </div>
 );
 
-const toDropoffColumn = <TValue,>(column: ColumnDef<DropoffRow, TValue>): ColumnDef<DropoffRow> =>
-  column as ColumnDef<DropoffRow>;
+const toDropoffColumn = <TValue,>(
+  column: ColumnDef<DataGridFeatures, DropoffRow, TValue>,
+): ColumnDef<DataGridFeatures, DropoffRow> => column as ColumnDef<DataGridFeatures, DropoffRow>;
 
 export const DropoffFunnel = ({ dropoff }: DropoffFunnelProps) => {
   const [sorting, setSorting] = useState<SortingState>([{ id: "step", desc: false }]);
@@ -67,8 +65,8 @@ export const DropoffFunnel = ({ dropoff }: DropoffFunnelProps) => {
     [dropoff.questions],
   );
 
-  const columns = useMemo<ColumnDef<DropoffRow>[]>(() => {
-    const columnHelper = createColumnHelper<DropoffRow>();
+  const columns = useMemo<ColumnDef<DataGridFeatures, DropoffRow>[]>(() => {
+    const columnHelper = createColumnHelper<DataGridFeatures, DropoffRow>();
     return [
       toDropoffColumn(
         columnHelper.accessor("questionIndex", {
@@ -148,15 +146,18 @@ export const DropoffFunnel = ({ dropoff }: DropoffFunnelProps) => {
     ];
   }, []);
 
-  const table = useReactTable({
-    data: sortedQuestions,
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getRowId: (row) => row.questionId,
-  });
+  const table = useTable(
+    {
+      _features: DATA_GRID_FEATURES,
+      _rowModels: { sortedRowModel: createSortedRowModel(sortFns) },
+      data: sortedQuestions,
+      columns,
+      state: { sorting },
+      onSortingChange: setSorting,
+      getRowId: (row) => row.questionId,
+    },
+    (state) => state,
+  );
 
   if (!dropoff || dropoff.questions.length === 0) {
     return (
