@@ -2,16 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
 import { motion, AnimatePresence } from "motion/react";
 import { XIcon } from "@/components/ui/icons";
-import { iconMap } from "@/components/icon-picker/icon-data";
 import { SPRITE_PATH } from "@/lib/config/app-config";
-import { isValidUrl } from "@/lib/utils";
+import { cn, isValidUrl } from "@/lib/utils";
 import type { EmbedType } from "@/hooks/use-editor-sidebar";
 
 interface EmbedPreviewMockupProps {
   embedType: EmbedType;
   popupPosition?: "bottom-right" | "bottom-left" | "center";
   darkOverlay?: boolean;
-  emoji?: boolean;
   emojiIcon?: string;
   alignLeft?: boolean;
 }
@@ -28,15 +26,15 @@ type IconDisplay =
   | { type: "sprite"; value: string }
   | null;
 
-const resolveIconDisplay = (emoji: boolean, emojiIcon: string | undefined): IconDisplay => {
-  if (!emoji) return null;
+const resolveIconDisplay = (emojiIcon: string | undefined): IconDisplay => {
   const icon = (emojiIcon || "").trim();
   if (!icon) return null;
   if (isValidUrl(icon)) return { type: "image", value: icon };
-  if (iconMap.has(icon)) return { type: "sprite", value: icon };
-  // Short string likely emoji (e.g. 👋)
+  // Short strings (e.g. 👋) are emoji; longer strings are sprite names. The
+  // sprite has more icons than `iconMap`, so don't gate on `iconMap.has` —
+  // any name that exists in the sprite will resolve via the cross-doc <use>.
   if (icon.length <= 4) return { type: "emoji", value: icon };
-  return null;
+  return { type: "sprite", value: icon };
 };
 
 const PopupIconContent = ({ display }: { display: IconDisplay }) => {
@@ -63,7 +61,7 @@ const PopupIconContent = ({ display }: { display: IconDisplay }) => {
   }
   if (display.type === "sprite") {
     return (
-      <span className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+      <span className="absolute inset-0 flex items-center justify-center">
         <svg className="size-[14px]" fill="currentColor" viewBox="0 0 24 24">
           <use href={`${SPRITE_PATH}#${display.value}`} />
         </svg>
@@ -144,7 +142,6 @@ export const EmbedPreviewMockup = ({
   embedType = "fullpage",
   popupPosition = "bottom-right",
   darkOverlay = false,
-  emoji = true,
   emojiIcon = "👋",
   alignLeft = false,
 }: EmbedPreviewMockupProps) => {
@@ -219,7 +216,7 @@ export const EmbedPreviewMockup = ({
 
   const bubblePos = size.w > 0 ? getBubblePos(popupPosition, size.w, size.h) : null;
   const isPopup = embedType === "popup";
-  const popupIconDisplay = resolveIconDisplay(emoji, emojiIcon);
+  const popupIconDisplay = resolveIconDisplay(emojiIcon);
 
   return (
     <div className="overflow-hidden rounded-[12px] bg-secondary">
@@ -288,7 +285,10 @@ export const EmbedPreviewMockup = ({
 
         {target && (
           <motion.div
-            className="absolute z-20 overflow-hidden bg-muted shadow-[0_2px_10px_rgba(0,0,0,0.04)]"
+            className={cn(
+              "absolute z-20 overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.04)]",
+              isPopup && !isPopupExpanded ? "bg-primary text-primary-foreground" : "bg-muted",
+            )}
             animate={target}
             transition={transition}
             onAnimationComplete={handleAnimationComplete}
@@ -341,8 +341,10 @@ export const EmbedPreviewMockup = ({
           </motion.div>
         )}
 
-        {/* Separate bubble trigger (visible when popup is collapsed & no emoji) */}
-        {isPopup && !isPopupExpanded && !emoji && bubblePos && (
+        {/* Fallback bubble for forms without a resolvable icon. Sits at the
+            same corner as the morphing target so the visual stays consistent.
+            Only renders when the icon overlay would otherwise be empty. */}
+        {isPopup && !isPopupExpanded && !popupIconDisplay && bubblePos && (
           <button
             type="button"
             aria-label="Open popup preview"

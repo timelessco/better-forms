@@ -2,7 +2,7 @@ import { useRef } from "react";
 
 import { useResolvedTheme } from "@/components/theme-provider";
 import { getThemeStyleVars } from "@/lib/theme/generate-theme-css";
-import { DEFAULT_ICON } from "@/lib/config/app-config";
+import { DEFAULT_ICON, SPRITE_PATH } from "@/lib/config/app-config";
 import { cn, DEFAULT_ICON_NAME, isValidUrl } from "@/lib/utils";
 import { BLACK_COLOR, iconMap, WHITE_COLOR } from "./icon-data";
 import type { IconPickerPreviewProps } from "./types";
@@ -26,14 +26,15 @@ const getAdjustedColor = (color: string | undefined, isDarkMode: boolean) => {
   return color;
 };
 
-// Render a single icon via the per-icon API endpoint so the published form
-// avoids downloading the full 306 KB sprite. External `<use href>` only
-// clones the symbol's own subtree, so color is driven via CSS `color`
-// (inheritable into the referenced `fill="currentColor"`) rather than the
-// `fill` attribute (not inheritable across the reference).
+// Cross-document `<use>` only clones the symbol's own subtree, so color is
+// driven via CSS `color` (inheritable into the referenced `fill="currentColor"`)
+// rather than the `fill` attribute (not inheritable across the reference).
+// References the full sprite because the framework's static-asset middleware
+// intercepts `Sec-Fetch-Dest: image` requests before route handlers can serve
+// a per-icon endpoint; the sprite gzips to ~306 KB and is cached as immutable.
 const StandaloneIcon = ({ name, color, size }: { name: string; color: string; size: string }) => (
   <svg height={size} style={{ color }} viewBox="0 0 18 18" width={size}>
-    <use href={`/api/icons/${name}.svg#${name}`} />
+    <use href={`${SPRITE_PATH}#${name}`} />
   </svg>
 );
 
@@ -52,7 +53,11 @@ const RenderedIcon = ({
   matchedIcon,
   standaloneIcon,
 }: RenderedIconProps) => {
-  if (standaloneIcon && icon && matchedIcon) {
+  // The /api/icons route resolves names directly from the full sprite, so the
+  // curated iconMap (236 names) doesn't gate the standalone path — picking an
+  // icon that's in the sprite but not in iconMap (e.g. star-01, asterisk-01)
+  // must still render.
+  if (standaloneIcon && icon) {
     return <StandaloneIcon name={icon} color={color} size={iconSize} />;
   }
   return <>{matchedIcon?.icon(color, iconSize)}</>;

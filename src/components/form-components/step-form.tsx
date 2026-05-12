@@ -1,5 +1,5 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
-import { use, useMemo, useRef } from "react";
+import { use, useMemo, useRef, useState } from "react";
 import { useFocusFirstField } from "@/hooks/use-focus-first-field";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { Button } from "@/components/ui/button";
@@ -49,25 +49,31 @@ export const StepForm = ({
   const groupedItems = useMemo(() => groupSegmentsForRendering(segments), [segments]);
 
   const formRef = useRef<HTMLFormElement>(null);
+  const [isTextareaFocused, setIsTextareaFocused] = useState(false);
 
-  // Field-by-field uses Shift+Enter to advance because plain Enter is needed
-  // for newlines inside textareas. Suppress plain-Enter submit on non-textarea
-  // inputs to keep the shortcut consistent across every step.
+  // Field-by-field: Enter advances/submits. Textareas keep native newline on
+  // plain Enter; require Cmd/Ctrl+Enter there to advance. Buttons keep native
+  // Enter so Tab → action button + Enter still works.
   const handleFieldByFieldKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
     if (event.key !== "Enter") return;
-    if (event.shiftKey) {
-      event.preventDefault();
-      formRef.current?.requestSubmit();
-      return;
-    }
-    // Allow Enter to keep its native behavior on textareas (newline) and on
-    // buttons (click — so Tab → Next + Enter still advances). Only suppress
-    // the implicit form submit triggered by Enter on a single-line input.
     const target = event.target as HTMLElement;
-    if (target.tagName === "INPUT") {
-      event.preventDefault();
-    }
+    if (target.tagName === "BUTTON") return;
+
+    const isTextarea = target.tagName === "TEXTAREA";
+    const isMetaEnter = event.metaKey || event.ctrlKey;
+
+    if (isTextarea && !isMetaEnter) return;
+
+    event.preventDefault();
+    formRef.current?.requestSubmit();
   };
+
+  const handleTextareaFocusChange =
+    (focused: boolean) => (event: React.FocusEvent<HTMLFormElement>) => {
+      if ((event.target as HTMLElement).tagName === "TEXTAREA") {
+        setIsTextareaFocused(focused);
+      }
+    };
 
   useFocusFirstField(formRef);
 
@@ -100,6 +106,8 @@ export const StepForm = ({
         noValidate
         data-bf-field-list
         onKeyDown={autoActionButton ? handleFieldByFieldKeyDown : undefined}
+        onFocus={autoActionButton ? handleTextareaFocusChange(true) : undefined}
+        onBlur={autoActionButton ? handleTextareaFocusChange(false) : undefined}
         className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         {groupedItems.map((item) => {
@@ -188,10 +196,14 @@ export const StepForm = ({
             </Button>
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               press{" "}
-              <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
-                Shift
-              </kbd>
-              +
+              {isTextareaFocused && (
+                <>
+                  <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
+                    ⌘
+                  </kbd>
+                  +
+                </>
+              )}
               <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
                 Enter
               </kbd>

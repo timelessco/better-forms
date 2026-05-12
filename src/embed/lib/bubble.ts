@@ -172,7 +172,7 @@ const setBubbleContent = (
   }
 
   replaceBubbleContent(btn, buildDefaultIcon());
-  fetch(`${origin}/api/icons/${icon}.svg`)
+  fetch(`${origin}/api/icons/${icon}`)
     .then((r) => (r.ok ? r.text() : null))
     .then((text) => {
       if (!text) return;

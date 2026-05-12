@@ -87,6 +87,11 @@ interface FormPreviewFromPlateProps {
    *  instead of using viewport units. Use for popup previews and real popup
    *  iframes — the parent already provides a definite bounded height. */
   isPopup?: boolean;
+  /** When true, field-by-field mode bounds height to its parent the same way
+   *  popups do, but without popup-specific styling (smaller title, hidden
+   *  icon, tighter padding). Use for the standard embed mockup, where the
+   *  outer iframe already provides a fixed height. */
+  boundToParent?: boolean;
   /** Analytics tracking base ({ visitId, visitorHash }). Only passed by the
    * public form route — builder previews leave this undefined to disable
    * tracking. */
@@ -398,6 +403,7 @@ export const FormPreviewFromPlate = ({
   initialFormData,
   initialCurrentStep,
   isPopup = false,
+  boundToParent = false,
   trackingBase,
 }: FormPreviewFromPlateProps) => {
   const headerFromContent = useMemo(() => extractFormHeader(content), [content]);
@@ -489,6 +495,7 @@ export const FormPreviewFromPlate = ({
         settings={settings}
         customization={customization}
         isPopup={isPopup}
+        boundToParent={boundToParent}
       />
     </StepFormProvider>
   );
@@ -598,6 +605,7 @@ interface LayoutProps {
   settings?: PublicFormSettings;
   customization?: Record<string, string> | null;
   isPopup?: boolean;
+  boundToParent?: boolean;
   shareUrl?: string;
   redirectCountdown: number | null;
 }
@@ -662,6 +670,7 @@ const FieldByFieldLayout = ({
   layout,
   settings,
   isPopup,
+  boundToParent,
   shareUrl,
   redirectCountdown,
 }: LayoutProps) => {
@@ -683,7 +692,7 @@ const FieldByFieldLayout = ({
       className={cn(
         "relative flex size-full flex-col overflow-hidden",
         layout === "public"
-          ? isPopup
+          ? isPopup || boundToParent
             ? "max-h-full min-h-full"
             : "min-h-screen"
           : "min-h-[600px]",
@@ -877,6 +886,7 @@ const FormPreviewContent = (props: {
   settings?: PublicFormSettings;
   customization?: Record<string, string> | null;
   isPopup?: boolean;
+  boundToParent?: boolean;
   formId?: string;
 }) => {
   const { isSubmitted, reset } = useStepForm();

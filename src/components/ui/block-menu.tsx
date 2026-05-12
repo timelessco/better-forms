@@ -40,7 +40,8 @@ import { ALLOWED_LABEL_TYPES, FORM_INPUT_NODE_TYPES } from "@/lib/form-schema/fo
 import { cn } from "@/lib/utils";
 
 type BlockFieldType =
-  | "textLike" // formInput, formTextarea, formEmail, formPhone, formLink
+  | "textLike" // formInput, formTextarea, formEmail, formLink
+  | "formPhone"
   | "formNumber"
   | "formDate"
   | "formTime"
@@ -53,18 +54,13 @@ type BlockFieldType =
   | "static"
   | "unknown";
 
-const TEXT_LIKE_TYPES = new Set([
-  "formInput",
-  "formTextarea",
-  "formEmail",
-  "formPhone",
-  "formLink",
-]);
+const TEXT_LIKE_TYPES = new Set(["formInput", "formTextarea", "formEmail", "formLink"]);
 
 const getFieldType = (node: { type?: string; variant?: string } | undefined): BlockFieldType => {
   if (!node?.type) return "unknown";
   const t = node.type;
   if (TEXT_LIKE_TYPES.has(t)) return "textLike";
+  if (t === "formPhone") return "formPhone";
   if (t === "formNumber") return "formNumber";
   if (t === "formDate") return "formDate";
   if (t === "formTime") return "formTime";
@@ -691,6 +687,7 @@ interface FieldTypeSettingsProps {
 const FieldTypeSettings = (props: FieldTypeSettingsProps) => {
   const { fieldType } = props;
   if (fieldType === "textLike") return <TextLikeSettings {...props} />;
+  if (fieldType === "formPhone") return <FormPhoneSettings {...props} />;
   if (fieldType === "formNumber") return <NumberFieldSettings {...props} />;
   if (fieldType === "formFileUpload") return <FileUploadSettings {...props} />;
   if (fieldType === "optionCheckbox") return <OptionCheckboxSettings {...props} />;
@@ -798,6 +795,24 @@ const TextLikeSettings = ({
         defaultHint={100}
       />
     )}
+    <DropdownMenuSeparator />
+  </>
+);
+
+// Phone numbers are validated by format (E.164 via libphonenumber), not by
+// character count — exposing Min/Max characters produced nonsensical errors
+// like "Maximum 1 characters allowed" on a valid +91… number.
+const FormPhoneSettings = ({
+  hasDefaultValue,
+  currentDefaultValue,
+  handlers,
+}: FieldTypeSettingsProps) => (
+  <>
+    <DefaultValueRow
+      hasDefaultValue={hasDefaultValue}
+      currentDefaultValue={currentDefaultValue}
+      handlers={handlers}
+    />
     <DropdownMenuSeparator />
   </>
 );

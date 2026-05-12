@@ -1,3 +1,5 @@
+import { SPRITE_PATH } from "@/lib/config/app-config";
+
 // Hook-free sprite icon for RSC composite rendering.
 export const ServerFormIcon = ({
   iconName,
@@ -13,7 +15,7 @@ export const ServerFormIcon = ({
     style={{ width: `${size}px`, height: `${size}px` }}
   >
     <svg height={iconSize} style={{ color: "currentColor" }} viewBox="0 0 18 18" width={iconSize}>
-      <use href={`/api/icons/${iconName}.svg#${iconName}`} />
+      <use href={`${SPRITE_PATH}#${iconName}`} />
     </svg>
   </div>
 );

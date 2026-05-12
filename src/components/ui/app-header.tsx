@@ -12,7 +12,6 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Loader2Icon,
   MoreHorizontalIcon,
-  PencilIcon,
   RotateCcwIcon,
   SettingsIcon,
 } from "@/components/ui/icons";
@@ -355,6 +354,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               savedDocs={savedDocs}
               menuItems={menuItems}
               onTogglePreview={togglePreview}
+              onEdit={handleEditForm}
               onToggleShareSidebar={toggleShareSidebar}
               onToggleSettingsSidebar={toggleSettingsSidebar}
               onPublish={handlePublish}
@@ -799,6 +799,7 @@ interface FormBuilderHeaderActionsProps {
   savedDocs: ReturnType<typeof useForm>["data"];
   menuItems: MenuItem[];
   onTogglePreview: () => void;
+  onEdit: () => void;
   onToggleShareSidebar: () => void;
   onToggleSettingsSidebar: () => void;
   onPublish: () => Promise<void> | void;
@@ -814,6 +815,7 @@ const FormBuilderHeaderActions = ({
   savedDocs,
   menuItems,
   onTogglePreview,
+  onEdit,
   onToggleShareSidebar,
   onToggleSettingsSidebar,
   onPublish,
@@ -858,32 +860,6 @@ const FormBuilderHeaderActions = ({
       )}
 
       <div className="flex items-center gap-1">
-        {isEditRoute && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "px-2.5 font-normal text-muted-foreground hover:text-foreground",
-                    previewMode && "bg-accent/50 text-foreground",
-                  )}
-                  onClick={onTogglePreview}
-                />
-              }
-            >
-              {previewMode ? "Editor" : "Preview"}
-            </TooltipTrigger>
-            <TooltipContent side="bottom" align="end">
-              <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
-              <p className="text-xs text-muted-foreground">
-                {formatForDisplay(HOTKEYS.TOGGLE_PREVIEW)}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-
         {canShare && (
           <Button
             variant="ghost"
@@ -935,7 +911,41 @@ const FormBuilderHeaderActions = ({
         </DropdownMenu>
       </div>
 
-      {isEditRoute ? (
+      {(isEditRoute || (workspaceId && formId)) && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              isEditRoute ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "min-w-[72px] justify-center px-2.5 font-normal text-muted-foreground hover:text-foreground",
+                    previewMode && "bg-accent/50 text-foreground",
+                  )}
+                  onClick={onTogglePreview}
+                />
+              ) : (
+                <Button
+                  size="sm"
+                  className="ml-1 rounded-[8px] border-none bg-black py-1.5 pr-2 pl-2 text-[14px] font-normal text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
+                  onClick={onEdit}
+                />
+              )
+            }
+          >
+            {isEditRoute ? (previewMode ? "Editor" : "Preview") : "Edit"}
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="end">
+            <p>{isEditRoute ? (previewMode ? "Back to Editor" : "Preview Form") : "Edit Form"}</p>
+            <p className="text-xs text-muted-foreground">
+              {formatForDisplay(isEditRoute ? HOTKEYS.TOGGLE_PREVIEW : HOTKEYS.EDIT_FORM)}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+
+      {(isEditRoute || hasUnpublishedChanges) && workspaceId && formId && (
         <Tooltip>
           <TooltipTrigger
             render={
@@ -969,70 +979,6 @@ const FormBuilderHeaderActions = ({
             </p>
           </TooltipContent>
         </Tooltip>
-      ) : (
-        workspaceId &&
-        formId && (
-          <div className="ml-1 flex items-stretch overflow-hidden rounded-lg bg-neutral-950 text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-colors dark:bg-white dark:text-black">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Link
-                    to="/workspace/$workspaceId/form-builder/$formId/edit"
-                    params={() => ({ workspaceId, formId })}
-                    search={(prev) => ({ ...prev, force: true })}
-                    aria-label="Edit form"
-                    className="inline-flex h-7 items-center gap-1 pr-2 pl-2.5 text-[14px] transition-colors hover:bg-stone-800 dark:hover:bg-stone-200"
-                  />
-                }
-              >
-                <PencilIcon className="size-3.5 shrink-0" />
-                Edit
-              </TooltipTrigger>
-              <TooltipContent side="bottom" align="end">
-                <p className="text-xs text-muted-foreground">
-                  {formatForDisplay(HOTKEYS.EDIT_FORM)}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-
-            <div
-              aria-hidden={!hasUnpublishedChanges}
-              className={cn(
-                "grid items-stretch overflow-hidden transition-[grid-template-columns,opacity] duration-300 ease-out motion-reduce:transition-none",
-                hasUnpublishedChanges
-                  ? "grid-cols-[1fr] opacity-100"
-                  : "pointer-events-none grid-cols-[0fr] opacity-0",
-              )}
-            >
-              <div className="flex min-w-0 items-stretch">
-                <span
-                  aria-hidden
-                  className="my-1.5 w-px self-stretch bg-white/25 dark:bg-black/20"
-                />
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <button
-                        type="button"
-                        onClick={onPublish}
-                        disabled={isPublishing || !hasUnpublishedChanges}
-                        tabIndex={hasUnpublishedChanges ? 0 : -1}
-                        className="inline-flex h-7 items-center pr-2 pl-2.5 text-[14px] transition-colors hover:bg-stone-800 disabled:opacity-60 dark:hover:bg-stone-200"
-                      />
-                    }
-                  >
-                    {isPublishing ? <Loader2Icon className="size-4 animate-spin" /> : "Publish"}
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" align="end">
-                    <p className="text-xs text-muted-foreground">
-                      {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </div>
-          </div>
-        )
       )}
     </>
   );

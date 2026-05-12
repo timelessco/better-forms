@@ -116,7 +116,7 @@ const generateEmbedCode = (
     script.setAttribute('data-width', '${options.popup.width}');
     script.setAttribute('data-trigger', '${options.popup.trigger}');
     ${isDarkOverlay ? "script.setAttribute('data-dark-overlay', 'true');" : ""}
-    ${options.popup.emoji ? `script.setAttribute('data-emoji', '${options.popup.emojiIcon}');` : ""}
+    ${options.popup.emojiIcon ? `script.setAttribute('data-emoji', '${options.popup.emojiIcon}');` : ""}
     script.async = true;
     document.head.appendChild(script);
   })();
