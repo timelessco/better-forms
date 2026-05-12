@@ -34,3 +34,8 @@ publicHoistPattern:
   # `undefined` exports, surfacing as
   #   "runPublicFormViewRSC is not a function".
   - "@platejs/core"
+  # jotai: deduped from the project root by vite.config.ts. Without root
+  # hoisting, Rollup's production build can't resolve `jotai` from
+  # @platejs/core's nested node_modules and fails with
+  #   [vite]: Rollup failed to resolve import "jotai" from "@platejs/core".
+  - "jotai"
