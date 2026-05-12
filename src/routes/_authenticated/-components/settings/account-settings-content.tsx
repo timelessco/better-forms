@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAppForm } from "@/components/ui/tanstack-form";
+import { useAppForm, withForm } from "@/components/ui/tanstack-form";
 import { auth, useSession } from "@/lib/auth/auth-client";
 import { uploadAvatar } from "@/lib/server-fn/uploads";
 import { useStore } from "@tanstack/react-form";
@@ -172,6 +172,12 @@ const ThemeSelect = () => {
       </SelectContent>
     </Select>
   );
+};
+
+const profileFormDefaults = {
+  displayName: "",
+  username: "",
+  newEmail: "",
 };
 
 export const AccountSettingsContent = () => {
@@ -413,7 +419,7 @@ export const AccountSettingsContent = () => {
           </profileForm.AppField>
         </div>
 
-        <EmailSection user={user} profileForm={profileForm} emailChange={emailChange} />
+        <EmailSection form={profileForm} user={user} emailChange={emailChange} />
 
         <section className="flex flex-col gap-[10px]">
           <h3 className="text-base font-medium text-foreground">Appearance</h3>
@@ -450,12 +456,8 @@ export const AccountSettingsContent = () => {
   );
 };
 
-// eslint-disable-next-line typescript-eslint/no-explicit-any -- complex generic types passed through
-type AnyProfileForm = any;
 // eslint-disable-next-line typescript-eslint/no-explicit-any -- consumed only for prop forwarding
 type AnyAvatarUpload = any;
-// eslint-disable-next-line typescript-eslint/no-explicit-any -- consumed only for prop forwarding
-type AnyEmailChange = any;
 // eslint-disable-next-line typescript-eslint/no-explicit-any -- session user shape
 type AnyUser = any;
 
@@ -521,66 +523,80 @@ const AvatarSection = ({
   </div>
 );
 
-interface EmailSectionProps {
+interface EmailSectionExtraProps {
   user: AnyUser;
-  profileForm: AnyProfileForm;
-  emailChange: AnyEmailChange;
+  emailChange: EmailChangeApi;
 }
 
-const EmailSection = ({ user, profileForm, emailChange }: EmailSectionProps) => (
-  <section className="flex flex-col gap-[10px]">
-    <h3 className="text-base font-medium text-foreground">Email</h3>
-    <div className="flex items-center gap-3 rounded-2xl bg-secondary py-2 pr-2.5 pl-2">
-      <div className="flex min-w-0 flex-1 items-start gap-2">
-        <div className="flex size-[38px] shrink-0 items-center justify-center overflow-hidden rounded-lg">
-          <MailIcon className="size-[22px] text-muted-foreground" />
-        </div>
-        <div className="flex flex-col gap-1">
-          <p className="truncate text-base font-medium text-foreground">{user?.email || ""}</p>
-          <p className="text-base text-muted-foreground">Current email</p>
-        </div>
-      </div>
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={emailChange.toggle}
-        className="h-[30px] rounded-lg bg-neutral-50 px-3 font-sans text-sm font-medium text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
-      >
-        Change email
-      </Button>
-    </div>
-    {emailChange.isOpen && (
-      <profileForm.AppField name="newEmail">
-        {(field: { state: { value: string }; handleChange: (v: string) => void }) => (
-          <InputGroup
-            variant="borderless"
-            className="h-[30px] overflow-clip border-0 bg-secondary pr-[3px] ring-0"
+const EmailSection = withForm({
+  defaultValues: profileFormDefaults,
+  props: {
+    user: undefined,
+    emailChange: {
+      isOpen: false,
+      toggle: () => {},
+      close: () => {},
+      submit: () => {},
+      isPending: false,
+    },
+  } as EmailSectionExtraProps,
+  render: function EmailSectionRender({ form, user, emailChange }) {
+    return (
+      <section className="flex flex-col gap-[10px]">
+        <h3 className="text-base font-medium text-foreground">Email</h3>
+        <div className="flex items-center gap-3 rounded-2xl bg-secondary py-2 pr-2.5 pl-2">
+          <div className="flex min-w-0 flex-1 items-start gap-2">
+            <div className="flex size-[38px] shrink-0 items-center justify-center overflow-hidden rounded-lg">
+              <MailIcon className="size-[22px] text-muted-foreground" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <p className="truncate text-base font-medium text-foreground">{user?.email || ""}</p>
+              <p className="text-base text-muted-foreground">Current email</p>
+            </div>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={emailChange.toggle}
+            className="h-[30px] rounded-lg bg-neutral-50 px-3 font-sans text-sm font-medium text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
           >
-            <InputGroupInput
-              type="email"
-              value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
-              placeholder="Enter new email address"
-              aria-label="New email address"
-              className="h-[30px] pr-1.5 pl-2.5 text-base text-foreground"
-            />
-            <InputGroupButton
-              variant="default"
-              onClick={() => {
-                if (!field.state.value) return;
-                emailChange.submit(field.state.value);
-              }}
-              disabled={emailChange.isPending || !field.state.value}
-              className="h-[24px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
-            >
-              {emailChange.isPending ? "Sending..." : "Verify"}
-            </InputGroupButton>
-          </InputGroup>
+            Change email
+          </Button>
+        </div>
+        {emailChange.isOpen && (
+          <form.AppField name="newEmail">
+            {(field) => (
+              <InputGroup
+                variant="borderless"
+                className="h-[30px] overflow-clip border-0 bg-secondary pr-[3px] ring-0"
+              >
+                <InputGroupInput
+                  type="email"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  placeholder="Enter new email address"
+                  aria-label="New email address"
+                  className="h-[30px] pr-1.5 pl-2.5 text-base text-foreground"
+                />
+                <InputGroupButton
+                  variant="default"
+                  onClick={() => {
+                    if (!field.state.value) return;
+                    emailChange.submit(field.state.value);
+                  }}
+                  disabled={emailChange.isPending || !field.state.value}
+                  className="h-[24px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
+                >
+                  {emailChange.isPending ? "Sending..." : "Verify"}
+                </InputGroupButton>
+              </InputGroup>
+            )}
+          </form.AppField>
         )}
-      </profileForm.AppField>
-    )}
-  </section>
-);
+      </section>
+    );
+  },
+});
 
 interface ConnectedAccountSectionProps {
   user: AnyUser;

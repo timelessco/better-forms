@@ -2,7 +2,7 @@ import type { AnyFieldApi } from "@tanstack/react-form";
 import { useForm as useTanstackForm } from "@tanstack/react-form";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { RocketIcon, XIcon } from "@/components/ui/icons";
-import { useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 // eslint-disable-next-line react-doctor/no-flush-sync -- flushSync is required so the synchronous router navigation captures the field state update inside the same View Transition snapshot
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
@@ -28,6 +28,12 @@ import {
 import { EmbedCodeDialog, searchToFormValues, formValuesToSearch, tabs } from "./embed-section";
 import { EmbedPreviewMockup } from "./embed-preview-mockup";
 import type { FormSettings as FormSettingsType, PresentationMode } from "@/types/form-settings";
+
+// Memo'd at module scope so parent re-renders don't tear down these subtrees.
+// EmbedPreviewMockup only receives primitives, so shallow-equal props skip render
+// (e.g. dragging Popup Width doesn't change any prop it consumes).
+const MemoEmbedPreviewMockup = memo(EmbedPreviewMockup);
+const MemoEmbedConfigPanel = memo(EmbedConfigPanel);
 
 const selectValues = (state: { values: ReturnType<typeof searchToFormValues> }) => state.values;
 
@@ -66,7 +72,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
           replace: true,
         });
       },
-      onChangeDebounceMs: 150,
+      onChangeDebounceMs: 300,
     },
   });
 
@@ -400,22 +406,21 @@ const PublishedShareBody = ({
       const options = formFieldsToEmbedOptions(values);
       return (
         <div className="space-y-3">
-          <EmbedPreviewMockup
+          <MemoEmbedPreviewMockup
             key={embedType}
             embedType={embedType}
             popupPosition={options.popup.position}
             darkOverlay={options.popup.overlay === "dark"}
-            emoji={options.popup.emoji}
             emojiIcon={options.popup.emojiIcon}
             alignLeft={options.display.alignment === "left"}
           />
 
           <SidebarSection label="Customise" className="pb-2.75" action={<></>}>
-            <EmbedConfigPanel form={form} embedType={embedType} section="customize" />
+            <MemoEmbedConfigPanel form={form} embedType={embedType} section="customize" />
           </SidebarSection>
 
           <SidebarSection label="Pro Features" action={<></>}>
-            <EmbedConfigPanel
+            <MemoEmbedConfigPanel
               form={form}
               embedType={embedType}
               section="pro"
@@ -454,8 +459,8 @@ const PublishedShareBody = ({
 
 const ShareSidebarFooter = ({ shareUrl }: { shareUrl: string }) => (
   <SidebarFooter className="p-2">
-    <div className="flex h-[30px] items-center gap-[6px] rounded-lg bg-neutral-100 py-[3px] pr-[3px] pl-[10px]">
-      <span className="min-w-0 flex-1 truncate font-case text-sm font-normal text-(--color-gray-alpha-600)">
+    <div className="flex h-[30px] items-center gap-[6px] rounded-lg bg-secondary py-[3px] pr-[3px] pl-[10px]">
+      <span className="min-w-0 flex-1 truncate font-case text-sm font-normal text-muted-foreground">
         {shareUrl}
       </span>
       <CopyButton

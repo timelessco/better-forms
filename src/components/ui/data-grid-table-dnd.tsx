@@ -1,6 +1,9 @@
 import { CSSProperties, Fragment, useId } from "react";
 import { Button } from "@/components/ui/button";
-import { useDataGrid } from "@/components/ui/data-grid";
+// eslint-disable-next-line import/no-cycle -- registered in data-grid.tsx's tableComponents
+import { useDataGrid, useRowExpanded } from "@/components/ui/data-grid";
+import type { DataGridFeatures } from "@/components/ui/data-grid";
+/* eslint-disable import/no-cycle -- data-grid-table imports back from data-grid which imports us */
 import {
   DataGridTableBase,
   DataGridTableBody,
@@ -16,6 +19,7 @@ import {
   DataGridTableHeadRowCellResize,
   DataGridTableRowSpacer,
 } from "@/components/ui/data-grid-table";
+/* eslint-enable import/no-cycle */
 import {
   closestCenter,
   DndContext,
@@ -29,10 +33,15 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { restrictToParentElement } from "@dnd-kit/modifiers";
 import { horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Cell, flexRender, Header, HeaderGroup, Row } from "@tanstack/react-table";
+import { flexRender } from "@tanstack/react-table";
+import type { Cell, Header, Row, RowData } from "@tanstack/table-core";
 import { GripVerticalIcon } from "@/components/ui/icons";
 
-const DataGridTableDndHeader = <TData,>({ header }: { header: Header<TData, unknown> }) => {
+const DataGridTableDndHeader = <TData extends RowData>({
+  header,
+}: {
+  header: Header<DataGridFeatures, TData, unknown>;
+}) => {
   const { props } = useDataGrid();
   const { column } = header;
 
@@ -74,7 +83,11 @@ const DataGridTableDndHeader = <TData,>({ header }: { header: Header<TData, unkn
   );
 };
 
-const DataGridTableDndCell = <TData,>({ cell }: { cell: Cell<TData, unknown> }) => {
+const DataGridTableDndCell = <TData extends RowData>({
+  cell,
+}: {
+  cell: Cell<DataGridFeatures, TData, unknown>;
+}) => {
   const { isDragging, setNodeRef, transform, transition } = useSortable({
     id: cell.column.id,
   });
@@ -95,13 +108,39 @@ const DataGridTableDndCell = <TData,>({ cell }: { cell: Cell<TData, unknown> }) 
   );
 };
 
-export const DataGridTableDnd = <TData,>({
+// Hooks can't run inside a `.map` callback, so each row gets its own component.
+const DataGridTableDndRowWithExpansion = <TData extends RowData>({
+  row,
+}: {
+  row: Row<DataGridFeatures, TData>;
+}) => {
+  const { table } = useDataGrid();
+  const isExpanded = useRowExpanded(table, row.id);
+  return (
+    <Fragment>
+      <DataGridTableBodyRow row={row}>
+        {row.getVisibleCells().map((cell) => (
+          <SortableContext
+            key={cell.id}
+            items={table.state.columnOrder}
+            strategy={horizontalListSortingStrategy}
+          >
+            <DataGridTableDndCell cell={cell} />
+          </SortableContext>
+        ))}
+      </DataGridTableBodyRow>
+      {isExpanded && <DataGridTableBodyRowExpandded row={row} />}
+    </Fragment>
+  );
+};
+
+export const DataGridTableDnd = ({
   handleDragEnd,
 }: {
   handleDragEnd: (event: DragEndEvent) => void;
 }) => {
   const { table, isLoading, props } = useDataGrid();
-  const pagination = table.getState().pagination;
+  const pagination = table.state.pagination;
 
   const sensors = useSensors(
     useSensor(MouseSensor, {}),
@@ -120,22 +159,18 @@ export const DataGridTableDnd = <TData,>({
       <div className="relative">
         <DataGridTableBase>
           <DataGridTableHead>
-            {table.getHeaderGroups().map((headerGroup: HeaderGroup<TData>) => {
-              console.log("table.getState().columnOrder:", table.getState().columnOrder);
-
-              return (
-                <DataGridTableHeadRow headerGroup={headerGroup} key={headerGroup.id}>
-                  <SortableContext
-                    items={table.getState().columnOrder}
-                    strategy={horizontalListSortingStrategy}
-                  >
-                    {headerGroup.headers.map((header) => (
-                      <DataGridTableDndHeader header={header} key={header.id} />
-                    ))}
-                  </SortableContext>
-                </DataGridTableHeadRow>
-              );
-            })}
+            {table.getHeaderGroups().map((headerGroup) => (
+              <DataGridTableHeadRow headerGroup={headerGroup} key={headerGroup.id}>
+                <SortableContext
+                  items={table.state.columnOrder}
+                  strategy={horizontalListSortingStrategy}
+                >
+                  {headerGroup.headers.map((header) => (
+                    <DataGridTableDndHeader header={header} key={header.id} />
+                  ))}
+                </SortableContext>
+              </DataGridTableHeadRow>
+            ))}
           </DataGridTableHead>
 
           {(props.tableLayout?.stripped || !props.tableLayout?.rowBorder) && (
@@ -156,22 +191,9 @@ export const DataGridTableDnd = <TData,>({
                 ),
               )
             ) : table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row: Row<TData>) => (
-                <Fragment key={row.id}>
-                  <DataGridTableBodyRow row={row}>
-                    {row.getVisibleCells().map((cell: Cell<TData, unknown>) => (
-                      <SortableContext
-                        key={cell.id}
-                        items={table.getState().columnOrder}
-                        strategy={horizontalListSortingStrategy}
-                      >
-                        <DataGridTableDndCell cell={cell} />
-                      </SortableContext>
-                    ))}
-                  </DataGridTableBodyRow>
-                  {row.getIsExpanded() && <DataGridTableBodyRowExpandded row={row} />}
-                </Fragment>
-              ))
+              table
+                .getRowModel()
+                .rows.map((row) => <DataGridTableDndRowWithExpansion key={row.id} row={row} />)
             ) : (
               <DataGridTableEmpty />
             )}

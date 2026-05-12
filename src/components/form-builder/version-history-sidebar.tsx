@@ -165,33 +165,37 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                   </Avatar>
                 </div>
 
-                {/* Content */}
+                {/* Content — sizes match Figma (system-flat / cell): 14px
+                    medium title, 13px regular subtitle, both at leading-[1.15] */}
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <p className="truncate text-base leading-[16px] font-medium text-foreground">
+                  <p className="truncate text-sm leading-[1.15] font-medium text-foreground">
                     {publisher.name}
                   </p>
-                  <p className="text-sm leading-[15px] font-normal tracking-[0.13px] text-muted-foreground">
+                  <p className="text-[13px] leading-[1.15] font-normal tracking-[0.13px] text-muted-foreground">
                     {version.version} change{version.version !== 1 ? "s" : ""} ·{" "}
                     {isCurrent ? "Current" : "Published"}
                   </p>
                 </div>
 
-                {/* Suffix: timestamp or menu */}
-                {isSelected ? (
-                  <div className="shrink-0 self-center px-2">
+                {/* Suffix: timestamp or menu. Both states share the same
+                    pt-[2px] items-start outer wrapper (per Figma) and a
+                    16px-tall inner box, so flipping selection never
+                    changes the row's height (51px) or visual rhythm. */}
+                <div className="inline-flex shrink-0 items-start pt-[2px]">
+                  {isSelected ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         render={
                           <button
                             type="button"
-                            className="inline-flex size-[26px] cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 hover:bg-accent"
+                            className="inline-flex h-4 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-0 bg-transparent px-2 py-[5.5px] hover:bg-accent"
                             onClick={stopPropagation}
                             onKeyDown={(e) => e.stopPropagation()}
                             aria-label="Version actions"
                           />
                         }
                       >
-                        <MoreHorizontalIcon className="size-4" />
+                        <MoreHorizontalIcon className="size-3 text-muted-foreground" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         side="bottom"
@@ -217,14 +221,12 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </div>
-                ) : (
-                  <div className="shrink-0 pt-0.5">
-                    <span className="px-2 text-[13px] text-muted-foreground">
+                  ) : (
+                    <span className="inline-flex h-4 items-center px-2 text-[13px] leading-[1.15] font-medium tracking-[0.13px] text-muted-foreground">
                       {formatRelativeTime(version.publishedAt)}
                     </span>
-                  </div>
-                )}
+                  )}
+                </div>
               </button>
             );
           })}

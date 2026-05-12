@@ -1027,147 +1027,205 @@ const TrashDialog = ({
             </div>
           ) : (
             <div className="p-1">
-              {archivedForms.map((form) => {
-                const isSelected = selectedIds.has(form.id);
-                const isRestoring = restoringIds.has(form.id);
-                const isRowDeleting = deletingIds.has(form.id);
-                const isRowBusy = isRestoring || isRowDeleting;
-                return (
-                  <div
-                    key={form.id}
-                    className={`group flex cursor-pointer items-center justify-between rounded-md px-3 py-2 transition-colors ${isSelected ? "bg-muted/50" : "hover:bg-muted/50"} ${isRowBusy ? "pointer-events-none opacity-60" : ""}`}
-                    onClick={() => handleToggleSelect(form.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") handleToggleSelect(form.id);
-                    }}
-                    role="option"
-                    aria-selected={isSelected}
-                    aria-busy={isRowBusy}
-                  >
-                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <div className="flex size-5 shrink-0 items-center justify-center rounded">
-                        {isSelected ? (
-                          <div className="flex size-5 items-center justify-center rounded bg-foreground text-background transition-colors">
-                            <CheckIcon className="size-3.5" strokeWidth={3} />
-                          </div>
-                        ) : (
-                          <>
-                            <FileTextIcon className="size-4 text-muted-foreground group-hover:hidden" />
-                            <div className="hidden size-5 items-center justify-center rounded border border-muted-foreground/30 text-muted-foreground transition-colors group-hover:flex">
-                              <CheckIcon className="size-3.5" />
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] text-foreground">
-                          {form.title || "Untitled"}
-                        </p>
-                        <p className="truncate text-[11px] text-muted-foreground/60">
-                          {workspaceNames[form.workspaceId] || "Unknown workspace"}
-                        </p>
-                      </div>
-                    </div>
-                    <div
-                      className={`flex items-center gap-1 transition-opacity ${isSelected || isRowBusy ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-                    >
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleRestore(form.id);
-                        }}
-                        disabled={isRowBusy}
-                        className="size-7"
-                        title="Restore"
-                        aria-label="Restore"
-                      >
-                        {isRestoring ? (
-                          <Loader2Icon className="size-4 animate-spin" />
-                        ) : (
-                          <Undo2Icon className="size-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handlePermanentDelete(form.id);
-                        }}
-                        disabled={isRowBusy}
-                        className="size-7 hover:bg-destructive/10 hover:text-destructive"
-                        title="Delete permanently"
-                        aria-label="Delete permanently"
-                      >
-                        {isRowDeleting ? (
-                          <Loader2Icon className="size-4 animate-spin" />
-                        ) : (
-                          <Trash2Icon className="size-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
+              {archivedForms.map((form) => (
+                <TrashRow
+                  key={form.id}
+                  form={form}
+                  workspaceName={workspaceNames[form.workspaceId]}
+                  isSelected={selectedIds.has(form.id)}
+                  isRestoring={restoringIds.has(form.id)}
+                  isDeleting={deletingIds.has(form.id)}
+                  onToggleSelect={handleToggleSelect}
+                  onRestore={handleRestore}
+                  onPermanentDelete={handlePermanentDelete}
+                />
+              ))}
             </div>
           )}
         </div>
 
-        {/* Footer — switches between selection actions and info text */}
-        <div className="flex items-center justify-between border-t border-foreground/5 bg-muted/20 px-4 py-3">
-          {hasSelection ? (
-            <>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleSelectAll}
-                  className="cursor-pointer text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  {selectedIds.size === archivedForms.length ? "Deselect all" : "Select all"}
-                </button>
-                <span className="text-[11px] text-muted-foreground/60">
-                  {selectedIds.size} selected
-                </span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBulkDelete}
-                disabled={isDeleting}
-                className="h-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              >
-                {isDeleting ? (
-                  <>
-                    <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
-                    Deleting…
-                  </>
-                ) : (
-                  "Delete selected"
-                )}
-              </Button>
-            </>
-          ) : (
-            <>
-              <p className="text-[11px] text-muted-foreground/60">
-                Pages in Trash for over 30 days will be automatically deleted
-              </p>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="size-7 text-muted-foreground/40 hover:text-muted-foreground"
-                aria-label="Help"
-              >
-                <HelpCircleIcon className="size-4" />
-              </Button>
-            </>
-          )}
-        </div>
+        <TrashFooter
+          hasSelection={hasSelection}
+          selectedCount={selectedIds.size}
+          totalCount={archivedForms.length}
+          isDeleting={isDeleting}
+          onSelectAll={handleSelectAll}
+          onBulkDelete={handleBulkDelete}
+        />
       </DialogContent>
     </Dialog>
   );
 };
+
+interface TrashRowForm {
+  id: string;
+  title: string | null;
+  workspaceId: string;
+}
+
+interface TrashRowProps {
+  form: TrashRowForm;
+  workspaceName: string | undefined;
+  isSelected: boolean;
+  isRestoring: boolean;
+  isDeleting: boolean;
+  onToggleSelect: (formId: string) => void;
+  onRestore: (formId: string) => Promise<void> | void;
+  onPermanentDelete: (formId: string) => Promise<void> | void;
+}
+
+const TrashRow = ({
+  form,
+  workspaceName,
+  isSelected,
+  isRestoring,
+  isDeleting,
+  onToggleSelect,
+  onRestore,
+  onPermanentDelete,
+}: TrashRowProps) => {
+  const isRowBusy = isRestoring || isDeleting;
+  return (
+    <div
+      className={`group flex cursor-pointer items-center justify-between rounded-md px-3 py-2 transition-colors ${isSelected ? "bg-muted/50" : "hover:bg-muted/50"} ${isRowBusy ? "pointer-events-none opacity-60" : ""}`}
+      onClick={() => onToggleSelect(form.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onToggleSelect(form.id);
+      }}
+      role="option"
+      aria-selected={isSelected}
+      aria-busy={isRowBusy}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex size-5 shrink-0 items-center justify-center rounded">
+          {isSelected ? (
+            <div className="flex size-5 items-center justify-center rounded bg-foreground text-background transition-colors">
+              <CheckIcon className="size-3.5" strokeWidth={3} />
+            </div>
+          ) : (
+            <>
+              <FileTextIcon className="size-4 text-muted-foreground group-hover:hidden" />
+              <div className="hidden size-5 items-center justify-center rounded border border-muted-foreground/30 text-muted-foreground transition-colors group-hover:flex">
+                <CheckIcon className="size-3.5" />
+              </div>
+            </>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] text-foreground">{form.title || "Untitled"}</p>
+          <p className="truncate text-[11px] text-muted-foreground/60">
+            {workspaceName || "Unknown workspace"}
+          </p>
+        </div>
+      </div>
+      <div
+        className={`flex items-center gap-1 transition-opacity ${isSelected || isRowBusy ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+      >
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            void onRestore(form.id);
+          }}
+          disabled={isRowBusy}
+          className="size-7"
+          title="Restore"
+          aria-label="Restore"
+        >
+          {isRestoring ? (
+            <Loader2Icon className="size-4 animate-spin" />
+          ) : (
+            <Undo2Icon className="size-4" />
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            void onPermanentDelete(form.id);
+          }}
+          disabled={isRowBusy}
+          className="size-7 hover:bg-destructive/10 hover:text-destructive"
+          title="Delete permanently"
+          aria-label="Delete permanently"
+        >
+          {isDeleting ? (
+            <Loader2Icon className="size-4 animate-spin" />
+          ) : (
+            <Trash2Icon className="size-4" />
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+interface TrashFooterProps {
+  hasSelection: boolean;
+  selectedCount: number;
+  totalCount: number;
+  isDeleting: boolean;
+  onSelectAll: () => void;
+  onBulkDelete: () => void;
+}
+
+const TrashFooter = ({
+  hasSelection,
+  selectedCount,
+  totalCount,
+  isDeleting,
+  onSelectAll,
+  onBulkDelete,
+}: TrashFooterProps) => (
+  <div className="flex items-center justify-between border-t border-foreground/5 bg-muted/20 px-4 py-3">
+    {hasSelection ? (
+      <>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onSelectAll}
+            className="cursor-pointer text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {selectedCount === totalCount ? "Deselect all" : "Select all"}
+          </button>
+          <span className="text-[11px] text-muted-foreground/60">{selectedCount} selected</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBulkDelete}
+          disabled={isDeleting}
+          className="h-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        >
+          {isDeleting ? (
+            <>
+              <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
+              Deleting…
+            </>
+          ) : (
+            "Delete selected"
+          )}
+        </Button>
+      </>
+    ) : (
+      <>
+        <p className="text-[11px] text-muted-foreground/60">
+          Pages in Trash for over 30 days will be automatically deleted
+        </p>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="size-7 text-muted-foreground/40 hover:text-muted-foreground"
+          aria-label="Help"
+        >
+          <HelpCircleIcon className="size-4" />
+        </Button>
+      </>
+    )}
+  </div>
+);
 
 // Inbox body — header + notifications + invitations. Extracted so it can be
 // rendered in two contexts:
@@ -1499,68 +1557,29 @@ const SidebarInbox = () => {
   );
 };
 
-const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => {
-  const router = useRouter();
-  const pathname = useLocation({ select: (s) => s.pathname });
-  const duplicateForm = useDuplicateForm();
-  const { data: session } = useSession();
+interface UseSortedWorkspacesWithFormsOptions {
+  workspacesData: ReturnType<typeof useOrgWorkspaces>["data"];
+  formsData: ReturnType<typeof useOrgForms>["data"];
+  activeOrgId: string | undefined;
+  isDataReady: boolean;
+  sortMode: "recent" | "oldest" | "alphabetical" | "manual";
+}
 
-  const [sortMode, setSortMode] = useState<"recent" | "oldest" | "alphabetical" | "manual">(() => {
-    if (typeof window !== "undefined") {
-      return (
-        (localStorage.getItem("sidebar-sort-mode") as
-          | "recent"
-          | "oldest"
-          | "alphabetical"
-          | "manual") || "recent"
-      );
-    }
-    return "recent";
-  });
-  const handleSortChange = useCallback((mode: "recent" | "oldest" | "alphabetical" | "manual") => {
-    setSortMode(mode);
-    localStorage.setItem("sidebar-sort-mode", mode);
-  }, []);
+const arraysAreShallowEqual = <T,>(a: readonly T[], b: readonly T[]) => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+};
 
-  const { data: workspacesData, isLoading: workspacesLoading } = useOrgWorkspaces(activeOrgId);
-  const { data: formsData, isLoading: formsLoading } = useOrgForms(activeOrgId);
-  const submissionCounts = useSubmissionCounts();
-
-  const favoriteForms = useFavoriteForms(session?.user?.id);
-
-  // Derive a stable Set of favorited form ids so individual sidebar rows can
-  // read a primitive `isFavorite` prop instead of each spinning up its own
-  // `useIsFavorite` live-query subscription. The Set identity is reused when
-  // the membership is unchanged so the prop chain stays referentially stable.
-  const favoriteFormIdsRef = useRef<Set<string>>(new Set());
-  const favoriteFormIds = useMemo(() => {
-    const next = new Set<string>();
-    for (const f of favoriteForms) next.add(f.id);
-    const previous = favoriteFormIdsRef.current;
-    if (previous.size === next.size) {
-      let identical = true;
-      for (const id of next) {
-        if (!previous.has(id)) {
-          identical = false;
-          break;
-        }
-      }
-      if (identical) return previous;
-    }
-    favoriteFormIdsRef.current = next;
-    return next;
-  }, [favoriteForms]);
-
-  // Pull the active form id once at the parent so each form row can read a
-  // primitive `isActive` prop instead of subscribing to `useLocation`.
-  const activeFormId = useMemo(() => {
-    const match = pathname.match(/\/form-builder\/([^/]+)/);
-    return match?.[1];
-  }, [pathname]);
-
-  const isLoading = workspacesLoading || formsLoading;
-  const isDataReady = !isLoading && workspacesData !== undefined && formsData !== undefined;
-
+const useSortedWorkspacesWithForms = ({
+  workspacesData,
+  formsData,
+  activeOrgId,
+  isDataReady,
+  sortMode,
+}: UseSortedWorkspacesWithFormsOptions) => {
   // Cache workspace + forms-array identities by id so a live-query notification
   // that doesn't actually change content (just the array reference) doesn't
   // cascade new identities into every consumer downstream.
@@ -1615,13 +1634,6 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
       // in the same order — this stabilises both the array and any per-form
       // identity churn upstream.
       const previousForms = formsArrayCacheRef.current.get(ws.id);
-      const arraysAreShallowEqual = (a: typeof sortedForms, b: typeof sortedForms) => {
-        if (a.length !== b.length) return false;
-        for (let i = 0; i < a.length; i++) {
-          if (a[i] !== b[i]) return false;
-        }
-        return true;
-      };
       if (previousForms && arraysAreShallowEqual(previousForms, sortedForms)) {
         sortedForms = previousForms;
       }
@@ -1667,82 +1679,20 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
     return next;
   }, [workspaces]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  return { workspaces, allWorkspaceSummaries };
+};
 
-  const workspaceIds = useMemo(() => workspaces.map((w) => w.id), [workspaces]);
+interface UseSidebarWorkspaceDialogsOptions {
+  router: ReturnType<typeof useRouter>;
+  pathname: string;
+  duplicateForm: ReturnType<typeof useDuplicateForm>;
+}
 
-  // Read-only ref so drag handlers can read the freshest workspaces snapshot
-  // without re-binding their identity (and re-rendering every WorkspaceItemMinimal)
-  // each time the live-query data churns.
-  const workspacesRef = useRef(workspaces);
-  workspacesRef.current = workspaces;
-  const sortModeRef = useRef(sortMode);
-  sortModeRef.current = sortMode;
-
-  const handleWorkspaceDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const current = workspacesRef.current;
-    const oldIdx = current.findIndex((w) => w.id === active.id);
-    const newIdx = current.findIndex((w) => w.id === over.id);
-    if (oldIdx < 0 || newIdx < 0) return;
-
-    const reordered = [...current];
-    const [moved] = reordered.splice(oldIdx, 1);
-    reordered.splice(newIdx, 0, moved);
-
-    try {
-      const indexes = generateOrderedIndexes(reordered.length);
-      reordered.forEach((ws, i) => {
-        if ((ws.sortIndex ?? null) !== indexes[i]) {
-          reorderWorkspaceLocal(ws.id, indexes[i]).catch(() =>
-            toast.error("Failed to reorder workspace"),
-          );
-        }
-      });
-    } catch (err) {
-      console.error("Failed to compute workspace sort indexes", err);
-    }
-  }, []);
-
-  const handleFormDragEnd = useCallback(
-    (workspaceId: string, event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
-
-      const ws = workspacesRef.current.find((w) => w.id === workspaceId);
-      if (!ws) return;
-
-      const oldIdx = ws.forms.findIndex((f) => f.id === active.id);
-      const newIdx = ws.forms.findIndex((f) => f.id === over.id);
-      if (oldIdx < 0 || newIdx < 0) return;
-
-      const reordered = [...ws.forms];
-      const [moved] = reordered.splice(oldIdx, 1);
-      reordered.splice(newIdx, 0, moved);
-
-      try {
-        const indexes = generateOrderedIndexes(reordered.length);
-        reordered.forEach((form, i) => {
-          if ((form.sortIndex ?? null) !== indexes[i]) {
-            reorderFormLocal(form.id, indexes[i]).catch(() =>
-              toast.error("Failed to reorder form"),
-            );
-          }
-        });
-        // Auto-switch sidebar to manual mode so the reorder "sticks" visually
-        if (sortModeRef.current !== "manual") handleSortChange("manual");
-      } catch (err) {
-        console.error("Failed to compute form sort indexes", err);
-      }
-    },
-    [handleSortChange],
-  );
-
+const useSidebarWorkspaceDialogs = ({
+  router,
+  pathname,
+  duplicateForm,
+}: UseSidebarWorkspaceDialogsOptions) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [workspaceToDelete, setWorkspaceToDelete] = useState<WorkspaceWithForms | null>(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
@@ -1887,6 +1837,210 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
     }
   }, [formToDelete, pathname, router, isDeletingForm]);
 
+  return {
+    deleteDialogOpen,
+    workspaceToDelete,
+    deleteConfirmName,
+    isDeletingWorkspace,
+    renameDialogOpen,
+    setRenameDialogOpen,
+    newWorkspaceName,
+    isRenamingWorkspace,
+    formDeleteDialogOpen,
+    setFormDeleteDialogOpen,
+    formToDelete,
+    isDeletingForm,
+    handleDeleteDialogOpenChange,
+    handleDeleteConfirmNameChange,
+    handleNewWorkspaceNameChange,
+    handleCloseRenameDialog,
+    handleDeleteWorkspace,
+    handleRenameWorkspace,
+    handleRenameKeyDown,
+    openRenameDialog,
+    openDeleteDialog,
+    handleDuplicateForm,
+    isFormDuplicating,
+    handleDeleteForm,
+    handleConfirmDeleteForm,
+  };
+};
+
+const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => {
+  const router = useRouter();
+  const pathname = useLocation({ select: (s) => s.pathname });
+  const duplicateForm = useDuplicateForm();
+  const { data: session } = useSession();
+
+  const [sortMode, setSortMode] = useState<"recent" | "oldest" | "alphabetical" | "manual">(() => {
+    if (typeof window !== "undefined") {
+      return (
+        (localStorage.getItem("sidebar-sort-mode") as
+          | "recent"
+          | "oldest"
+          | "alphabetical"
+          | "manual") || "recent"
+      );
+    }
+    return "recent";
+  });
+  const handleSortChange = useCallback((mode: "recent" | "oldest" | "alphabetical" | "manual") => {
+    setSortMode(mode);
+    localStorage.setItem("sidebar-sort-mode", mode);
+  }, []);
+
+  const { data: workspacesData, isLoading: workspacesLoading } = useOrgWorkspaces(activeOrgId);
+  const { data: formsData, isLoading: formsLoading } = useOrgForms(activeOrgId);
+  const submissionCounts = useSubmissionCounts();
+
+  const favoriteForms = useFavoriteForms(session?.user?.id);
+
+  // Derive a stable Set of favorited form ids so individual sidebar rows can
+  // read a primitive `isFavorite` prop instead of each spinning up its own
+  // `useIsFavorite` live-query subscription. The Set identity is reused when
+  // the membership is unchanged so the prop chain stays referentially stable.
+  const favoriteFormIdsRef = useRef<Set<string>>(new Set());
+  const favoriteFormIds = useMemo(() => {
+    const next = new Set<string>();
+    for (const f of favoriteForms) next.add(f.id);
+    const previous = favoriteFormIdsRef.current;
+    if (previous.size === next.size) {
+      let identical = true;
+      for (const id of next) {
+        if (!previous.has(id)) {
+          identical = false;
+          break;
+        }
+      }
+      if (identical) return previous;
+    }
+    favoriteFormIdsRef.current = next;
+    return next;
+  }, [favoriteForms]);
+
+  // Pull the active form id once at the parent so each form row can read a
+  // primitive `isActive` prop instead of subscribing to `useLocation`.
+  const activeFormId = useMemo(() => {
+    const match = pathname.match(/\/form-builder\/([^/]+)/);
+    return match?.[1];
+  }, [pathname]);
+
+  const isLoading = workspacesLoading || formsLoading;
+  const isDataReady = !isLoading && workspacesData !== undefined && formsData !== undefined;
+
+  const { workspaces, allWorkspaceSummaries } = useSortedWorkspacesWithForms({
+    workspacesData,
+    formsData,
+    activeOrgId,
+    isDataReady,
+    sortMode,
+  });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const workspaceIds = useMemo(() => workspaces.map((w) => w.id), [workspaces]);
+
+  // Read-only ref so drag handlers can read the freshest workspaces snapshot
+  // without re-binding their identity (and re-rendering every WorkspaceItemMinimal)
+  // each time the live-query data churns.
+  const workspacesRef = useRef(workspaces);
+  workspacesRef.current = workspaces;
+  const sortModeRef = useRef(sortMode);
+  sortModeRef.current = sortMode;
+
+  const handleWorkspaceDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const current = workspacesRef.current;
+    const oldIdx = current.findIndex((w) => w.id === active.id);
+    const newIdx = current.findIndex((w) => w.id === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+
+    const reordered = [...current];
+    const [moved] = reordered.splice(oldIdx, 1);
+    reordered.splice(newIdx, 0, moved);
+
+    try {
+      const indexes = generateOrderedIndexes(reordered.length);
+      reordered.forEach((ws, i) => {
+        if ((ws.sortIndex ?? null) !== indexes[i]) {
+          reorderWorkspaceLocal(ws.id, indexes[i]).catch(() =>
+            toast.error("Failed to reorder workspace"),
+          );
+        }
+      });
+    } catch (err) {
+      console.error("Failed to compute workspace sort indexes", err);
+    }
+  }, []);
+
+  const handleFormDragEnd = useCallback(
+    (workspaceId: string, event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const ws = workspacesRef.current.find((w) => w.id === workspaceId);
+      if (!ws) return;
+
+      const oldIdx = ws.forms.findIndex((f) => f.id === active.id);
+      const newIdx = ws.forms.findIndex((f) => f.id === over.id);
+      if (oldIdx < 0 || newIdx < 0) return;
+
+      const reordered = [...ws.forms];
+      const [moved] = reordered.splice(oldIdx, 1);
+      reordered.splice(newIdx, 0, moved);
+
+      try {
+        const indexes = generateOrderedIndexes(reordered.length);
+        reordered.forEach((form, i) => {
+          if ((form.sortIndex ?? null) !== indexes[i]) {
+            reorderFormLocal(form.id, indexes[i]).catch(() =>
+              toast.error("Failed to reorder form"),
+            );
+          }
+        });
+        // Auto-switch sidebar to manual mode so the reorder "sticks" visually
+        if (sortModeRef.current !== "manual") handleSortChange("manual");
+      } catch (err) {
+        console.error("Failed to compute form sort indexes", err);
+      }
+    },
+    [handleSortChange],
+  );
+
+  const dialogs = useSidebarWorkspaceDialogs({ router, pathname, duplicateForm });
+  const {
+    deleteDialogOpen,
+    workspaceToDelete,
+    deleteConfirmName,
+    isDeletingWorkspace,
+    renameDialogOpen,
+    setRenameDialogOpen,
+    newWorkspaceName,
+    isRenamingWorkspace,
+    formDeleteDialogOpen,
+    setFormDeleteDialogOpen,
+    formToDelete,
+    isDeletingForm,
+    handleDeleteDialogOpenChange,
+    handleDeleteConfirmNameChange,
+    handleNewWorkspaceNameChange,
+    handleCloseRenameDialog,
+    handleDeleteWorkspace,
+    handleRenameWorkspace,
+    handleRenameKeyDown,
+    openRenameDialog,
+    openDeleteDialog,
+    handleDuplicateForm,
+    isFormDuplicating,
+    handleDeleteForm,
+    handleConfirmDeleteForm,
+  } = dialogs;
+
   return (
     <>
       <div className="flex flex-col">
@@ -1941,122 +2095,201 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
         </div>
       </div>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={handleDeleteDialogOpenChange}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete workspace</AlertDialogTitle>
-            <AlertDialogDescription render={<div className="space-y-4" />}>
-              <p>
-                This will permanently delete <strong>"{workspaceToDelete?.name}"</strong> and{" "}
-                <strong>
-                  {workspaceToDelete?.forms?.length || 0} form
-                  {(workspaceToDelete?.forms?.length || 0) !== 1 ? "s" : ""}
-                </strong>
-                within it. This action cannot be undone.
-              </p>
-              <div className="space-y-2">
-                <p className="text-sm">
-                  Type <strong>{workspaceToDelete?.name}</strong> to confirm:
-                </p>
-                <Input
-                  value={deleteConfirmName}
-                  onChange={handleDeleteConfirmNameChange}
-                  placeholder="Type workspace name to confirm"
-                  aria-label="Type to confirm deletion"
-                  className="mt-2"
-                />
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteWorkspace}
-              disabled={deleteConfirmName !== workspaceToDelete?.name || isDeletingWorkspace}
-              className="bg-destructive text-white hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isDeletingWorkspace ? (
-                <>
-                  <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
-                  Deleting…
-                </>
-              ) : (
-                "Delete workspace"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <WorkspaceDeleteConfirmDialog
+        open={deleteDialogOpen}
+        workspace={workspaceToDelete}
+        confirmName={deleteConfirmName}
+        isDeleting={isDeletingWorkspace}
+        onOpenChange={handleDeleteDialogOpenChange}
+        onConfirmNameChange={handleDeleteConfirmNameChange}
+        onDelete={handleDeleteWorkspace}
+      />
 
-      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rename workspace</DialogTitle>
-            <DialogDescription>Enter a new name for this workspace.</DialogDescription>
-          </DialogHeader>
-          <Input
-            value={newWorkspaceName}
-            onChange={handleNewWorkspaceNameChange}
-            placeholder="Workspace name"
-            aria-label="Workspace name"
-            onKeyDown={handleRenameKeyDown}
-          />
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={handleCloseRenameDialog}
-              disabled={isRenamingWorkspace}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRenameWorkspace}
-              disabled={!newWorkspaceName.trim() || isRenamingWorkspace}
-            >
-              {isRenamingWorkspace ? (
-                <>
-                  <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                "Save"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <WorkspaceRenameDialog
+        open={renameDialogOpen}
+        name={newWorkspaceName}
+        isRenaming={isRenamingWorkspace}
+        onOpenChange={setRenameDialogOpen}
+        onNameChange={handleNewWorkspaceNameChange}
+        onClose={handleCloseRenameDialog}
+        onRename={handleRenameWorkspace}
+        onKeyDown={handleRenameKeyDown}
+      />
 
-      <AlertDialog open={formDeleteDialogOpen} onOpenChange={setFormDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete form</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{formToDelete?.title}"? This action will move it to
-              trash.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDeleteForm}
-              disabled={isDeletingForm}
-              className="bg-destructive text-white hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isDeletingForm ? (
-                <>
-                  <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
-                  Deleting…
-                </>
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <FormDeleteConfirmDialog
+        open={formDeleteDialogOpen}
+        form={formToDelete}
+        isDeleting={isDeletingForm}
+        onOpenChange={setFormDeleteDialogOpen}
+        onConfirm={handleConfirmDeleteForm}
+      />
     </>
   );
 };
+
+interface WorkspaceDeleteConfirmDialogProps {
+  open: boolean;
+  workspace: WorkspaceWithForms | null;
+  confirmName: string;
+  isDeleting: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirmNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDelete: () => void;
+}
+
+const WorkspaceDeleteConfirmDialog = ({
+  open,
+  workspace,
+  confirmName,
+  isDeleting,
+  onOpenChange,
+  onConfirmNameChange,
+  onDelete,
+}: WorkspaceDeleteConfirmDialogProps) => (
+  <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Delete workspace</AlertDialogTitle>
+        <AlertDialogDescription render={<div className="space-y-4" />}>
+          <p>
+            This will permanently delete <strong>"{workspace?.name}"</strong> and{" "}
+            <strong>
+              {workspace?.forms?.length || 0} form
+              {(workspace?.forms?.length || 0) !== 1 ? "s" : ""}
+            </strong>
+            within it. This action cannot be undone.
+          </p>
+          <div className="space-y-2">
+            <p className="text-sm">
+              Type <strong>{workspace?.name}</strong> to confirm:
+            </p>
+            <Input
+              value={confirmName}
+              onChange={onConfirmNameChange}
+              placeholder="Type workspace name to confirm"
+              aria-label="Type to confirm deletion"
+              className="mt-2"
+            />
+          </div>
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          onClick={onDelete}
+          disabled={confirmName !== workspace?.name || isDeleting}
+          className="bg-destructive text-white hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isDeleting ? (
+            <>
+              <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
+              Deleting…
+            </>
+          ) : (
+            "Delete workspace"
+          )}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
+
+interface WorkspaceRenameDialogProps {
+  open: boolean;
+  name: string;
+  isRenaming: boolean;
+  onOpenChange: (open: boolean) => void;
+  onNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClose: () => void;
+  onRename: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+}
+
+const WorkspaceRenameDialog = ({
+  open,
+  name,
+  isRenaming,
+  onOpenChange,
+  onNameChange,
+  onClose,
+  onRename,
+  onKeyDown,
+}: WorkspaceRenameDialogProps) => (
+  <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Rename workspace</DialogTitle>
+        <DialogDescription>Enter a new name for this workspace.</DialogDescription>
+      </DialogHeader>
+      <Input
+        value={name}
+        onChange={onNameChange}
+        placeholder="Workspace name"
+        aria-label="Workspace name"
+        onKeyDown={onKeyDown}
+      />
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} disabled={isRenaming}>
+          Cancel
+        </Button>
+        <Button onClick={onRename} disabled={!name.trim() || isRenaming}>
+          {isRenaming ? (
+            <>
+              <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
+              Saving…
+            </>
+          ) : (
+            "Save"
+          )}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+);
+
+interface FormDeleteConfirmDialogProps {
+  open: boolean;
+  form: { id: string; title: string } | null;
+  isDeleting: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+}
+
+const FormDeleteConfirmDialog = ({
+  open,
+  form,
+  isDeleting,
+  onOpenChange,
+  onConfirm,
+}: FormDeleteConfirmDialogProps) => (
+  <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Delete form</AlertDialogTitle>
+        <AlertDialogDescription>
+          Are you sure you want to delete "{form?.title}"? This action will move it to trash.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          onClick={onConfirm}
+          disabled={isDeleting}
+          className="bg-destructive text-white hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isDeleting ? (
+            <>
+              <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
+              Deleting…
+            </>
+          ) : (
+            "Delete"
+          )}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
 
 type FavoriteFormItem = {
   id: string;

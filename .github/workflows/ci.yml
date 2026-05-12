@@ -13,31 +13,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          bun-version: 1.2.14
-      - run: bun install --frozen-lockfile
-      - run: bun run fmt:check
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run fmt:check
 
   lint:
     name: Lint (type-aware)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          bun-version: 1.2.14
-      - run: bun install --frozen-lockfile
-      - run: bunx oxlint --type-aware --format=github
-      - run: bun run knip
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec oxlint --type-aware --format=github
+      - run: pnpm run knip
 
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          bun-version: 1.2.14
-      - run: bun install --frozen-lockfile
-      - run: bunx oxlint --type-aware --type-check --format=github
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec oxlint --type-aware --type-check --format=github

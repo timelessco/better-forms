@@ -4,7 +4,16 @@ import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 
 import { cn } from "@/lib/utils";
 
-export const TooltipProvider = ({ delay = 0, ...props }: TooltipPrimitive.Provider.Props) => (
+// Global default hover delay before a tooltip opens. Set high enough to
+// avoid flicker on incidental mouse-overs, low enough to feel responsive
+// when the user actually pauses on a target. Individual tooltips can
+// override via the `delay` prop.
+const DEFAULT_TOOLTIP_DELAY_MS = 400;
+
+export const TooltipProvider = ({
+  delay = DEFAULT_TOOLTIP_DELAY_MS,
+  ...props
+}: TooltipPrimitive.Provider.Props) => (
   <TooltipPrimitive.Provider data-slot="tooltip-provider" delay={delay} {...props} />
 );
 

@@ -111,8 +111,8 @@ export const DataGridPagination = (props: DataGridPaginationProps) => {
 
   const btnBaseClasses = "size-7 p-0 text-sm";
   const btnArrowClasses = btnBaseClasses + " rtl:transform rtl:rotate-180";
-  const pageIndex = table.getState().pagination.pageIndex;
-  const pageSize = table.getState().pagination.pageSize;
+  const pageIndex = table.state.pagination.pageIndex;
+  const pageSize = table.state.pagination.pageSize;
   const from = pageIndex * pageSize + 1;
   const to = Math.min((pageIndex + 1) * pageSize, recordCount);
   const pageCount = table.getPageCount();

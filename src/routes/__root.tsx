@@ -3,6 +3,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Session } from "@/lib/auth/auth";
 import { seo } from "@/lib/seo";
 import { HotkeysProvider } from "@tanstack/react-hotkeys";
@@ -47,13 +48,15 @@ const RootDocument = ({ children }: { children: React.ReactNode }) => (
     >
       <HotkeysProvider defaultOptions={{ hotkey: { preventDefault: true } }}>
         <ThemeProvider defaultTheme="system">
-          {children}
-          <Toaster richColors />
-          {process.env.NODE_ENV === "development" && (
-            <Suspense>
-              <LazyDevtools />
-            </Suspense>
-          )}
+          <TooltipProvider>
+            {children}
+            <Toaster richColors />
+            {process.env.NODE_ENV === "development" && (
+              <Suspense>
+                <LazyDevtools />
+              </Suspense>
+            )}
+          </TooltipProvider>
         </ThemeProvider>
       </HotkeysProvider>
       <Scripts />

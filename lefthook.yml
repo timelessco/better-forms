@@ -2,7 +2,7 @@ pre-commit:
   parallel: true
   jobs:
     - name: fmt
-      run: bun x oxfmt {staged_files}
+      run: pnpm exec oxfmt {staged_files}
       glob:
         - "**/*.js"
         - "**/*.jsx"
@@ -13,7 +13,7 @@ pre-commit:
         - "**/*.css"
       stage_fixed: true
     - name: lint
-      run: bun x oxlint --type-aware --fix {staged_files}
+      run: pnpm exec oxlint --type-aware --fix {staged_files}
       glob:
         - "**/*.js"
         - "**/*.jsx"
@@ -21,7 +21,7 @@ pre-commit:
         - "**/*.tsx"
       stage_fixed: true
     - name: knip
-      run: bun x knip --strict --use-tsconfig-files
+      run: pnpm exec knip --strict --use-tsconfig-files
       glob:
         - "**/*.ts"
         - "**/*.tsx"
@@ -30,6 +30,6 @@ pre-push:
   parallel: true
   jobs:
     - name: typecheck
-      run: bun x tsc --noEmit
+      run: pnpm exec tsc --noEmit
     - name: test
-      run: bun run test
+      run: pnpm run test

@@ -434,10 +434,18 @@ const DashboardHeader = ({
   </div>
 );
 
+type FormListItemForm = {
+  id: string;
+  title: string | null;
+  status: "draft" | "published" | "archived" | string;
+  workspaceId: string;
+  updatedAt: string;
+};
+
 interface DashboardFormListProps {
   isSyncing: boolean;
   isLoading: boolean;
-  paginatedForms: ReadonlyArray<{ id: string }>;
+  paginatedForms: ReadonlyArray<FormListItemForm>;
   selectedFormIds: Set<string>;
   workspaceNameMap: Map<string, string>;
   duplicatingFormId: string | null;
@@ -478,9 +486,8 @@ const DashboardFormList = ({
     ) : (
       paginatedForms.map((form) => (
         <FormListItem
-          // eslint-disable-next-line typescript-eslint/no-explicit-any -- form shape inferred at site of use
           key={form.id}
-          form={form as any}
+          form={form}
           isSelected={selectedFormIds.has(form.id)}
           workspaceNameMap={workspaceNameMap}
           duplicatingFormId={duplicatingFormId}
@@ -646,14 +653,6 @@ const SingleDeleteDialog = ({ open, onOpenChange, title, onConfirm }: SingleDele
     </AlertDialogContent>
   </AlertDialog>
 );
-
-type FormListItemForm = {
-  id: string;
-  title: string | null;
-  status: "draft" | "published" | "archived" | string;
-  workspaceId: string;
-  updatedAt: string;
-};
 
 type FormListItemProps = {
   form: FormListItemForm;

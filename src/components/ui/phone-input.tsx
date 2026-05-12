@@ -2,14 +2,15 @@
 import { createContext, use, useMemo, useState } from "react";
 import * as BasePhoneInput from "react-phone-number-input";
 
-// CDN-hosted flag sprite pattern — avoids bundling the ~240 inline SVG flag
-// components from `react-phone-number-input/flags` (~100 kB) into the
-// PhoneField chunk. The browser fetches only the selected country's flag on
-// paint; the rest load lazily when the country picker opens.
-const FLAG_URL = "https://purecatamphetamine.github.io/country-flag-icons/3x2/{XX}.svg";
-
+import { useMounted } from "@/hooks/use-mounted";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+
+const getBrowserDefaultCountry = (): BasePhoneInput.Country | undefined => {
+  if (typeof navigator === "undefined") return undefined;
+  const region = navigator.language.split(/[-_]/)[1]?.toUpperCase();
+  return region && BasePhoneInput.isSupportedCountry(region) ? region : undefined;
+};
 import {
   Combobox,
   ComboboxContent,
@@ -23,8 +24,8 @@ import {
 } from "@/components/ui/combobox";
 import { InputGroupInput } from "@/components/ui/input-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronDownIcon, SearchIcon } from "@/components/ui/icons";
-import { GlobeIcon } from "lucide-react";
+import { ChevronDownIcon } from "@/components/ui/icons";
+import { Search } from "lucide-react";
 
 type PhoneInputSize = "sm" | "default" | "lg";
 
@@ -56,14 +57,21 @@ function PhoneInput({
   scrollAreaClassName,
   onChange,
   value,
+  defaultCountry: defaultCountryProp,
   ...props
 }: PhoneInputProps) {
   const phoneInputSize = variant || "default";
+  // `defaultCountry` is read once on mount by react-phone-number-input, so
+  // we wait for hydration before deriving from `navigator.language` and key
+  // the underlying component so it remounts with the resolved value.
+  const mounted = useMounted();
+  const defaultCountry = defaultCountryProp ?? (mounted ? getBrowserDefaultCountry() : undefined);
   return (
     <PhoneInputContext.Provider
       value={{ variant: phoneInputSize, popupClassName, scrollAreaClassName }}
     >
       <BasePhoneInput.default
+        key={defaultCountry ?? "no-default"}
         // Two-part layout per Figma: left "input-select" (flag + chevron) and
         // right "input-text" (number) each own their own border. `[&]:` bumps
         // specificity past react-phone-number-input's defaults.
@@ -76,12 +84,11 @@ function PhoneInput({
             "[&_[data-slot=input-group]]:ring-1 [&_[data-slot=input-group]]:ring-destructive",
           className,
         )}
-        flagUrl={FLAG_URL}
-        flagComponent={FlagComponent}
         countrySelectComponent={CountrySelect}
         inputComponent={InputComponent}
         smartCaret={false}
         value={value || undefined}
+        defaultCountry={defaultCountry}
         onChange={(next) => onChange?.(next || ("" as BasePhoneInput.Value))}
         {...props}
       />
@@ -100,7 +107,7 @@ function InputComponent({ className, ...props }: React.ComponentProps<"input">) 
         // rounded so it butts cleanly against the country select. Surface
         // color is bg-background by default; .bf-themed overrides via
         // [data-bf-input-fill] so the Input token applies.
-        "flex-1 rounded-l-none rounded-r-[8px] border border-border bg-background px-2.5 py-2 text-sm tracking-[0.28px] text-foreground shadow-none ring-0! outline-none! focus-visible:ring-0 aria-invalid:ring-0",
+        "flex-1 rounded-l-none rounded-r-[8px] border border-border bg-background px-2.5 py-2 text-sm tracking-[0.28px] text-foreground shadow-none ring-0! outline-none! focus-visible:ring-0 aria-invalid:ring-0 dark:border dark:border-border dark:bg-background",
         variant === "sm" && "h-7",
         variant === "lg" && "h-9",
         variant === "default" && "h-8",
@@ -156,6 +163,7 @@ function CountrySelect({
             size={variant}
             aria-label="Select country"
             data-bf-input-fill
+            suffix={<ChevronDownIcon className="ml-0.5 size-3 text-muted-foreground" />}
             className={cn(
               // Left "input-select" piece — flag + chevron in a left-rounded
               // bordered cell. Top/left/bottom borders only; right edge butts
@@ -171,8 +179,11 @@ function CountrySelect({
             <span className="sr-only">
               <ComboboxValue />
             </span>
-            <FlagComponent country={selectedCountry} countryName={selectedCountry} />
-            <ChevronDownIcon className="size-4 text-muted-foreground" />
+            <span className="text-sm text-foreground">
+              {selectedCountry && BasePhoneInput.isSupportedCountry(selectedCountry)
+                ? `+${BasePhoneInput.getCountryCallingCode(selectedCountry)}`
+                : ""}
+            </span>
           </Button>
         }
       />
@@ -181,18 +192,18 @@ function CountrySelect({
         // Figma elevation/light/xl: triple drop-shadow recipe (1px hairline +
         // 10px ambient + 24px lift).
         className={cn(
-          "w-[246px] rounded-xl border-0 bg-popover p-1 shadow-[0px_0px_1px_0px_rgba(0,0,0,0.2),0px_0px_10px_0px_rgba(0,0,0,0.04),0px_24px_30px_0px_rgba(0,0,0,0.1)] *:data-[slot=input-group]:bg-transparent",
+          "w-[246px] rounded-xl border border-border bg-popover p-1 shadow-[0px_0px_1px_0px_rgba(0,0,0,0.2),0px_0px_10px_0px_rgba(0,0,0,0.04),0px_24px_30px_0px_rgba(0,0,0,0.1)] *:data-[slot=input-group]:bg-transparent",
           popupClassName,
         )}
       >
         <div className="flex h-7 items-center gap-2 rounded-lg bg-secondary px-2 py-1.5">
-          <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
+          <Search className="size-4 shrink-0" strokeWidth={2} color="var(--color-gray-alpha-600)" />
           <ComboboxInput
             placeholder="Search for countries"
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             showTrigger={false}
-            className="border-0 bg-transparent p-0 text-sm tracking-[0.28px] text-foreground shadow-none ring-0! outline-none! placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="border-0 bg-transparent p-0 text-sm tracking-[0.28px] text-foreground shadow-none ring-0! outline-none! placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent"
           />
         </div>
         <ComboboxSeparator className="my-1 hidden" />
@@ -204,7 +215,7 @@ function CountrySelect({
             <div className="flex max-h-[min(var(--available-height),24rem)] w-full scroll-pt-1 scroll-pb-1 flex-col overscroll-contain">
               <ScrollArea className="size-full min-h-0 **:data-[slot=scroll-area-scrollbar]:m-0 [&_[data-slot=scroll-area-viewport]]:h-full [&_[data-slot=scroll-area-viewport]]:overscroll-contain">
                 {filteredCountries.map((item: CountryEntry) =>
-                  item.value ? (
+                  item.value && BasePhoneInput.isSupportedCountry(item.value) ? (
                     <ComboboxItem
                       key={item.value}
                       value={item.value}
@@ -227,27 +238,6 @@ function CountrySelect({
         </ComboboxList>
       </ComboboxContent>
     </Combobox>
-  );
-}
-
-function FlagComponent({ country, countryName }: BasePhoneInput.FlagProps) {
-  if (!country) {
-    return (
-      <span className="flex size-4 items-center justify-center">
-        <GlobeIcon className="size-4 opacity-60" />
-      </span>
-    );
-  }
-  return (
-    <span className="flex size-4 items-center justify-center overflow-hidden rounded-[5px]">
-      <img
-        src={FLAG_URL.replace("{XX}", country)}
-        alt={countryName ?? country}
-        className="size-full object-cover"
-        loading="lazy"
-        decoding="async"
-      />
-    </span>
   );
 }
 

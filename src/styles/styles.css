@@ -896,8 +896,8 @@
    two: bleed = field-gap − block-margin (so the residual visible gap
    between selections stays equal to --bf-block-margin). */
 :root {
-  --bf-block-margin: 2px;
-  --bf-field-gap: 8px;
+  --bf-block-margin: 24px;
+  --bf-field-gap: 4px;
 }
 
 .slate-blockWrapper:not(:has(> [data-bf-chrome])),
@@ -919,11 +919,14 @@
 
 /* Label's BlockSelection bleeds (field-gap − block-margin) into each margin
    so consecutive selections (prev field → label, label → input) end up with
-   a uniform residual = block-margin visible gap, matching non-label blocks. */
+   a uniform residual = block-margin visible gap, matching non-label blocks.
+   Clamped with min(0px, …) so when block-margin >= field-gap the bleed never
+   pushes the selection box *inward* (which collapses it on small labels and
+   makes the selection rectangle invisible). */
 .slate-blockWrapper:has(> .slate-formLabel) [data-slot="block-selection"],
 [data-bf-field-list] > .slate-formLabel [data-slot="block-selection"] {
-  top: calc(-1 * (var(--bf-field-gap) - var(--bf-block-margin))) !important;
-  bottom: calc(-1 * (var(--bf-field-gap) - var(--bf-block-margin))) !important;
+  top: min(0px, calc(-1 * (var(--bf-field-gap) - var(--bf-block-margin)))) !important;
+  bottom: min(0px, calc(-1 * (var(--bf-field-gap) - var(--bf-block-margin)))) !important;
 }
 
 /* View Transition: preview mode tab switching */

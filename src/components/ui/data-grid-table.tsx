@@ -10,8 +10,17 @@ import {
   TouchEvent,
   useMemo,
 } from "react";
-import { useDataGrid } from "@/components/ui/data-grid";
-import { Cell, Column, flexRender, Header, HeaderGroup, Row, Table } from "@tanstack/react-table";
+/* eslint-disable import/no-cycle -- registered in data-grid.tsx's tableComponents */
+import {
+  useDataGrid,
+  useRowExpanded,
+  useRowPinned,
+  useRowSelected,
+} from "@/components/ui/data-grid";
+/* eslint-enable import/no-cycle */
+import type { DataGridApi, DataGridFeatures } from "@/components/ui/data-grid";
+import { flexRender } from "@tanstack/react-table";
+import type { Cell, Column, Header, HeaderGroup, Row, RowData } from "@tanstack/table-core";
 import { cva } from "class-variance-authority";
 
 import { composeRefs } from "@/lib/compose-refs";
@@ -55,7 +64,9 @@ const footerCellSpacingVariants = cva("", {
   },
 });
 
-const getPinningStyles = <TData,>(column: Column<TData>): CSSProperties => {
+const getPinningStyles = <TData extends RowData>(
+  column: Column<DataGridFeatures, TData, unknown>,
+): CSSProperties => {
   const isPinned = column.getIsPinned();
 
   return {
@@ -69,12 +80,15 @@ const getPinningStyles = <TData,>(column: Column<TData>): CSSProperties => {
 
 type DataGridTablePinnedBoundary = "top" | "bottom";
 
-const getDataGridTableRowSections = <TData,>(table: Table<TData>, rowsPinnable?: boolean) => {
+const getDataGridTableRowSections = <TData extends RowData>(
+  table: DataGridApi<TData>,
+  rowsPinnable?: boolean,
+) => {
   if (!rowsPinnable) {
     return {
-      topRows: [] as Row<TData>[],
+      topRows: [] as Row<DataGridFeatures, TData>[],
       centerRows: table.getRowModel().rows,
-      bottomRows: [] as Row<TData>[],
+      bottomRows: [] as Row<DataGridFeatures, TData>[],
     };
   }
 
@@ -85,10 +99,13 @@ const getDataGridTableRowSections = <TData,>(table: Table<TData>, rowsPinnable?:
   };
 };
 
-const getDataGridTableResolvedRows = <TData,>(table: Table<TData>, rowsPinnable?: boolean) => {
+const getDataGridTableResolvedRows = <TData extends RowData>(
+  table: DataGridApi<TData>,
+  rowsPinnable?: boolean,
+) => {
   const { topRows, centerRows, bottomRows } = getDataGridTableRowSections(table, rowsPinnable);
   const resolvedRows: Array<{
-    row: Row<TData>;
+    row: Row<DataGridFeatures, TData>;
     pinnedBoundary?: DataGridTablePinnedBoundary;
   }> = [];
 
@@ -142,9 +159,9 @@ const DataGridTableBase = ({ children }: { children: ReactNode }) => {
   }, [
     props.tableLayout?.columnsResizable,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    table.getState().columnSizingInfo,
+    table.state.columnResizing,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    table.getState().columnSizing,
+    table.state.columnSizing,
   ]);
 
   return (
@@ -225,12 +242,12 @@ const DataGridTableHead = ({ children }: { children: ReactNode }) => {
   );
 };
 
-const DataGridTableHeadRow = <TData,>({
+const DataGridTableHeadRow = <TData extends RowData>({
   children,
   headerGroup,
 }: {
   children: ReactNode;
-  headerGroup: HeaderGroup<TData>;
+  headerGroup: HeaderGroup<DataGridFeatures, TData>;
 }) => {
   const { props } = useDataGrid();
 
@@ -251,14 +268,14 @@ const DataGridTableHeadRow = <TData,>({
   );
 };
 
-const DataGridTableHeadRowCell = <TData,>({
+const DataGridTableHeadRowCell = <TData extends RowData>({
   children,
   header,
   dndRef,
   dndStyle,
 }: {
   children: ReactNode;
-  header: Header<TData, unknown>;
+  header: Header<DataGridFeatures, TData, unknown>;
   dndRef?: React.Ref<HTMLTableCellElement>;
   dndStyle?: CSSProperties;
 }) => {
@@ -304,7 +321,8 @@ const DataGridTableHeadRowCell = <TData,>({
           column.getCanPin() &&
           "data-pinned:bg-background/90 data-pinned:backdrop-blur-xs [&:not([data-pinned]):has(+[data-pinned])_div.cursor-col-resize:last-child]:opacity-0 [&[data-last-col=left]_div.cursor-col-resize:last-child]:opacity-0 [&[data-pinned=left][data-last-col=left]]:border-e! [&[data-pinned=right]:last-child_div.cursor-col-resize:last-child]:opacity-0 [&[data-pinned=right][data-last-col=right]]:border-s! [&[data-pinned][data-last-col]]:border-border",
         header.column.columnDef.meta?.headerClassName,
-        column.getIndex() === 0 || column.getIndex() === header.headerGroup.headers.length - 1
+        column.getIndex() === 0 ||
+          column.getIndex() === (header.headerGroup?.headers.length ?? 0) - 1
           ? props.tableClassNames?.edgeCell
           : "",
       )}
@@ -314,7 +332,11 @@ const DataGridTableHeadRowCell = <TData,>({
   );
 };
 
-const DataGridTableHeadRowCellResize = <TData,>({ header }: { header: Header<TData, unknown> }) => {
+const DataGridTableHeadRowCellResize = <TData extends RowData>({
+  header,
+}: {
+  header: Header<DataGridFeatures, TData, unknown>;
+}) => {
   const { column } = header;
   const isLastVisibleColumn =
     column.getIndex() === header.getContext().table.getVisibleLeafColumns().length - 1;
@@ -441,12 +463,12 @@ const DataGridTableBodyRowSkeleton = ({ children }: { children: ReactNode }) => 
   );
 };
 
-const DataGridTableBodyRowSkeletonCell = <TData,>({
+const DataGridTableBodyRowSkeletonCell = <TData extends RowData>({
   children,
   column,
 }: {
   children: ReactNode;
-  column: Column<TData>;
+  column: Column<DataGridFeatures, TData, unknown>;
 }) => {
   const { props, table } = useDataGrid();
   const bodyCellSpacing = bodyCellSpacingVariants({
@@ -479,7 +501,7 @@ const DataGridTableBodyRowSkeletonCell = <TData,>({
   );
 };
 
-const DataGridTableBodyRow = <TData,>({
+const DataGridTableBodyRow = <TData extends RowData>({
   children,
   row,
   pinnedBoundary,
@@ -488,20 +510,21 @@ const DataGridTableBodyRow = <TData,>({
   dndStyle,
 }: {
   children: ReactNode;
-  row: Row<TData>;
+  row: Row<DataGridFeatures, TData>;
   pinnedBoundary?: DataGridTablePinnedBoundary;
   rowRef?: React.Ref<HTMLTableRowElement>;
   dndRef?: React.Ref<HTMLTableRowElement>;
   dndStyle?: CSSProperties;
 }) => {
   const { props, table } = useDataGrid();
-  const isRowPinned = row.getIsPinned();
+  const isRowPinned = useRowPinned(table, row.id);
+  const isSelected = useRowSelected(table, row.id);
 
   return (
     <tr
       ref={composeRefs(rowRef, dndRef)}
       style={{ ...(dndStyle ? dndStyle : null) }}
-      data-state={table.options.enableRowSelection && row.getIsSelected() ? "selected" : undefined}
+      data-state={table.options.enableRowSelection && isSelected ? "selected" : undefined}
       data-row-pinned={isRowPinned || undefined}
       data-row-pinned-boundary={pinnedBoundary}
       onClick={() => props.onRowClick && props.onRowClick(row.original)}
@@ -525,7 +548,11 @@ const DataGridTableBodyRow = <TData,>({
   );
 };
 
-const DataGridTableBodyRowExpandded = <TData,>({ row }: { row: Row<TData> }) => {
+const DataGridTableBodyRowExpandded = <TData extends RowData>({
+  row,
+}: {
+  row: Row<DataGridFeatures, TData>;
+}) => {
   const { props, table } = useDataGrid();
 
   return (
@@ -540,14 +567,14 @@ const DataGridTableBodyRowExpandded = <TData,>({ row }: { row: Row<TData> }) => 
   );
 };
 
-const DataGridTableBodyRowCell = <TData,>({
+const DataGridTableBodyRowCell = <TData extends RowData>({
   children,
   cell,
   dndRef,
   dndStyle,
 }: {
   children: ReactNode;
-  cell: Cell<TData, unknown>;
+  cell: Cell<DataGridFeatures, TData, unknown>;
   dndRef?: React.Ref<HTMLTableCellElement>;
   dndStyle?: CSSProperties;
 }) => {
@@ -594,26 +621,30 @@ const DataGridTableBodyRowCell = <TData,>({
   );
 };
 
-const DataGridTableRenderedRow = <TData,>({
+const DataGridTableRenderedRow = <TData extends RowData>({
   row,
   pinnedBoundary,
   rowRef,
 }: {
-  row: Row<TData>;
+  row: Row<DataGridFeatures, TData>;
   pinnedBoundary?: DataGridTablePinnedBoundary;
   rowRef?: React.Ref<HTMLTableRowElement>;
-}) => (
-  <Fragment>
-    <DataGridTableBodyRow row={row} pinnedBoundary={pinnedBoundary} rowRef={rowRef}>
-      {row.getVisibleCells().map((cell: Cell<TData, unknown>) => (
-        <DataGridTableBodyRowCell cell={cell} key={cell.id}>
-          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-        </DataGridTableBodyRowCell>
-      ))}
-    </DataGridTableBodyRow>
-    {row.getIsExpanded() && <DataGridTableBodyRowExpandded row={row} />}
-  </Fragment>
-);
+}) => {
+  const { table } = useDataGrid();
+  const isExpanded = useRowExpanded(table, row.id);
+  return (
+    <Fragment>
+      <DataGridTableBodyRow row={row} pinnedBoundary={pinnedBoundary} rowRef={rowRef}>
+        {row.getVisibleCells().map((cell: Cell<DataGridFeatures, TData, unknown>) => (
+          <DataGridTableBodyRowCell cell={cell} key={cell.id}>
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </DataGridTableBodyRowCell>
+        ))}
+      </DataGridTableBodyRow>
+      {isExpanded && <DataGridTableBodyRowExpandded row={row} />}
+    </Fragment>
+  );
+};
 
 const DataGridTableEmpty = () => {
   const { table, props } = useDataGrid();
@@ -641,8 +672,13 @@ const DataGridTableLoader = () => {
   );
 };
 
-const DataGridTableRowPin = <TData,>({ row }: { row: Row<TData> }) => {
-  const isPinned = row.getIsPinned();
+const DataGridTableRowPin = <TData extends RowData>({
+  row,
+}: {
+  row: Row<DataGridFeatures, TData>;
+}) => {
+  const { table } = useDataGrid();
+  const isPinned = useRowPinned(table, row.id);
 
   return (
     <button
@@ -691,22 +727,30 @@ const DataGridTableRowPin = <TData,>({ row }: { row: Row<TData> }) => {
   );
 };
 
-const DataGridTableRowSelect = <TData,>({ row }: { row: Row<TData> }) => (
-  <>
-    <div
-      className={cn(
-        "absolute inset-s-0 top-0 bottom-0 hidden w-[2px] bg-primary",
-        row.getIsSelected() && "block",
-      )}
-    ></div>
-    <Checkbox
-      checked={row.getIsSelected()}
-      onCheckedChange={(value) => row.toggleSelected(!!value)}
-      aria-label="Select row"
-      className="align-[inherit]"
-    />
-  </>
-);
+const DataGridTableRowSelect = <TData extends RowData>({
+  row,
+}: {
+  row: Row<DataGridFeatures, TData>;
+}) => {
+  const { table } = useDataGrid();
+  const isSelected = useRowSelected(table, row.id);
+  return (
+    <>
+      <div
+        className={cn(
+          "absolute inset-s-0 top-0 bottom-0 hidden w-[2px] bg-primary",
+          isSelected && "block",
+        )}
+      />
+      <Checkbox
+        checked={isSelected}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+        className="align-[inherit]"
+      />
+    </>
+  );
+};
 
 const DataGridTableRowSelectAll = () => {
   const { table, recordCount, isLoading } = useDataGrid();
@@ -726,9 +770,9 @@ const DataGridTableRowSelectAll = () => {
   );
 };
 
-const DataGridTableBodyRows = <TData,>({ table }: { table: Table<TData> }) => {
+const DataGridTableBodyRows = <TData extends RowData>({ table }: { table: DataGridApi<TData> }) => {
   const { isLoading, props } = useDataGrid();
-  const pagination = table.getState().pagination;
+  const pagination = table.state.pagination;
 
   if (isLoading && props.loadingMode === "skeleton" && pagination?.pageSize) {
     /* eslint-disable eslint-plugin-react/no-array-index-key -- skeleton rows have no data-dependent key */
@@ -800,17 +844,17 @@ const DataGridTableBodyRows = <TData,>({ table }: { table: Table<TData> }) => {
  */
 const MemoizedDataGridTableBodyRows = memo(
   DataGridTableBodyRows,
-  (_prev, next) => !!next.table.getState().columnSizingInfo.isResizingColumn,
+  (_prev, next) => !!next.table.state.columnResizing.isResizingColumn,
 ) as typeof DataGridTableBodyRows;
 
-const DataGridTableHeader = <TData,>() => {
+const DataGridTableHeader = () => {
   const { table, props } = useDataGrid();
 
   return (
     <DataGridTableViewport>
       <DataGridTableBase>
         <DataGridTableHead>
-          {table.getHeaderGroups().map((headerGroup: HeaderGroup<TData>) => (
+          {table.getHeaderGroups().map((headerGroup) => (
             <DataGridTableHeadRow headerGroup={headerGroup} key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
                 const { column } = header;
@@ -839,7 +883,7 @@ const DataGridTableHeader = <TData,>() => {
   );
 };
 
-const DataGridTable = <TData,>({
+const DataGridTable = ({
   footerContent,
   renderHeader = true,
 }: {
@@ -853,7 +897,7 @@ const DataGridTable = <TData,>({
       <DataGridTableBase>
         {renderHeader && (
           <DataGridTableHead>
-            {table.getHeaderGroups().map((headerGroup: HeaderGroup<TData>) => (
+            {table.getHeaderGroups().map((headerGroup) => (
               <DataGridTableHeadRow headerGroup={headerGroup} key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   const { column } = header;

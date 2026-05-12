@@ -4,10 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Image } from "@/components/ui/image";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DataGrid, DataGridContainer } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
-import { DataGridColumnVisibility } from "@/components/ui/data-grid-column-visibility";
-import { DataGridVirtualTable } from "@/components/ui/data-grid-virtual-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,22 +26,17 @@ import {
 } from "@/lib/editor/transform-plate-to-form";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  createColumnHelper,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
 import type {
   Cell,
   ColumnDef,
   ColumnPinningState,
+  ColumnVisibilityState as VisibilityState,
   Row,
   RowSelectionState,
   SortingState,
-  VisibilityState,
-} from "@tanstack/react-table";
+} from "@tanstack/table-core";
+import { createAppColumnHelper, SelectionCheckbox, useAppTable } from "@/components/ui/data-grid";
+import type { DataGridApi, DataGridFeatures } from "@/components/ui/data-grid";
 
 import { ChevronDownIcon, FilterIcon, Trash2Icon, XIcon } from "@/components/ui/icons";
 import { Columns, Download, ExternalLink, FileText, Paperclip, Search } from "lucide-react";
@@ -287,8 +279,182 @@ const SubmissionCell = ({
 };
 
 const toSubmissionColumn = <TValue,>(
-  column: ColumnDef<SerializedSubmission, TValue>,
-): ColumnDef<SerializedSubmission> => column as ColumnDef<SerializedSubmission>;
+  column: ColumnDef<DataGridFeatures, SerializedSubmission, TValue>,
+): ColumnDef<DataGridFeatures, SerializedSubmission> =>
+  column as ColumnDef<DataGridFeatures, SerializedSubmission>;
+
+interface BuildSubmissionColumnsOptions {
+  formElements: ReturnType<typeof transformPlateStateToFormElements> | null;
+  orphanedFieldNames: Set<string>;
+  fieldStatusFilter: Set<FieldStatus>;
+  historicalLabels: Record<string, string>;
+  onDelete: (submissionId: string) => Promise<void> | void;
+  onPreview: (file: UploadedFileValue) => void;
+}
+
+const buildSubmissionColumns = ({
+  formElements,
+  orphanedFieldNames,
+  fieldStatusFilter,
+  historicalLabels,
+  onDelete,
+  onPreview,
+}: BuildSubmissionColumnsOptions) => {
+  const columnHelper = createAppColumnHelper<SerializedSubmission>();
+  const counts: Record<FieldStatus, number> = { current: 0, deleted: 0 };
+
+  const baseColumns: ColumnDef<DataGridFeatures, SerializedSubmission>[] = [
+    columnHelper.display({
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          indeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+          className="translate-y-[2px]"
+        />
+      ),
+      cell: ({ row }) => <SelectionCheckbox row={row} />,
+      size: 48,
+      minSize: 48,
+      maxSize: 48,
+      meta: {},
+      enableSorting: false,
+      enableHiding: false,
+      enablePinning: false,
+      enableResizing: false,
+    }),
+    toSubmissionColumn(
+      columnHelper.accessor("createdAt", {
+        header: ({ column }) => <DataGridColumnHeader column={column} title="Submitted at" />,
+        cell: (info) => (
+          <div className="group/row flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="min-w-0 truncate text-[13px]">
+                {formatSubmittedAt(info.getValue())}
+              </span>
+              {!info.row.original.isCompleted && (
+                <span className="shrink-0 rounded-sm border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-amber-700 uppercase dark:text-amber-400">
+                  Drop-off
+                </span>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+                aria-label="Delete submission"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void onDelete(info.row.original.id);
+                }}
+              >
+                <Trash2Icon className="size-3.5" />
+              </Button>
+            </div>
+          </div>
+        ),
+        id: "submitted_at",
+        size: 200,
+        minSize: 140,
+      }),
+    ),
+    toSubmissionColumn(
+      columnHelper.accessor("lastStepReached", {
+        id: "last_step_reached",
+        header: ({ column }) => <DataGridColumnHeader column={column} title="Last step" />,
+        cell: (info) => {
+          const step = info.getValue();
+          if (step == null) return <span className="text-muted-foreground">-</span>;
+          return <span className="text-[13px]">Step {step + 1}</span>;
+        },
+        size: 120,
+        meta: { headerTitle: "Last step" },
+      }),
+    ),
+  ];
+
+  if (formElements) {
+    const editableFields = getEditableFields(formElements);
+    const inputFields = editableFields.filter((field) => EDITABLE_FIELD_TYPES.has(field.fieldType));
+
+    for (const field of inputFields) {
+      const status: FieldStatus = "current";
+      counts.current++;
+
+      if (fieldStatusFilter.has(status)) {
+        baseColumns.push(
+          toSubmissionColumn(
+            columnHelper.accessor((row) => row.data?.[field.name], {
+              id: field.name,
+              header: ({ column }) => (
+                <DataGridColumnHeader
+                  column={column}
+                  title={("label" in field ? field.label : "") || field.name}
+                  icon={
+                    <span className="block size-2.5 rounded-full border-[1.5px] border-emerald-500" />
+                  }
+                />
+              ),
+              cell: (info) => (
+                <SubmissionCell
+                  value={info.getValue()}
+                  fieldType={field.fieldType}
+                  onPreview={onPreview}
+                  options={"options" in field ? (field.options as FieldOption[]) : undefined}
+                />
+              ),
+              size: 150,
+              meta: {
+                headerTitle: ("label" in field ? field.label : "") || field.name,
+              },
+            }),
+          ),
+        );
+      }
+    }
+  }
+
+  counts.deleted = orphanedFieldNames.size;
+  orphanedFieldNames.forEach((fieldName) => {
+    const status: FieldStatus = "deleted";
+    const resolvedLabel = historicalLabels[fieldName] ?? fieldName;
+
+    if (fieldStatusFilter.has(status)) {
+      baseColumns.push(
+        toSubmissionColumn(
+          columnHelper.accessor((row) => row.data?.[fieldName], {
+            id: fieldName,
+            header: ({ column }) => (
+              <DataGridColumnHeader
+                column={column}
+                title={resolvedLabel}
+                icon={
+                  <span className="block size-2.5 rounded-full border-[1.5px] border-red-500" />
+                }
+              />
+            ),
+            cell: (info) => (
+              <SubmissionCell
+                value={info.getValue()}
+                fieldType="FileUpload"
+                onPreview={onPreview}
+              />
+            ),
+            size: 150,
+            meta: {
+              headerTitle: resolvedLabel,
+            },
+          }),
+        ),
+      );
+    }
+  });
+
+  return { columns: baseColumns, fieldCounts: counts };
+};
 
 const SubmissionsPage = () => {
   const { formId } = Route.useParams();
@@ -302,7 +468,7 @@ const SubmissionsPage = () => {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
     last_step_reached: false,
   });
-  const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({});
+  const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({ left: [], right: [] });
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
   const [previewFile, setPreviewFile] = useState<UploadedFileValue | null>(null);
   const openPreview = useCallback((file: UploadedFileValue) => setPreviewFile(file), []);
@@ -412,187 +578,27 @@ const SubmissionsPage = () => {
   }, [allSubmissions, formElements]);
 
   // Derive Columns from PUBLISHED Form Content (not draft)
-  const { columns } = useMemo(() => {
-    const columnHelper = createColumnHelper<SerializedSubmission>();
-    const counts: Record<FieldStatus, number> = { current: 0, deleted: 0 };
+  const { columns } = useMemo(
+    () =>
+      buildSubmissionColumns({
+        formElements,
+        orphanedFieldNames,
+        fieldStatusFilter,
+        historicalLabels,
+        onDelete: handleDelete,
+        onPreview: openPreview,
+      }),
+    [
+      formElements,
+      orphanedFieldNames,
+      fieldStatusFilter,
+      handleDelete,
+      openPreview,
+      historicalLabels,
+    ],
+  );
 
-    // Select column for row selection - fixed width, non-resizable to prevent overlap with actions
-    const baseColumns: ColumnDef<SerializedSubmission>[] = [
-      {
-        id: "select",
-        header: ({ table }) => (
-          <Checkbox
-            checked={table.getIsAllPageRowsSelected()}
-            indeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
-            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-            aria-label="Select all"
-            className="translate-y-[2px]"
-          />
-        ),
-        cell: ({ row }) => (
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label="Select row"
-            className="translate-y-[2px]"
-          />
-        ),
-        size: 48,
-        minSize: 48,
-        maxSize: 48,
-        meta: {},
-        enableSorting: false,
-        enableHiding: false,
-        enablePinning: false,
-        enableResizing: false,
-      },
-      // minSize prevents action buttons from truncating into select column
-      toSubmissionColumn(
-        columnHelper.accessor("createdAt", {
-          header: ({ column }) => <DataGridColumnHeader column={column} title="Submitted at" />,
-          cell: (info) => (
-            <div className="group/row flex min-w-0 items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="min-w-0 truncate text-[13px]">
-                  {formatSubmittedAt(info.getValue())}
-                </span>
-                {!info.row.original.isCompleted && (
-                  <span className="shrink-0 rounded-sm border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-amber-700 uppercase dark:text-amber-400">
-                    Drop-off
-                  </span>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
-                  aria-label="Delete submission"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void handleDelete(info.row.original.id);
-                  }}
-                >
-                  <Trash2Icon className="size-3.5" />
-                </Button>
-              </div>
-            </div>
-          ),
-          id: "submitted_at",
-          size: 200,
-          minSize: 140,
-        }),
-      ),
-      // `lastStepReached` — hidden by default; users toggle via the Columns
-      // menu to see funnel drop-off points for partial submissions.
-      toSubmissionColumn(
-        columnHelper.accessor("lastStepReached", {
-          id: "last_step_reached",
-          header: ({ column }) => <DataGridColumnHeader column={column} title="Last step" />,
-          cell: (info) => {
-            const step = info.getValue();
-            if (step == null) return <span className="text-muted-foreground">-</span>;
-            return <span className="text-[13px]">Step {step + 1}</span>;
-          },
-          size: 120,
-          meta: { headerTitle: "Last step" },
-        }),
-      ),
-    ];
-
-    if (formElements) {
-      const editableFields = getEditableFields(formElements);
-
-      const inputFields = editableFields.filter((field) =>
-        EDITABLE_FIELD_TYPES.has(field.fieldType),
-      );
-
-      for (const field of inputFields) {
-        const status: FieldStatus = "current";
-        counts.current++;
-
-        if (fieldStatusFilter.has(status)) {
-          baseColumns.push(
-            toSubmissionColumn(
-              columnHelper.accessor((row) => row.data?.[field.name], {
-                id: field.name,
-                header: ({ column }) => (
-                  <DataGridColumnHeader
-                    column={column}
-                    title={("label" in field ? field.label : "") || field.name}
-                    icon={
-                      <span className="block size-2.5 rounded-full border-[1.5px] border-emerald-500" />
-                    }
-                  />
-                ),
-                cell: (info) => (
-                  <SubmissionCell
-                    value={info.getValue()}
-                    fieldType={field.fieldType}
-                    onPreview={openPreview}
-                    options={"options" in field ? (field.options as FieldOption[]) : undefined}
-                  />
-                ),
-                size: 150,
-                meta: {
-                  headerTitle: ("label" in field ? field.label : "") || field.name,
-                },
-              }),
-            ),
-          );
-        }
-      }
-    }
-
-    // Add columns for orphaned fields (deleted from current version but have data)
-    counts.deleted = orphanedFieldNames.size;
-    orphanedFieldNames.forEach((fieldName) => {
-      const status: FieldStatus = "deleted";
-      const resolvedLabel = historicalLabels[fieldName] ?? fieldName;
-
-      // Only add if status filter includes this status
-      if (fieldStatusFilter.has(status)) {
-        baseColumns.push(
-          toSubmissionColumn(
-            columnHelper.accessor((row) => row.data?.[fieldName], {
-              id: fieldName,
-              header: ({ column }) => (
-                <DataGridColumnHeader
-                  column={column}
-                  title={resolvedLabel}
-                  icon={
-                    <span className="block size-2.5 rounded-full border-[1.5px] border-red-500" />
-                  }
-                />
-              ),
-              cell: (info) => (
-                <SubmissionCell
-                  value={info.getValue()}
-                  fieldType="FileUpload"
-                  onPreview={openPreview}
-                />
-              ),
-              size: 150,
-              meta: {
-                headerTitle: resolvedLabel,
-              },
-            }),
-          ),
-        );
-      }
-    });
-
-    return { columns: baseColumns, fieldCounts: counts };
-  }, [
-    formElements,
-    orphanedFieldNames,
-    fieldStatusFilter,
-    handleDelete,
-    openPreview,
-    historicalLabels,
-  ]);
-
-  const table = useReactTable({
+  const table = useAppTable({
     data: submissions,
     columns,
     state: {
@@ -610,14 +616,125 @@ const SubmissionsPage = () => {
     onColumnOrderChange: setColumnOrder,
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     autoResetPageIndex: false,
     columnResizeMode: "onChange",
     getRowId: (row) => row.id,
   });
 
+  const { handleBulkDelete, handleExportSelected, handleDownloadCSV } =
+    useSubmissionExportAndDelete({
+      formId,
+      queryClient,
+      columns,
+      table,
+      rowSelection,
+      setRowSelection,
+    });
+
+  useSubmissionsHotkeys({
+    table,
+    rowSelection,
+    setRowSelection,
+    onExport: handleExportSelected,
+    onBulkDelete: handleBulkDelete,
+  });
+
+  return (
+    <table.AppTable>
+      <div className="flex h-full min-h-0 min-w-0 flex-col bg-background">
+        <SubmissionsToolbar
+          activeTab={activeTab}
+          allCount={allSubmissions.length}
+          completedCount={completedCount}
+          partialCount={partialCount}
+          globalFilter={globalFilter}
+          table={table}
+          onSetTabAll={handleSetActiveTabAll}
+          onSetTabCompleted={handleSetActiveTabCompleted}
+          onSetTabPartial={handleSetActiveTabPartial}
+          onGlobalFilterChange={handleGlobalFilterChange}
+          onDownloadCSV={handleDownloadCSV}
+        />
+
+        <SubmissionPreviewDialog file={previewFile} onClose={closePreview} />
+
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {Object.keys(rowSelection).length > 0 && (
+            <SubmissionBulkActionBar
+              count={Object.keys(rowSelection).length}
+              onExport={handleExportSelected}
+              onDelete={handleBulkDelete}
+              onClear={handleClearSelection}
+            />
+          )}
+
+          <table.DataGrid
+            recordCount={totalCount}
+            isLoading={isLoadingSubmissions}
+            tableLayout={{
+              dense: true,
+              columnsResizable: true,
+              columnsPinnable: false,
+              columnsVisibility: true,
+              columnsMovable: true,
+              headerSticky: true,
+              headerBackground: false,
+              headerBorder: true,
+              rowBorder: true,
+            }}
+            emptyMessage={
+              <div className="flex flex-col items-center justify-center gap-y-3 py-16 opacity-50">
+                <div className="rounded-full bg-muted p-3">
+                  <FilterIcon className="size-6" />
+                </div>
+                <div className="space-y-1 text-center">
+                  <p>No results found</p>
+                  <p className="text-xs text-muted-foreground">
+                    {globalFilter
+                      ? "Try adjusting your search query."
+                      : "When people fill out your form, their responses will appear here."}
+                  </p>
+                </div>
+              </div>
+            }
+          >
+            <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+              <table.DataGridContainer
+                border={false}
+                className="min-h-0 flex-1 content-start overflow-x-auto overflow-y-hidden border-b border-border"
+              >
+                <table.DataGridVirtualTable
+                  onFetchMore={fetchNextPage}
+                  hasMore={hasNextPage}
+                  isFetchingMore={isFetchingNextPage}
+                  fetchMoreOffset={5}
+                />
+              </table.DataGridContainer>
+            </div>
+          </table.DataGrid>
+        </div>
+      </div>
+    </table.AppTable>
+  );
+};
+
+interface UseSubmissionExportAndDeleteOptions {
+  formId: string;
+  queryClient: ReturnType<typeof useQueryClient>;
+  columns: ColumnDef<DataGridFeatures, SerializedSubmission>[];
+  table: DataGridApi<SerializedSubmission>;
+  rowSelection: RowSelectionState;
+  setRowSelection: (selection: RowSelectionState) => void;
+}
+
+const useSubmissionExportAndDelete = ({
+  formId,
+  queryClient,
+  columns,
+  table,
+  rowSelection,
+  setRowSelection,
+}: UseSubmissionExportAndDeleteOptions) => {
   const handleBulkDelete = useCallback(async () => {
     const selectedIds = Object.keys(rowSelection);
     if (selectedIds.length === 0) return;
@@ -632,10 +749,10 @@ const SubmissionsPage = () => {
     });
     void queryClient.invalidateQueries({ queryKey: ["submissions", formId] });
     setRowSelection({});
-  }, [formId, queryClient, rowSelection]);
+  }, [formId, queryClient, rowSelection, setRowSelection]);
 
   const downloadCSV = useCallback(
-    (rows: Row<SerializedSubmission>[], filename: string) => {
+    (rows: Row<DataGridFeatures, SerializedSubmission>[], filename: string) => {
       if (rows.length === 0) return;
 
       const headers = columns
@@ -651,7 +768,7 @@ const SubmissionsPage = () => {
         .map((row) =>
           row
             .getVisibleCells()
-            .flatMap((cell: Cell<SerializedSubmission, unknown>) => {
+            .flatMap((cell: Cell<DataGridFeatures, SerializedSubmission, unknown>) => {
               if (cell.column.id === "select") return [];
               const formatted = csvFormat(cell.getValue()).replaceAll('"', '""');
               return [`"${formatted}"`];
@@ -683,6 +800,24 @@ const SubmissionsPage = () => {
     downloadCSV(table.getRowModel().rows, `submissions-${formId}.csv`);
   }, [downloadCSV, formId, table]);
 
+  return { handleBulkDelete, handleExportSelected, handleDownloadCSV };
+};
+
+interface UseSubmissionsHotkeysOptions {
+  table: DataGridApi<SerializedSubmission>;
+  rowSelection: RowSelectionState;
+  setRowSelection: (selection: RowSelectionState) => void;
+  onExport: () => void;
+  onBulkDelete: () => void;
+}
+
+const useSubmissionsHotkeys = ({
+  table,
+  rowSelection,
+  setRowSelection,
+  onExport,
+  onBulkDelete,
+}: UseSubmissionsHotkeysOptions) => {
   const hasSelection = Object.keys(rowSelection).length > 0;
 
   useHotkey(
@@ -693,13 +828,13 @@ const SubmissionsPage = () => {
     { conflictBehavior: "replace", ignoreInputs: true },
   );
 
-  useHotkey(HOTKEYS.SUBMISSIONS_EXPORT, () => handleExportSelected(), {
+  useHotkey(HOTKEYS.SUBMISSIONS_EXPORT, () => onExport(), {
     enabled: hasSelection,
     conflictBehavior: "replace",
     ignoreInputs: true,
   });
 
-  useHotkey(HOTKEYS.SUBMISSIONS_DELETE, () => handleBulkDelete(), {
+  useHotkey(HOTKEYS.SUBMISSIONS_DELETE, () => onBulkDelete(), {
     enabled: hasSelection,
     ignoreInputs: true,
   });
@@ -708,263 +843,242 @@ const SubmissionsPage = () => {
     enabled: hasSelection,
     ignoreInputs: true,
   });
+};
 
+interface SubmissionsToolbarProps {
+  activeTab: "all" | "completed" | "partial";
+  allCount: number;
+  completedCount: number;
+  partialCount: number;
+  globalFilter: string;
+  table: DataGridApi<SerializedSubmission>;
+  onSetTabAll: () => void;
+  onSetTabCompleted: () => void;
+  onSetTabPartial: () => void;
+  onGlobalFilterChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDownloadCSV: () => void;
+}
+
+const SubmissionsToolbar = ({
+  activeTab,
+  allCount,
+  completedCount,
+  partialCount,
+  globalFilter,
+  table,
+  onSetTabAll,
+  onSetTabCompleted,
+  onSetTabPartial,
+  onGlobalFilterChange,
+  onDownloadCSV,
+}: SubmissionsToolbarProps) => {
+  const activeCount =
+    activeTab === "all" ? allCount : activeTab === "completed" ? completedCount : partialCount;
+  const activeLabel =
+    activeTab === "all" ? "All" : activeTab === "completed" ? "Completed" : "Partial";
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col bg-background">
-      <div className="shrink-0 border-border px-5 pt-2.5 pb-4.5">
-        <div className="flex items-center justify-between">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-2 rounded-lg bg-accent/60 font-normal hover:bg-accent"
-                />
-              }
-            >
-              {activeTab === "all" ? "All" : activeTab === "completed" ? "Completed" : "Partial"}
-              <span className="opacity-60">
-                {activeTab === "all"
-                  ? allSubmissions.length
-                  : activeTab === "completed"
-                    ? completedCount
-                    : partialCount}
-              </span>
-              <ChevronDownIcon className="size-2.5 shrink-0 text-muted-foreground" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-36">
-              <DropdownMenuItem onClick={handleSetActiveTabAll} className="gap-2">
-                All
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {allSubmissions.length}
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleSetActiveTabCompleted} className="gap-2">
-                Completed
-                <span className="ml-auto text-xs text-muted-foreground">{completedCount}</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleSetActiveTabPartial} className="gap-2">
-                Partial
-                <span className="ml-auto text-xs text-muted-foreground">{partialCount}</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <div className="flex items-center gap-1.5">
-            <ButtonGroup className="w-[180px] rounded-lg border-none transition-[width] duration-200 ease-out focus-within:w-[240px]">
-              <ButtonGroupText className="h-7 w-full gap-1.5 rounded-lg border border-transparent bg-accent/60 px-2.5 text-[13px]">
-                <Search className="size-4" strokeWidth={2} color="var(--color-gray-alpha-600)" />
-                <input
-                  placeholder="Search responses..."
-                  className="placeholder:text-normal min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] outline-none placeholder:text-[0.8rem] placeholder:text-(--color-gray-alpha-600)"
-                  value={globalFilter}
-                  onChange={handleGlobalFilterChange}
-                  aria-label="Search responses"
-                  name="search"
-                />
-              </ButtonGroupText>
-            </ButtonGroup>
-            <DataGridColumnVisibility
-              table={table}
-              trigger={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  prefix={
-                    <Columns
-                      className="size-4"
-                      strokeWidth="2"
-                      color="var(--color-gray-alpha-600)"
-                    />
-                  }
-                  suffix={<ChevronDownIcon className="size-2.5 shrink-0 text-muted-foreground" />}
-                  className="text-normal inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg rounded-md bg-accent/60 px-2.5 text-[0.8rem] text-(--color-gray-alpha-600) transition-colors hover:bg-accent"
-                >
-                  Columns
-                </Button>
-              }
-            />
-
-            <Button
-              variant="ghost"
-              size="sm"
-              prefix={
-                <Download strokeWidth={2} color="var(--color-gray-alpha-600)" className="size-4" />
-              }
-              className="text-normal inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg rounded-md bg-accent/60 px-2.5 text-[0.8rem] text-(--color-gray-alpha-600) transition-colors hover:bg-accent"
-              onClick={handleDownloadCSV}
-            >
-              Download CSV
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <Dialog open={previewFile !== null} onOpenChange={(open) => !open && closePreview()}>
-        <DialogContent
-          showCloseButton={false}
-          className="flex max-h-[90vh] max-w-4xl flex-col overflow-hidden rounded-lg p-0"
-        >
-          {previewFile && (
-            <>
-              <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-4 py-2.5">
-                <FileTypeIcon type={previewFile.type} className="size-4 shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {previewFile.name}
-                </span>
-                <a
-                  href={previewFile.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0"
-                >
-                  <Button variant="ghost" size="sm">
-                    <ExternalLink className="mr-1.5 size-4" />
-                    Open in new tab
-                  </Button>
-                </a>
-                <a
-                  href={previewFile.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download={previewFile.name}
-                  className="shrink-0"
-                >
-                  <Button variant="outline" size="sm">
-                    <Download className="mr-1.5 size-4" />
-                    Download
-                  </Button>
-                </a>
-              </div>
-              <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-md bg-muted/30">
-                {previewFile.type.startsWith("image/") ? (
-                  <Image
-                    src={previewFile.url}
-                    alt={previewFile.name}
-                    width={1600}
-                    height={1200}
-                    layout="constrained"
-                    className="max-h-[70vh] max-w-full object-contain"
-                  />
-                ) : previewFile.type === "application/pdf" ? (
-                  // <object> falls back to its children if the browser/extension
-                  // refuses to embed the third-party blob URL — so the user
-                  // always has the toolbar above to open or download.
-                  <object
-                    data={previewFile.url}
-                    type="application/pdf"
-                    aria-label={previewFile.name}
-                    className="h-[70vh] w-full"
-                  >
-                    <div className="flex flex-col items-center gap-3 py-12 text-center">
-                      <FileTypeIcon type={previewFile.type} className="size-16" />
-                      <p className="max-w-sm text-sm text-muted-foreground">
-                        Your browser blocked the inline preview. Use the buttons above to open or
-                        download the file.
-                      </p>
-                    </div>
-                  </object>
-                ) : (
-                  <div className="flex flex-col items-center gap-4 py-12">
-                    <FileTypeIcon type={previewFile.type} className="size-16" />
-                    <p className="text-sm text-muted-foreground">
-                      Preview not available for this file type.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {Object.keys(rowSelection).length > 0 && (
-          <div className="fixed bottom-6 left-1/2 z-50 w-[min(560px,90vw)] -translate-x-1/2 animate-in duration-300 fade-in slide-in-from-bottom-4">
-            <div className="flex items-center justify-between rounded-xl bg-background px-2.75 py-2.25 shadow-md">
-              <div className="flex items-center gap-1">
-                <Checkbox
-                  checked={true}
-                  className="size-5 border-foreground data-[state=checked]:border-foreground data-[state=checked]:bg-foreground"
-                />
-                <span className="text-sm">{Object.keys(rowSelection).length} selected</span>
-              </div>
-              <div className="flex h-6.5 items-center gap-1">
-                <Button variant="ghost" size="sm" onClick={handleExportSelected}>
-                  <Download className="size-3.5" />
-                  Export
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    {formatForDisplay(HOTKEYS.SUBMISSIONS_EXPORT)}
-                  </span>
-                </Button>
-                <Button variant="ghost" size="sm" onClick={handleBulkDelete}>
-                  Delete
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    {formatForDisplay(HOTKEYS.SUBMISSIONS_DELETE)}
-                  </span>
-                </Button>
-                <Button variant="secondary" size="sm" onClick={handleClearSelection}>
-                  <XIcon className="size-3.5" />
-                  Clear
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    {formatForDisplay(HOTKEYS.SUBMISSIONS_CLEAR_SELECTION)}
-                  </span>
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <DataGrid
-          table={table}
-          recordCount={totalCount}
-          isLoading={isLoadingSubmissions}
-          tableLayout={{
-            dense: true,
-            columnsResizable: true,
-            columnsPinnable: false,
-            columnsVisibility: true,
-            columnsMovable: true,
-            headerSticky: true,
-            headerBackground: false,
-            headerBorder: true,
-            rowBorder: true,
-          }}
-          emptyMessage={
-            <div className="flex flex-col items-center justify-center gap-y-3 py-16 opacity-50">
-              <div className="rounded-full bg-muted p-3">
-                <FilterIcon className="size-6" />
-              </div>
-              <div className="space-y-1 text-center">
-                <p>No results found</p>
-                <p className="text-xs text-muted-foreground">
-                  {globalFilter
-                    ? "Try adjusting your search query."
-                    : "When people fill out your form, their responses will appear here."}
-                </p>
-              </div>
-            </div>
-          }
-        >
-          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-            <DataGridContainer
-              border={false}
-              className="min-h-0 flex-1 content-start overflow-x-auto overflow-y-hidden border-b border-border"
-            >
-              <DataGridVirtualTable
-                onFetchMore={fetchNextPage}
-                hasMore={hasNextPage}
-                isFetchingMore={isFetchingNextPage}
-                fetchMoreOffset={5}
+    <div className="shrink-0 border-border px-5 pt-2.5 pb-4.5">
+      <div className="flex items-center justify-between">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2 rounded-lg bg-accent/60 font-normal hover:bg-accent"
               />
-            </DataGridContainer>
-          </div>
-        </DataGrid>
+            }
+          >
+            {activeLabel}
+            <span className="opacity-60">{activeCount}</span>
+            <ChevronDownIcon className="size-2.5 shrink-0 text-muted-foreground" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-36">
+            <DropdownMenuItem onClick={onSetTabAll} className="gap-2">
+              All
+              <span className="ml-auto text-xs text-muted-foreground">{allCount}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onSetTabCompleted} className="gap-2">
+              Completed
+              <span className="ml-auto text-xs text-muted-foreground">{completedCount}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onSetTabPartial} className="gap-2">
+              Partial
+              <span className="ml-auto text-xs text-muted-foreground">{partialCount}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="flex items-center gap-1.5">
+          <ButtonGroup className="w-[180px] rounded-lg border-none transition-[width] duration-200 ease-out focus-within:w-[240px]">
+            <ButtonGroupText className="h-7 w-full gap-1.5 rounded-lg border border-transparent bg-accent/60 px-2.5 text-[13px]">
+              <Search className="size-4" strokeWidth={2} color="var(--color-gray-alpha-600)" />
+              <input
+                placeholder="Search responses..."
+                className="placeholder:text-normal min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] outline-none placeholder:text-[0.8rem] placeholder:text-(--color-gray-alpha-600)"
+                value={globalFilter}
+                onChange={onGlobalFilterChange}
+                aria-label="Search responses"
+                name="search"
+              />
+            </ButtonGroupText>
+          </ButtonGroup>
+          <table.DataGridColumnVisibility
+            trigger={
+              <Button
+                variant="ghost"
+                size="sm"
+                prefix={
+                  <Columns className="size-4" strokeWidth="2" color="var(--color-gray-alpha-600)" />
+                }
+                suffix={<ChevronDownIcon className="size-2.5 shrink-0 text-muted-foreground" />}
+                className="text-normal inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg rounded-md bg-accent/60 px-2.5 text-[0.8rem] text-(--color-gray-alpha-600) transition-colors hover:bg-accent"
+              >
+                Columns
+              </Button>
+            }
+          />
+
+          <Button
+            variant="ghost"
+            size="sm"
+            prefix={
+              <Download strokeWidth={2} color="var(--color-gray-alpha-600)" className="size-4" />
+            }
+            className="text-normal inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg rounded-md bg-accent/60 px-2.5 text-[0.8rem] text-(--color-gray-alpha-600) transition-colors hover:bg-accent"
+            onClick={onDownloadCSV}
+          >
+            Download CSV
+          </Button>
+        </div>
       </div>
     </div>
   );
 };
+
+const SubmissionPreviewDialog = ({
+  file,
+  onClose,
+}: {
+  file: UploadedFileValue | null;
+  onClose: () => void;
+}) => (
+  <Dialog open={file !== null} onOpenChange={(open) => !open && onClose()}>
+    <DialogContent
+      showCloseButton={false}
+      className="flex max-h-[90vh] max-w-4xl flex-col overflow-hidden rounded-lg p-0"
+    >
+      {file && (
+        <>
+          <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-4 py-2.5">
+            <FileTypeIcon type={file.type} className="size-4 shrink-0" />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">{file.name}</span>
+            <a href={file.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+              <Button variant="ghost" size="sm">
+                <ExternalLink className="mr-1.5 size-4" />
+                Open in new tab
+              </Button>
+            </a>
+            <a
+              href={file.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              download={file.name}
+              className="shrink-0"
+            >
+              <Button variant="outline" size="sm">
+                <Download className="mr-1.5 size-4" />
+                Download
+              </Button>
+            </a>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-md bg-muted/30">
+            {file.type.startsWith("image/") ? (
+              <Image
+                src={file.url}
+                alt={file.name}
+                width={1600}
+                height={1200}
+                layout="constrained"
+                className="max-h-[70vh] max-w-full object-contain"
+              />
+            ) : file.type === "application/pdf" ? (
+              <object
+                data={file.url}
+                type="application/pdf"
+                aria-label={file.name}
+                className="h-[70vh] w-full"
+              >
+                <div className="flex flex-col items-center gap-3 py-12 text-center">
+                  <FileTypeIcon type={file.type} className="size-16" />
+                  <p className="max-w-sm text-sm text-muted-foreground">
+                    Your browser blocked the inline preview. Use the buttons above to open or
+                    download the file.
+                  </p>
+                </div>
+              </object>
+            ) : (
+              <div className="flex flex-col items-center gap-4 py-12">
+                <FileTypeIcon type={file.type} className="size-16" />
+                <p className="text-sm text-muted-foreground">
+                  Preview not available for this file type.
+                </p>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </DialogContent>
+  </Dialog>
+);
+
+interface SubmissionBulkActionBarProps {
+  count: number;
+  onExport: () => void;
+  onDelete: () => void;
+  onClear: () => void;
+}
+
+const SubmissionBulkActionBar = ({
+  count,
+  onExport,
+  onDelete,
+  onClear,
+}: SubmissionBulkActionBarProps) => (
+  <div className="fixed bottom-6 left-1/2 z-50 w-[min(560px,90vw)] -translate-x-1/2 animate-in duration-300 fade-in slide-in-from-bottom-4">
+    <div className="flex items-center justify-between rounded-xl bg-background px-2.75 py-2.25 shadow-md">
+      <div className="flex items-center gap-1">
+        <Checkbox
+          checked={true}
+          className="size-5 border-foreground data-[state=checked]:border-foreground data-[state=checked]:bg-foreground"
+        />
+        <span className="text-sm">{count} selected</span>
+      </div>
+      <div className="flex h-6.5 items-center gap-1">
+        <Button variant="ghost" size="sm" onClick={onExport}>
+          <Download className="size-3.5" />
+          Export
+          <span className="ml-1 text-xs text-muted-foreground">
+            {formatForDisplay(HOTKEYS.SUBMISSIONS_EXPORT)}
+          </span>
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onDelete}>
+          Delete
+          <span className="ml-1 text-xs text-muted-foreground">
+            {formatForDisplay(HOTKEYS.SUBMISSIONS_DELETE)}
+          </span>
+        </Button>
+        <Button variant="secondary" size="sm" onClick={onClear}>
+          <XIcon className="size-3.5" />
+          Clear
+          <span className="ml-1 text-xs text-muted-foreground">
+            {formatForDisplay(HOTKEYS.SUBMISSIONS_CLEAR_SELECTION)}
+          </span>
+        </Button>
+      </div>
+    </div>
+  </div>
+);
 
 export const Route = createFileRoute(
   "/_authenticated/workspace/$workspaceId/form-builder/$formId/submissions",

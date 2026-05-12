@@ -565,132 +565,12 @@ export const FormHeaderElement = (props: PlateElementProps) => {
         className="group relative mb-4 flex w-full flex-col rounded-none select-none"
       >
         {hasCover && (
-          <>
-            <div
-              className="group/cover relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] h-[120px] w-screen bg-muted/20 sm:h-[200px]"
-              data-bf-cover
-            >
-              {cover && !cover.startsWith("#") ? (
-                <>
-                  {cover.includes("tint=true") && (
-                    <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
-                  )}
-                  <img
-                    src={cover}
-                    alt="Cover"
-                    width={800}
-                    height={200}
-                    className={cn(
-                      "size-full border-0 object-cover",
-                      cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
-                    )}
-                  />
-                </>
-              ) : (
-                <div
-                  className="size-full"
-                  style={{
-                    backgroundColor: cover?.startsWith("#") ? cover : "#FFE4E1",
-                  }}
-                />
-              )}
-            </div>
-            <Popover open={coverPopoverOpen} onOpenChange={setCoverPopoverOpen}>
-              <div
-                className="absolute top-2 z-30 opacity-0 transition-opacity group-hover:opacity-100"
-                style={{ right: "calc(var(--editor-px, 64px) * -1 + 16px)" }}
-              >
-                <ButtonGroup className="rounded-lg border border-border bg-background/80 shadow-lg backdrop-blur-sm">
-                  <PopoverTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-none rounded-l-lg border-none text-xs text-foreground/80 hover:bg-secondary hover:text-foreground"
-                        onMouseDown={(e) => e.preventDefault()}
-                      />
-                    }
-                  >
-                    Change
-                  </PopoverTrigger>
-                  <ButtonGroupSeparator className="bg-border" />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-none border-none text-xs text-foreground/80 hover:bg-secondary hover:text-foreground"
-                    onClick={() => handleCoverChange(null)}
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    Remove
-                  </Button>
-                  <ButtonGroupSeparator className="bg-border" />
-                </ButtonGroup>
-              </div>
-
-              <PopoverContent align="end" side="bottom" className="w-[310px] p-0" sideOffset={8}>
-                <Tabs defaultValue="gallery" className="w-full">
-                  <div className="flex items-center gap-2 px-3 pt-2 pb-1">
-                    <TabsList className="w-full">
-                      <TabsTrigger value="gallery">Gallery</TabsTrigger>
-                      <TabsTrigger value="upload">Upload</TabsTrigger>
-                      <TabsIndicator />
-                    </TabsList>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => {
-                        handleCoverChange(null);
-                        setCoverPopoverOpen(false);
-                      }}
-                      onMouseDown={(e) => e.preventDefault()}
-                      aria-label="Remove cover"
-                    >
-                      <Trash2Icon />
-                    </Button>
-                  </div>
-
-                  <TabsContent value="gallery" className="mt-0 px-3 pb-3">
-                    <p className="mt-1 mb-2 text-xs text-muted-foreground">Abstract</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {COVER_GALLERY.map((item) => (
-                        <button
-                          key={item.label}
-                          type="button"
-                          onClick={() => {
-                            handleCoverChange(item.src);
-                            setCoverPopoverOpen(false);
-                          }}
-                          className="relative h-16 cursor-pointer overflow-hidden rounded-lg bg-muted ring-primary ring-offset-1 ring-offset-background transition-all hover:scale-[1.02] hover:ring-2"
-                          aria-label={item.label}
-                        >
-                          <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
-                          <img
-                            src={item.src}
-                            alt={item.label}
-                            width={200}
-                            height={64}
-                            className="relative z-0 size-full object-cover brightness-60 grayscale"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="upload" className="mt-0 px-3 pb-3">
-                    <CoverUpload
-                      currentCover={cover}
-                      onUpload={(url) => {
-                        handleCoverChange(url);
-                        setCoverPopoverOpen(false);
-                      }}
-                      onCancel={() => setCoverPopoverOpen(false)}
-                    />
-                  </TabsContent>
-                </Tabs>
-              </PopoverContent>
-            </Popover>
-          </>
+          <HeaderCoverSection
+            cover={cover}
+            coverPopoverOpen={coverPopoverOpen}
+            onCoverPopoverOpenChange={setCoverPopoverOpen}
+            onCoverChange={handleCoverChange}
+          />
         )}
         <div className={cn("relative flex w-full flex-col")}>
           <div className="w-full">
@@ -793,140 +673,31 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                 </Button>
               </div>
 
-              <PopoverContent
-                align="start"
-                side="bottom"
-                keepMounted
-                className={cn(
-                  "w-[310px] p-0",
-                  hasCustomization && "bf-themed",
-                  hasCustomization && editorCustomization?.mode === "dark" && "dark",
-                )}
-                style={hasCustomization ? themeVars : undefined}
-              >
-                <div className="w-full">
-                  <div className="flex items-center gap-2 px-3 pt-2 pb-1">
-                    <IconTabBar value={iconTab} onChange={setIconTab} />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => {
-                        handleIconChange(null);
-                        setIconPopoverOpen(false);
-                      }}
-                      onMouseDown={(e) => e.preventDefault()}
-                      aria-label="Remove icon"
-                    >
-                      <Trash2Icon />
-                    </Button>
-                  </div>
-                  <Activity mode={iconTab === "icon" ? "visible" : "hidden"}>
-                    <IconPickerContent
-                      iconValue={icon && icon !== DEFAULT_ICON && !isValidUrl(icon) ? icon : null}
-                      iconColor={hasCustomization ? activeAccentColor : iconColor || "#000000"}
-                      onIconChange={(newIcon) => {
-                        handleIconChange(newIcon);
-                        setIconPopoverOpen(false);
-                      }}
-                      onColorChange={(color) => {
-                        if (hasCustomization && updateThemeColor) {
-                          const themeName = PRIMARY_TO_THEME_NAME.get(color);
-                          if (themeName) updateThemeColor(themeName);
-                        } else {
-                          handleIconColorChange(color);
-                        }
-                      }}
-                      colors={accentColors}
-                    />
-                  </Activity>
-                  {openedUploadTab && (
-                    <Activity mode={iconTab === "upload" ? "visible" : "hidden"}>
-                      <IconUploadTab
-                        currentIcon={icon && isValidUrl(icon) ? icon : null}
-                        onUpload={(url) => {
-                          handleIconChange(url);
-                          setIconPopoverOpen(false);
-                        }}
-                        onCancel={() => setIconPopoverOpen(false)}
-                      />
-                    </Activity>
-                  )}
-                </div>
-              </PopoverContent>
+              <HeaderIconPopoverContent
+                icon={icon}
+                iconColor={iconColor}
+                iconTab={iconTab}
+                openedUploadTab={openedUploadTab}
+                onIconTabChange={setIconTab}
+                onIconChange={handleIconChange}
+                onIconColorChange={handleIconColorChange}
+                onClose={() => setIconPopoverOpen(false)}
+                hasCustomization={hasCustomization}
+                themeVars={themeVars}
+                themeMode={editorCustomization?.mode}
+                activeAccentColor={activeAccentColor}
+                accentColors={accentColors}
+                updateThemeColor={updateThemeColor}
+              />
             </Popover>
 
-            <div className="group/title relative">
-              <textarea
-                ref={titleRef}
-                rows={1}
-                aria-label="Form title"
-                className="h-auto w-full resize-none overflow-hidden border-none bg-transparent py-1 font-['Timeless_Serif'] text-[48px] leading-tight font-[252] tracking-[-1.44px] text-foreground outline-none select-text placeholder:font-['Timeless_Serif'] placeholder:text-foreground/50 sm:py-2"
-                placeholder="Create your form."
-                value={title}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                onFocus={autoResizeTitle}
-                onKeyDown={(e) => {
-                  if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    const firstBlockPath = [1];
-                    // eslint-disable-next-line typescript-eslint/no-explicit-any
-                    const startPoint = (editor.api as any).edges(firstBlockPath)?.[0];
-                    if (startPoint) {
-                      editor.tf.select(startPoint);
-                      editor.tf.focus();
-                    }
-                    return;
-                  }
-                  if (e.key === "Tab" && !e.shiftKey) {
-                    e.preventDefault();
-                    const firstBlockPath = [1];
-                    // eslint-disable-next-line typescript-eslint/no-explicit-any
-                    const startPoint = (editor.api as any).edges(firstBlockPath)?.[0];
-                    if (startPoint) {
-                      editor.tf.select(startPoint);
-                      editor.tf.focus();
-                    }
-                    return;
-                  }
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    const secondBlock = editor.children[1] as { type?: string };
-                    const isOnboarding = secondBlock?.type === "onboardingContent";
-
-                    if (isOnboarding) {
-                      // Clear to empty state: header + empty paragraph + submit button
-                      const currentHeader = editor.children[0];
-                      const emptyContent = [
-                        currentHeader,
-                        { type: "p", children: [{ text: "" }] },
-                        createFormButtonNode("submit"),
-                      ];
-                      editor.tf.init({
-                        // eslint-disable-next-line typescript-eslint/no-explicit-any
-                        value: emptyContent as any,
-                      });
-                      const firstBlockPath = [1];
-                      // eslint-disable-next-line typescript-eslint/no-explicit-any
-                      const startPoint = (editor.api as any).edges(firstBlockPath)?.[0];
-                      if (startPoint) {
-                        editor.tf.select(startPoint);
-                        editor.tf.focus();
-                      }
-                    } else {
-                      const firstBlockPath = [1];
-                      // eslint-disable-next-line typescript-eslint/no-explicit-any
-                      const startPoint = (editor.api as any).edges(firstBlockPath)?.[0];
-                      if (startPoint) {
-                        editor.tf.select(startPoint);
-                        editor.tf.focus();
-                      }
-                    }
-                  }
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-              />
-            </div>
+            <HeaderTitleTextarea
+              ref={titleRef}
+              title={title}
+              onTitleChange={handleTitleChange}
+              onAutoResize={autoResizeTitle}
+              editor={editor}
+            />
           </div>
         </div>
       </div>
@@ -934,3 +705,307 @@ export const FormHeaderElement = (props: PlateElementProps) => {
     </PlateElement>
   );
 };
+
+interface HeaderCoverSectionProps {
+  cover: string;
+  coverPopoverOpen: boolean;
+  onCoverPopoverOpenChange: (open: boolean) => void;
+  onCoverChange: (cover: string | null) => void;
+}
+
+const HeaderCoverSection = ({
+  cover,
+  coverPopoverOpen,
+  onCoverPopoverOpenChange,
+  onCoverChange,
+}: HeaderCoverSectionProps) => (
+  <>
+    <div
+      className="group/cover relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] h-[120px] w-screen bg-muted/20 sm:h-[200px]"
+      data-bf-cover
+    >
+      {cover && !cover.startsWith("#") ? (
+        <>
+          {cover.includes("tint=true") && (
+            <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
+          )}
+          <img
+            src={cover}
+            alt="Cover"
+            width={800}
+            height={200}
+            className={cn(
+              "size-full border-0 object-cover",
+              cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
+            )}
+          />
+        </>
+      ) : (
+        <div
+          className="size-full"
+          style={{
+            backgroundColor: cover?.startsWith("#") ? cover : "#FFE4E1",
+          }}
+        />
+      )}
+    </div>
+    <Popover open={coverPopoverOpen} onOpenChange={onCoverPopoverOpenChange}>
+      <div
+        className="absolute top-2 z-30 opacity-0 transition-opacity group-hover:opacity-100"
+        style={{ right: "calc(var(--editor-px, 64px) * -1 + 16px)" }}
+      >
+        <ButtonGroup className="rounded-lg border border-border bg-background/80 shadow-lg backdrop-blur-sm">
+          <PopoverTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-none rounded-l-lg border-none text-xs text-foreground/80 hover:bg-secondary hover:text-foreground"
+                onMouseDown={(e) => e.preventDefault()}
+              />
+            }
+          >
+            Change
+          </PopoverTrigger>
+          <ButtonGroupSeparator className="bg-border" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-none border-none text-xs text-foreground/80 hover:bg-secondary hover:text-foreground"
+            onClick={() => onCoverChange(null)}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            Remove
+          </Button>
+          <ButtonGroupSeparator className="bg-border" />
+        </ButtonGroup>
+      </div>
+
+      <PopoverContent align="end" side="bottom" className="w-[310px] p-0" sideOffset={8}>
+        <Tabs defaultValue="gallery" className="w-full">
+          <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+            <TabsList className="w-full">
+              <TabsTrigger value="gallery">Gallery</TabsTrigger>
+              <TabsTrigger value="upload">Upload</TabsTrigger>
+              <TabsIndicator />
+            </TabsList>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => {
+                onCoverChange(null);
+                onCoverPopoverOpenChange(false);
+              }}
+              onMouseDown={(e) => e.preventDefault()}
+              aria-label="Remove cover"
+            >
+              <Trash2Icon />
+            </Button>
+          </div>
+
+          <TabsContent value="gallery" className="mt-0 px-3 pb-3">
+            <p className="mt-1 mb-2 text-xs text-muted-foreground">Abstract</p>
+            <div className="grid grid-cols-3 gap-2">
+              {COVER_GALLERY.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    onCoverChange(item.src);
+                    onCoverPopoverOpenChange(false);
+                  }}
+                  className="relative h-16 cursor-pointer overflow-hidden rounded-lg bg-muted ring-primary ring-offset-1 ring-offset-background transition-all hover:scale-[1.02] hover:ring-2"
+                  aria-label={item.label}
+                >
+                  <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
+                  <img
+                    src={item.src}
+                    alt={item.label}
+                    width={200}
+                    height={64}
+                    className="relative z-0 size-full object-cover brightness-60 grayscale"
+                  />
+                </button>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="upload" className="mt-0 px-3 pb-3">
+            <CoverUpload
+              currentCover={cover}
+              onUpload={(url) => {
+                onCoverChange(url);
+                onCoverPopoverOpenChange(false);
+              }}
+              onCancel={() => onCoverPopoverOpenChange(false)}
+            />
+          </TabsContent>
+        </Tabs>
+      </PopoverContent>
+    </Popover>
+  </>
+);
+
+interface HeaderTitleTextareaProps {
+  ref: React.Ref<HTMLTextAreaElement>;
+  title: string;
+  onTitleChange: (value: string) => void;
+  onAutoResize: () => void;
+  editor: ReturnType<typeof useEditorRef>;
+}
+
+const HeaderTitleTextarea = ({
+  ref,
+  title,
+  onTitleChange,
+  onAutoResize,
+  editor,
+}: HeaderTitleTextareaProps) => {
+  const moveToFirstBlock = useCallback(() => {
+    const firstBlockPath = [1];
+    // eslint-disable-next-line typescript-eslint/no-explicit-any
+    const startPoint = (editor.api as any).edges(firstBlockPath)?.[0];
+    if (startPoint) {
+      editor.tf.select(startPoint);
+      editor.tf.focus();
+    }
+  }, [editor]);
+
+  return (
+    <div className="group/title relative">
+      <textarea
+        ref={ref}
+        rows={1}
+        aria-label="Form title"
+        className="h-auto w-full resize-none overflow-hidden border-none bg-transparent py-1 font-['Timeless_Serif'] text-[48px] leading-tight font-[252] tracking-[-1.44px] text-foreground outline-none select-text placeholder:font-['Timeless_Serif'] placeholder:text-foreground/50 sm:py-2"
+        placeholder="Create your form."
+        value={title}
+        onChange={(e) => onTitleChange(e.target.value)}
+        onFocus={onAutoResize}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
+            e.preventDefault();
+            moveToFirstBlock();
+            return;
+          }
+          if (e.key === "Enter") {
+            e.preventDefault();
+            const secondBlock = editor.children[1] as { type?: string };
+            const isOnboarding = secondBlock?.type === "onboardingContent";
+            if (isOnboarding) {
+              const currentHeader = editor.children[0];
+              const emptyContent = [
+                currentHeader,
+                { type: "p", children: [{ text: "" }] },
+                createFormButtonNode("submit"),
+              ];
+              editor.tf.init({
+                // eslint-disable-next-line typescript-eslint/no-explicit-any
+                value: emptyContent as any,
+              });
+            }
+            moveToFirstBlock();
+          }
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+};
+
+interface HeaderIconPopoverContentProps {
+  icon: string | null;
+  iconColor: string | null;
+  iconTab: string;
+  openedUploadTab: boolean;
+  onIconTabChange: (tab: string) => void;
+  onIconChange: (icon: string | null) => void;
+  onIconColorChange: (color: string) => void;
+  onClose: () => void;
+  hasCustomization: boolean;
+  themeVars: React.CSSProperties;
+  themeMode: string | undefined;
+  activeAccentColor: string;
+  accentColors: string[] | undefined;
+  updateThemeColor: ((themeColor: string) => void) | undefined;
+}
+
+const HeaderIconPopoverContent = ({
+  icon,
+  iconColor,
+  iconTab,
+  openedUploadTab,
+  onIconTabChange,
+  onIconChange,
+  onIconColorChange,
+  onClose,
+  hasCustomization,
+  themeVars,
+  themeMode,
+  activeAccentColor,
+  accentColors,
+  updateThemeColor,
+}: HeaderIconPopoverContentProps) => (
+  <PopoverContent
+    align="start"
+    side="bottom"
+    keepMounted
+    className={cn(
+      "w-[310px] p-0",
+      hasCustomization && "bf-themed",
+      hasCustomization && themeMode === "dark" && "dark",
+    )}
+    style={hasCustomization ? themeVars : undefined}
+  >
+    <div className="w-full">
+      <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+        <IconTabBar value={iconTab} onChange={onIconTabChange} />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          onClick={() => {
+            onIconChange(null);
+            onClose();
+          }}
+          onMouseDown={(e) => e.preventDefault()}
+          aria-label="Remove icon"
+        >
+          <Trash2Icon />
+        </Button>
+      </div>
+      <Activity mode={iconTab === "icon" ? "visible" : "hidden"}>
+        <IconPickerContent
+          iconValue={icon && icon !== DEFAULT_ICON && !isValidUrl(icon) ? icon : null}
+          iconColor={hasCustomization ? activeAccentColor : iconColor || "#000000"}
+          onIconChange={(newIcon) => {
+            onIconChange(newIcon);
+            onClose();
+          }}
+          onColorChange={(color) => {
+            if (hasCustomization && updateThemeColor) {
+              const themeName = PRIMARY_TO_THEME_NAME.get(color);
+              if (themeName) updateThemeColor(themeName);
+            } else {
+              onIconColorChange(color);
+            }
+          }}
+          colors={accentColors}
+        />
+      </Activity>
+      {openedUploadTab && (
+        <Activity mode={iconTab === "upload" ? "visible" : "hidden"}>
+          <IconUploadTab
+            currentIcon={icon && isValidUrl(icon) ? icon : null}
+            onUpload={(url) => {
+              onIconChange(url);
+              onClose();
+            }}
+            onCancel={onClose}
+          />
+        </Activity>
+      )}
+    </div>
+  </PopoverContent>
+);

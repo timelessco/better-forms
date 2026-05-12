@@ -13,11 +13,13 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { Column } from "@tanstack/react-table";
+import type { Column, RowData } from "@tanstack/table-core";
+
+import type { DataGridFeatures } from "@/components/ui/data-grid";
 import { CheckIcon, CirclePlusIcon } from "@/components/ui/icons";
 
-interface DataGridColumnFilterProps<TData, TValue> {
-  column?: Column<TData, TValue>;
+interface DataGridColumnFilterProps<TData extends RowData, TValue> {
+  column?: Column<DataGridFeatures, TData, TValue>;
   title?: string;
   options: {
     label: string;
@@ -26,7 +28,7 @@ interface DataGridColumnFilterProps<TData, TValue> {
   }[];
 }
 
-export const DataGridColumnFilter = <TData, TValue>({
+export const DataGridColumnFilter = <TData extends RowData, TValue>({
   column,
   title,
   options,
