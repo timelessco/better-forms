@@ -5,10 +5,10 @@ Thank you for your interest in contributing! This guide will help you get set up
 ## Development Setup
 
 1. **Fork and clone** the repository
-2. **Install dependencies** with `bun install`
+2. **Install dependencies** with `pnpm install`
 3. **Copy environment variables** — `cp .env.example .env` and fill in required values
-4. **Set up the database** — `bun db:generate && bun db:migrate`
-5. **Start developing** — `bun dev`
+4. **Set up the database** — `pnpm db:generate && pnpm db:migrate`
+5. **Start developing** — `pnpm dev`
 
 ## Code Quality
 
@@ -17,8 +17,8 @@ This project uses [oxlint](https://oxc.rs/docs/guide/usage/linter) and [oxfmt](h
 Before committing, run:
 
 ```bash
-bun fix        # Auto-fix lint and formatting issues
-bun check      # Verify everything passes
+pnpm fix       # Auto-fix lint and formatting issues
+pnpm check     # Verify everything passes
 ```
 
 Pre-commit hooks are managed by [Lefthook](https://github.com/evilmartians/lefthook) and run automatically on commit.
@@ -58,7 +58,7 @@ refactor: lazy-load editor plugins for faster initial load
 
 1. Create a feature branch from `main`
 2. Make your changes with clear, focused commits
-3. Ensure all checks pass (`bun check` and `bun test`)
+3. Ensure all checks pass (`pnpm check` and `pnpm test`)
 4. Open a PR with:
    - A short title (under 70 characters)
    - A summary of what changed and why
@@ -79,8 +79,8 @@ refactor: lazy-load editor plugins for faster initial load
 When modifying the database schema in `src/db/schema.ts`:
 
 1. Make your schema changes
-2. Generate a migration — `bun db:generate`
-3. Apply the migration — `bun db:migrate`
+2. Generate a migration — `pnpm db:generate`
+3. Apply the migration — `pnpm db:migrate`
 4. Include the generated migration files in your PR
 
 ## Testing
@@ -88,7 +88,7 @@ When modifying the database schema in `src/db/schema.ts`:
 Run the test suite with:
 
 ```bash
-bun run test
+pnpm run test
 ```
 
 Tests use [Vitest](https://vitest.dev) with [Testing Library](https://testing-library.com).

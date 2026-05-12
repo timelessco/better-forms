@@ -4,14 +4,18 @@ Reform is a TanStack Start (Router + Vite) + React 19 app with TanStack DB colle
 
 ## Quick Reference
 
-- **Format / fix**: `bun fix` (runs `oxfmt .` then `oxlint --type-aware --fix`)
-- **Check**: `bun run check` (runs `oxfmt --check` then `oxlint --type-aware && knip`)
-- **Lint**: `bun lint` (oxlint --type-aware + knip)
-- **Typecheck**: `bun typecheck`
-- **Tests**: `bun run test` (runs Vitest via the package script). Do **not** use `bun test` — that invokes Bun's built-in runner, which doesn't implement parts of the Vitest API the suite uses (`vi.stubGlobal`, `vi.unstubAllGlobals`, etc.) and silently fails those tests. To run a single file, use `bun x vitest run path/to/file.test.ts`.
-- **Dev server**: `bun dev` (or `bun dev:auto` to pick a free port)
+This project uses **pnpm** (not bun). `.npmrc` sets `minimum-release-age=10080` (7 days) to quarantine fresh registry publishes as a supply-chain defense.
 
-Oxlint + Oxfmt (configured via `.oxlintrc.json`) enforce formatting, type safety, accessibility, security, and most code-quality rules automatically. Run `bun fix` before committing — focus your judgement on what the linter can't check: business logic, naming, architecture, edge cases, UX.
+- **Install**: `pnpm install` (use `--frozen-lockfile` in CI)
+- **Format / fix**: `pnpm fix` (runs `oxfmt .` then `oxlint --type-aware --fix`)
+- **Check**: `pnpm run check` (runs `oxfmt --check` then `oxlint --type-aware && knip`)
+- **Lint**: `pnpm lint` (oxlint --type-aware + knip)
+- **Typecheck**: `pnpm typecheck`
+- **Tests**: `pnpm run test` (Vitest). To run a single file, use `pnpm exec vitest run path/to/file.test.ts`.
+- **Dev server**: `pnpm dev` (or `pnpm dev:auto` to pick a free port)
+- **Run TS scripts**: `pnpm exec tsx scripts/<name>.ts` (no `bun scripts/...`)
+
+Oxlint + Oxfmt (configured via `.oxlintrc.json`) enforce formatting, type safety, accessibility, security, and most code-quality rules automatically. Run `pnpm fix` before committing — focus your judgement on what the linter can't check: business logic, naming, architecture, edge cases, UX.
 
 ## Stack-Specific Guidance
 
@@ -39,13 +43,13 @@ Oxlint + Oxfmt (configured via `.oxlintrc.json`) enforce formatting, type safety
 
 **Drizzle ORM**
 
-- Schema in `src/db/`. Use `bun db:generate | db:migrate | db:push | db:studio`.
+- Schema in `src/db/`. Use `pnpm db:generate | db:migrate | db:push | db:studio`.
 
 ## Testing
 
 - Vitest. Assertions inside `it()` / `test()`. Use async/await, not done callbacks. No `.only` / `.skip` committed.
 - Match the current typed `vi.mock` signature — don't regress to older shapes.
-- Always run via `bun run test` (or `bun x vitest run <file>` for a single file). `bun test` is a different runner — it skips/fails Vitest-only APIs without warning.
+- Always run via `pnpm run test` (or `pnpm exec vitest run <file>` for a single file).
 
 ## Agent skills
 

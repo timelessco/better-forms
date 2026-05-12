@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --port ${PORT:-3000}",
-    "dev:auto": "p=3000; while lsof -iTCP:$p -sTCP:LISTEN >/dev/null 2>&1; do p=$((p+1)); done; PORT=$p bun dev",
-    "dev:worktree": "cp -f /Users/vijayabaskar/work/better-form/.env .env && bun dev:auto",
+    "dev:auto": "p=3000; while lsof -iTCP:$p -sTCP:LISTEN >/dev/null 2>&1; do p=$((p+1)); done; PORT=$p pnpm dev",
+    "dev:worktree": "cp -f /Users/vijayabaskar/work/better-form/.env .env && pnpm dev:auto",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "oxlint --type-aware --type-check",
@@ -15,19 +15,19 @@
     "knip:fix": "knip --fix --use-tsconfig-files",
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check",
-    "check": "bun run fmt:check && bun run lint",
+    "check": "pnpm run fmt:check && pnpm run lint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:pull": "drizzle-kit pull",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "bun scripts/seed-dev.ts",
-    "db:reset": "bun scripts/nuke-db.ts && drizzle-kit push --force && bun scripts/seed-dev.ts",
-    "og:preview": "bun scripts/og-preview.tsx",
+    "db:seed": "tsx scripts/seed-dev.ts",
+    "db:reset": "tsx scripts/nuke-db.ts && drizzle-kit push --force && tsx scripts/seed-dev.ts",
+    "og:preview": "tsx scripts/og-preview.tsx",
     "build:embed": "esbuild src/embed/embed-popup.ts --bundle --minify --outfile=public/embed/popup.js --target=es2020 --format=iife",
-    "build": "bun run build:embed && NODE_OPTIONS='--max-old-space-size=8192' vite build",
+    "build": "pnpm run build:embed && NODE_OPTIONS='--max-old-space-size=8192' vite build",
     "start": "node .output/server/index.mjs",
-    "fix": "bun run fmt && bun run lint:fix"
+    "fix": "pnpm run fmt && pnpm run lint:fix"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.72",
@@ -187,5 +187,5 @@
     "vitest": "^3.2.4",
     "web-vitals": "^5.2.0"
   },
-  "packageManager": "bun@1.3.11"
+  "packageManager": "pnpm@10.32.1"
 }
