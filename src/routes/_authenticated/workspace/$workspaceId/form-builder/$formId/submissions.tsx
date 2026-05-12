@@ -35,7 +35,7 @@ import type {
   RowSelectionState,
   SortingState,
 } from "@tanstack/table-core";
-import { createAppColumnHelper, useAppTable } from "@/components/ui/data-grid";
+import { createAppColumnHelper, SelectionCheckbox, useAppTable } from "@/components/ui/data-grid";
 import type { DataGridApi, DataGridFeatures } from "@/components/ui/data-grid";
 
 import { ChevronDownIcon, FilterIcon, Trash2Icon, XIcon } from "@/components/ui/icons";
@@ -315,7 +315,7 @@ const buildSubmissionColumns = ({
           className="translate-y-[2px]"
         />
       ),
-      cell: ({ cell }) => <cell.SelectionCheckbox />,
+      cell: ({ row }) => <SelectionCheckbox row={row} />,
       size: 48,
       minSize: 48,
       maxSize: 48,

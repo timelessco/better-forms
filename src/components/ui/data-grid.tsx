@@ -28,6 +28,7 @@ import {
 import type {
   CellData,
   ColumnFiltersState,
+  Row,
   RowData,
   SortingState,
   TableFeatures,
@@ -325,28 +326,20 @@ const DataGridContainer = ({
   </div>
 );
 
-// Registered as a `cellComponent` so the row-selection checkbox subscribes
-// to its own slice — React Compiler can't track `row.getIsSelected()` reads
-// via the stable Row reference and would cache stale JSX otherwise.
-const SelectionCheckbox = () => {
-  const cell = useCellContext();
-  const table = useTableContext();
-  const rowId = cell.row.id;
-  const isSelected = useSelector(table.store, (state) => !!state.rowSelection?.[rowId]);
-  return (
-    <Checkbox
-      checked={isSelected}
-      onCheckedChange={(value) => cell.row.toggleSelected(!!value)}
-      aria-label="Select row"
-      className="translate-y-[2px]"
-    />
-  );
-};
-
 // Mirror of `tanstack-form.tsx`'s `createFormHook` setup. All layout
 // components register here, so call sites use `<table.DataGrid>` /
 // `<table.DataGridVirtualTable>` etc. instead of importing each one.
 // `<table.AppTable>` must wrap so `useTableContext()` works inside.
+//
+// `cellComponents` / `headerComponents` are intentionally NOT used: those
+// registries only attach to `cell`/`header` inside `<table.AppCell>` /
+// `<table.AppHeader>` render-prop wrappers (the runtime does
+// `Object.assign(cell, cellComponents)` there). Columns rendered via
+// `flexRender` — which is how our body renders — receive a plain `Cell`
+// instance, so `cell.MyComponent` would be `undefined` at runtime even
+// though the types claim otherwise. Standalone components (e.g.
+// `SelectionCheckbox` below) used directly from column defs are simpler
+// and runtime-correct.
 export const {
   useAppTable,
   createAppColumnHelper,
@@ -362,9 +355,6 @@ export const {
     paginatedRowModel: createPaginatedRowModel(),
     sortedRowModel: createSortedRowModel(sortFns),
   },
-  cellComponents: {
-    SelectionCheckbox,
-  },
   tableComponents: {
     DataGrid,
     DataGridContainer,
@@ -375,5 +365,26 @@ export const {
     DataGridColumnVisibility,
   },
 });
+
+// React Compiler caches cell renders against the stable Row reference, so a
+// direct `row.getIsSelected()` read in a column's `cell:` function returns
+// stale state. Subscribing inside this leaf component is what forces just
+// this checkbox to re-render when the row's selection flips.
+export const SelectionCheckbox = <TData extends RowData>({
+  row,
+}: {
+  row: Row<DataGridFeatures, TData>;
+}) => {
+  const table = useTableContext<TData>();
+  const isSelected = useSelector(table.store, (state) => !!state.rowSelection?.[row.id]);
+  return (
+    <Checkbox
+      checked={isSelected}
+      onCheckedChange={(value) => row.toggleSelected(!!value)}
+      aria-label="Select row"
+      className="translate-y-[2px]"
+    />
+  );
+};
 
 export { useDataGrid };
