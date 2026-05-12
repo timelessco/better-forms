@@ -1,9 +1,12 @@
-import { useTable } from "@tanstack/react-table";
-import { createColumnHelper, createSortedRowModel, sortFns } from "@tanstack/table-core";
 import type { ColumnDef, SortingState } from "@tanstack/table-core";
 import { useMemo, useState } from "react";
 
-import { DATA_GRID_FEATURES, DataGrid, DataGridContainer } from "@/components/ui/data-grid";
+import {
+  createAppColumnHelper,
+  DataGrid,
+  DataGridContainer,
+  useAppTable,
+} from "@/components/ui/data-grid";
 import type { DataGridFeatures } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridTable } from "@/components/ui/data-grid-table";
@@ -66,7 +69,7 @@ export const DropoffFunnel = ({ dropoff }: DropoffFunnelProps) => {
   );
 
   const columns = useMemo<ColumnDef<DataGridFeatures, DropoffRow>[]>(() => {
-    const columnHelper = createColumnHelper<DataGridFeatures, DropoffRow>();
+    const columnHelper = createAppColumnHelper<DropoffRow>();
     return [
       toDropoffColumn(
         columnHelper.accessor("questionIndex", {
@@ -146,18 +149,13 @@ export const DropoffFunnel = ({ dropoff }: DropoffFunnelProps) => {
     ];
   }, []);
 
-  const table = useTable(
-    {
-      _features: DATA_GRID_FEATURES,
-      _rowModels: { sortedRowModel: createSortedRowModel(sortFns) },
-      data: sortedQuestions,
-      columns,
-      state: { sorting },
-      onSortingChange: setSorting,
-      getRowId: (row) => row.questionId,
-    },
-    (state) => state,
-  );
+  const table = useAppTable({
+    data: sortedQuestions,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getRowId: (row) => row.questionId,
+  });
 
   if (!dropoff || dropoff.questions.length === 0) {
     return (

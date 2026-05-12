@@ -28,8 +28,6 @@ import {
 } from "@/lib/editor/transform-plate-to-form";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useTable } from "@tanstack/react-table";
-import { createColumnHelper } from "@tanstack/table-core";
 import type {
   Cell,
   ColumnDef,
@@ -40,12 +38,10 @@ import type {
   SortingState,
 } from "@tanstack/table-core";
 import {
-  DATA_GRID_FEATURES,
-  DATA_GRID_ROW_MODELS,
+  createAppColumnHelper,
   DataGrid,
   DataGridContainer,
-  useDataGrid,
-  useRowSelected,
+  useAppTable,
 } from "@/components/ui/data-grid";
 import type { DataGridFeatures, DataGridTable } from "@/components/ui/data-grid";
 
@@ -289,19 +285,6 @@ const SubmissionCell = ({
   }
 };
 
-const SelectionRowCheckbox = ({ row }: { row: Row<DataGridFeatures, SerializedSubmission> }) => {
-  const { table } = useDataGrid();
-  const isSelected = useRowSelected(table, row.id);
-  return (
-    <Checkbox
-      checked={isSelected}
-      onCheckedChange={(value) => row.toggleSelected(!!value)}
-      aria-label="Select row"
-      className="translate-y-[2px]"
-    />
-  );
-};
-
 const toSubmissionColumn = <TValue,>(
   column: ColumnDef<DataGridFeatures, SerializedSubmission, TValue>,
 ): ColumnDef<DataGridFeatures, SerializedSubmission> =>
@@ -324,11 +307,11 @@ const buildSubmissionColumns = ({
   onDelete,
   onPreview,
 }: BuildSubmissionColumnsOptions) => {
-  const columnHelper = createColumnHelper<DataGridFeatures, SerializedSubmission>();
+  const columnHelper = createAppColumnHelper<SerializedSubmission>();
   const counts: Record<FieldStatus, number> = { current: 0, deleted: 0 };
 
   const baseColumns: ColumnDef<DataGridFeatures, SerializedSubmission>[] = [
-    {
+    columnHelper.display({
       id: "select",
       header: ({ table }) => (
         <Checkbox
@@ -339,7 +322,7 @@ const buildSubmissionColumns = ({
           className="translate-y-[2px]"
         />
       ),
-      cell: ({ row }) => <SelectionRowCheckbox row={row} />,
+      cell: ({ cell }) => <cell.SelectionCheckbox />,
       size: 48,
       minSize: 48,
       maxSize: 48,
@@ -348,7 +331,7 @@ const buildSubmissionColumns = ({
       enableHiding: false,
       enablePinning: false,
       enableResizing: false,
-    },
+    }),
     toSubmissionColumn(
       columnHelper.accessor("createdAt", {
         header: ({ column }) => <DataGridColumnHeader column={column} title="Submitted at" />,
@@ -622,33 +605,28 @@ const SubmissionsPage = () => {
     ],
   );
 
-  const table = useTable(
-    {
-      _features: DATA_GRID_FEATURES,
-      _rowModels: DATA_GRID_ROW_MODELS,
-      data: submissions,
-      columns,
-      state: {
-        sorting,
-        globalFilter,
-        rowSelection,
-        columnVisibility,
-        columnPinning,
-        columnOrder,
-      },
-      enableRowSelection: true,
-      onRowSelectionChange: setRowSelection,
-      onColumnVisibilityChange: setColumnVisibility,
-      onColumnPinningChange: setColumnPinning,
-      onColumnOrderChange: setColumnOrder,
-      onSortingChange: setSorting,
-      onGlobalFilterChange: setGlobalFilter,
-      autoResetPageIndex: false,
-      columnResizeMode: "onChange",
-      getRowId: (row) => row.id,
+  const table = useAppTable({
+    data: submissions,
+    columns,
+    state: {
+      sorting,
+      globalFilter,
+      rowSelection,
+      columnVisibility,
+      columnPinning,
+      columnOrder,
     },
-    (state) => state,
-  );
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
+    onColumnVisibilityChange: setColumnVisibility,
+    onColumnPinningChange: setColumnPinning,
+    onColumnOrderChange: setColumnOrder,
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    autoResetPageIndex: false,
+    columnResizeMode: "onChange",
+    getRowId: (row) => row.id,
+  });
 
   const { handleBulkDelete, handleExportSelected, handleDownloadCSV } =
     useSubmissionExportAndDelete({

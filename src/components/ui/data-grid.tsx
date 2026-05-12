@@ -1,6 +1,7 @@
 import { createContext, use, useMemo } from "react";
 import type { ReactNode, Ref, UIEventHandler } from "react";
 import { useSelector } from "@tanstack/react-store";
+import { createTableHook } from "@tanstack/react-table";
 import {
   columnFacetingFeature,
   columnFilteringFeature,
@@ -34,6 +35,7 @@ import type {
   TableState,
 } from "@tanstack/table-core";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 // Stable module-level reference required by v9's `_features`.
@@ -59,19 +61,50 @@ export type DataGridTable<TData extends RowData> = Table<DataGridFeatures, TData
   state: TableState<DataGridFeatures>;
 };
 
-// `any` is intentional: row-model factories are contravariant in `TData`, so a
-// single module-level value can't be typed both as `Partial<...<RowData>>` and
-// be accepted by call sites with specific `TData`. The factories' runtime
-// logic is data-agnostic. Consumers that want tighter typing construct inline
-// (see `dropoff-funnel.tsx`).
-// eslint-disable-next-line typescript-eslint/no-explicit-any
-export const DATA_GRID_ROW_MODELS: any = {
-  facetedRowModel: createFacetedRowModel(),
-  facetedUniqueValues: createFacetedUniqueValues(),
-  filteredRowModel: createFilteredRowModel(filterFns),
-  paginatedRowModel: createPaginatedRowModel(),
-  sortedRowModel: createSortedRowModel(sortFns),
+// React Compiler caches cell renders against the stable Row reference, so a
+// direct `row.getIsSelected()` read in a column's `cell:` function returns
+// stale state. Subscribing to the row's selection slice inside its own
+// component forces this checkbox alone to re-render when the row's selection
+// flips. Registered via `cellComponents` so column defs use it as
+// `cell: ({ cell }) => <cell.SelectionCheckbox />`.
+const SelectionCheckbox = () => {
+  const cell = useCellContext();
+  const table = useTableContext();
+  const rowId = cell.row.id;
+  const isSelected = useSelector(table.store, (state) => !!state.rowSelection?.[rowId]);
+  return (
+    <Checkbox
+      checked={isSelected}
+      onCheckedChange={(value) => cell.row.toggleSelected(!!value)}
+      aria-label="Select row"
+      className="translate-y-[2px]"
+    />
+  );
 };
+
+// Mirror of `tanstack-form.tsx`'s `createFormHook` setup. Pre-binds features,
+// row models, and `cellComponents` so consumers get a `useAppTable` hook +
+// `createAppColumnHelper<T>()` without repeating the `<DataGridFeatures, T>`
+// boilerplate.
+export const {
+  useAppTable,
+  createAppColumnHelper,
+  useTableContext,
+  useCellContext,
+  useHeaderContext,
+} = createTableHook({
+  _features: DATA_GRID_FEATURES,
+  _rowModels: {
+    facetedRowModel: createFacetedRowModel(),
+    facetedUniqueValues: createFacetedUniqueValues(),
+    filteredRowModel: createFilteredRowModel(filterFns),
+    paginatedRowModel: createPaginatedRowModel(),
+    sortedRowModel: createSortedRowModel(sortFns),
+  },
+  cellComponents: {
+    SelectionCheckbox,
+  },
+});
 
 // Subscribes to `table.store` instead of per-slice `table.atoms.<slice>`: in
 // v9 alpha.45 the per-slice derived atoms don't fire reliably when state is
