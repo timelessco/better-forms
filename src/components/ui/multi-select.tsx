@@ -52,6 +52,7 @@ export const MultiSelect = ({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
+        nativeButton={false}
         render={
           <div
             role="button"

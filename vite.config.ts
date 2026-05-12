@@ -219,7 +219,7 @@ const config = defineConfig({
     ],
     // Force-include CJS-only `use-sync-external-store` so Vite extracts its
     // named exports correctly. The shim uses a `module.exports = require(...)`
-    // indirection that Vite's auto-scan misses after the lockfile churn.
+    // indirection that Vite's auto-scan misses.
     include: ["use-sync-external-store/shim", "use-sync-external-store/shim/with-selector"],
   },
 });
