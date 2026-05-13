@@ -7,7 +7,7 @@ import { formCacheHeaders } from "@/lib/server-fn/cdn-cache";
 
 const SHORT_CACHE_CONTROL = "public, max-age=60";
 
-export const Route = createFileRoute("/api/forms/$formId/meta")({
+export const Route = createFileRoute("/api/forms/$shortId/meta")({
   server: {
     handlers: {
       OPTIONS: () =>

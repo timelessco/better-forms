@@ -133,7 +133,7 @@ export const ElasticSlider = ({
             data-slot="elastic-slider-fill"
             aria-hidden="true"
             className={cn(
-              "pointer-events-none absolute inset-y-0 start-0 transition-colors",
+              "pointer-events-none absolute inset-y-0 inset-s-0 transition-colors",
               "bg-(--elastic-slider-fill) group-data-[active=true]/elastic-slider:bg-(--elastic-slider-fill-active)",
             )}
             style={{ width: fillWidth }}
@@ -241,7 +241,7 @@ const SliderLabels = ({ labelRef, valueRef, label, displayValue }: SliderLabelsP
       ref={labelRef}
       data-slot="elastic-slider-label"
       aria-hidden="true"
-      className="pointer-events-none absolute start-3 top-1/2 inline-flex -translate-y-1/2 items-center text-sm/none font-medium text-(--elastic-slider-label) transition-colors"
+      className="pointer-events-none absolute inset-s-3 top-1/2 inline-flex -translate-y-1/2 items-center text-sm/none font-medium text-(--elastic-slider-label) transition-colors"
     >
       {label}
     </span>
@@ -251,7 +251,7 @@ const SliderLabels = ({ labelRef, valueRef, label, displayValue }: SliderLabelsP
       data-slot="elastic-slider-value"
       aria-hidden="true"
       className={cn(
-        "pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 font-mono text-sm/none font-medium transition-colors",
+        "pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2 font-mono text-sm/none font-medium transition-colors",
         "text-(--elastic-slider-label) group-data-[active=true]/elastic-slider:text-(--elastic-slider-focus)",
       )}
     >

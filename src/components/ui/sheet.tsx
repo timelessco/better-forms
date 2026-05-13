@@ -57,7 +57,7 @@ export const SheetContent = ({
       {showCloseButton && (
         <SheetPrimitive.Close
           data-slot="sheet-close"
-          render={<Button variant="ghost" className="absolute end-3 top-3" size="icon-sm" />}
+          render={<Button variant="ghost" className="absolute inset-e-3 top-3" size="icon-sm" />}
         >
           <XIcon />
           <span className="sr-only">Close</span>

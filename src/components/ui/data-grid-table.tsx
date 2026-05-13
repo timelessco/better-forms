@@ -363,11 +363,11 @@ const DataGridTableHeadRowCellResize = <TData extends RowData>({
         className: cn(
           "user-select-none absolute top-0 z-10 flex h-full cursor-col-resize touch-none",
           isLastVisibleColumn
-            ? "end-0 w-5 justify-end before:hidden"
-            : "-end-2 w-5 justify-center before:absolute before:inset-y-0 before:w-px before:-translate-x-px before:bg-border",
+            ? "inset-e-0 w-5 justify-end before:hidden"
+            : "-inset-e-2 w-5 justify-center before:absolute before:inset-y-0 before:w-px before:-translate-x-px before:bg-border",
           column.getIsResizing() &&
             (isLastVisibleColumn
-              ? "opacity-100 before:absolute before:inset-y-0 before:end-0 before:block before:w-0.5 before:bg-primary"
+              ? "opacity-100 before:absolute before:inset-y-0 before:inset-e-0 before:block before:w-0.5 before:bg-primary"
               : "opacity-100 before:block before:w-0.5 before:bg-primary"),
         ),
       }}

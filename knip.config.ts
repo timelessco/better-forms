@@ -30,7 +30,6 @@ export default {
   ],
   ignoreDependencies: [
     "@tanstack/router-plugin", // vite plugin
-    "tailwind-scrollbar-hide", // tailwind plugin
     "tw-animate-css", // tailwind plugin
     "2026-01-08-platjs", // self-reference
     "katex", // used in CSS

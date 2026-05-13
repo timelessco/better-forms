@@ -118,7 +118,7 @@ export const SelectItem = ({ className, children, ...props }: SelectPrimitive.It
     </SelectPrimitive.ItemText>
     <SelectPrimitive.ItemIndicator
       render={
-        <span className="pointer-events-none absolute end-2 flex size-4 shrink-0 items-center justify-center opacity-0 data-selected:opacity-100" />
+        <span className="pointer-events-none absolute inset-e-2 flex size-4 shrink-0 items-center justify-center opacity-0 data-selected:opacity-100" />
       }
     >
       <CheckIcon className="pointer-events-none text-foreground" />

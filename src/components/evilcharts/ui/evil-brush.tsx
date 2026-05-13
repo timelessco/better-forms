@@ -359,12 +359,12 @@ function EvilBrush({
 
       {/* Dim overlay – left */}
       <motion.div
-        className="pointer-events-none absolute inset-y-0 start-0 rounded-s-md bg-background/70"
+        className="pointer-events-none absolute inset-y-0 inset-s-0 rounded-s-md bg-background/70"
         style={{ width: leftOverlayWidth }}
       />
       {/* Dim overlay – right */}
       <motion.div
-        className="pointer-events-none absolute inset-y-0 end-0 rounded-e-md bg-background/70"
+        className="pointer-events-none absolute inset-y-0 inset-e-0 rounded-e-md bg-background/70"
         style={{ width: rightOverlayWidth }}
       />
 
@@ -415,7 +415,7 @@ function BrushHandle({
     <motion.div className="absolute inset-y-0 z-10" style={{ left: position }}>
       <div
         className={cn(
-          "group absolute inset-y-0 flex w-3 cursor-ew-resize touch-none items-center justify-center after:absolute after:inset-y-0 after:-start-4 after:w-11 after:content-['']",
+          "group absolute inset-y-0 flex w-3 cursor-ew-resize touch-none items-center justify-center after:absolute after:inset-y-0 after:-inset-s-4 after:w-11 after:content-['']",
           isLeft ? "" : "-translate-x-full rtl:translate-x-full",
         )}
         {...bind}
@@ -423,7 +423,7 @@ function BrushHandle({
         <div
           className={cn(
             "relative flex h-4 w-1.5 items-center justify-center rounded-md bg-muted-foreground transition-colors group-hover:bg-foreground",
-            isLeft ? "-start-[5.5px]" : "-end-[5.5px]",
+            isLeft ? "-inset-s-[5.5px]" : "-inset-e-[5.5px]",
           )}
         >
           <div className="flex flex-col gap-[2px]">
@@ -438,7 +438,7 @@ function BrushHandle({
         <div
           className={cn(
             "pointer-events-none absolute -bottom-3 -translate-y-1/2 rounded-[3px] bg-foreground px-1 py-px text-[8px] leading-tight font-medium whitespace-nowrap text-background opacity-0 group-hover:opacity-100",
-            isLeft ? "start-1.5" : "end-1.5",
+            isLeft ? "inset-s-1.5" : "inset-e-1.5",
           )}
         >
           {label}

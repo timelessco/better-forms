@@ -388,7 +388,7 @@ const CustomVerticalScrollbar = ({
     >
       <div
         className={cn(
-          "absolute end-px w-2 bg-border",
+          "absolute inset-e-px w-2 bg-border",
           "top-(--data-grid-scrollbar-thumb-top) h-(--data-grid-scrollbar-thumb-height)",
           "rounded-full",
         )}

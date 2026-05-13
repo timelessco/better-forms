@@ -101,7 +101,7 @@ export default function AvatarUpload({
             size="icon"
             variant="outline"
             onClick={handleRemove}
-            className="absolute end-0 top-0 size-6 rounded-full"
+            className="absolute inset-e-0 top-0 size-6 rounded-full"
             aria-label="Remove avatar"
           >
             <XIcon className="size-3.5" />

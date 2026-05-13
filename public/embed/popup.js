@@ -111,7 +111,7 @@
         return;
       }
       (b(e, O()),
-        fetch(`${t}/api/icons/${n}.svg`)
+        fetch(`${t}/api/icons/${n}`)
           .then((i) => (i.ok ? i.text() : null))
           .then((i) => {
             if (!i) return;

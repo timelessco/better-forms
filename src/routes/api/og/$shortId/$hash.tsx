@@ -31,7 +31,7 @@ const ERROR_HEADERS = {
 const HASH_RE = /^[A-Za-z0-9_-]{10}$/;
 const PNG_SUFFIX = ".png";
 
-export const Route = createFileRoute("/api/og/$formId/$hash")({
+export const Route = createFileRoute("/api/og/$shortId/$hash")({
   server: {
     handlers: {
       GET: async ({ params }: { params: { formId: string; hash: string } }) => {

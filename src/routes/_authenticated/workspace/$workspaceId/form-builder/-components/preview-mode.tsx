@@ -207,7 +207,7 @@ const EmbedPreviewSurface = ({
   const [embedFrame, setEmbedFrame] = useState<HTMLElement | null>(null);
   useFocusTrap(embedType === "standard", embedFrame);
   return (
-    <div className="scrollbar-hide flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+    <div className="flex flex-1 scrollbar-none flex-col overflow-x-hidden overflow-y-auto">
       <div className="relative flex-1 p-4 lg:p-0">
         <div className="mx-auto max-w-[1000px] space-y-8 px-4 pt-4 lg:px-8">
           <div className="flex items-center pt-2">

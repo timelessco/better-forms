@@ -128,7 +128,7 @@ const PublicFormRoute = () => {
   );
 };
 
-export const Route = createFileRoute("/forms/$formId")({
+export const Route = createFileRoute("/forms/$shortId")({
   validateSearch: zodValidator(
     z.object({
       // No `.default()` on these — TanStack Router would canonicalize the URL

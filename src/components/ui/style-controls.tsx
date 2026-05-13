@@ -79,8 +79,8 @@ export const StyleNumberInput = ({
         "[--elastic-slider-bg:var(--background)]",
         "[--elastic-slider-fill:var(--secondary)]",
         "[--elastic-slider-fill-active:var(--secondary)]",
-        "[&_[data-slot=elastic-slider-label]]:start-2 [&_[data-slot=elastic-slider-label]]:text-base [&_[data-slot=elastic-slider-label]]:font-normal",
-        "[&_[data-slot=elastic-slider-value]]:end-[11px] [&_[data-slot=elastic-slider-value]]:text-[13px] [&_[data-slot=elastic-slider-value]]:tabular-nums",
+        "[&_[data-slot=elastic-slider-label]]:inset-s-2 [&_[data-slot=elastic-slider-label]]:text-base [&_[data-slot=elastic-slider-label]]:font-normal",
+        "[&_[data-slot=elastic-slider-value]]:inset-e-[11px] [&_[data-slot=elastic-slider-value]]:text-[13px] [&_[data-slot=elastic-slider-value]]:tabular-nums",
         className,
       )}
       trackClassName={cn("border border-border/60", className)}

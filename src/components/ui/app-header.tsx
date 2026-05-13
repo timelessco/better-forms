@@ -920,7 +920,7 @@ const FormBuilderHeaderActions = ({
                   variant="ghost"
                   size="sm"
                   className={cn(
-                    "min-w-[72px] justify-center px-2.5 font-normal text-muted-foreground hover:text-foreground",
+                    "ml-1 min-w-[72px] justify-center rounded-[8px] px-2 py-1.5 text-[14px] font-normal text-muted-foreground transition-all hover:text-foreground",
                     previewMode && "bg-accent/50 text-foreground",
                   )}
                   onClick={onTogglePreview}
@@ -928,7 +928,7 @@ const FormBuilderHeaderActions = ({
               ) : (
                 <Button
                   size="sm"
-                  className="ml-1 rounded-[8px] border-none bg-black py-1.5 pr-2 pl-2 text-[14px] font-normal text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
+                  className="ml-1 rounded-[8px] border-none bg-black px-2 py-1.5 text-[14px] font-normal text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
                   onClick={onEdit}
                 />
               )

@@ -605,15 +605,6 @@
   font-optical-sizing: auto;
 }
 
-@utility hide-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-
 @keyframes drop-line-pulse {
   0%,
   100% {

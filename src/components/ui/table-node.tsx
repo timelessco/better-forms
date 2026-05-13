@@ -141,7 +141,7 @@ const TableFloatingToolbar = ({
       <PopoverContent
         render={
           <Toolbar
-            className="scrollbar-hide flex w-auto max-w-[80vw] flex-row overflow-x-auto rounded-md border bg-popover p-1 shadow-md print:hidden"
+            className="flex w-auto max-w-[80vw] scrollbar-none flex-row overflow-x-auto rounded-md border bg-popover p-1 shadow-md print:hidden"
             contentEditable={false}
           />
         }
