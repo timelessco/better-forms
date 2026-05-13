@@ -31,7 +31,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
 
   const resolvedAppTheme = useResolvedTheme();
 
-  const { customization, hasCustomization, themeVars } = useFormCustomization(
+  const { customization, hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
     doc,
     resolvedAppTheme,
   );
@@ -101,7 +101,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
         <div
           className={cn(
             hasCustomization && "bf-themed",
-            resolvedAppTheme === "dark" && "dark",
+            effectiveTheme === "dark" && "dark",
             "flex size-full flex-col overflow-hidden bg-background text-foreground transition-colors duration-300",
           )}
           style={{

@@ -109,6 +109,7 @@ export const loadFormForCustomDomain = async (
   const [form] = await db
     .select({
       id: forms.id,
+      shortId: forms.shortId,
       status: forms.status,
       lastPublishedVersionId: forms.lastPublishedVersionId,
       // Live settings now live in form_settings (split from versioning).
@@ -187,7 +188,7 @@ export const loadFormForCustomDomain = async (
     icon: form.draftIcon,
   });
   const ogImageUrl = buildOgImageUrl({
-    formId: form.id,
+    shortId: form.shortId,
     title: og.title,
     description: og.description,
   });
@@ -197,6 +198,7 @@ export const loadFormForCustomDomain = async (
     return {
       form: {
         id: form.id,
+        shortId: form.shortId,
         title: version.title,
         content: version.content as object[],
         customization: (version.customization ?? {}) as Record<string, string>,
@@ -218,6 +220,7 @@ export const loadFormForCustomDomain = async (
   return {
     form: {
       id: form.id,
+      shortId: form.shortId,
       title: form.draftTitle,
       content: form.draftContent as object[],
       customization: {} as Record<string, string>,

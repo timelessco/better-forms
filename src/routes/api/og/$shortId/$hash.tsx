@@ -5,8 +5,8 @@ import { and, eq } from "drizzle-orm";
 import spriteSvg from "../../../../../public/sprite.svg?raw";
 import { db } from "@/db";
 import { formVersions, forms } from "@/db/schema";
-import { FORM_ID_RE } from "@/lib/config/embed-cors";
 import { computeOgHash } from "@/lib/og/hash";
+import { isValidShortId } from "@/lib/short-id";
 import { renderOgImage } from "@/lib/og/render.server";
 import { resolveOgInputs } from "@/lib/og/resolve-inputs";
 import { buildIconDataUrl, isIconUrl, isSpriteIconName } from "@/lib/og/sprite-icon";
@@ -34,12 +34,12 @@ const PNG_SUFFIX = ".png";
 export const Route = createFileRoute("/api/og/$shortId/$hash")({
   server: {
     handlers: {
-      GET: async ({ params }: { params: { formId: string; hash: string } }) => {
+      GET: async ({ params }: { params: { shortId: string; hash: string } }) => {
         const hashParam = params.hash.endsWith(PNG_SUFFIX)
           ? params.hash.slice(0, -PNG_SUFFIX.length)
           : params.hash;
 
-        if (!FORM_ID_RE.test(params.formId) || !HASH_RE.test(hashParam)) {
+        if (!isValidShortId(params.shortId) || !HASH_RE.test(hashParam)) {
           return new Response("invalid", { status: 400, headers: NOT_FOUND_HEADERS });
         }
 
@@ -55,7 +55,7 @@ export const Route = createFileRoute("/api/og/$shortId/$hash")({
             draftCustomization: forms.customization,
           })
           .from(forms)
-          .where(and(eq(forms.id, params.formId), eq(forms.status, "published")));
+          .where(and(eq(forms.shortId, params.shortId), eq(forms.status, "published")));
 
         if (!form) {
           return new Response("not_found", { status: 404, headers: NOT_FOUND_HEADERS });
@@ -114,7 +114,7 @@ export const Route = createFileRoute("/api/og/$shortId/$hash")({
             headers: {
               "Content-Type": "image/png",
               "Cache-Control": "public, max-age=31536000, immutable",
-              "Cache-Tag": formCacheTag(params.formId),
+              "Cache-Tag": formCacheTag(form.id),
             },
           });
         } catch (err) {

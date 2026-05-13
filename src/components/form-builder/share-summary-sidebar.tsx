@@ -173,7 +173,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
   const shareUrl =
     selectedDomainName && activeSlug
       ? `https://${selectedDomainName}/${activeSlug}`
-      : `${window.location.origin}/forms/${doc.id}`;
+      : `${window.location.origin}/forms/${doc.shortId}`;
 
   return (
     <Sidebar
@@ -208,6 +208,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
               handleAnalyticsChange={handleAnalyticsChange}
               orgId={orgId}
               formId={formId}
+              shortId={doc.shortId}
               activeDomainId={activeDomainId}
               activeSlug={activeSlug}
               docTitle={doc.title}
@@ -373,6 +374,7 @@ interface PublishedShareBodyProps {
   handleAnalyticsChange: (value: boolean) => void;
   orgId: string | undefined;
   formId: string;
+  shortId: string;
   activeDomainId: string | null | undefined;
   activeSlug: string | null | undefined;
   docTitle: string | null;
@@ -391,6 +393,7 @@ const PublishedShareBody = ({
   handleAnalyticsChange,
   orgId,
   formId,
+  shortId,
   activeDomainId,
   activeSlug,
   docTitle,
@@ -446,7 +449,7 @@ const PublishedShareBody = ({
             onOpenChange={setCodeDialogOpen}
             embedType={embedType}
             options={options}
-            formId={formId}
+            shortId={shortId}
             docTitle={docTitle || undefined}
             customDomain={selectedDomainName}
             formSlug={activeSlug ?? undefined}

@@ -14,28 +14,13 @@ import {
   createTestForm,
   cleanupTestUser,
   cleanupTestOrg,
+  toFormListing,
 } from "@/test/helpers";
 
 /** Fetch form listings directly from DB (bypasses auth middleware) */
 const fetchFormListings = async (formId: string): Promise<FormListing[]> => {
   const [form] = await db.select().from(forms).where(eq(forms.id, formId));
-  if (!form) return [];
-  return [
-    {
-      id: form.id,
-      title: form.title,
-      status: form.status,
-      workspaceId: form.workspaceId,
-      content: form.content as unknown[],
-      customization: (form.customization ?? {}) as Record<string, unknown>,
-      formName: form.formName,
-      schemaName: form.schemaName,
-      icon: form.icon,
-      createdAt: form.createdAt.toISOString(),
-      updatedAt: form.updatedAt.toISOString(),
-      submissionCount: 0,
-    },
-  ];
+  return form ? [toFormListing(form)] : [];
 };
 
 describe("form data in unified collection", () => {

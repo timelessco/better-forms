@@ -24,6 +24,10 @@ export default {
     "src/lib/server-fn/custom-domains.ts", // Custom domains feature - consumed by upcoming tasks
     "src/lib/server-fn/custom-domain-loader.ts", // Custom domains feature - consumed by upcoming tasks
     "src/lib/server-fn/analytics.ts", // Analytics v1 - consumed by upcoming tasks
+    "src/lib/icon-context.tsx", // icon-picker rework - consumed by upcoming tasks
+    "src/lib/icon-map.tsx", // icon-picker rework - consumed by upcoming tasks
+    "src/lib/shape-context.tsx", // shape system - consumed by upcoming tasks
+    "src/hooks/use-proximity-hover.ts", // proximity hover - consumed by upcoming tasks
     "src/components/evilcharts/**", // evilcharts package - some components are intentionally unused
     "src/types/**", // type exports
     "vite.config.ts", // config file default export

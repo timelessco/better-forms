@@ -112,7 +112,7 @@ const EditorAppInner = ({
   const customizationDoc = versionCustomization
     ? { customization: versionCustomization }
     : savedDocs?.[0];
-  const { customization, hasCustomization, themeVars } = useFormCustomization(
+  const { customization, hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
     customizationDoc,
     resolvedAppTheme,
   );
@@ -300,7 +300,7 @@ const EditorAppInner = ({
         className={cn(
           "min-h-full w-full overflow-x-hidden bg-background text-foreground",
           hasCustomization && "bf-themed",
-          resolvedAppTheme === "dark" && "dark",
+          effectiveTheme === "dark" && "dark",
         )}
         style={hasCustomization ? themeVars : undefined}
       >

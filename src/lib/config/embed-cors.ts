@@ -12,7 +12,3 @@ export const publicCorsHeaders = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 } as const;
-
-/** Published form UUID shape — reject anything else up front. */
-export const FORM_ID_RE =
-  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;

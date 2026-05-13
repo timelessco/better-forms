@@ -14,10 +14,11 @@ import {
   GOOGLE_FONTS_PRECONNECTS,
 } from "@/lib/theme/generate-theme-css";
 import { seo } from "@/lib/seo";
+import { APP_WEBSITE_URL } from "@/lib/config/app-config";
 
 type PublicTheme = "light" | "dark" | "system";
 
-const themeStorageKey = (formId: string) => `bf-form-theme:${formId}`;
+const themeStorageKey = (shortId: string) => `bf-form-theme:${shortId}`;
 
 const resolveSystemTheme = (): "light" | "dark" => {
   if (typeof window === "undefined") return "light";
@@ -26,7 +27,7 @@ const resolveSystemTheme = (): "light" | "dark" => {
 
 const PublicFormRoute = () => {
   const loaderData = Route.useLoaderData();
-  const { formId } = Route.useParams();
+  const { shortId } = Route.useParams();
   const search = Route.useSearch();
 
   const rawCustomization = loaderData?.form?.customization ?? null;
@@ -34,7 +35,7 @@ const PublicFormRoute = () => {
 
   const [viewerTheme, setViewerTheme] = useState<PublicTheme>(() => {
     if (typeof window === "undefined") return defaultMode;
-    const saved = window.localStorage.getItem(themeStorageKey(formId)) as PublicTheme | null;
+    const saved = window.localStorage.getItem(themeStorageKey(shortId)) as PublicTheme | null;
     return saved ?? defaultMode;
   });
 
@@ -73,12 +74,12 @@ const PublicFormRoute = () => {
     (next: PublicTheme) => {
       setViewerTheme(next);
       try {
-        window.localStorage.setItem(themeStorageKey(formId), next);
+        window.localStorage.setItem(themeStorageKey(shortId), next);
       } catch {
         // ignore storage failures (private mode etc.)
       }
     },
-    [formId],
+    [shortId],
   );
 
   // Support both transparentBackground and transparent params
@@ -105,7 +106,7 @@ const PublicFormRoute = () => {
         form={loaderData?.form ?? null}
         error={loaderData?.error ?? null}
         gated={loaderData?.gated ?? null}
-        formId={formId}
+        formId={loaderData?.form?.id ?? ""}
         isPopup={search.popup}
         embedConfig={embedConfig}
         rsc={
@@ -144,14 +145,19 @@ export const Route = createFileRoute("/forms/$shortId")({
       dynamicWidth: z.coerce.boolean().optional(),
     }),
   ),
-  loader: async ({ params }) => getPublicFormViewRSC({ data: { id: params.formId } }),
+  loader: async ({ params }) => getPublicFormViewRSC({ data: { shortId: params.shortId } }),
   head: ({ loaderData, params }) => {
     const defaultMode = loaderData?.form?.customization?.defaultMode || "system";
-    const formId = params.formId;
+    const shortId = params.shortId;
     const preloadUrls = loaderData?.preloadModuleUrls ?? [];
     const ogDescription = loaderData?.form?.ogDescription;
     const ogImageUrl = loaderData?.form?.ogImageUrl;
     const googleFontUrl = getGoogleFontLinkUrl(loaderData?.form?.customization ?? null);
+    // Custom domain wins as canonical when present (ADR-0001).
+    const canonicalHref =
+      loaderData?.form?.customDomain && loaderData?.form?.slug
+        ? `https://${loaderData.form.customDomain}/${loaderData.form.slug}`
+        : `${APP_WEBSITE_URL}/forms/${shortId}`;
     return {
       meta: seo({
         formTitle: loaderData?.form?.title ?? "Form",
@@ -160,6 +166,7 @@ export const Route = createFileRoute("/forms/$shortId")({
         noindex: true,
       }),
       links: [
+        { rel: "canonical", href: canonicalHref },
         // Preload the Latin subset of Inter Variable. The other subsets
         // (latin-ext, rest) stay lazy — the browser only fetches them if
         // the page renders a glyph outside U+0000–00FF.
@@ -182,7 +189,7 @@ export const Route = createFileRoute("/forms/$shortId")({
       scripts: [
         {
           // Apply theme before paint — viewer override > creator default > system
-          children: `(function(){try{var d=document.documentElement;var override=null;try{override=window.localStorage.getItem("bf-form-theme:${formId}");}catch(e){}var def=${JSON.stringify(defaultMode)};var pick=override||def;var m=pick==="system"?(window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"):pick;d.classList.remove("light","dark");d.classList.add(m);d.style.colorScheme=m;}catch(e){}})();`,
+          children: `(function(){try{var d=document.documentElement;var override=null;try{override=window.localStorage.getItem("bf-form-theme:${shortId}");}catch(e){}var def=${JSON.stringify(defaultMode)};var pick=override||def;var m=pick==="system"?(window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"):pick;d.classList.remove("light","dark");d.classList.add(m);d.style.colorScheme=m;}catch(e){}})();`,
         },
 
         {

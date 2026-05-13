@@ -19,6 +19,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
+import { generateShortId } from "../src/lib/short-id";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { seed } from "drizzle-seed";
@@ -128,6 +129,7 @@ const main = async () => {
   const orgIds = Array.from({ length: N.orgs }, () => randomUUID());
   const wsIds = Array.from({ length: N.workspaces }, () => randomUUID());
   const formIds = Array.from({ length: N.forms }, () => randomUUID());
+  const formShortIds = Array.from({ length: N.forms }, () => generateShortId());
   const versionIds = Array.from({ length: N.versions }, () => randomUUID());
   const submissionIds = Array.from({ length: N.submissions }, () => randomUUID());
   const visitIds = Array.from({ length: N.visits }, () => randomUUID());
@@ -304,6 +306,7 @@ const main = async () => {
       count: N.forms,
       columns: {
         id: f.valuesFromArray({ values: formIds, isUnique: true }),
+        shortId: f.valuesFromArray({ values: formShortIds, isUnique: true }),
         createdByUserId: f.valuesFromArray({ values: formCreators }),
         workspaceId: f.valuesFromArray({ values: formWorkspaces }),
         title: f.loremIpsum({ sentencesCount: 1 }),
