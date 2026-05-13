@@ -294,7 +294,7 @@ export const StyleSelect = ({
               {isOpen && pos && (
                 <m.div
                   ref={dropdownRef}
-                  className="z-9999 overflow-hidden rounded-lg border border-border/60 bg-background/95 shadow-lg backdrop-blur-md"
+                  className="z-9999 overflow-hidden rounded-lg bg-background/95 elevation-lg backdrop-blur-md"
                   initial={{ opacity: 0, y: pos.above ? 8 : -8, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: pos.above ? 8 : -8, scale: 0.95 }}

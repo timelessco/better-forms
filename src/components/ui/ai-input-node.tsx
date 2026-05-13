@@ -265,7 +265,7 @@ const AIInputPopoverBody = ({ state }: { state: AIInputState }) => {
       >
         <div
           className={cn(
-            "animate-in rounded-xl bg-background shadow-[0_0_1px_0_rgba(0,0,0,0.19),0_1px_2px_0_rgba(0,0,0,0.07),0_6px_15px_-5px_rgba(0,0,0,0.11)] ring-1 ring-foreground/10 transition-colors duration-150 fade-in-0 zoom-in-95",
+            "animate-in rounded-xl bg-background elevation-lg transition-colors duration-150 fade-in-0 zoom-in-95",
             error && "ring-destructive",
           )}
         >

@@ -89,7 +89,7 @@ export const AIFormGenBubble = ({
       className={cn(
         "fixed bottom-8 left-1/2 z-50 -translate-x-1/2",
         "flex max-w-[600px] min-w-[400px] flex-col gap-1",
-        "rounded-xl border bg-background/80 px-4 py-2 shadow-lg backdrop-blur-sm",
+        "rounded-xl bg-background/80 px-4 py-2 elevation-lg backdrop-blur-sm",
       )}
     >
       {error && <p className="text-xs text-destructive">{error}</p>}

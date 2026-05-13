@@ -152,7 +152,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                 onClick={() => selectVersion(version.id)}
                 className={cn(
                   "relative flex h-auto w-full cursor-pointer items-start gap-1.5 rounded-lg py-2 pl-2 text-left",
-                  isSelected ? "bg-accent" : "hover:bg-accent/50",
+                  isSelected ? "bg-muted" : "hover:bg-muted/50",
                 )}
               >
                 {/* Avatar */}

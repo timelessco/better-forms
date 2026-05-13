@@ -16,7 +16,7 @@ export const FormTextareaElement = ({ children, ...props }: PlateElementProps) =
     <PlateElement
       attributes={{ ...attributes, placeholder, "data-bf-input": "true" }}
       className={cn(
-        "relative flex min-h-24 w-full max-w-[464px] cursor-text items-start gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-[8px] pl-[10px] text-sm caret-current shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)] before:top-2.5",
+        "relative flex min-h-24 w-full max-w-[464px] cursor-text items-start gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-[8px] pl-[10px] text-sm caret-current elevation-sm before:top-2.5",
         isSelected && focused && "ring-[3px] ring-ring/50",
       )}
       element={element}

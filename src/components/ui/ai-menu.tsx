@@ -195,11 +195,7 @@ export const AIMenu = () => {
         align="center"
         side="bottom"
       >
-        <Command
-          className="w-full rounded-lg border shadow-md"
-          value={value}
-          onValueChange={setValue}
-        >
+        <Command className="w-full rounded-lg elevation-lg" value={value} onValueChange={setValue}>
           {mode === "chat" && isSelecting && content && toolName === "generate" && (
             <AIChatEditor content={content} />
           )}
@@ -673,7 +669,7 @@ export const AILoadingBar = () => {
     return (
       <div
         className={cn(
-          "absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-md border border-border bg-muted px-3 py-1.5 text-sm text-muted-foreground shadow-md transition-[opacity,transform] duration-300",
+          "absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-md bg-muted px-3 py-1.5 text-sm text-muted-foreground elevation-lg transition-[opacity,transform] duration-300",
         )}
       >
         <span className="size-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
@@ -698,7 +694,7 @@ export const AILoadingBar = () => {
     return (
       <div
         className={cn(
-          "absolute bottom-4 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-0 rounded-xl border border-border/50 bg-popover p-1 text-sm text-muted-foreground shadow-xl backdrop-blur-sm",
+          "absolute bottom-4 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-0 rounded-xl bg-popover p-1 text-sm text-muted-foreground elevation-lg backdrop-blur-sm",
           "p-3",
         )}
       >

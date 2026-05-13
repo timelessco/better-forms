@@ -50,7 +50,7 @@ export const BlockSelectionFloatingToolbar = () => {
 
   return (
     <div ref={refs.setFloating} style={floatingStyles} className="z-50">
-      <Toolbar className="max-w-[80vw] scrollbar-none overflow-x-auto rounded-md border bg-popover p-1 whitespace-nowrap opacity-100 shadow-md print:hidden">
+      <Toolbar className="max-w-[80vw] scrollbar-none overflow-x-auto rounded-md bg-popover p-1 whitespace-nowrap opacity-100 elevation-lg print:hidden">
         <ToolbarGroup>
           <AIToolbarButton />
         </ToolbarGroup>

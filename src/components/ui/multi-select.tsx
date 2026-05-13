@@ -60,7 +60,7 @@ export const MultiSelect = ({
             aria-haspopup="listbox"
             aria-expanded={open}
             className={cn(
-              "flex min-h-[30px] w-full cursor-pointer items-center gap-1 rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-2 py-1 text-sm shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "flex min-h-[30px] w-full cursor-pointer items-center gap-1 rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-2 py-1 text-sm elevation-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               className,
             )}
           >

@@ -87,7 +87,7 @@ export const EmojiPicker = ({
   <div
     className={cn(
       "flex flex-col rounded-xl bg-popover text-popover-foreground",
-      "h-[23rem] w-80 border shadow-md",
+      "h-[23rem] w-80 elevation-xl",
     )}
   >
     <EmojiPickerNavigation

@@ -241,7 +241,7 @@
   --accent: var(--color-gray-alpha-100); 
   /* var(--color-gray-200); */
   --accent-foreground: var(--color-foreground);
-  --muted: var(--color-gray-300);
+  --muted:  var(--color-gray-100);
   --muted-foreground: var(--color-gray-600);
   --destructive: #cd2b31;
   --destructive-foreground: #e03636;
@@ -374,7 +374,7 @@
   --primary-foreground: var(--color-gray-90);
   --secondary: var(--color-gray-100);
   --secondary-foreground: var(--color-gray-800);
-  --muted: var(--color-gray-300);
+  --muted:  var(--color-gray-100);
   --muted-foreground: var(--color-gray-600);
   --accent: var(--color-gray-alpha-100); 
   /* var(--color-gray-200); */
@@ -603,6 +603,34 @@
 
 @utility inter-display {
   font-optical-sizing: auto;
+}
+
+/* Figma elevation tokens — shadow-only outlines.
+   `sm` for input controls (Input/Textarea/Checkbox/DatePicker/MultiSelect
+   etc.); `lg` for menus / small popovers; `xl` for wide popovers, dialogs,
+   and the country dropdown. See
+   https://www.figma.com/design/Z5Bkur0wjruaEYo5NlTcsR/system-flat for the
+   source recipes. Consumers that want dark-mode behavior add their own
+   `dark:shadow-none` after the utility — the bare utility is the bare
+   shadow, no dark variant baked in. */
+@utility elevation-sm {
+  box-shadow:
+    0 0 1px 0 rgba(0, 0, 0, 0.54),
+    0 1px 1px 0 rgba(0, 0, 0, 0.06);
+}
+
+@utility elevation-lg {
+  box-shadow:
+    0 0 0.5px 0 rgba(0, 0, 0, 0.19),
+    0 1px 1px 0 rgba(0, 0, 0, 0.07),
+    0 6px 7.5px 0 rgba(0, 0, 0, 0.11);
+}
+
+@utility elevation-xl {
+  box-shadow:
+    0 0 1px 0 rgba(0, 0, 0, 0.2),
+    0 0 10px 2px rgba(0, 0, 0, 0.04),
+    0 24px 30px -8px rgba(0, 0, 0, 0.1);
 }
 
 @keyframes drop-line-pulse {
@@ -934,6 +962,18 @@
   margin-bottom: var(--bf-field-gap) !important;
 }
 
+/* Dynamic-label spacing: a text block (p, h1, h2, h3, blockquote) that
+   sits immediately above a [data-bf-input] wrapper is functionally a label
+   even though its node type is still `p` / `h*` / `blockquote` (see
+   ALLOWED_LABEL_TYPES in src/lib/form-schema/form-field-constants.ts).
+   Match by position — wrapper without chrome followed by an input — so we
+   collapse its margin from `--bf-block-margin` down to `--bf-field-gap`,
+   matching real formLabel wrappers above. */
+.slate-blockWrapper:not(:has(> [data-bf-chrome])):has(+ [data-bf-input]) {
+  margin-top: var(--bf-field-gap) !important;
+  margin-bottom: var(--bf-field-gap) !important;
+}
+
 /* Label's BlockSelection bleeds (field-gap − block-margin) into each margin
    so consecutive selections (prev field → label, label → input) end up with
    a uniform residual = block-margin visible gap, matching non-label blocks.
@@ -941,7 +981,9 @@
    pushes the selection box *inward* (which collapses it on small labels and
    makes the selection rectangle invisible). */
 .slate-blockWrapper:has(> .slate-formLabel) [data-slot="block-selection"],
-[data-bf-field-list] > .slate-formLabel [data-slot="block-selection"] {
+[data-bf-field-list] > .slate-formLabel [data-slot="block-selection"],
+.slate-blockWrapper:not(:has(> [data-bf-chrome])):has(+ [data-bf-input])
+  [data-slot="block-selection"] {
   top: min(0px, calc(-1 * (var(--bf-field-gap) - var(--bf-block-margin)))) !important;
   bottom: min(0px, calc(-1 * (var(--bf-field-gap) - var(--bf-block-margin)))) !important;
 }

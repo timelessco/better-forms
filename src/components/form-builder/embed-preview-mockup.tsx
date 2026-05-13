@@ -54,7 +54,7 @@ const PopupIconContent = ({ display }: { display: IconDisplay }) => {
   }
   if (display.type === "emoji") {
     return (
-      <span className="absolute inset-0 flex items-center justify-center bg-muted text-[14px] text-muted">
+      <span className="absolute inset-0 flex items-center justify-center bg-input text-[14px] text-muted">
         {display.value}
       </span>
     );
@@ -222,9 +222,9 @@ export const EmbedPreviewMockup = ({
     <div className="overflow-hidden rounded-[12px] bg-secondary">
       <div className="flex items-center gap-1 px-2.25 pt-2.5 pb-2">
         <div className="flex gap-1.5">
-          <div className="size-1.5 rounded-full bg-muted-foreground/20" />
-          <div className="size-1.5 rounded-full bg-muted-foreground/20" />
-          <div className="size-1.5 rounded-full bg-muted-foreground/20" />
+          <div className="size-1.5 rounded-full bg-input" />
+          <div className="size-1.5 rounded-full bg-input" />
+          <div className="size-1.5 rounded-full bg-input" />
         </div>
       </div>
 
@@ -240,14 +240,14 @@ export const EmbedPreviewMockup = ({
               transition={FADE_TRANSITION}
             >
               <div className="space-y-2 px-2 opacity-30">
-                <div className="h-2 w-1/4 rounded-full bg-muted" />
-                <div className="h-1.5 w-full rounded-full bg-muted" />
-                <div className="h-1.5 w-4/5 rounded-full bg-muted" />
+                <div className="h-2 w-1/4 rounded-full bg-input" />
+                <div className="h-1.5 w-full rounded-full bg-input" />
+                <div className="h-1.5 w-4/5 rounded-full bg-input" />
               </div>
               <div className="h-16" />
               <div className="space-y-2 px-2 opacity-10">
-                <div className="h-1.5 w-full rounded-full bg-muted" />
-                <div className="h-1.5 w-11/12 rounded-full bg-muted" />
+                <div className="h-1.5 w-full rounded-full bg-input" />
+                <div className="h-1.5 w-11/12 rounded-full bg-input" />
               </div>
             </motion.div>
           )}
@@ -260,11 +260,11 @@ export const EmbedPreviewMockup = ({
               exit={{ opacity: 0 }}
               transition={FADE_TRANSITION}
             >
-              <div className="h-2.5 w-1/5 rounded-full bg-muted" />
+              <div className="h-2.5 w-1/5 rounded-full bg-input" />
               <div className="space-y-2">
-                <div className="h-2 w-full rounded-full bg-muted" />
-                <div className="h-2 w-full rounded-full bg-muted" />
-                <div className="h-2 w-3/4 rounded-full bg-muted" />
+                <div className="h-2 w-full rounded-full bg-input" />
+                <div className="h-2 w-full rounded-full bg-input" />
+                <div className="h-2 w-3/4 rounded-full bg-input" />
               </div>
             </motion.div>
           )}
@@ -287,7 +287,7 @@ export const EmbedPreviewMockup = ({
           <motion.div
             className={cn(
               "absolute z-20 overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.04)]",
-              isPopup && !isPopupExpanded ? "bg-primary text-primary-foreground" : "bg-muted",
+              isPopup && !isPopupExpanded ? "bg-primary text-primary-foreground" : "bg-input",
             )}
             animate={target}
             transition={transition}

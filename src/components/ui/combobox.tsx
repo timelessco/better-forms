@@ -58,7 +58,7 @@ export const ComboboxInput = ({
 }) => (
   <InputGroup
     className={cn(
-      "placeholder:text-gray-alpha-600 w-auto min-w-[80px] flex-1 rounded-xl bg-accent px-2.5 py-1.75 text-base outline-none",
+      "placeholder:text-gray-alpha-600 w-auto min-w-[80px] flex-1 rounded-xl bg-accent text-base outline-none",
       className,
     )}
   >
@@ -114,7 +114,7 @@ export const ComboboxContent = ({
         data-slot="combobox-content"
         data-chips={!!anchor}
         className={cn(
-          "w-(--anchor-width) origin-(--transform-origin) rounded-2xl bg-popover text-popover-foreground shadow-[0_0_1px_0_rgba(0,0,0,0.19),0_1px_2px_0_rgba(0,0,0,0.07),0_6px_15px_-5px_rgba(0,0,0,0.11)] ring-1 ring-foreground/10 transition-[scale,opacity,shadow] data-starting-style:scale-98 data-starting-style:opacity-0",
+          "w-(--anchor-width) origin-(--transform-origin) rounded-2xl bg-popover text-popover-foreground elevation-xl transition-[scale,opacity] data-starting-style:scale-98 data-starting-style:opacity-0",
           className,
         )}
         {...props}
