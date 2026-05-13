@@ -9,9 +9,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
+  EyeIcon,
   Loader2Icon,
   MoreHorizontalIcon,
+  PenIcon,
+  PencilIcon,
   RotateCcwIcon,
   SettingsIcon,
 } from "@/components/ui/icons";
@@ -912,73 +916,90 @@ const FormBuilderHeaderActions = ({
       </div>
 
       {(isEditRoute || (workspaceId && formId)) && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              isEditRoute ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "ml-1 min-w-[72px] justify-center rounded-[8px] px-2 py-1.5 text-[14px] font-normal text-muted-foreground transition-all hover:text-foreground",
-                    previewMode && "bg-accent/50 text-foreground",
-                  )}
-                  onClick={onTogglePreview}
-                />
-              ) : (
-                <Button
-                  size="sm"
-                  className="ml-1 rounded-[8px] border-none bg-black px-2 py-1.5 text-[14px] font-normal text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
-                  onClick={onEdit}
-                />
-              )
-            }
-          >
-            {isEditRoute ? (previewMode ? "Editor" : "Preview") : "Edit"}
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            <p>{isEditRoute ? (previewMode ? "Back to Editor" : "Preview Form") : "Edit Form"}</p>
-            <p className="text-xs text-muted-foreground">
-              {formatForDisplay(isEditRoute ? HOTKEYS.TOGGLE_PREVIEW : HOTKEYS.EDIT_FORM)}
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      )}
-
-      {(isEditRoute || hasUnpublishedChanges) && workspaceId && formId && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                size="sm"
-                className={cn(
-                  "ml-1 rounded-[8px] border-none py-1.5 pr-2 pl-2 text-[14px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all",
-                  !isLoadingSavedDocs &&
-                    (hasUnpublishedChanges || savedDocs?.[0]?.status !== "published")
-                    ? "bg-black text-white hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80",
-                )}
-                onClick={onPublish}
-                disabled={
-                  isPublishing || (!hasUnpublishedChanges && savedDocs?.[0]?.status === "published")
+        <ButtonGroup className="ml-1 overflow-hidden rounded-lg border border-border">
+          {isEditRoute ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="px-2.5 text-muted-foreground transition-all hover:text-foreground"
+                    onClick={onTogglePreview}
+                    aria-label={previewMode ? "Switch to editor" : "Switch to preview"}
+                  />
                 }
-              />
-            }
-          >
-            {isPublishing ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : savedDocs?.[0]?.status === "published" && !hasUnpublishedChanges ? (
-              "Published"
-            ) : (
-              "Publish"
-            )}
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            <p className="text-xs text-muted-foreground">
-              {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
-            </p>
-          </TooltipContent>
-        </Tooltip>
+              >
+                {previewMode ? <PenIcon className="size-3.5" /> : <EyeIcon className="size-3.5" />}
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end">
+                <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatForDisplay(HOTKEYS.TOGGLE_PREVIEW)}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="px-2.5 text-muted-foreground transition-all hover:text-foreground"
+                    onClick={onEdit}
+                    aria-label="Edit form"
+                  />
+                }
+              >
+                <PencilIcon className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end">
+                <p>Edit Form</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatForDisplay(HOTKEYS.EDIT_FORM)}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {workspaceId && formId && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="sm"
+                    className={cn(
+                      "border-none py-1.5 pr-2 pl-2 text-[14px] shadow-none transition-all",
+                      !isLoadingSavedDocs &&
+                        (hasUnpublishedChanges || savedDocs?.[0]?.status !== "published")
+                        ? "bg-black text-white hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80",
+                    )}
+                    onClick={onPublish}
+                    disabled={
+                      isPublishing ||
+                      (!hasUnpublishedChanges && savedDocs?.[0]?.status === "published")
+                    }
+                  />
+                }
+              >
+                {isPublishing ? (
+                  <Loader2Icon className="size-4 animate-spin" />
+                ) : savedDocs?.[0]?.status === "published" && !hasUnpublishedChanges ? (
+                  "Published"
+                ) : (
+                  "Publish"
+                )}
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end">
+                <p className="text-xs text-muted-foreground">
+                  {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </ButtonGroup>
       )}
     </>
   );

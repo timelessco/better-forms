@@ -26,7 +26,7 @@ const MultiChoiceField = ({ element, form }: FieldRendererProps<"MultiChoice">) 
                 >
                   <span
                     className={cn(
-                      "flex size-5 shrink-0 items-center justify-center rounded text-[11px]! leading-none font-semibold",
+                      "flex size-4 shrink-0 items-center justify-center rounded-[4px] text-[9px]! leading-none font-semibold",
                       isSelected
                         ? "bg-primary text-primary-foreground"
                         : "bg-[var(--form-input-bg,var(--color-gray-50))] text-muted-foreground shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]",

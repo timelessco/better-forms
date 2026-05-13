@@ -8,6 +8,7 @@ import { planUnlocks } from "@/lib/config/plan-gates";
 import { db } from "@/db";
 import { authMiddleware, formProSettingsMiddleware } from "@/lib/auth/middleware";
 import { purgeFormCache, purgeFormCacheBatch } from "@/lib/server-fn/cdn-cache";
+import { defaultFormSettings } from "@/types/form-settings";
 import type { FormSettings } from "@/types/form-settings";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm, authFormsBulk } from "./auth-helpers.server";
@@ -145,6 +146,52 @@ export const updateForm = createServerFn({ method: "POST" })
     }
 
     return { form: serializeForm(form) };
+  });
+
+/**
+ * Flip the analytics toggle. Unlike most settings (which live in draftSettings
+ * and only go live on republish), this writes the live `formSettings` row
+ * directly so `isAnalyticsEnabled` and the recorder gate flip immediately —
+ * no republish required. Draft is updated too so the share sidebar reflects
+ * the new value without a roundtrip back through the form-listings sync.
+ */
+export const setFormAnalytics = createServerFn({ method: "POST" })
+  .middleware([authMiddleware, formProSettingsMiddleware])
+  .inputValidator(z.object({ formId: z.uuid(), enabled: z.boolean() }))
+  .handler(async ({ data, context }) => {
+    const orgId = getActiveOrgId(context.session);
+    await authForm(data.formId, context.session.user.id, orgId);
+
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      // Draft so the share-sidebar's optimistic state stays in sync.
+      await tx
+        .update(forms)
+        .set({
+          draftSettings: mergeFormSettings({ analytics: data.enabled }),
+          updatedAt: now,
+        })
+        .where(eq(forms.id, data.formId));
+
+      // Live — this is what `isAnalyticsEnabled` reads. Merge into the
+      // existing row so we don't clobber other live settings.
+      await tx
+        .insert(formSettings)
+        .values({
+          formId: data.formId,
+          settings: { ...defaultFormSettings, analytics: data.enabled } as FormSettings,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: formSettings.formId,
+          set: {
+            settings: sql`${formSettings.settings} || ${JSON.stringify({ analytics: data.enabled })}::jsonb`,
+            updatedAt: now,
+          },
+        });
+    });
+
+    return { ok: true as const };
   });
 
 export const deleteForm = createServerFn({ method: "POST" })

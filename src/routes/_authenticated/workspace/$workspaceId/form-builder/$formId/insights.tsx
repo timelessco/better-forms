@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
 
 import { BreakdownCards } from "@/components/form-builder/insights/breakdown-cards";
 import { DropoffFunnel } from "@/components/form-builder/insights/dropoff-funnel";
@@ -13,19 +14,32 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCwIcon } from "@/components/ui/icons";
 import Loader from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
-import { getFormDropoff, getFormInsights } from "@/lib/server-fn/analytics";
+import {
+  dropoffKey,
+  insightsAvailabilityKey,
+  insightsKey,
+  invalidateInsightsQueries,
+} from "@/lib/analytics/insights-query-keys";
+import {
+  getFormDropoff,
+  getFormInsights,
+  getInsightsAvailability,
+} from "@/lib/server-fn/analytics";
+import { setFormAnalytics } from "@/lib/server-fn/forms";
 import type { TimeRangeFilter } from "@/types/analytics";
 
 const DEFAULT_FILTER: TimeRangeFilter = "last_30_days";
 
 const InsightsPage = () => {
-  const { formId } = Route.useParams();
+  const { formId, workspaceId } = Route.useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<TimeRangeFilter>(DEFAULT_FILTER);
   const [startDate, setStartDate] = useState<string | undefined>(undefined);
   const [endDate, setEndDate] = useState<string | undefined>(undefined);
 
   const insightsQuery = useQuery({
-    queryKey: ["insights", formId, filter, startDate, endDate],
+    queryKey: [...insightsKey(formId), filter, startDate, endDate],
     queryFn: () => getFormInsights({ data: { formId, filter, startDate, endDate } }),
     refetchOnWindowFocus: true,
     refetchOnMount: "always",
@@ -33,18 +47,48 @@ const InsightsPage = () => {
   });
 
   const dropoffQuery = useQuery({
-    queryKey: ["dropoff", formId, filter, startDate, endDate],
+    queryKey: [...dropoffKey(formId), filter, startDate, endDate],
     queryFn: () => getFormDropoff({ data: { formId, filter, startDate, endDate } }),
     refetchOnWindowFocus: true,
     refetchOnMount: "always",
     staleTime: 0,
   });
 
-  const isRefetching = insightsQuery.isFetching || dropoffQuery.isFetching;
+  // Cheap, time-range-independent. Drives the empty-state branch.
+  // Mutations invalidate this key explicitly, so the dashboard doesn't need
+  // per-focus refetching to stay correct after a flip.
+  const availabilityQuery = useQuery({
+    queryKey: insightsAvailabilityKey(formId),
+    queryFn: () => getInsightsAvailability({ data: { formId } }),
+    staleTime: 60_000,
+  });
+
+  const isRefetching =
+    insightsQuery.isFetching || dropoffQuery.isFetching || availabilityQuery.isFetching;
   const handleRefresh = () => {
     void insightsQuery.refetch();
     void dropoffQuery.refetch();
+    void availabilityQuery.refetch();
   };
+
+  const goToEditor = useCallback(() => {
+    void navigate({
+      to: "/workspace/$workspaceId/form-builder/$formId/edit",
+      params: { workspaceId, formId },
+    });
+  }, [navigate, workspaceId, formId]);
+
+  const { mutate: enableAnalytics, isPending: isEnablingAnalytics } = useMutation({
+    mutationFn: () => setFormAnalytics({ data: { formId, enabled: true } }),
+    onSuccess: async () => {
+      toast.success("Analytics enabled");
+      await invalidateInsightsQueries(queryClient, formId);
+    },
+    onError: (err) => {
+      console.error("[Insights] enable analytics failed:", err);
+      toast.error("Failed to enable analytics");
+    },
+  });
 
   const handleRangeChange = (next: {
     filter: TimeRangeFilter;
@@ -56,7 +100,7 @@ const InsightsPage = () => {
     setEndDate(next.endDate);
   };
 
-  if (insightsQuery.isPending || dropoffQuery.isPending) {
+  if (insightsQuery.isPending || dropoffQuery.isPending || availabilityQuery.isPending) {
     return <Loader />;
   }
 
@@ -83,7 +127,8 @@ const InsightsPage = () => {
 
   const metrics = insightsQuery.data;
   const dropoff = dropoffQuery.data;
-  const hasData = metrics.totalVisits > 0;
+  const availability = availabilityQuery.data;
+  const hasData = metrics.totalVisits > 0 && availability?.analyticsEnabled === true;
 
   return (
     <div className="container mx-auto max-w-7xl space-y-6 p-6">
@@ -132,7 +177,16 @@ const InsightsPage = () => {
           <BreakdownCards metrics={metrics} />
         </>
       ) : (
-        <EmptyState hasData={false} />
+        <EmptyState
+          formStatus={availability?.formStatus ?? "draft"}
+          submissionCount={availability?.submissionCount ?? 0}
+          hasAnyVisits={availability?.hasAnyVisits ?? false}
+          analyticsEnabled={availability?.analyticsEnabled ?? false}
+          isEnablingAnalytics={isEnablingAnalytics}
+          onPublishClick={goToEditor}
+          onShareClick={goToEditor}
+          onEnableAnalyticsClick={() => enableAnalytics()}
+        />
       )}
     </div>
   );

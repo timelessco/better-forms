@@ -5,6 +5,7 @@ import {
   FORM_INPUT_NODE_TYPES,
   INPUT_TYPE_TO_FIELD_TYPE,
   VARIANT_TO_FIELD_TYPE,
+  extractNumberFields,
   resolveRequired,
 } from "@/lib/form-schema/form-field-constants";
 
@@ -89,6 +90,8 @@ export type PlateFormField =
       required?: boolean;
       min?: number;
       max?: number;
+      allowDecimals?: boolean;
+      defaultValue?: string;
     }
   | {
       id: string;
@@ -415,6 +418,7 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
       const name = stableId || `${baseName}_${fieldIndex}`;
 
       const fileUploadFields = nodeType === "formFileUpload" ? extractFileUploadFields(node) : {};
+      const numberFields = nodeType === "formNumber" ? extractNumberFields(node) : {};
 
       elements.push({
         id: name,
@@ -427,6 +431,7 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
         maxLength,
         defaultValue,
         ...fileUploadFields,
+        ...numberFields,
       } as PlateFormField);
       fieldIndex++;
       i++;

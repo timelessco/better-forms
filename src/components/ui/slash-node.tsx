@@ -1,21 +1,8 @@
 import {
-  Code2,
-  Columns3Icon,
-  Heading1Icon,
-  Heading2Icon,
-  Heading3Icon,
-  LightbulbIcon,
-  PilcrowIcon,
-  Quote,
-  Square,
-  Table,
-  TextCursorInputIcon,
-} from "lucide-react";
-import {
   AlignLeftIcon,
   AtSignIcon,
   CalendarIcon,
-  ChevronRightIcon,
+  CheckCheckIcon,
   ClockIcon,
   FileIcon,
   HashIcon,
@@ -23,18 +10,27 @@ import {
   ListIcon,
   ListOrderedIcon,
   PhoneIcon,
-  CheckCheckIcon,
   SmileIcon,
   SparklesIcon,
   SquareCheckIcon,
   UploadIcon,
 } from "@/components/ui/icons";
-import { KEYS } from "platejs";
+import {
+  BadgeIcon,
+  Heading1Icon,
+  Heading2Icon,
+  Heading3Icon,
+  LightbulbIcon,
+  PilcrowIcon,
+  Quote,
+  TextCursorInputIcon,
+} from "lucide-react";
 import type { TComboboxInputElement } from "platejs";
+import { KEYS } from "platejs";
 import type { PlateEditor, PlateElementProps } from "platejs/react";
 import { PlateElement } from "platejs/react";
-import { useCallback } from "react";
 import type { ReactNode } from "react";
+import { useCallback } from "react";
 
 import { triggerAIInput } from "@/components/editor/plugins/ai-input-kit";
 import { insertBlock, insertInlineElement } from "@/components/editor/transforms";
@@ -156,33 +152,6 @@ const groups: Group[] = [
         value: KEYS.ol,
       },
       {
-        description: "Track tasks with checkboxes",
-        icon: <Square />,
-        keywords: ["checklist", "task", "checkbox", "[]"],
-        label: "To-do list",
-        value: KEYS.listTodo,
-      },
-      {
-        description: "Collapsible content section",
-        icon: <ChevronRightIcon />,
-        keywords: ["collapsible", "expandable"],
-        label: "Toggle",
-        value: KEYS.toggle,
-      },
-      {
-        description: "Write and display code",
-        icon: <Code2 />,
-        keywords: ["```"],
-        label: "Code Block",
-        value: KEYS.codeBlock,
-      },
-      {
-        description: "Add a table with rows and columns",
-        icon: <Table />,
-        label: "Table",
-        value: KEYS.table,
-      },
-      {
         description: "Highlight a quote or excerpt",
         icon: <Quote />,
         keywords: ["citation", "blockquote", "quote", ">"],
@@ -195,22 +164,6 @@ const groups: Group[] = [
         keywords: ["note"],
         label: "Callout",
         value: KEYS.callout,
-      },
-    ].map((item) => ({
-      ...item,
-      onSelect: (editor, value) => {
-        insertBlock(editor, value, { upsert: true });
-      },
-    })),
-  },
-  {
-    group: "Advanced blocks",
-    items: [
-      {
-        description: "Split content into three columns",
-        icon: <Columns3Icon />,
-        label: "3 columns",
-        value: "action_three_columns",
       },
     ].map((item) => ({
       ...item,
@@ -234,30 +187,6 @@ const groups: Group[] = [
       ...item,
       onSelect: (editor, value) => {
         insertInlineElement(editor, value);
-      },
-    })),
-  },
-  {
-    group: "Layout blocks",
-    items: [
-      {
-        description: "Start a new form page",
-        icon: <FileIcon />,
-        keywords: ["page"],
-        label: "New page",
-        value: "pageBreak",
-      },
-      {
-        description: "Add a thank you confirmation",
-        icon: <SmileIcon />,
-        keywords: ["thankyou"],
-        label: "'Thank you' page",
-        value: "pageBreakThankYou",
-      },
-    ].map((item) => ({
-      ...item,
-      onSelect: (editor, value) => {
-        insertBlock(editor, value, { upsert: true });
       },
     })),
   },
@@ -336,9 +265,9 @@ const groups: Group[] = [
       },
       {
         description: "Single selection radio buttons",
-        icon: <SquareCheckIcon />,
+        icon: <BadgeIcon />,
         keywords: ["form", "multi", "choice", "radio", "single", "select", "option"],
-        label: "Multi Choice",
+        label: "Radio Box",
         value: "formMultiChoice",
       },
       {
@@ -347,6 +276,30 @@ const groups: Group[] = [
         keywords: ["form", "multi", "select", "dropdown", "tag", "option"],
         label: "Multi Select",
         value: "formMultiSelect",
+      },
+    ].map((item) => ({
+      ...item,
+      onSelect: (editor, value) => {
+        insertBlock(editor, value, { upsert: true });
+      },
+    })),
+  },
+  {
+    group: "Layout blocks",
+    items: [
+      {
+        description: "Start a new form page",
+        icon: <FileIcon />,
+        keywords: ["page"],
+        label: "New page",
+        value: "pageBreak",
+      },
+      {
+        description: "Add a thank you confirmation",
+        icon: <SmileIcon />,
+        keywords: ["thankyou"],
+        label: "'Thank you' page",
+        value: "pageBreakThankYou",
       },
     ].map((item) => ({
       ...item,

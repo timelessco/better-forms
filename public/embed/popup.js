@@ -21,7 +21,7 @@
         e.addEventListener("focus", o, i),
         e.addEventListener("touchstart", o, i));
     };
-  var G = /^[a-zA-Z0-9_-]{1,128}$/,
+  var G = /^[A-Za-z0-9]{7}$/,
     V = new Set([
       "formId",
       "position",
@@ -289,7 +289,7 @@
           e.remove();
         }, 150));
     },
-    _ = (e, t) => {
+    R = (e, t) => {
       let n = Math.min(600, window.innerHeight - 40),
         o = Math.min(t, n);
       ((e.style.height = `${o}px`), (e.style.maxHeight = `${o}px`));
@@ -309,7 +309,7 @@
           return "";
       }
     },
-    R = (e) => {
+    _ = (e) => {
       e && (e.style.display = "none");
     };
   var oe = `
@@ -754,7 +754,7 @@
             n.loadingEl && y(n.loadingEl);
             break;
           case "Reform.Resize":
-            typeof t.height == "number" && (I(n.iframe, t.height), _(n.container, t.height));
+            typeof t.height == "number" && (I(n.iframe, t.height), R(n.container, t.height));
             break;
           case "Reform.FormSubmitted":
             if (n.options.onSubmit)
@@ -780,7 +780,7 @@
               let o = n.overlay;
               if (o) {
                 let i = o.querySelector(".bf-emoji");
-                i && R(i);
+                i && _(i);
               }
             }
             break;

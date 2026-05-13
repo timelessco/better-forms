@@ -297,7 +297,12 @@ export const PublicFormPage = ({
   const dynamicHeight = embedConfig.dynamicHeight;
   const dynamicWidth = embedConfig.dynamicWidth;
   const containerRef = useRef<HTMLDivElement>(null);
-  const trackingBase = usePublicFormTracking({ formId, enabled: form?.analytics === true });
+  // Analytics writers run unconditionally (Option B): we always record visits
+  // and question progress so flipping the analytics toggle on later surfaces
+  // historical data instead of starting from zero. The toggle gates DISPLAY
+  // (insights dashboard), not recording. `form` may be null in error states,
+  // so only suppress tracking when there's no form to attribute visits to.
+  const trackingBase = usePublicFormTracking({ formId, enabled: !!form });
   // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value is read in JSX to render AlreadySubmitted
   const [submitted, setSubmitted] = useState(() => {
     if (form?.settings?.preventDuplicateSubmissions) {

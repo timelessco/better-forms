@@ -892,8 +892,34 @@
 }
 
 .slate-blockWrapper:not(:has(> [data-bf-chrome])),
-[data-bf-field-list] > [data-slate-node="element"]:not([data-bf-chrome]) {
+[data-bf-field-list] > [data-slate-node="element"]:not([data-bf-chrome]),
+[data-bf-field-list] > [data-bf-input] {
   margin-bottom: var(--bf-block-margin) !important;
+}
+
+/* Public-form label spacing mirrors the editor's label block exactly.
+   Using MARGIN (not padding) so it vertical-collapses through the
+   transparent [data-bf-input] wrapper:
+   - Label's margin-top collapses into the wrapper's margin-top, giving the
+     first field 4px breathing room above without an explicit wrapper rule.
+   - Label's margin-bottom = label↔input gap inside the wrapper (4px).
+   - Wrapper's margin-bottom (--bf-block-margin) collapses with the next
+     wrapper's margin-top (4px from its label) to MAX(24, 4) = 24px between
+     fields — identical to the editor. */
+[data-bf-field-list] [data-bf-field-label] {
+  margin-top: var(--bf-field-gap) !important;
+  margin-bottom: var(--bf-field-gap) !important;
+}
+
+/* An option block immediately preceded by another option block — pull it
+   up to collapse the visible block-margin between consecutive options
+   down to --bf-field-gap. The first option in a group still gets the full
+   block-margin above it (clean gap from the form label), and the last
+   option still gets the full block-margin below it (clean gap to the
+   next block). */
+[data-bf-input="true"]:has(> .slate-blockWrapper > .slate-formOptionItem)
+  + [data-bf-input="true"]:has(> .slate-blockWrapper > .slate-formOptionItem) {
+  margin-top: calc(var(--bf-field-gap) - var(--bf-block-margin)) !important;
 }
 
 /* Label wrappers carry both top and bottom field-gap margin. Vertical margin

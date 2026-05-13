@@ -115,6 +115,10 @@ export const PageBreakElement = (props: PlateElementProps) => {
                 onCheckedChange={handleThankYouToggle}
                 disabled={readOnly}
                 onMouseDown={(e) => e.stopPropagation()}
+                // The editor canvas is white; the Switch's default `bg-input`
+                // unchecked color blends into it. Border gives it an outline
+                // matching the visibility level in the settings sidebar.
+                className="border-border data-unchecked:bg-muted"
               />
             </div>
           )}

@@ -6,11 +6,11 @@ import { PlateElement, useEditorRef, useEditorVersion, usePluginOption } from "p
 import { useLayoutEffect, useMemo } from "react";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCheckIcon, ChevronsUpDownIcon } from "@/components/ui/icons";
+import { CheckCheckIcon } from "@/components/ui/icons";
 import { RequiredBadgeButton } from "@/components/ui/required-badge-button";
 import { cn } from "@/lib/utils";
 
-type OptionVariant = "checkbox" | "multiChoice" | "multiSelect" | "ranking";
+type OptionVariant = "checkbox" | "multiChoice" | "multiSelect";
 
 import { LETTER_LABELS, MULTI_SELECT_COLORS } from "@/components/ui/form-option-item-constants";
 
@@ -18,14 +18,14 @@ const OptionIcon = ({ variant, index }: { variant: OptionVariant; index: number 
   switch (variant) {
     case "checkbox":
       return (
-        <span className="flex size-5 shrink-0 items-center justify-center">
+        <span className="flex size-4 shrink-0 items-center justify-center">
           <Checkbox disabled className="pointer-events-none after:hidden" />
         </span>
       );
     case "multiChoice": {
       const letter = LETTER_LABELS[index % LETTER_LABELS.length];
       return (
-        <span className="flex size-5 shrink-0 items-center justify-center rounded bg-[var(--form-input-bg,var(--color-gray-50))] text-[11px] font-semibold text-muted-foreground shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]">
+        <span className="flex size-4 shrink-0 items-center justify-center rounded-[4px] bg-(--form-input-bg,var(--color-gray-50)) text-[9px] font-semibold text-muted-foreground shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]">
           {letter}
         </span>
       );
@@ -35,21 +35,15 @@ const OptionIcon = ({ variant, index }: { variant: OptionVariant; index: number 
       return (
         <span
           className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded",
+            "flex size-4 shrink-0 items-center justify-center rounded-[4px]",
             color.bg,
             color.text,
           )}
         >
-          <CheckCheckIcon className="size-3.5" />
+          <CheckCheckIcon className="size-3" />
         </span>
       );
     }
-    case "ranking":
-      return (
-        <span className="flex size-5 shrink-0 items-center justify-center rounded border border-border/50 text-muted-foreground">
-          <ChevronsUpDownIcon className="size-3.5" />
-        </span>
-      );
     default:
       return null;
   }
@@ -161,13 +155,13 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
     <PlateElement
       attributes={{ ...attributes, "data-bf-input": "true" }}
       className={cn(
-        "relative w-full max-w-[464px] cursor-text rounded-md caret-current before:top-[14px] before:left-[30px] before:-translate-y-1/2 before:text-sm",
+        "relative w-full max-w-116 cursor-text rounded-md caret-current before:top-3.5 before:left-7.5 before:-translate-y-1/2 before:text-sm",
         colorStyle && cn(colorStyle.bg, colorStyle.text),
       )}
       element={element}
       {...rest}
     >
-      <div className="flex h-7 items-center gap-2 pr-6 pl-[2px]">
+      <div className="flex h-7 items-center gap-2 pr-6 pl-0.5">
         <span contentEditable={false} className="pointer-events-none shrink-0 select-none">
           <OptionIcon variant={variant} index={optionIndex} />
         </span>
@@ -178,7 +172,7 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
         <div
           contentEditable={false}
           data-bf-drag-ignore="true"
-          className="pointer-events-none absolute top-[calc(100%+4px)] right-0 left-0 flex h-7 items-center gap-2 pl-[2px] opacity-40 select-none"
+          className="pointer-events-none absolute top-[calc(100%+4px)] right-0 left-0 flex h-7 items-center gap-2 pl-0.5 opacity-40 select-none"
         >
           <OptionIcon variant={variant} index={optionIndex + 1} />
           <span className="text-sm text-muted-foreground">Add option</span>

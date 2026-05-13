@@ -61,26 +61,17 @@ export const fireUpdateVisit = (args: UpdateVisitArgs): void => {
   });
 };
 
-/** Beacon variant for unload-time use. Falls back to fire-and-forget fetch when sendBeacon is unavailable. */
+/** Unload-time visit update.
+ *
+ * We can't use `navigator.sendBeacon` here: TanStack Start's server-function
+ * endpoint expects a SEROVAL-encoded payload (a tree of `{t: <type>, ...}`
+ * nodes), and a raw `JSON.stringify({ data })` blob crashes the server's
+ * `parsePayload` with `Cannot read properties of undefined (reading 't')`.
+ * The RPC client knows how to encode args correctly, so we route through it
+ * and accept the regular trade-off (the request rides on the unloading
+ * document's fetch loop and may be cancelled for very long uploads). For
+ * the small JSON payload here in practice this is fine. */
 export const fireUpdateVisitBeacon = (args: UpdateVisitArgs): void => {
-  if (typeof navigator === "undefined" || !navigator.sendBeacon) {
-    fireUpdateVisit(args);
-    return;
-  }
-  const beaconUrl = (updateFormVisit as unknown as { url?: string }).url;
-  if (beaconUrl) {
-    try {
-      const blob = new Blob([JSON.stringify({ data: args })], {
-        type: "application/json",
-      });
-      const sent = navigator.sendBeacon(beaconUrl, blob);
-      if (sent) {
-        return;
-      }
-    } catch {
-      // Fall through to fetch fallback.
-    }
-  }
   fireUpdateVisit(args);
 };
 
