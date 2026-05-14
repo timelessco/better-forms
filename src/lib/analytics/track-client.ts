@@ -63,16 +63,35 @@ export const fireUpdateVisit = (args: UpdateVisitArgs): void => {
 
 /** Unload-time visit update.
  *
- * We can't use `navigator.sendBeacon` here: TanStack Start's server-function
- * endpoint expects a SEROVAL-encoded payload (a tree of `{t: <type>, ...}`
- * nodes), and a raw `JSON.stringify({ data })` blob crashes the server's
- * `parsePayload` with `Cannot read properties of undefined (reading 't')`.
- * The RPC client knows how to encode args correctly, so we route through it
- * and accept the regular trade-off (the request rides on the unloading
- * document's fetch loop and may be cancelled for very long uploads). For
- * the small JSON payload here in practice this is fine. */
+ * Uses `navigator.sendBeacon` against the dedicated REST endpoint at
+ * `/api/track/visit-end` so the request survives `beforeunload` / `pagehide`
+ * even when the browser tears down the tab's fetch loop. The serverFn
+ * endpoint can't be used here — it expects a SEROVAL-encoded payload, which
+ * would force `application/json` and trigger a CORS preflight that
+ * sendBeacon refuses. Sending a `text/plain` blob keeps the request
+ * CORS-safelisted; the server route parses the body as JSON itself.
+ *
+ * Falls back to the regular serverFn if `sendBeacon` is unavailable or
+ * refuses the request (queue full, body too large). */
 export const fireUpdateVisitBeacon = (args: UpdateVisitArgs): void => {
-  fireUpdateVisit(args);
+  if (typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") {
+    fireUpdateVisit(args);
+    return;
+  }
+  const blob = new Blob(
+    [
+      JSON.stringify({
+        visitId: args.visitId,
+        visitEndedAt: args.visitEndedAt,
+        durationMs: args.durationMs,
+      }),
+    ],
+    { type: "text/plain" },
+  );
+  const queued = navigator.sendBeacon("/api/track/visit-end", blob);
+  if (!queued) {
+    fireUpdateVisit(args);
+  }
 };
 
 /** Fire-and-forget question-progress event. */

@@ -10,7 +10,7 @@ import {
   QuoteIcon,
   SquareIcon,
 } from "lucide-react";
-import { ChevronRightIcon, FileCodeIcon, ListIcon, ListOrderedIcon } from "@/components/ui/icons";
+import { ChevronRightIcon, ListIcon, ListOrderedIcon } from "@/components/ui/icons";
 import type { TElement } from "platejs";
 import { KEYS } from "platejs";
 import { useEditorRef, useSelectionFragmentProp } from "platejs/react";
@@ -91,12 +91,6 @@ export const turnIntoItems = [
     keywords: ["collapsible", "expandable"],
     label: "Toggle list",
     value: KEYS.toggle,
-  },
-  {
-    icon: <FileCodeIcon />,
-    keywords: ["```"],
-    label: "Code",
-    value: KEYS.codeBlock,
   },
   {
     icon: <QuoteIcon />,

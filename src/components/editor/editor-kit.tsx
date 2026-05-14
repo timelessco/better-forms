@@ -25,7 +25,6 @@ import { ListKit } from "@/components/editor/plugins/list-kit";
 import { MarkdownKit } from "@/components/editor/plugins/markdown-kit";
 import { MediaKit } from "@/components/editor/plugins/media-kit";
 import { SlashKit } from "@/components/editor/plugins/slash-kit";
-import { SuggestionKit } from "@/components/editor/plugins/suggestion-kit";
 import { TocKit } from "@/components/editor/plugins/toc-kit";
 import { ToggleKit } from "@/components/editor/plugins/toggle-kit";
 
@@ -52,8 +51,6 @@ export const EditorKit = [
 
   // Tab guard must come after IndentPlugin (ListKit/ToggleKit) to wrap outermost
   TabGuardPlugin,
-
-  ...SuggestionKit,
 
   ...SlashKit,
   ...AutoformatKit,

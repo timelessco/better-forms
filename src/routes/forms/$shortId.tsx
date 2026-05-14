@@ -11,6 +11,7 @@ import { getPublicFormViewRSC } from "@/lib/server-fn/public-form-view-rsc";
 import {
   generateDualThemeCss,
   getGoogleFontLinkUrl,
+  getMediaPreconnects,
   GOOGLE_FONTS_PRECONNECTS,
 } from "@/lib/theme/generate-theme-css";
 import { seo } from "@/lib/seo";
@@ -167,6 +168,11 @@ export const Route = createFileRoute("/forms/$shortId")({
       }),
       links: [
         { rel: "canonical", href: canonicalHref },
+        ...getMediaPreconnects(
+          loaderData?.form?.cover,
+          loaderData?.form?.icon,
+          loaderData?.form?.ogImageUrl,
+        ),
         // Preload the Latin subset of Inter Variable. The other subsets
         // (latin-ext, rest) stay lazy — the browser only fetches them if
         // the page renders a glyph outside U+0000–00FF.

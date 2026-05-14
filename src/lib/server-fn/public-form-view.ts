@@ -59,30 +59,13 @@ export const getPublishedFormByShortId = createServerFn({ method: "GET" })
       .where(and(eq(forms.shortId, data.shortId), eq(forms.status, "published")));
 
     if (!form) {
-      console.log("[public-read] form not found or not published", { shortId: data.shortId });
       throw notFound();
     }
-
-    console.log("[public-read] forms row", {
-      id: form.id,
-      status: form.status,
-      lastPublishedVersionId: form.lastPublishedVersionId,
-      draftTitle: form.draftTitle,
-    });
 
     // Load version snapshot (source of truth for editor content/customization)
     const [version] = form.lastPublishedVersionId
       ? await db.select().from(formVersions).where(eq(formVersions.id, form.lastPublishedVersionId))
       : [undefined];
-
-    console.log("[public-read] version row", {
-      requestedVersionId: form.lastPublishedVersionId,
-      foundVersionId: version?.id,
-      versionNumber: version?.version,
-      title: version?.title,
-      customization: version?.customization,
-      publishedAt: version?.publishedAt,
-    });
 
     const canDisableBranding =
       isServerPlan(form.orgPlan) && planUnlocks(form.orgPlan, "disableBranding");

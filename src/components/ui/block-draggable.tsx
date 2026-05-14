@@ -101,14 +101,6 @@ export const BlockDraggable: RenderNodeWrapper = (props) => {
         },
       });
       if (block) isEnabled = true;
-    } else if (path.length === 4 && !isType(editor, element, UNDRAGGABLE_KEYS)) {
-      const block = editor.api.some({
-        at: path,
-        match: {
-          type: editor.getType(KEYS.table),
-        },
-      });
-      if (block) isEnabled = true;
     }
 
     if (isAfterButton && !blockIsHidden) {
@@ -149,11 +141,7 @@ const Draggable = (props: PlateElementProps) => {
     const plugin = getPluginByType(editor, element.type);
     if (plugin?.options?.gutterPosition) return plugin.options.gutterPosition as "center" | "top";
 
-    if (
-      ["formTextarea", "formFileUpload", KEYS.codeBlock, KEYS.blockquote, KEYS.table].includes(
-        element.type,
-      )
-    ) {
+    if (["formTextarea", "formFileUpload", KEYS.blockquote].includes(element.type)) {
       return "top";
     }
 

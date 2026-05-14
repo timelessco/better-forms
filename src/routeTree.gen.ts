@@ -18,6 +18,7 @@ import { Route as LoginEmailRouteImport } from './routes/login/email'
 import { Route as FormsShortIdRouteImport } from './routes/forms/$shortId'
 import { Route as FFormIdRouteImport } from './routes/f/$formId'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as ApiTrackVisitEndRouteImport } from './routes/api/track/visit-end'
 import { Route as ApiIconsNameRouteImport } from './routes/api/icons/$name'
 import { Route as ApiCronPurgeArchivedFormsRouteImport } from './routes/api/cron/purge-archived-forms'
 import { Route as ApiCronAggregateAnalyticsRouteImport } from './routes/api/cron/aggregate-analytics'
@@ -75,6 +76,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const ApiTrackVisitEndRoute = ApiTrackVisitEndRouteImport.update({
+  id: '/api/track/visit-end',
+  path: '/api/track/visit-end',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiIconsNameRoute = ApiIconsNameRouteImport.update({
   id: '/api/icons/$name',
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
+  '/api/track/visit-end': typeof ApiTrackVisitEndRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
   '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
   '/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
+  '/api/track/visit-end': typeof ApiTrackVisitEndRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
   '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
   '/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
@@ -219,6 +227,7 @@ export interface FileRoutesById {
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
+  '/api/track/visit-end': typeof ApiTrackVisitEndRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
   '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
   '/_authenticated/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/api/cron/aggregate-analytics'
     | '/api/cron/purge-archived-forms'
     | '/api/icons/$name'
+    | '/api/track/visit-end'
     | '/api/forms/$shortId/meta'
     | '/api/og/$shortId/$hash'
     | '/workspace/$workspaceId/form-builder/$formId'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/api/cron/aggregate-analytics'
     | '/api/cron/purge-archived-forms'
     | '/api/icons/$name'
+    | '/api/track/visit-end'
     | '/api/forms/$shortId/meta'
     | '/api/og/$shortId/$hash'
     | '/workspace/$workspaceId/form-builder/$formId'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/api/cron/aggregate-analytics'
     | '/api/cron/purge-archived-forms'
     | '/api/icons/$name'
+    | '/api/track/visit-end'
     | '/api/forms/$shortId/meta'
     | '/api/og/$shortId/$hash'
     | '/_authenticated/workspace/$workspaceId/form-builder/$formId'
@@ -314,6 +326,7 @@ export interface RootRouteChildren {
   ApiCronAggregateAnalyticsRoute: typeof ApiCronAggregateAnalyticsRoute
   ApiCronPurgeArchivedFormsRoute: typeof ApiCronPurgeArchivedFormsRoute
   ApiIconsNameRoute: typeof ApiIconsNameRoute
+  ApiTrackVisitEndRoute: typeof ApiTrackVisitEndRoute
   ApiFormsShortIdMetaRoute: typeof ApiFormsShortIdMetaRoute
   ApiOgShortIdHashRoute: typeof ApiOgShortIdHashRoute
 }
@@ -382,6 +395,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/track/visit-end': {
+      id: '/api/track/visit-end'
+      path: '/api/track/visit-end'
+      fullPath: '/api/track/visit-end'
+      preLoaderRoute: typeof ApiTrackVisitEndRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/icons/$name': {
       id: '/api/icons/$name'
@@ -545,6 +565,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCronAggregateAnalyticsRoute: ApiCronAggregateAnalyticsRoute,
   ApiCronPurgeArchivedFormsRoute: ApiCronPurgeArchivedFormsRoute,
   ApiIconsNameRoute: ApiIconsNameRoute,
+  ApiTrackVisitEndRoute: ApiTrackVisitEndRoute,
   ApiFormsShortIdMetaRoute: ApiFormsShortIdMetaRoute,
   ApiOgShortIdHashRoute: ApiOgShortIdHashRoute,
 }
