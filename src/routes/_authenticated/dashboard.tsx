@@ -10,10 +10,29 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { Input } from "@/components/ui/input";
 import {
   CheckIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
@@ -39,10 +58,12 @@ import { useSession } from "@/lib/auth/auth-client";
 import { formatForDisplay, HOTKEYS } from "@/lib/hotkeys";
 import { clearLocalDraftIds } from "@/db/local-draft";
 import { hasLocalDataToSync, syncLocalDataToCloud } from "@/db/sync";
+import { getLeadingSortIndex, sortByManualOrder } from "@/lib/sort-utils";
 import { parseTimestampAsUTC } from "@/lib/utils";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { createFileRoute, Link, useLoaderData, useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
+import { generateKeyBetween } from "fractional-indexing";
 import { FolderPlus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -135,6 +156,9 @@ const DashboardPage = () => {
   const duplicateFormFn = useDuplicateForm();
   const activeOrg = useLoaderData({ from: "/_authenticated", select: (d) => d.activeOrg });
   const [isCreating, setIsCreating] = useState(false);
+  const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState("");
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [formToDelete, setFormToDelete] = useState<{
@@ -170,34 +194,82 @@ const DashboardPage = () => {
   const startIndex = (currentPage - 1) * FORMS_PER_PAGE;
   const paginatedForms = orgForms.slice(startIndex, startIndex + FORMS_PER_PAGE);
 
-  const handleCreateWorkspace = useCallback(async () => {
-    if (!activeOrg?.id) return;
+  const handleOpenCreateWorkspace = useCallback(() => {
+    setNewWorkspaceName("");
+    setCreateWorkspaceOpen(true);
+  }, []);
+
+  const handleCloseCreateWorkspace = useCallback(() => {
+    setCreateWorkspaceOpen(false);
+    setNewWorkspaceName("");
+  }, []);
+
+  const handleConfirmCreateWorkspace = useCallback(async () => {
+    const trimmedName = newWorkspaceName.trim();
+    if (!activeOrg?.id || !trimmedName || isCreatingWorkspace) return;
+    setIsCreatingWorkspace(true);
     try {
-      await createWorkspaceLocal(activeOrg.id, "New Workspace");
+      // Place the new workspace before the current lead so it appears at the
+      // top of the sidebar; fractional-indexing keeps it stable even after
+      // future drag-reorders.
+      const leadingSortIndex = generateKeyBetween(null, getLeadingSortIndex(orgWorkspaces));
+      const workspace = await createWorkspaceLocal(activeOrg.id, trimmedName, leadingSortIndex);
+      setCreateWorkspaceOpen(false);
+      setNewWorkspaceName("");
       toast.success("Workspace created");
+      void navigate({
+        to: "/workspace/$workspaceId",
+        params: { workspaceId: workspace.id },
+      });
     } catch (error) {
       console.error("Failed to create workspace:", error);
       toast.error("Failed to create workspace");
-    }
-  }, [activeOrg?.id]);
-
-  const handleCreateForm = useCallback(async () => {
-    if (orgWorkspaces.length === 0) return;
-
-    setIsCreating(true);
-    try {
-      const defaultWorkspace = orgWorkspaces[0];
-      const { form: newForm } = createFormLocal(defaultWorkspace.id);
-      void navigate({
-        to: "/workspace/$workspaceId/form-builder/$formId/edit",
-        params: { workspaceId: defaultWorkspace.id, formId: newForm.id },
-      });
-    } catch (error) {
-      console.error("Failed to create form:", error);
     } finally {
-      setIsCreating(false);
+      setIsCreatingWorkspace(false);
     }
-  }, [orgWorkspaces, navigate]);
+  }, [activeOrg?.id, newWorkspaceName, orgWorkspaces, navigate, isCreatingWorkspace]);
+
+  const handleCreateWorkspaceKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void handleConfirmCreateWorkspace();
+      }
+    },
+    [handleConfirmCreateWorkspace],
+  );
+
+  // Mirror the sidebar's order so the dashboard's "New form" button targets
+  // the same workspace the sidebar lists first when no explicit pick is made.
+  const orderedWorkspaces = useMemo(
+    () =>
+      sortByManualOrder(
+        orgWorkspaces,
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      ),
+    [orgWorkspaces],
+  );
+
+  const handleCreateForm = useCallback(
+    (workspaceId?: string) => {
+      const targetId = workspaceId ?? orderedWorkspaces[0]?.id;
+      if (!targetId) return;
+
+      setIsCreating(true);
+      try {
+        const { form: newForm } = createFormLocal(targetId);
+        void navigate({
+          to: "/workspace/$workspaceId/form-builder/$formId/edit",
+          params: { workspaceId: targetId, formId: newForm.id },
+        });
+      } catch (error) {
+        console.error("Failed to create form:", error);
+      } finally {
+        setIsCreating(false);
+      }
+    },
+    [orderedWorkspaces, navigate],
+  );
 
   const handleDeleteClick = useCallback((form: { id: string; title: string }) => {
     setFormToDelete(form);
@@ -314,9 +386,9 @@ const DashboardPage = () => {
         <DashboardHeader
           isLoading={isLoading}
           orgFormsCount={orgForms.length}
-          orgWorkspacesCount={orgWorkspaces.length}
+          orderedWorkspaces={orderedWorkspaces}
           isCreating={isCreating}
-          handleCreateWorkspace={handleCreateWorkspace}
+          handleCreateWorkspace={handleOpenCreateWorkspace}
           handleCreateForm={handleCreateForm}
         />
 
@@ -379,60 +451,181 @@ const DashboardPage = () => {
         title={formToDelete?.title}
         onConfirm={handleConfirmDelete}
       />
+
+      <WorkspaceCreateDialog
+        open={createWorkspaceOpen}
+        name={newWorkspaceName}
+        isCreating={isCreatingWorkspace}
+        onOpenChange={setCreateWorkspaceOpen}
+        onNameChange={(e) => setNewWorkspaceName(e.target.value)}
+        onClose={handleCloseCreateWorkspace}
+        onCreate={handleConfirmCreateWorkspace}
+        onKeyDown={handleCreateWorkspaceKeyDown}
+      />
     </div>
   );
 };
 
+interface WorkspaceCreateDialogProps {
+  open: boolean;
+  name: string;
+  isCreating: boolean;
+  onOpenChange: (open: boolean) => void;
+  onNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClose: () => void;
+  onCreate: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+}
+
+const WorkspaceCreateDialog = ({
+  open,
+  name,
+  isCreating,
+  onOpenChange,
+  onNameChange,
+  onClose,
+  onCreate,
+  onKeyDown,
+}: WorkspaceCreateDialogProps) => (
+  <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="gap-4 sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>Create workspace</DialogTitle>
+        <DialogDescription>Give your new workspace a name to get started.</DialogDescription>
+      </DialogHeader>
+      <Input
+        value={name}
+        onChange={onNameChange}
+        placeholder="Workspace name"
+        aria-label="Workspace name"
+        onKeyDown={onKeyDown}
+        autoFocus
+      />
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} disabled={isCreating}>
+          Cancel
+        </Button>
+        <Button onClick={onCreate} disabled={!name.trim() || isCreating}>
+          {isCreating ? (
+            <>
+              <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
+              Creating…
+            </>
+          ) : (
+            "Save"
+          )}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+);
+
 interface DashboardHeaderProps {
   isLoading: boolean;
   orgFormsCount: number;
-  orgWorkspacesCount: number;
+  orderedWorkspaces: ReadonlyArray<{ id: string; name: string }>;
   isCreating: boolean;
   handleCreateWorkspace: () => void;
-  handleCreateForm: () => void;
+  handleCreateForm: (workspaceId?: string) => void;
 }
 
 const DashboardHeader = ({
   isLoading,
   orgFormsCount,
-  orgWorkspacesCount,
+  orderedWorkspaces,
   isCreating,
   handleCreateWorkspace,
   handleCreateForm,
-}: DashboardHeaderProps) => (
-  <div className="mb-8 flex items-center justify-between">
-    <div>
-      <h1 className="text-2xl font-semibold">Home</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {isLoading
-          ? "Loading..."
-          : `${orgFormsCount} form${orgFormsCount !== 1 ? "s" : ""} across ${orgWorkspacesCount} workspace${orgWorkspacesCount !== 1 ? "s" : ""}`}
-      </p>
+}: DashboardHeaderProps) => {
+  const orgWorkspacesCount = orderedWorkspaces.length;
+  const topWorkspace = orderedWorkspaces[0];
+  const hasMultipleWorkspaces = orgWorkspacesCount > 1;
+
+  return (
+    <div className="mb-8 flex items-center justify-between">
+      <div>
+        <h1 className="text-2xl font-semibold">Home</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {isLoading
+            ? "Loading..."
+            : `${orgFormsCount} form${orgFormsCount !== 1 ? "s" : ""} across ${orgWorkspacesCount} workspace${orgWorkspacesCount !== 1 ? "s" : ""}`}
+        </p>
+      </div>
+      <div className="flex items-center gap-3">
+        <Button
+          className="ml-1"
+          size="sm"
+          variant="secondary"
+          prefix={<FolderPlus className="size-4" />}
+          onClick={handleCreateWorkspace}
+          disabled={isLoading}
+        >
+          New workspace
+        </Button>
+        {hasMultipleWorkspaces ? (
+          <ButtonGroup>
+            <Button
+              size="sm"
+              prefix={
+                isCreating ? (
+                  <Loader2Icon className="animate-spin" />
+                ) : (
+                  <PlusIcon className="size-4" />
+                )
+              }
+              onClick={() => handleCreateForm(topWorkspace?.id)}
+              disabled={isLoading || isCreating || !topWorkspace}
+            >
+              New form in {topWorkspace?.name ?? "workspace"}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    size="sm"
+                    aria-label="Pick a different workspace"
+                    disabled={isLoading || isCreating}
+                  >
+                    <ChevronDownIcon className="size-3" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end" sideOffset={4} className="w-56">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Create new form in…</DropdownMenuLabel>
+                  {orderedWorkspaces.map((ws) => (
+                    <DropdownMenuItem
+                      key={ws.id}
+                      onClick={() => handleCreateForm(ws.id)}
+                      disabled={isCreating}
+                    >
+                      <span className="flex-1 truncate text-left">{ws.name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </ButtonGroup>
+        ) : (
+          <Button
+            size="sm"
+            prefix={
+              isCreating ? (
+                <Loader2Icon className="animate-spin" />
+              ) : (
+                <PlusIcon className="size-4" />
+              )
+            }
+            onClick={() => handleCreateForm()}
+            disabled={isLoading || isCreating || orgWorkspacesCount === 0}
+          >
+            New form
+          </Button>
+        )}
+      </div>
     </div>
-    <div className="flex items-center gap-3">
-      <Button
-        className="ml-1"
-        size="sm"
-        variant="secondary"
-        prefix={<FolderPlus className="size-4" />}
-        onClick={handleCreateWorkspace}
-        disabled={isLoading}
-      >
-        New workspace
-      </Button>
-      <Button
-        size="sm"
-        prefix={
-          isCreating ? <Loader2Icon className="animate-spin" /> : <PlusIcon className="size-4" />
-        }
-        onClick={handleCreateForm}
-        disabled={isLoading || isCreating || orgWorkspacesCount === 0}
-      >
-        New form
-      </Button>
-    </div>
-  </div>
-);
+  );
+};
 
 type FormListItemForm = {
   id: string;
@@ -539,7 +732,7 @@ const DashboardPagination = ({
       forms
     </p>
     <div className="flex items-center gap-2">
-      <Button variant="outline" size="sm" onClick={onPrevPage} disabled={currentPage === 1}>
+      <Button variant="secondary" size="sm" onClick={onPrevPage} disabled={currentPage === 1}>
         <ChevronLeftIcon className="size-4" />
         Previous
       </Button>
@@ -557,7 +750,7 @@ const DashboardPagination = ({
         ))}
       </div>
       <Button
-        variant="outline"
+        variant="secondary"
         size="sm"
         onClick={onNextPage}
         disabled={currentPage === totalPages}

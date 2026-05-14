@@ -161,7 +161,7 @@ const ThemeSelect = () => {
     <Select value={theme} onValueChange={handleThemeChange}>
       <SelectTrigger
         size="md"
-        className="shrink-0 rounded-lg border-0 bg-neutral-50 pr-2.5 pl-3 text-sm text-foreground capitalize shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] outline-1 -outline-offset-1 outline-transparent"
+        className="shrink-0 rounded-lg border-0 bg-popover pr-2.5 pl-3 text-sm text-popover-foreground capitalize shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] outline-1 -outline-offset-1 outline-transparent"
       >
         <SelectValue />
       </SelectTrigger>
@@ -357,7 +357,7 @@ export const AccountSettingsContent = () => {
                         );
                       }}
                       disabled={updateProfileMutation.isPending}
-                      className="h-[24px] w-[47px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
+                      className="h-[24px] w-[47px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
                     >
                       Save
                     </InputGroupButton>
@@ -408,7 +408,7 @@ export const AccountSettingsContent = () => {
                         );
                       }}
                       disabled={updateProfileMutation.isPending}
-                      className="h-[24px] w-[47px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
+                      className="h-[24px] w-[47px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
                     >
                       Save
                     </InputGroupButton>
@@ -504,7 +504,7 @@ const AvatarSection = ({
         variant="ghost"
         size="sm"
         prefix={<ImageIcon />}
-        className="h-[30px] rounded-lg bg-popover px-2 text-sm text-popover-foreground filter-[drop-shadow(0_0_0.5px_rgba(0,0,0,0.6))_drop-shadow(0_1px_1px_rgba(0,0,0,0.1))] hover:bg-neutral-200"
+        className="h-[30px] rounded-lg bg-popover px-2 text-sm text-popover-foreground filter-[drop-shadow(0_0_0.5px_rgba(0,0,0,0.6))_drop-shadow(0_1px_1px_rgba(0,0,0,0.1))] hover:bg-muted"
         onClick={handleOpenFileDialog}
       >
         Upload image
@@ -558,7 +558,7 @@ const EmailSection = withForm({
             variant="secondary"
             size="sm"
             onClick={emailChange.toggle}
-            className="h-[30px] rounded-lg bg-neutral-50 px-3 font-sans text-sm font-medium text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
+            className="h-[30px] rounded-lg bg-popover px-3 font-sans text-sm font-medium text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
           >
             Change email
           </Button>
@@ -585,7 +585,7 @@ const EmailSection = withForm({
                     emailChange.submit(field.state.value);
                   }}
                   disabled={emailChange.isPending || !field.state.value}
-                  className="h-[24px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
+                  className="h-[24px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
                 >
                   {emailChange.isPending ? "Sending..." : "Verify"}
                 </InputGroupButton>
@@ -652,7 +652,7 @@ const ConnectedAccountSection = ({
             variant="secondary"
             size="sm"
             onClick={handleDisconnectGoogle}
-            className="h-[30px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
+            className="h-[30px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
           >
             Disconnect
           </Button>
@@ -661,7 +661,7 @@ const ConnectedAccountSection = ({
             variant="secondary"
             size="sm"
             onClick={handleGoogleSignIn}
-            className="h-[30px] w-[95px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
+            className="h-[30px] w-[95px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
           >
             Connect
           </Button>

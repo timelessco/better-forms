@@ -536,6 +536,11 @@ const buildFormBuilderMenuItems = ({
       key: "analytics",
       label: "Analytics",
       onClick: onNavigateInsights,
+      // Analytics has nothing to show until the form has been published at
+      // least once — and routing into /insights for a never-published form
+      // crashes the Recharts bundle. Gate on the same flag share + version
+      // history use.
+      show: hasPublishedVersion,
     },
     {
       key: "customization",

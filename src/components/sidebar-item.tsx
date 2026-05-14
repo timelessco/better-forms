@@ -14,6 +14,7 @@ export interface SidebarItemProps<
   isActive?: boolean;
   onClick?: () => void;
   prefix?: React.ReactNode;
+  className?: string;
 }
 
 export function SidebarItem<TRouter extends RegisteredRouter, TOptions>(
@@ -26,6 +27,7 @@ export function SidebarItem({
   onClick,
   prefix,
   children,
+  className,
 }: SidebarItemProps & { children?: React.ReactNode }): React.ReactNode {
   const Component: React.ElementType = linkOptions ? Link : SidebarMenuButton;
   const componentProps = linkOptions ?? { type: "button" as const };
@@ -39,6 +41,7 @@ export function SidebarItem({
         "text-sidebar-foreground",
         !isActive && "hover:bg-secondary",
         isActive && "bg-secondary text-sidebar-foreground",
+        className,
       )}
     >
       <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">

@@ -45,10 +45,14 @@ export const initCollections = (queryClient: QueryClient, serverFns: ServerFns) 
     queryFn: serverFns.getWorkspacesWithForms,
     onInsert: async ({ transaction }) => {
       const ws = transaction.mutations[0].modified;
+      // sortIndex is forwarded so the server writes the workspace row and the
+      // per-user sort entry in a single transaction; that keeps the new
+      // workspace at the top after the refetch reconciles.
       await serverFns.createWorkspace({
         id: ws.id,
         organizationId: ws.organizationId,
         name: ws.name,
+        sortIndex: ws.sortIndex ?? undefined,
       });
     },
     onUpdate: async ({ transaction }) => {

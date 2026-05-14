@@ -6,17 +6,15 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth-client";
 import { guestMiddleware } from "@/lib/auth/middleware";
+import { isSafeRedirect } from "@/lib/auth/safe-redirect";
 import { Logo } from "@/components/ui/logo";
 import { toast } from "sonner";
-
-const SAFE_REDIRECT_PATTERN = /^\/[a-zA-Z0-9\-_/$.~]+$/;
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const { redirect: redirectTo } = Route.useSearch();
 
-  const callbackURL =
-    redirectTo && SAFE_REDIRECT_PATTERN.test(redirectTo) ? redirectTo : "/dashboard";
+  const callbackURL = isSafeRedirect(redirectTo) ? redirectTo : "/dashboard";
 
   // eslint-disable-next-line react-doctor/query-mutation-missing-invalidation -- social sign-in redirects to OAuth provider; cache invalidation handled on callback
   const socialSignInMutation = useMutation({
