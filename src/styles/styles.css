@@ -966,10 +966,14 @@
    sits immediately above a [data-bf-input] wrapper is functionally a label
    even though its node type is still `p` / `h*` / `blockquote` (see
    ALLOWED_LABEL_TYPES in src/lib/form-schema/form-field-constants.ts).
-   Match by position — wrapper without chrome followed by an input — so we
+   Match the OUTER block-draggable wrapper (slate-blockWrapper's parent)
+   via :has(> .slate-blockWrapper) — slate-blockWrapper itself has no
+   `+ [data-bf-input]` sibling because data-bf-input lives on the outer
+   wrapper, not the inner one. Then descend into its slate-blockWrapper to
    collapse its margin from `--bf-block-margin` down to `--bf-field-gap`,
    matching real formLabel wrappers above. */
-.slate-blockWrapper:not(:has(> [data-bf-chrome])):has(+ [data-bf-input]) {
+:not([data-bf-chrome]):not([data-bf-input]):has(> .slate-blockWrapper):has(+ [data-bf-input])
+  > .slate-blockWrapper {
   margin-top: var(--bf-field-gap) !important;
   margin-bottom: var(--bf-field-gap) !important;
 }
@@ -982,8 +986,8 @@
    makes the selection rectangle invisible). */
 .slate-blockWrapper:has(> .slate-formLabel) [data-slot="block-selection"],
 [data-bf-field-list] > .slate-formLabel [data-slot="block-selection"],
-.slate-blockWrapper:not(:has(> [data-bf-chrome])):has(+ [data-bf-input])
-  [data-slot="block-selection"] {
+:not([data-bf-chrome]):not([data-bf-input]):has(> .slate-blockWrapper):has(+ [data-bf-input])
+  > .slate-blockWrapper [data-slot="block-selection"] {
   top: min(0px, calc(-1 * (var(--bf-field-gap) - var(--bf-block-margin)))) !important;
   bottom: min(0px, calc(-1 * (var(--bf-field-gap) - var(--bf-block-margin)))) !important;
 }
