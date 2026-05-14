@@ -919,7 +919,7 @@ const FormBuilderHeaderActions = ({
                   render={
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       className="text-gray-700 hover:text-foreground"
                       onClick={onEdit}
                       aria-label="Edit form"
