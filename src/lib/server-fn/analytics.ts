@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getActiveOrgId } from "@/lib/server-fn/auth-helpers";
+import type { InsightsAvailability } from "@/lib/server-fn/analytics.server";
 import type { FormInsightsMetrics, QuestionDropoffMetrics } from "@/types/analytics";
 
 // All DB-touching logic lives in `analytics.server.ts`. Each handler below
@@ -85,6 +86,14 @@ export const getFormDropoff = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<QuestionDropoffMetrics> => {
     const { getFormDropoffImpl } = await import("./analytics.server");
     return getFormDropoffImpl(data, context, getActiveOrgId(context.session));
+  });
+
+export const getInsightsAvailability = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ formId: z.uuid() }))
+  .handler(async ({ data, context }): Promise<InsightsAvailability> => {
+    const { getInsightsAvailabilityImpl } = await import("./analytics.server");
+    return getInsightsAvailabilityImpl(data, context, getActiveOrgId(context.session));
   });
 
 const aggregateInputSchema = z.object({

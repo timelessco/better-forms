@@ -16,6 +16,7 @@ import {
   createTestForm,
   cleanupTestUser,
   cleanupTestOrg,
+  toFormListing,
 } from "@/test/helpers";
 
 /** Fetch form listings directly from DB (bypasses auth middleware) */
@@ -42,17 +43,7 @@ const fetchFormListings = async (userId: string): Promise<FormListing[]> => {
 
   return formList
     .filter((f) => wsIds.some((w) => w.id === f.workspaceId))
-    .map((f) => ({
-      id: f.id,
-      title: f.title,
-      status: f.status,
-      updatedAt: f.updatedAt.toISOString(),
-      createdAt: f.createdAt.toISOString(),
-      workspaceId: f.workspaceId,
-      icon: f.icon,
-      formName: f.formName,
-      submissionCount: 0,
-    }));
+    .map((f) => toFormListing(f));
 };
 
 /** Fetch favorites directly from DB */

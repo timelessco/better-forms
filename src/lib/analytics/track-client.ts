@@ -61,27 +61,37 @@ export const fireUpdateVisit = (args: UpdateVisitArgs): void => {
   });
 };
 
-/** Beacon variant for unload-time use. Falls back to fire-and-forget fetch when sendBeacon is unavailable. */
+/** Unload-time visit update.
+ *
+ * Uses `navigator.sendBeacon` against the dedicated REST endpoint at
+ * `/api/track/visit-end` so the request survives `beforeunload` / `pagehide`
+ * even when the browser tears down the tab's fetch loop. The serverFn
+ * endpoint can't be used here — it expects a SEROVAL-encoded payload, which
+ * would force `application/json` and trigger a CORS preflight that
+ * sendBeacon refuses. Sending a `text/plain` blob keeps the request
+ * CORS-safelisted; the server route parses the body as JSON itself.
+ *
+ * Falls back to the regular serverFn if `sendBeacon` is unavailable or
+ * refuses the request (queue full, body too large). */
 export const fireUpdateVisitBeacon = (args: UpdateVisitArgs): void => {
-  if (typeof navigator === "undefined" || !navigator.sendBeacon) {
+  if (typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") {
     fireUpdateVisit(args);
     return;
   }
-  const beaconUrl = (updateFormVisit as unknown as { url?: string }).url;
-  if (beaconUrl) {
-    try {
-      const blob = new Blob([JSON.stringify({ data: args })], {
-        type: "application/json",
-      });
-      const sent = navigator.sendBeacon(beaconUrl, blob);
-      if (sent) {
-        return;
-      }
-    } catch {
-      // Fall through to fetch fallback.
-    }
+  const blob = new Blob(
+    [
+      JSON.stringify({
+        visitId: args.visitId,
+        visitEndedAt: args.visitEndedAt,
+        durationMs: args.durationMs,
+      }),
+    ],
+    { type: "text/plain" },
+  );
+  const queued = navigator.sendBeacon("/api/track/visit-end", blob);
+  if (!queued) {
+    fireUpdateVisit(args);
   }
-  fireUpdateVisit(args);
 };
 
 /** Fire-and-forget question-progress event. */

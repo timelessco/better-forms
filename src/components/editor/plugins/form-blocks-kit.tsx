@@ -531,6 +531,27 @@ export const FormButtonPlugin = createPlatePlugin({
           return;
         }
 
+        // 2. Multi thank-you enforcement: only one pageBreak can be the thank-you page.
+        // If multiple exist (e.g. via paste, undo, or loaded data), keep the LAST one
+        // (most recently flagged wins) and demote the rest.
+        const thankYouIndices: number[] = [];
+        const rootChildren = getChildren();
+        for (let i = 0; i < rootChildren.length; i++) {
+          const n = rootChildren[i];
+          if (n?.type === "pageBreak" && (n as Record<string, unknown>).isThankYouPage === true) {
+            thankYouIndices.push(i);
+          }
+        }
+        if (thankYouIndices.length > 1) {
+          const lastThankYou = thankYouIndices[thankYouIndices.length - 1];
+          for (const idx of thankYouIndices) {
+            if (idx !== lastThankYou) {
+              editorRef.tf.setNodes({ isThankYouPage: false }, { at: [idx] });
+            }
+          }
+          return; // Restart normalization
+        }
+
         const { insertNodes: tfInsertNodes, moveNodes: tfMoveNodes } = editorRef.tf;
         let pageStartIndex = 0;
         for (let i = 0; i <= getChildren().length; i++) {
@@ -610,32 +631,34 @@ export const FormButtonPlugin = createPlatePlugin({
             }
 
             if (isThankYouSection) {
+              // Rule: thank-you must be the FINAL pageBreak. If another pageBreak
+              // ends this section, remove it (and let the next iteration absorb
+              // its content into the thank-you section, which will then be cleaned
+              // of any disallowed nodes).
+              if (isPageBreak) {
+                originalRemoveNodes({ at: [i] });
+                return; // Restart normalization
+              }
+
+              // Rule: thank-you section cannot contain form fields, form buttons,
+              // or other layout blocks (pageBreaks). Plain text / headings / lists
+              // remain allowed so users can author the thank-you message.
+              // Iterate from end to start so removal doesn't shift indices we'd revisit.
               for (let j = pageEndIndex - 1; j >= pageStartIndex; j--) {
                 const n = getChildren()[j];
-                if (n?.type === "formButton") {
+                if (!n) continue;
+                const t = n.type;
+                const isForbidden =
+                  t === "formButton" ||
+                  t === "pageBreak" ||
+                  (typeof t === "string" && t.startsWith("form"));
+                if (isForbidden) {
                   originalRemoveNodes({ at: [j] });
                   return; // Restart normalization
                 }
               }
 
-              // Check if form fields exist in this thank you section
-              // (excluding buttons - they should already be removed above)
-              let hasFormFields = false;
-              for (let j = pageStartIndex; j < pageEndIndex; j++) {
-                const n = getChildren()[j];
-                if (n && PAGE_FIELD_TYPES.has(n.type)) {
-                  hasFormFields = true;
-                  break;
-                }
-              }
-
-              // If form fields exist, convert thank you page to normal page
-              if (hasFormFields && precedingBreakIndex !== -1) {
-                editorRef.tf.setNodes({ isThankYouPage: false }, { at: [precedingBreakIndex] });
-                return; // Restart normalization (will now process as normal page)
-              }
-
-              // No form fields - this is a valid thank you page, skip button enforcement
+              // Clean thank-you section - skip button enforcement.
               pageStartIndex = i + 1;
               continue;
             }

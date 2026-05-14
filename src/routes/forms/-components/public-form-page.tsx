@@ -1,4 +1,10 @@
-import { FileQuestionIcon, LockIcon, MoonIcon, SunIcon } from "@/components/ui/icons";
+import {
+  FileQuestionIcon,
+  LockIcon,
+  MoonIcon,
+  RotateCcwIcon,
+  SunIcon,
+} from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import type { Value } from "platejs";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -22,6 +28,7 @@ import { clearDraftId, readDraftId } from "@/hooks/use-draft-autosave";
 import { usePublicFormTracking } from "@/lib/analytics/use-public-form-tracking";
 import { getTranslations } from "@/lib/translations";
 import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Empty,
   EmptyDescription,
@@ -34,6 +41,7 @@ import type { PublicFormSettings } from "@/types/form-settings";
 
 interface PublicForm {
   id: string;
+  shortId: string;
   title: string;
   content: unknown;
   customization?: Record<string, string>;
@@ -289,7 +297,12 @@ export const PublicFormPage = ({
   const dynamicHeight = embedConfig.dynamicHeight;
   const dynamicWidth = embedConfig.dynamicWidth;
   const containerRef = useRef<HTMLDivElement>(null);
-  const trackingBase = usePublicFormTracking({ formId, enabled: form?.analytics === true });
+  // Analytics writers run unconditionally (Option B): we always record visits
+  // and question progress so flipping the analytics toggle on later surfaces
+  // historical data instead of starting from zero. The toggle gates DISPLAY
+  // (insights dashboard), not recording. `form` may be null in error states,
+  // so only suppress tracking when there's no form to attribute visits to.
+  const trackingBase = usePublicFormTracking({ formId, enabled: !!form });
   // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value is read in JSX to render AlreadySubmitted
   const [submitted, setSubmitted] = useState(() => {
     if (form?.settings?.preventDuplicateSubmissions) {
@@ -486,24 +499,37 @@ const ThemeToggleButton = ({ themeToggle }: { themeToggle: ThemeToggleHandle }) 
 const DraftResumePrompt = ({
   handleResumeDraft,
   handleStartOver,
+  branding,
 }: {
   handleResumeDraft: () => void;
   handleStartOver: () => void;
+  branding: boolean;
 }) => (
-  <div
+  // x: "-50%" centers via motion's transform (Tailwind -translate-x-1/2 would be clobbered).
+  // bottom-16 clears the "Made with Reform" branding footer when present.
+  <motion.div
     role="status"
-    className="mx-auto mt-4 mb-4 flex max-w-xl items-center justify-between gap-4 rounded-md border border-border bg-muted/60 px-4 py-3 text-sm"
+    initial={{ opacity: 0, y: 16, x: "-50%" }}
+    animate={{ opacity: 1, y: 0, x: "-50%" }}
+    exit={{ opacity: 0, y: 16, x: "-50%" }}
+    transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+    className={cn("fixed left-1/2 z-50 w-[min(560px,90vw)]", branding ? "bottom-16" : "bottom-6")}
   >
-    <span className="text-foreground">We restored your in-progress answers.</span>
-    <div className="flex gap-2">
-      <Button type="button" size="sm" onClick={handleResumeDraft}>
-        Resume
-      </Button>
-      <Button type="button" size="sm" variant="ghost" onClick={handleStartOver}>
-        Start over
-      </Button>
+    <div className="flex items-center justify-between rounded-xl bg-background px-2.75 py-2.25 shadow-md ring-1 ring-border/60">
+      <div className="flex items-center gap-2 ps-1">
+        <RotateCcwIcon className="size-4 text-muted-foreground" />
+        <span className="text-sm">We restored your in-progress answers.</span>
+      </div>
+      <div className="flex h-6.5 items-center gap-1">
+        <Button type="button" variant="ghost" size="sm" onClick={handleStartOver}>
+          Start over
+        </Button>
+        <Button type="button" variant="secondary" size="sm" onClick={handleResumeDraft}>
+          Resume
+        </Button>
+      </div>
     </div>
-  </div>
+  </motion.div>
 );
 
 const SubmitErrorToast = ({ submitError }: { submitError: string }) => (
@@ -591,9 +617,15 @@ const PublicFormMain = ({
     aria-live="polite"
   >
     {themeToggle && <ThemeToggleButton themeToggle={themeToggle} />}
-    {draftState.status === "prompt" && (
-      <DraftResumePrompt handleResumeDraft={handleResumeDraft} handleStartOver={handleStartOver} />
-    )}
+    <AnimatePresence>
+      {draftState.status === "prompt" && (
+        <DraftResumePrompt
+          handleResumeDraft={handleResumeDraft}
+          handleStartOver={handleStartOver}
+          branding={settings.branding}
+        />
+      )}
+    </AnimatePresence>
     {rsc && settings.presentationMode !== "field-by-field" ? (
       <FormPreviewRSC
         key={previewKey}
@@ -619,6 +651,7 @@ const PublicFormMain = ({
           hideTitle={hideTitle}
           settings={settings}
           formId={formId}
+          shortId={form.shortId}
           customization={form.customization}
           isPopup={isPopup}
           trackingBase={trackingBase}

@@ -6,6 +6,7 @@ import type { FormSettings } from "@/types/form-settings";
 
 export type FormListing = {
   id: string;
+  shortId: string;
   title: string | null;
   status: string;
   updatedAt: string;

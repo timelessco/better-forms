@@ -46,14 +46,14 @@ interface EmbedCodeDialogProps {
   onOpenChange: (open: boolean) => void;
   embedType: EmbedType;
   options: EmbedOptions;
-  formId: string;
+  shortId: string;
   docTitle?: string;
   customDomain?: string;
   formSlug?: string;
 }
 
 export const generateEmbedUrl = (
-  formId: string,
+  shortId: string,
   options: EmbedOptions,
   customDomain?: string,
   formSlug?: string,
@@ -61,7 +61,7 @@ export const generateEmbedUrl = (
   const baseUrl =
     customDomain && formSlug
       ? `https://${customDomain}/${formSlug}`
-      : `${window.location.origin}/forms/${formId}`;
+      : `${window.location.origin}/forms/${shortId}`;
   const params = new URLSearchParams();
   if (options.display.title === "hidden") params.append("hideTitle", "true");
   if (options.display.background === "transparent") params.append("transparent", "true");
@@ -79,12 +79,12 @@ export const generateEmbedUrl = (
 const generateEmbedCode = (
   embedType: EmbedType,
   options: EmbedOptions,
-  formId: string,
+  shortId: string,
   docTitle?: string,
   customDomain?: string,
   formSlug?: string,
 ): string => {
-  const embedUrl = generateEmbedUrl(formId, options, customDomain, formSlug);
+  const embedUrl = generateEmbedUrl(shortId, options, customDomain, formSlug);
 
   if (embedType === "standard") {
     const baseUrl = `${window.location.origin}/widgets/embed.js`;
@@ -111,7 +111,7 @@ const generateEmbedCode = (
   (function() {
     var script = document.createElement('script');
     script.src = "${window.location.origin}/embed/popup.js";
-    script.setAttribute('data-form-id', '${formId}');
+    script.setAttribute('data-form-id', '${shortId}');
     script.setAttribute('data-position', '${options.popup.position}');
     script.setAttribute('data-width', '${options.popup.width}');
     script.setAttribute('data-trigger', '${options.popup.trigger}');
@@ -158,7 +158,7 @@ const CodeBlock = ({
       {/* eslint-disable-next-line react/no-danger -- output of highlight.js applied to a known-safe embed snippet generated server-side */}
       <pre
         className={cn(
-          "w-full max-w-full min-w-0 rounded-xl border border-border/50 bg-muted/30 p-4 pr-12 font-mono text-[12px] [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap [tab-size:2] text-foreground/90",
+          "w-full max-w-full min-w-0 rounded-xl border border-border/50 bg-muted/30 p-4 pr-12 font-mono text-[12px] [overflow-wrap:anywhere] [word-break:break-word] whitespace-pre-wrap tab-2 text-foreground/90",
           hljsClassName,
         )}
       >
@@ -177,18 +177,18 @@ export const EmbedCodeDialog = ({
   onOpenChange,
   embedType,
   options,
-  formId,
+  shortId,
   docTitle,
   customDomain,
   formSlug,
 }: EmbedCodeDialogProps) => {
   const embedUrl = useMemo(
-    () => generateEmbedUrl(formId, options, customDomain, formSlug),
-    [formId, options, customDomain, formSlug],
+    () => generateEmbedUrl(shortId, options, customDomain, formSlug),
+    [shortId, options, customDomain, formSlug],
   );
   const embedCode = useMemo(
-    () => generateEmbedCode(embedType, options, formId, docTitle, customDomain, formSlug),
-    [embedType, options, formId, docTitle, customDomain, formSlug],
+    () => generateEmbedCode(embedType, options, shortId, docTitle, customDomain, formSlug),
+    [embedType, options, shortId, docTitle, customDomain, formSlug],
   );
 
   const isAlignLeft = options.display.alignment === "left";
@@ -252,7 +252,7 @@ export const EmbedCodeDialog = ({
                   code={`<script
   async
   src="${window.location.origin}/embed/popup.js"
-  data-form-id="${formId}"
+  data-form-id="${shortId}"
   data-position="${options.popup.position}"
   data-width="${options.popup.width}"${isAlignLeft ? `\n  data-align-left="1"` : ""}${isHideTitle ? `\n  data-hide-title="1"` : ""}${isDarkOverlay ? `\n  data-dark-overlay="1"` : ""}${options.popup.hideOnSubmit ? `\n  data-auto-close="${options.popup.hideOnSubmitDelay * 1000}"` : ""}
 ></script>`}
@@ -311,7 +311,7 @@ export const EmbedCodeDialog = ({
                           code={`<script
   async
   src="${window.location.origin}/embed/popup.js"
-  data-form-id="${formId}"
+  data-form-id="${shortId}"
   data-ref="downloads"
   data-email="alice@example.com"
 ></script>`}

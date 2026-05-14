@@ -198,7 +198,10 @@ const LocalEditorApp = () => {
   }
 
   const resolvedAppTheme = useResolvedTheme();
-  const { hasCustomization, themeVars } = useFormCustomization(savedDocs?.[0], resolvedAppTheme);
+  const { hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
+    savedDocs?.[0],
+    resolvedAppTheme,
+  );
   const themeCtx = useMemo(() => ({ themeVars, hasCustomization }), [themeVars, hasCustomization]);
 
   const skipSaveRef = useRef(false);
@@ -275,7 +278,7 @@ const LocalEditorApp = () => {
         className={cn(
           "min-h-full w-full overflow-x-hidden bg-background text-foreground",
           hasCustomization && "bf-themed",
-          resolvedAppTheme === "dark" && "dark",
+          effectiveTheme === "dark" && "dark",
         )}
         style={hasCustomization ? themeVars : undefined}
       >
@@ -298,7 +301,7 @@ const LocalPreviewMode = () => {
   const resolvedAppTheme = useResolvedTheme();
 
   const doc = savedDocs?.[0];
-  const { customization, hasCustomization, themeVars } = useFormCustomization(
+  const { customization, hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
     doc,
     resolvedAppTheme,
   );
@@ -311,7 +314,7 @@ const LocalPreviewMode = () => {
       className={cn(
         "flex size-full flex-col overflow-x-hidden overflow-y-auto bg-background transition-colors duration-300",
         hasCustomization && "bf-themed",
-        resolvedAppTheme === "dark" && "dark",
+        effectiveTheme === "dark" && "dark",
       )}
       style={hasCustomization ? themeVars : undefined}
     >

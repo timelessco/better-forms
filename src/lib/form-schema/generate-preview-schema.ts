@@ -44,11 +44,29 @@ export const generateZodSchemaFromFields = (fields: PlateFormField[]): z.ZodObje
           : z.union([z.literal(""), z.string().regex(urlRegex, "Please enter a valid URL")]);
         break;
       }
-      case "Number":
+      case "Number": {
+        let numberSchema = z.coerce.number({ error: "Please enter a valid number" });
+        if (field.allowDecimals === false) {
+          numberSchema = numberSchema.int("Decimals are not allowed");
+        }
+        if (typeof field.min === "number") {
+          numberSchema = numberSchema.min(field.min, `Value must be at least ${field.min}`);
+        }
+        if (typeof field.max === "number") {
+          numberSchema = numberSchema.max(field.max, `Value must be at most ${field.max}`);
+        }
+        // `Number("")` is 0, so a required Number with an empty input would
+        // silently coerce to 0 and pass. Preprocess "" → undefined so the
+        // downstream number schema sees undefined and rejects it with the
+        // standard required-field error.
         fieldSchema = field.required
-          ? z.coerce.number({ error: "Please enter a valid number" })
-          : z.union([z.literal(""), z.coerce.number({ error: "Please enter a valid number" })]);
+          ? z.preprocess(
+              (val) => (val === "" || val === null || val === undefined ? undefined : val),
+              numberSchema,
+            )
+          : z.union([z.literal(""), numberSchema]);
         break;
+      }
       case "Phone": {
         // PhoneInput emits E.164 strings (e.g. "+919360992440"). Validate the
         // phone-number format with libphonenumber, not character-count limits

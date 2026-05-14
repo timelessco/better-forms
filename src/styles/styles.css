@@ -241,7 +241,7 @@
   --accent: var(--color-gray-alpha-100); 
   /* var(--color-gray-200); */
   --accent-foreground: var(--color-foreground);
-  --muted: var(--color-gray-300);
+  --muted:  var(--color-gray-100);
   --muted-foreground: var(--color-gray-600);
   --destructive: #cd2b31;
   --destructive-foreground: #e03636;
@@ -374,7 +374,7 @@
   --primary-foreground: var(--color-gray-90);
   --secondary: var(--color-gray-100);
   --secondary-foreground: var(--color-gray-800);
-  --muted: var(--color-gray-300);
+  --muted:  var(--color-gray-100);
   --muted-foreground: var(--color-gray-600);
   --accent: var(--color-gray-alpha-100); 
   /* var(--color-gray-200); */
@@ -605,14 +605,33 @@
   font-optical-sizing: auto;
 }
 
-@utility hide-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
+/* Figma elevation tokens — shadow-only outlines.
+   `sm` for input controls (Input/Textarea/Checkbox/DatePicker/MultiSelect
+   etc.); `lg` for menus / small popovers; `xl` for wide popovers, dialogs,
+   and the country dropdown. See
+   https://www.figma.com/design/Z5Bkur0wjruaEYo5NlTcsR/system-flat for the
+   source recipes. Consumers that want dark-mode behavior add their own
+   `dark:shadow-none` after the utility — the bare utility is the bare
+   shadow, no dark variant baked in. */
+@utility elevation-sm {
+  box-shadow:
+    0 0 1px 0 rgba(0, 0, 0, 0.54),
+    0 1px 1px 0 rgba(0, 0, 0, 0.06);
 }
 
+@utility elevation-lg {
+  box-shadow:
+    0 0 0.5px 0 rgba(0, 0, 0, 0.19),
+    0 1px 1px 0 rgba(0, 0, 0, 0.07),
+    0 6px 7.5px 0 rgba(0, 0, 0, 0.11);
+}
+
+@utility elevation-xl {
+  box-shadow:
+    0 0 1px 0 rgba(0, 0, 0, 0.2),
+    0 0 10px 2px rgba(0, 0, 0, 0.04),
+    0 24px 30px -8px rgba(0, 0, 0, 0.1);
+}
 
 @keyframes drop-line-pulse {
   0%,
@@ -901,8 +920,34 @@
 }
 
 .slate-blockWrapper:not(:has(> [data-bf-chrome])),
-[data-bf-field-list] > [data-slate-node="element"]:not([data-bf-chrome]) {
+[data-bf-field-list] > [data-slate-node="element"]:not([data-bf-chrome]),
+[data-bf-field-list] > [data-bf-input] {
   margin-bottom: var(--bf-block-margin) !important;
+}
+
+/* Public-form label spacing mirrors the editor's label block exactly.
+   Using MARGIN (not padding) so it vertical-collapses through the
+   transparent [data-bf-input] wrapper:
+   - Label's margin-top collapses into the wrapper's margin-top, giving the
+     first field 4px breathing room above without an explicit wrapper rule.
+   - Label's margin-bottom = label↔input gap inside the wrapper (4px).
+   - Wrapper's margin-bottom (--bf-block-margin) collapses with the next
+     wrapper's margin-top (4px from its label) to MAX(24, 4) = 24px between
+     fields — identical to the editor. */
+[data-bf-field-list] [data-bf-field-label] {
+  margin-top: var(--bf-field-gap) !important;
+  margin-bottom: var(--bf-field-gap) !important;
+}
+
+/* An option block immediately preceded by another option block — pull it
+   up to collapse the visible block-margin between consecutive options
+   down to --bf-field-gap. The first option in a group still gets the full
+   block-margin above it (clean gap from the form label), and the last
+   option still gets the full block-margin below it (clean gap to the
+   next block). */
+[data-bf-input="true"]:has(> .slate-blockWrapper > .slate-formOptionItem)
+  + [data-bf-input="true"]:has(> .slate-blockWrapper > .slate-formOptionItem) {
+  margin-top: calc(var(--bf-field-gap) - var(--bf-block-margin)) !important;
 }
 
 /* Label wrappers carry both top and bottom field-gap margin. Vertical margin
@@ -917,6 +962,22 @@
   margin-bottom: var(--bf-field-gap) !important;
 }
 
+/* Dynamic-label spacing: a text block (p, h1, h2, h3, blockquote) that
+   sits immediately above a [data-bf-input] wrapper is functionally a label
+   even though its node type is still `p` / `h*` / `blockquote` (see
+   ALLOWED_LABEL_TYPES in src/lib/form-schema/form-field-constants.ts).
+   Match the OUTER block-draggable wrapper (slate-blockWrapper's parent)
+   via :has(> .slate-blockWrapper) — slate-blockWrapper itself has no
+   `+ [data-bf-input]` sibling because data-bf-input lives on the outer
+   wrapper, not the inner one. Then descend into its slate-blockWrapper to
+   collapse its margin from `--bf-block-margin` down to `--bf-field-gap`,
+   matching real formLabel wrappers above. */
+:not([data-bf-chrome]):not([data-bf-input]):has(> .slate-blockWrapper):has(+ [data-bf-input])
+  > .slate-blockWrapper {
+  margin-top: var(--bf-field-gap) !important;
+  margin-bottom: var(--bf-field-gap) !important;
+}
+
 /* Label's BlockSelection bleeds (field-gap − block-margin) into each margin
    so consecutive selections (prev field → label, label → input) end up with
    a uniform residual = block-margin visible gap, matching non-label blocks.
@@ -924,7 +985,9 @@
    pushes the selection box *inward* (which collapses it on small labels and
    makes the selection rectangle invisible). */
 .slate-blockWrapper:has(> .slate-formLabel) [data-slot="block-selection"],
-[data-bf-field-list] > .slate-formLabel [data-slot="block-selection"] {
+[data-bf-field-list] > .slate-formLabel [data-slot="block-selection"],
+:not([data-bf-chrome]):not([data-bf-input]):has(> .slate-blockWrapper):has(+ [data-bf-input])
+  > .slate-blockWrapper [data-slot="block-selection"] {
   top: min(0px, calc(-1 * (var(--bf-field-gap) - var(--bf-block-margin)))) !important;
   bottom: min(0px, calc(-1 * (var(--bf-field-gap) - var(--bf-block-margin)))) !important;
 }

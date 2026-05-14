@@ -4,6 +4,7 @@ import {
   ALLOWED_LABEL_TYPES,
   INPUT_TYPE_TO_FIELD_TYPE,
   VARIANT_TO_FIELD_TYPE,
+  extractNumberFields,
   resolveRequired,
 } from "@/lib/form-schema/form-field-constants";
 import { extractTextContent, slugify } from "./transform-plate-to-form";
@@ -147,6 +148,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
       const name = stableId || `${baseName}_${fieldIndex}`;
 
       const fileUploadFields = nodeType === "formFileUpload" ? extractFileUploadFields(node) : {};
+      const numberFields = nodeType === "formNumber" ? extractNumberFields(node) : {};
 
       segments.push({
         type: "field",
@@ -162,6 +164,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
           maxLength,
           defaultValue,
           ...fileUploadFields,
+          ...numberFields,
         } as PlateFormField,
       });
       fieldIndex++;

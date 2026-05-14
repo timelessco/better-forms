@@ -8,10 +8,26 @@ import { planUnlocks } from "@/lib/config/plan-gates";
 import { db } from "@/db";
 import { authMiddleware, formProSettingsMiddleware } from "@/lib/auth/middleware";
 import { purgeFormCache, purgeFormCacheBatch } from "@/lib/server-fn/cdn-cache";
+import { defaultFormSettings } from "@/types/form-settings";
 import type { FormSettings } from "@/types/form-settings";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm, authFormsBulk } from "./auth-helpers.server";
 import { getOrgPlan } from "./plan-helpers.server";
+import { generateShortId } from "@/lib/short-id";
+
+const MAX_SHORT_ID_ATTEMPTS = 5;
+const PG_UNIQUE_VIOLATION = "23505";
+const SHORT_ID_CONSTRAINT = "forms_shortId_key";
+
+// Postgres SQLSTATE 23505 = unique_violation. Treat as a collision only when
+// it's on the shortId index; FK / PK / other unique-index violations propagate.
+const isShortIdCollision = (err: unknown): boolean =>
+  !!err &&
+  typeof err === "object" &&
+  "code" in err &&
+  (err as { code: unknown }).code === PG_UNIQUE_VIOLATION &&
+  "constraint_name" in err &&
+  (err as { constraint_name: unknown }).constraint_name === SHORT_ID_CONSTRAINT;
 
 const serializeForm = (form: typeof forms.$inferSelect) => ({
   ...form,
@@ -51,28 +67,39 @@ export const createForm = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const now = new Date();
-    const [form] = await db
-      .insert(forms)
-      .values({
-        id: data.id,
-        createdByUserId: context.session.user.id,
-        workspaceId: data.workspaceId,
-        title: data.title ?? "Untitled",
-        formName: data.formName ?? "draft",
-        schemaName: data.schemaName ?? "draftFormSchema",
-        content: data.content ?? [],
-        icon: data.icon,
-        cover: data.cover,
-        status: data.status ?? "draft",
-        ...(data.draftSettings ? { draftSettings: data.draftSettings } : {}),
-        customization: data.customization,
-        sortIndex: data.sortIndex,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning();
-
-    return { form: serializeForm(form) };
+    // Generate-then-INSERT, retrying only on the UNIQUE-constraint violation
+    // for forms.shortId. At 7-char base62 (3.5T namespace) collisions are
+    // vanishing, so the happy path is one DB roundtrip.
+    for (let attempt = 0; attempt < MAX_SHORT_ID_ATTEMPTS; attempt++) {
+      try {
+        const [form] = await db
+          .insert(forms)
+          .values({
+            id: data.id,
+            shortId: generateShortId(),
+            createdByUserId: context.session.user.id,
+            workspaceId: data.workspaceId,
+            title: data.title ?? "Untitled",
+            formName: data.formName ?? "draft",
+            schemaName: data.schemaName ?? "draftFormSchema",
+            content: data.content ?? [],
+            icon: data.icon,
+            cover: data.cover,
+            status: data.status ?? "draft",
+            ...(data.draftSettings ? { draftSettings: data.draftSettings } : {}),
+            customization: data.customization,
+            sortIndex: data.sortIndex,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .returning();
+        return { form: serializeForm(form) };
+      } catch (err) {
+        if (isShortIdCollision(err)) continue;
+        throw err;
+      }
+    }
+    throw new Error(`failed to allocate unique shortId after ${MAX_SHORT_ID_ATTEMPTS} attempts`);
   });
 
 export const updateForm = createServerFn({ method: "POST" })
@@ -119,6 +146,52 @@ export const updateForm = createServerFn({ method: "POST" })
     }
 
     return { form: serializeForm(form) };
+  });
+
+/**
+ * Flip the analytics toggle. Unlike most settings (which live in draftSettings
+ * and only go live on republish), this writes the live `formSettings` row
+ * directly so `isAnalyticsEnabled` and the recorder gate flip immediately —
+ * no republish required. Draft is updated too so the share sidebar reflects
+ * the new value without a roundtrip back through the form-listings sync.
+ */
+export const setFormAnalytics = createServerFn({ method: "POST" })
+  .middleware([authMiddleware, formProSettingsMiddleware])
+  .inputValidator(z.object({ formId: z.uuid(), enabled: z.boolean() }))
+  .handler(async ({ data, context }) => {
+    const orgId = getActiveOrgId(context.session);
+    await authForm(data.formId, context.session.user.id, orgId);
+
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      // Draft so the share-sidebar's optimistic state stays in sync.
+      await tx
+        .update(forms)
+        .set({
+          draftSettings: mergeFormSettings({ analytics: data.enabled }),
+          updatedAt: now,
+        })
+        .where(eq(forms.id, data.formId));
+
+      // Live — this is what `isAnalyticsEnabled` reads. Merge into the
+      // existing row so we don't clobber other live settings.
+      await tx
+        .insert(formSettings)
+        .values({
+          formId: data.formId,
+          settings: { ...defaultFormSettings, analytics: data.enabled } as FormSettings,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: formSettings.formId,
+          set: {
+            settings: sql`${formSettings.settings} || ${JSON.stringify({ analytics: data.enabled })}::jsonb`,
+            updatedAt: now,
+          },
+        });
+    });
+
+    return { ok: true as const };
   });
 
 export const deleteForm = createServerFn({ method: "POST" })
@@ -179,6 +252,7 @@ export const getFormListings = createServerFn({ method: "GET" })
     const formList = await db
       .select({
         id: forms.id,
+        shortId: forms.shortId,
         title: forms.title,
         status: forms.status,
         updatedAt: forms.updatedAt,

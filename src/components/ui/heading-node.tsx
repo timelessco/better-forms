@@ -4,6 +4,8 @@ import type { VariantProps } from "class-variance-authority";
 import type { PlateElementProps } from "platejs/react";
 import { PlateElement } from "platejs/react";
 
+import { LabelRequiredBadge } from "@/components/ui/required-badge-button";
+
 const headingVariants = cva("relative", {
   variants: {
     variant: {
@@ -23,6 +25,7 @@ export const HeadingElement = ({
 }: PlateElementProps & VariantProps<typeof headingVariants>) => (
   <PlateElement as={variant ?? "h1"} className={headingVariants({ variant })} {...props}>
     {props.children}
+    <LabelRequiredBadge labelElement={props.element} />
   </PlateElement>
 );
 

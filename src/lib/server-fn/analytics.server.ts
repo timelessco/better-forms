@@ -1,5 +1,5 @@
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { and, eq, gte, inArray, lt, lte } from "drizzle-orm";
+import { and, count, eq, gte, inArray, lt, lte } from "drizzle-orm";
 import { db } from "@/db";
 import {
   formAnalyticsDaily,
@@ -9,6 +9,7 @@ import {
   formSettings,
   formVisits,
   organization,
+  submissions,
   workspaces,
 } from "@/db/schema";
 import { buildDailyAnalyticsRows, buildDailyDropoffRows } from "@/lib/analytics/aggregate-utils";
@@ -59,12 +60,15 @@ export type InsightsFilterInput = {
   endDate?: string;
 };
 
-// Defense in depth — direct callers can bypass the client hook, and the
-// org-plan check covers the window where a Polar downgrade webhook hasn't
-// yet flipped `forms.analytics`.
+// Display-only gate for insights/dropoff readers. Recorders write data
+// unconditionally — the toggle controls what's *shown*, not what's *kept*,
+// so enabling analytics later (or upgrading to Pro) surfaces historical
+// data instead of starting from zero. The org-plan check covers the
+// window where a Polar downgrade webhook hasn't yet flipped any cached
+// state.
 export const isAnalyticsEnabled = async (formId: string): Promise<boolean> => {
   // Read the LIVE settings (form_settings table), not the working draft —
-  // analytics tracking should reflect what's published, not pending edits.
+  // analytics display should reflect what's published, not pending edits.
   const [row] = await db
     .select({ settings: formSettings.settings, plan: organization.plan })
     .from(forms)
@@ -79,10 +83,6 @@ export const isAnalyticsEnabled = async (formId: string): Promise<boolean> => {
 export const recordFormVisitImpl = async (
   data: RecordFormVisitInput,
 ): Promise<{ visitId: string | null }> => {
-  if (!(await isAnalyticsEnabled(data.formId))) {
-    return { visitId: null };
-  }
-
   const headers = getRequestHeaders();
   const ua = headers.get("user-agent");
 
@@ -143,9 +143,6 @@ export const updateFormVisitImpl = async (data: UpdateFormVisitInput): Promise<{
 export const recordQuestionProgressImpl = async (
   data: RecordQuestionProgressInput,
 ): Promise<{ ok: true }> => {
-  if (!(await isAnalyticsEnabled(data.formId))) {
-    return { ok: true };
-  }
   // NOTE: race-prone if a single visitor fires multiple events simultaneously.
   // V1 acceptable: duplicates inflate progress rows but aggregation in Task 12
   // dedupes by max(viewedAt) per (visitorHash, questionId). A unique constraint
@@ -305,6 +302,44 @@ export const getFormDropoffImpl = async (
     dailyRows,
     todayProgressRows,
   });
+};
+
+export interface InsightsAvailability {
+  /** Form's lifecycle state — drives the "publish first" prompt. */
+  formStatus: string;
+  /** Total submissions for the form (lifetime, all-time). */
+  submissionCount: number;
+  /** Whether ANY raw visit has been recorded for this form. Recorders write
+   *  unconditionally now, so this is true once anyone has loaded the public
+   *  form even if the analytics toggle has never been flipped on. */
+  hasAnyVisits: boolean;
+  /** Live `forms.analytics` setting + plan unlock — only true when both the
+   *  toggle is on AND the org plan allows analytics. Drives the "enable
+   *  analytics" prompt vs. showing the dashboard. */
+  analyticsEnabled: boolean;
+}
+
+export const getInsightsAvailabilityImpl = async (
+  data: { formId: string },
+  context: { session: { user: { id: string } } },
+  orgId: string,
+): Promise<InsightsAvailability> => {
+  await authForm(data.formId, context.session.user.id, orgId);
+
+  const [[form], [{ value: submissionCount }], [{ value: visitCount }], analyticsEnabled] =
+    await Promise.all([
+      db.select({ status: forms.status }).from(forms).where(eq(forms.id, data.formId)).limit(1),
+      db.select({ value: count() }).from(submissions).where(eq(submissions.formId, data.formId)),
+      db.select({ value: count() }).from(formVisits).where(eq(formVisits.formId, data.formId)),
+      isAnalyticsEnabled(data.formId),
+    ]);
+
+  return {
+    formStatus: form?.status ?? "draft",
+    submissionCount,
+    hasAnyVisits: visitCount > 0,
+    analyticsEnabled,
+  };
 };
 
 const DAYS_TO_RETAIN = 90;

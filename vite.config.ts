@@ -7,6 +7,7 @@ import { nitro } from "nitro/vite";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
+import { analyzer } from "vite-bundle-analyzer";
 import viteTsConfigPaths from "vite-tsconfig-paths";
 
 // Custom Cache-Control headers for the public embed script so updates
@@ -89,6 +90,12 @@ const config = defineConfig({
         plugins: [["babel-plugin-react-compiler", {}]],
       },
     }),
+    process.env.ANALYZE
+      ? {
+          ...analyzer({ analyzerMode: "static", openAnalyzer: true }),
+          applyToEnvironment: (env) => env.name === "client",
+        }
+      : null,
   ],
   resolve: {
     // `jotai` added: @platejs/core pins ~2.8.4 while another tree pulls 2.20.0,

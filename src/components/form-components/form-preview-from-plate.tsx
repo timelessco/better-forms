@@ -76,8 +76,10 @@ interface FormPreviewFromPlateProps {
   layout?: "public" | "editor";
   /** Form settings for public forms */
   settings?: PublicFormSettings;
-  /** Form ID for localStorage persistence */
   formId?: string;
+  /** Form Short ID — only used for the thank-you-page share URL. Omit in
+   *  editor previews to suppress the share UI. */
+  shortId?: string;
   /** Form customization record for theming */
   customization?: Record<string, string> | null;
   /** Rehydrate step state from a server-side draft (resume-after-refresh). */
@@ -399,6 +401,7 @@ export const FormPreviewFromPlate = ({
   layout = "public",
   settings,
   formId,
+  shortId,
   customization,
   initialFormData,
   initialCurrentStep,
@@ -483,7 +486,7 @@ export const FormPreviewFromPlate = ({
       tracking={tracking}
     >
       <FormPreviewContent
-        formId={formId}
+        shortId={shortId}
         steps={steps}
         thankYouNodes={thankYouNodes}
         title={title}
@@ -887,22 +890,22 @@ const FormPreviewContent = (props: {
   customization?: Record<string, string> | null;
   isPopup?: boolean;
   boundToParent?: boolean;
-  formId?: string;
+  shortId?: string;
 }) => {
   const { isSubmitted, reset } = useStepForm();
-  const { formId, settings, layout, isFieldByField, ...rest } = {
+  const { shortId, settings, layout, isFieldByField, ...rest } = {
     ...props,
     isFieldByField: props.settings?.presentationMode === "field-by-field",
   };
   const redirectCountdown = useRedirectCountdown(isSubmitted, settings);
 
   // Public-form share URL — used on the thank-you page so respondents can pass
-  // the form along. Built from the formId since `window.location.href` in the
+  // the form along. Built from the shortId since `window.location.href` in the
   // editor preview is the editor route, not the public form URL.
   const shareUrl = useMemo(() => {
-    if (!formId || typeof window === "undefined") return undefined;
-    return `${window.location.origin}/forms/${formId}`;
-  }, [formId]);
+    if (!shortId || typeof window === "undefined") return undefined;
+    return `${window.location.origin}/forms/${shortId}`;
+  }, [shortId]);
 
   // Show thank you content after submission (non-field-by-field layout).
   // Field-by-field renders its own thank-you inside the shared shell below.

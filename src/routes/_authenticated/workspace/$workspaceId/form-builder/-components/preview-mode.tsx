@@ -31,7 +31,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
 
   const resolvedAppTheme = useResolvedTheme();
 
-  const { customization, hasCustomization, themeVars } = useFormCustomization(
+  const { customization, hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
     doc,
     resolvedAppTheme,
   );
@@ -101,7 +101,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
         <div
           className={cn(
             hasCustomization && "bf-themed",
-            resolvedAppTheme === "dark" && "dark",
+            effectiveTheme === "dark" && "dark",
             "flex size-full flex-col overflow-hidden bg-background text-foreground transition-colors duration-300",
           )}
           style={{
@@ -207,7 +207,7 @@ const EmbedPreviewSurface = ({
   const [embedFrame, setEmbedFrame] = useState<HTMLElement | null>(null);
   useFocusTrap(embedType === "standard", embedFrame);
   return (
-    <div className="scrollbar-hide flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+    <div className="flex flex-1 scrollbar-none flex-col overflow-x-hidden overflow-y-auto">
       <div className="relative flex-1 p-4 lg:p-0">
         <div className="mx-auto max-w-[1000px] space-y-8 px-4 pt-4 lg:px-8">
           <div className="flex items-center pt-2">

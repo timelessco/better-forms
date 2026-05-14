@@ -318,7 +318,7 @@ const InlineComboboxContent = ({
     <Portal>
       <ComboboxPopover
         className={cn(
-          "z-500 w-[300px] rounded-xl bg-popover shadow-md",
+          "z-500 w-[300px] rounded-xl bg-popover elevation-lg",
           hasPreview ? "overflow-visible" : "max-h-[288px] overflow-y-auto",
           className,
         )}
@@ -336,7 +336,7 @@ const InlineComboboxContent = ({
             style={{ paddingLeft: PREVIEW_GAP }}
           >
             <div
-              className="pointer-events-auto rounded-xl bg-popover shadow-md"
+              className="pointer-events-auto rounded-xl bg-popover elevation-lg"
               style={{ width: PREVIEW_WIDTH }}
             >
               {preview({ activeValue })}

@@ -83,7 +83,7 @@ export const SelectContent = ({
         data-slot="select-content"
         data-align-trigger={alignItemWithTrigger}
         className={cn(
-          "data-[side=top]:slide-in-from-bottom-2data-[align-trigger=true]:animate-none relative isolate z-50 max-h-60 min-w-(--anchor-width) origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-2xl bg-popover p-1 shadow-[0_0_1px_0_rgba(0,0,0,0.19),0_1px_2px_0_rgba(0,0,0,0.07),0_6px_15px_-5px_rgba(0,0,0,0.11)] ring-1 ring-foreground/10 outline-hidden transition-[transform,scale,opacity] data-starting-style:scale-98 data-starting-style:opacity-0 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+          "data-[side=top]:slide-in-from-bottom-2data-[align-trigger=true]:animate-none relative isolate z-50 max-h-60 min-w-(--anchor-width) origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-2xl bg-popover p-1 elevation-lg outline-hidden transition-[transform,scale,opacity] data-starting-style:scale-98 data-starting-style:opacity-0 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
           className,
         )}
         {...props}
@@ -118,7 +118,7 @@ export const SelectItem = ({ className, children, ...props }: SelectPrimitive.It
     </SelectPrimitive.ItemText>
     <SelectPrimitive.ItemIndicator
       render={
-        <span className="pointer-events-none absolute end-2 flex size-4 shrink-0 items-center justify-center opacity-0 data-selected:opacity-100" />
+        <span className="pointer-events-none absolute inset-e-2 flex size-4 shrink-0 items-center justify-center opacity-0 data-selected:opacity-100" />
       }
     >
       <CheckIcon className="pointer-events-none text-foreground" />

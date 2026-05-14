@@ -18,7 +18,7 @@ import type {
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 import { applyFormCacheHeaders } from "@/lib/server-fn/cdn-cache";
 import { getFieldChunkUrls } from "@/lib/server-fn/field-chunk-manifest.server";
-import { getPublishedFormById } from "@/lib/server-fn/public-form-view";
+import { getPublishedFormByShortId } from "@/lib/server-fn/public-form-view";
 import type {
   ButtonGroupSlotProps,
   FieldSlotProps,
@@ -342,10 +342,13 @@ export const renderThankYouComponent = async (nodes: Value | null) => {
   return createCompositeComponent(() => <ServerPlateBlock nodes={nodes} />);
 };
 
-export const runPublicFormViewRSC = async (data: { id: string }) => {
-  const base = await getPublishedFormById({ data: { id: data.id } });
+export const runPublicFormViewRSC = async (data: { shortId: string }) => {
+  const base = await getPublishedFormByShortId({ data: { shortId: data.shortId } });
 
-  applyFormCacheHeaders(data.id, { gated: !(base.form && !base.gated) });
+  // Cache-Tag must be the UUID so `purgeFormCache(formId)` can invalidate.
+  // When base.form is null (gated/closed/over-limit) the gated:true branch
+  // skips Cache-Tag entirely, so an empty placeholder is fine here.
+  applyFormCacheHeaders(base.form?.id ?? "", { gated: !(base.form && !base.gated) });
 
   const { steps, thankYouNodes }: PreviewStepResult = base.form
     ? transformPlateForPreview(base.form.content as Value)

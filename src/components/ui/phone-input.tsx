@@ -72,16 +72,19 @@ function PhoneInput({
     >
       <BasePhoneInput.default
         key={defaultCountry ?? "no-default"}
-        // Two-part layout per Figma: left "input-select" (flag + chevron) and
-        // right "input-text" (number) each own their own border. `[&]:` bumps
-        // specificity past react-phone-number-input's defaults.
+        // The wrapper carries the visual outline (drop-shadow recipe in
+        // light mode, just bg-input contrast in dark — same as every other
+        // input on the page; no borders in either mode). The two inner
+        // pieces (country select + number field) stay transparent and just
+        // butt together inside this shared surface. `[&]:` bumps specificity
+        // past react-phone-number-input's own defaults.
         className={cn(
-          "flex flex-row items-stretch [&]:bg-transparent [&]:text-foreground",
+          "flex flex-row items-stretch overflow-hidden rounded-lg text-foreground elevation-sm dark:shadow-none [&]:bg-card dark:[&]:bg-input",
           phoneInputSize === "sm" && "[&]:h-7",
           phoneInputSize === "lg" && "[&]:h-9",
           phoneInputSize === "default" && "[&]:h-8",
           props["aria-invalid"] &&
-            "[&_[data-slot=input-group]]:ring-1 [&_[data-slot=input-group]]:ring-destructive",
+            "**:data-[slot=input-group]:ring-1 **:data-[slot=input-group]:ring-destructive",
           className,
         )}
         countrySelectComponent={CountrySelect}
@@ -103,11 +106,18 @@ function InputComponent({ className, ...props }: React.ComponentProps<"input">) 
     <InputGroupInput
       data-bf-input-fill
       className={cn(
-        // Right-side "input-text" piece: full border, only the right corners
-        // rounded so it butts cleanly against the country select. Surface
-        // color is bg-background by default; .bf-themed overrides via
-        // [data-bf-input-fill] so the Input token applies.
-        "flex-1 rounded-l-none rounded-r-[8px] border border-border bg-background px-2.5 py-2 text-sm tracking-[0.28px] text-foreground shadow-none ring-0! outline-none! focus-visible:ring-0 aria-invalid:ring-0 dark:border dark:border-border dark:bg-background",
+        // Right-side "input-text" piece: full border in light mode for the
+        // two-part seam, transparent in dark mode so the whole control reads
+        // as a single bg-tinted block — matching every other dark-mode input
+        // in the form (which rely on bg contrast, not borders).
+        // Surface color is bg-background by default; .bf-themed overrides
+        // via [data-bf-input-fill] so the Input token applies.
+        // Inner input is fully transparent — bg / shadow / border are
+        // overridden via `!` because Input's cva variant ships `bg-card`
+        // and `dark:border dark:border-border` in a CSS layer that
+        // out-races plain tailwind-merge. The wrapper above owns the
+        // visual surface.
+        "flex-1 rounded-l-none rounded-r-[8px] bg-transparent! px-2.5 py-2 text-sm tracking-[0.28px] text-foreground shadow-none! ring-0! outline-none! focus-visible:ring-0 aria-invalid:ring-0 dark:border-0! dark:bg-transparent! dark:shadow-none!",
         variant === "sm" && "h-7",
         variant === "lg" && "h-9",
         variant === "default" && "h-8",
@@ -165,10 +175,12 @@ function CountrySelect({
             data-bf-input-fill
             suffix={<ChevronDownIcon className="ml-0.5 size-3 text-muted-foreground" />}
             className={cn(
-              // Left "input-select" piece — flag + chevron in a left-rounded
-              // bordered cell. Top/left/bottom borders only; right edge butts
-              // against the input-text piece's left border.
-              "flex items-center gap-[3px] rounded-l-[8px] rounded-r-none border-y border-l border-border bg-background py-2 pr-1 pl-2 shadow-none hover:bg-secondary focus:z-10 data-pressed:bg-secondary",
+              // Left "input-select" piece — flag + chevron. No border, no
+              // shadow, no own bg: the wrapper owns the visual surface and
+              // both inner pieces are transparent so the whole control
+              // reads as one rounded block. Hover/pressed paint a subtle
+              // overlay so the click target is still discoverable.
+              "flex items-center gap-[3px] rounded-l-[8px] rounded-r-none bg-transparent! py-2 pr-1 pl-2 shadow-none hover:bg-secondary/40 focus:z-10 data-pressed:bg-secondary/40 dark:border-0! dark:bg-transparent! dark:shadow-none! dark:hover:bg-muted/40 dark:data-pressed:bg-muted/40",
               variant === "sm" && "h-7",
               variant === "lg" && "h-9",
               variant === "default" && "h-8",
@@ -189,14 +201,12 @@ function CountrySelect({
       />
       <ComboboxContent
         align="start"
-        // Figma elevation/light/xl: triple drop-shadow recipe (1px hairline +
-        // 10px ambient + 24px lift).
         className={cn(
-          "w-[246px] rounded-xl border border-border bg-popover p-1 shadow-[0px_0px_1px_0px_rgba(0,0,0,0.2),0px_0px_10px_0px_rgba(0,0,0,0.04),0px_24px_30px_0px_rgba(0,0,0,0.1)] *:data-[slot=input-group]:bg-transparent",
+          "w-[246px] rounded-xl bg-popover p-1 elevation-xl *:data-[slot=input-group]:bg-transparent",
           popupClassName,
         )}
       >
-        <div className="flex h-7 items-center gap-2 rounded-lg bg-secondary px-2 py-1.5">
+        <div className="flex h-7 items-center gap-1.5 rounded-lg bg-secondary px-2 py-1.5">
           <Search className="size-4 shrink-0" strokeWidth={2} color="var(--color-gray-alpha-600)" />
           <ComboboxInput
             placeholder="Search for countries"

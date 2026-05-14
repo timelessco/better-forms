@@ -292,3 +292,35 @@ export const GOOGLE_FONTS_PRECONNECTS = [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
 ] as const;
+
+type MediaPreconnect = { rel: "preconnect"; href: string; crossOrigin: "anonymous" };
+
+/**
+ * Preconnect hints for media hosts a public form may reference. Always
+ * includes images.unsplash.com (common cover/template source). Each absolute
+ * URL passed in contributes its origin; relative URLs (e.g. /_vercel/image
+ * proxied blob assets) are skipped because same-origin needs no hint.
+ *
+ * Returned origins are deduplicated and emitted with `crossorigin="anonymous"`
+ * — images and SVGs are fetched without credentials, and matching CORS mode
+ * is required for the preconnected socket to be reused.
+ */
+export const getMediaPreconnects = (...urls: (string | null | undefined)[]): MediaPreconnect[] => {
+  const origins = new Set<string>(["https://images.unsplash.com"]);
+  for (const url of urls) {
+    if (!url) continue;
+    try {
+      const u = new URL(url);
+      if (u.protocol === "https:" || u.protocol === "http:") {
+        origins.add(u.origin);
+      }
+    } catch {
+      // relative URLs and malformed input — skip
+    }
+  }
+  return [...origins].map((href) => ({
+    rel: "preconnect" as const,
+    href,
+    crossOrigin: "anonymous" as const,
+  }));
+};

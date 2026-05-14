@@ -105,7 +105,7 @@ export const FieldLabelText = ({
   }
 
   return (
-    <Label htmlFor={htmlFor} className="w-full py-2.5">
+    <Label htmlFor={htmlFor} className="w-full" data-bf-field-label>
       <span className="flex-1">{text}</span>
       {badge}
     </Label>

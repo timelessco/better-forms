@@ -2,8 +2,31 @@ import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import { db } from "@/db";
 import { auth } from "@/lib/auth/auth";
+import type { FormListing } from "@/collections/query/form-listing";
 import type { ServerPlan } from "@/lib/server-fn/plan-helpers";
+import { generateShortId } from "@/lib/short-id";
 import { defaultFormSettings } from "@/types/form-settings";
+
+/** Map a `forms` row → the `FormListing` shape used by the client collection.
+ *  Used by tests that fabricate listings from raw DB rows. */
+export const toFormListing = (
+  form: typeof schema.forms.$inferSelect,
+  opts: { submissionCount?: number } = {},
+): FormListing => ({
+  id: form.id,
+  shortId: form.shortId,
+  title: form.title,
+  status: form.status,
+  workspaceId: form.workspaceId,
+  content: form.content as unknown[],
+  customization: (form.customization ?? {}) as Record<string, unknown>,
+  formName: form.formName,
+  schemaName: form.schemaName,
+  icon: form.icon,
+  createdAt: form.createdAt.toISOString(),
+  updatedAt: form.updatedAt.toISOString(),
+  submissionCount: opts.submissionCount ?? 0,
+});
 
 interface TestHelpers {
   createUser: (overrides?: Record<string, unknown>) => { id: string; [key: string]: unknown };
@@ -75,6 +98,7 @@ export const createTestForm = async (workspaceId: string, creatorId: string) => 
     .insert(schema.forms)
     .values({
       id,
+      shortId: generateShortId(),
       createdByUserId: creatorId,
       workspaceId,
       title: "Test Form",

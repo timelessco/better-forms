@@ -43,6 +43,7 @@ import { Columns, Download, ExternalLink, FileText, Paperclip, Search } from "lu
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { Value } from "platejs";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { HOTKEYS, formatForDisplay } from "@/lib/hotkeys";
 
@@ -659,14 +660,16 @@ const SubmissionsPage = () => {
         <SubmissionPreviewDialog file={previewFile} onClose={closePreview} />
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {Object.keys(rowSelection).length > 0 && (
-            <SubmissionBulkActionBar
-              count={Object.keys(rowSelection).length}
-              onExport={handleExportSelected}
-              onDelete={handleBulkDelete}
-              onClear={handleClearSelection}
-            />
-          )}
+          <AnimatePresence>
+            {Object.keys(rowSelection).length > 0 && (
+              <SubmissionBulkActionBar
+                count={Object.keys(rowSelection).length}
+                onExport={handleExportSelected}
+                onDelete={handleBulkDelete}
+                onClear={handleClearSelection}
+              />
+            )}
+          </AnimatePresence>
 
           <table.DataGrid
             recordCount={totalCount}
@@ -1045,7 +1048,15 @@ const SubmissionBulkActionBar = ({
   onDelete,
   onClear,
 }: SubmissionBulkActionBarProps) => (
-  <div className="fixed bottom-6 left-1/2 z-50 w-[min(560px,90vw)] -translate-x-1/2 animate-in duration-300 fade-in slide-in-from-bottom-4">
+  // motion owns the X centering (x: "-50%") so it can animate y/opacity
+  // without fighting a Tailwind `-translate-x-1/2` transform.
+  <motion.div
+    initial={{ opacity: 0, y: 16, x: "-50%" }}
+    animate={{ opacity: 1, y: 0, x: "-50%" }}
+    exit={{ opacity: 0, y: 16, x: "-50%" }}
+    transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+    className="fixed bottom-6 left-1/2 z-50 w-[min(560px,90vw)]"
+  >
     <div className="flex items-center justify-between rounded-xl bg-background px-2.75 py-2.25 shadow-md">
       <div className="flex items-center gap-1">
         <Checkbox
@@ -1077,7 +1088,7 @@ const SubmissionBulkActionBar = ({
         </Button>
       </div>
     </div>
-  </div>
+  </motion.div>
 );
 
 export const Route = createFileRoute(

@@ -44,3 +44,17 @@ export const VARIANT_TO_FIELD_TYPE: Record<string, string> = {
   multiSelect: "MultiSelect",
   ranking: "Ranking",
 };
+
+/**
+ * `formNumber` stores numeric bounds on the node as `minValue` / `maxValue`
+ * (distinct from text fields' `minLength` / `maxLength` character counts) plus
+ * an `allowDecimals` flag. Surface them so both the published form and the
+ * preview schema can enforce the same limits.
+ */
+export const extractNumberFields = (
+  node: Record<string, unknown>,
+): { min?: number; max?: number; allowDecimals?: boolean } => ({
+  min: node.minValue as number | undefined,
+  max: node.maxValue as number | undefined,
+  allowDecimals: node.allowDecimals as boolean | undefined,
+});

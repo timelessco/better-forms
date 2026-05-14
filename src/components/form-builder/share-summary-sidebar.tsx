@@ -6,7 +6,9 @@ import { memo, useCallback, useMemo, useState } from "react";
 // eslint-disable-next-line react-doctor/no-flush-sync -- flushSync is required so the synchronous router navigation captures the field state update inside the same View Transition snapshot
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateInsightsQueries } from "@/lib/analytics/insights-query-keys";
+import { setFormAnalytics } from "@/lib/server-fn/forms";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from "@/components/ui/sidebar";
@@ -123,12 +125,27 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
     [docBranding, updateSettings, form],
   );
 
+  const queryClient = useQueryClient();
   const handleAnalyticsChange = useCallback(
     (value: boolean) => {
       if (docAnalytics === value) return;
+      // Optimistic local update so the toggle UI reacts instantly.
       updateSettings({ analytics: value });
+      // Server write — flips BOTH draftSettings AND the live `formSettings`
+      // row so `isAnalyticsEnabled` (which the recorders/readers read) updates
+      // immediately, no republish needed.
+      setFormAnalytics({ data: { formId, enabled: value } })
+        .then(() => {
+          void invalidateInsightsQueries(queryClient, formId);
+        })
+        .catch((err) => {
+          console.error("[ShareSidebar] setFormAnalytics failed:", err);
+          toast.error("Failed to update analytics setting");
+          // Revert the optimistic flip.
+          updateSettings({ analytics: !value });
+        });
     },
-    [docAnalytics, updateSettings],
+    [docAnalytics, updateSettings, formId, queryClient],
   );
 
   const docCustomDomainId = doc?.customDomainId;
@@ -173,7 +190,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
   const shareUrl =
     selectedDomainName && activeSlug
       ? `https://${selectedDomainName}/${activeSlug}`
-      : `${window.location.origin}/forms/${doc.id}`;
+      : `${window.location.origin}/forms/${doc.shortId}`;
 
   return (
     <Sidebar
@@ -208,6 +225,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
               handleAnalyticsChange={handleAnalyticsChange}
               orgId={orgId}
               formId={formId}
+              shortId={doc.shortId}
               activeDomainId={activeDomainId}
               activeSlug={activeSlug}
               docTitle={doc.title}
@@ -373,6 +391,7 @@ interface PublishedShareBodyProps {
   handleAnalyticsChange: (value: boolean) => void;
   orgId: string | undefined;
   formId: string;
+  shortId: string;
   activeDomainId: string | null | undefined;
   activeSlug: string | null | undefined;
   docTitle: string | null;
@@ -391,6 +410,7 @@ const PublishedShareBody = ({
   handleAnalyticsChange,
   orgId,
   formId,
+  shortId,
   activeDomainId,
   activeSlug,
   docTitle,
@@ -446,7 +466,7 @@ const PublishedShareBody = ({
             onOpenChange={setCodeDialogOpen}
             embedType={embedType}
             options={options}
-            formId={formId}
+            shortId={shortId}
             docTitle={docTitle || undefined}
             customDomain={selectedDomainName}
             formSlug={activeSlug ?? undefined}

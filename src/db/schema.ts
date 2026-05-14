@@ -156,6 +156,8 @@ export const forms = pgTable(
   "forms",
   {
     id: text().primaryKey(), // UUID generated client-side
+    // Public form identifier; never exposes the internal UUID. See ADR-0001.
+    shortId: text().notNull().unique(),
     createdByUserId: text().references(() => user.id, { onDelete: "set null" }),
     workspaceId: text()
       .notNull()

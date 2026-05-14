@@ -283,6 +283,28 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     onDuplicate: handleDuplicate,
   });
 
+  // Close the menu on scroll. The dropdown's virtual anchor is pinned to the
+  // viewport (x, y) where the user clicked; without this the menu floats in
+  // place while the underlying block scrolls away. Ignore scroll events that
+  // originate inside the menu itself so its own overflow scroll still works.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleScroll = (event: Event) => {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest("[data-radix-popper-content-wrapper], [role='menu']")
+      ) {
+        return;
+      }
+      api.blockMenu.hide();
+    };
+    window.addEventListener("scroll", handleScroll, { capture: true, passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll, { capture: true });
+    };
+  }, [isOpen, api.blockMenu]);
+
   const isRequired = Boolean(inputNode?.required);
   const hasDefaultValue = inputNode?.defaultValue !== undefined;
   const currentDefaultValue = inputNode?.defaultValue;

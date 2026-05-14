@@ -79,8 +79,8 @@ export const StyleNumberInput = ({
         "[--elastic-slider-bg:var(--background)]",
         "[--elastic-slider-fill:var(--secondary)]",
         "[--elastic-slider-fill-active:var(--secondary)]",
-        "[&_[data-slot=elastic-slider-label]]:start-2 [&_[data-slot=elastic-slider-label]]:text-base [&_[data-slot=elastic-slider-label]]:font-normal",
-        "[&_[data-slot=elastic-slider-value]]:end-[11px] [&_[data-slot=elastic-slider-value]]:text-[13px] [&_[data-slot=elastic-slider-value]]:tabular-nums",
+        "[&_[data-slot=elastic-slider-label]]:inset-s-2 [&_[data-slot=elastic-slider-label]]:text-base [&_[data-slot=elastic-slider-label]]:font-normal",
+        "[&_[data-slot=elastic-slider-value]]:inset-e-[11px] [&_[data-slot=elastic-slider-value]]:text-[13px] [&_[data-slot=elastic-slider-value]]:tabular-nums",
         className,
       )}
       trackClassName={cn("border border-border/60", className)}
@@ -294,7 +294,7 @@ export const StyleSelect = ({
               {isOpen && pos && (
                 <m.div
                   ref={dropdownRef}
-                  className="z-9999 overflow-hidden rounded-lg border border-border/60 bg-background/95 shadow-lg backdrop-blur-md"
+                  className="z-9999 overflow-hidden rounded-lg bg-background/95 elevation-lg backdrop-blur-md"
                   initial={{ opacity: 0, y: pos.above ? 8 : -8, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: pos.above ? 8 : -8, scale: 0.95 }}

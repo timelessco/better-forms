@@ -10,8 +10,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
+  EyeIcon,
+  EyeOffIcon,
   Loader2Icon,
   MoreHorizontalIcon,
+  PencilIcon,
   RotateCcwIcon,
   SettingsIcon,
 } from "@/components/ui/icons";
@@ -315,7 +318,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               variant="ghost"
               size="sm"
               className={cn(
-                "px-2.5 font-normal text-muted-foreground hover:text-foreground",
+                "px-2.5 font-normal text-gray-700 hover:text-foreground",
                 activeSidebar === "about" && "bg-accent/50 text-foreground",
               )}
               onClick={() => toggleEditorSidebar("about")}
@@ -597,7 +600,7 @@ const HeaderBreadcrumb = ({
   const titleText = savedDoc.title || "Untitled";
   const linkClassName = cn(
     buttonVariants({ variant: "ghost", size: "sm" }),
-    "max-w-[140px] min-w-0 shrink justify-start px-1.5 font-normal text-foreground hover:bg-accent/60 sm:max-w-[200px]",
+    "max-w-[140px] min-w-0 shrink justify-start px-1.5 font-normal text-gray-700 hover:bg-accent/60 sm:max-w-[200px]",
   );
   const isPublished = savedDoc.status === "published" && workspaceId && formId;
 
@@ -609,15 +612,12 @@ const HeaderBreadcrumb = ({
             to="/dashboard"
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
-              "hidden max-w-[150px] shrink truncate px-1.5 font-normal text-muted-foreground hover:bg-accent/60 hover:text-foreground md:inline-flex",
+              "hidden max-w-[150px] shrink truncate px-1.5 font-normal text-gray-700 hover:bg-accent/60 hover:text-foreground md:inline-flex",
             )}
           >
             <span className="truncate">{workspace.name}</span>
           </Link>
-          <span
-            aria-hidden="true"
-            className="hidden shrink-0 px-0.5 text-muted-foreground/40 md:inline"
-          >
+          <span aria-hidden="true" className="hidden shrink-0 px-0.5 text-gray-700/40 md:inline">
             /
           </span>
         </>
@@ -645,7 +645,7 @@ const HeaderBreadcrumb = ({
         <span
           className={cn(
             buttonVariants({ variant: "ghost", size: "sm" }),
-            "max-w-[140px] min-w-0 shrink cursor-default justify-start px-1.5 font-normal hover:bg-transparent sm:max-w-[200px]",
+            "max-w-[140px] min-w-0 shrink cursor-default justify-start px-1.5 font-normal text-gray-700 hover:bg-transparent sm:max-w-[200px]",
           )}
         >
           <span className="truncate">{titleText}</span>
@@ -653,16 +653,13 @@ const HeaderBreadcrumb = ({
       )}
       {!isEditorSidebarOpen && (
         <>
-          <span
-            aria-hidden="true"
-            className="hidden shrink-0 px-0.5 text-muted-foreground/40 lg:inline"
-          >
+          <span aria-hidden="true" className="hidden shrink-0 px-0.5 text-gray-700/40 lg:inline">
             /
           </span>
           <span
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
-              "hidden shrink-0 cursor-default px-1.5 font-normal text-muted-foreground hover:bg-transparent lg:inline-flex",
+              "hidden shrink-0 cursor-default px-1.5 font-normal text-gray-700 hover:bg-transparent lg:inline-flex",
             )}
           >
             {breadcrumbLabel}
@@ -700,7 +697,7 @@ const LandingPageActions = ({
             variant="ghost"
             size="sm"
             className={cn(
-              "px-2.5 font-normal text-muted-foreground hover:text-foreground",
+              "px-2.5 font-normal text-gray-700 hover:text-foreground",
               previewMode && "bg-accent/50 text-foreground",
             )}
             onClick={onTogglePreview}
@@ -718,7 +715,7 @@ const LandingPageActions = ({
       variant="ghost"
       size="sm"
       className={cn(
-        "px-2.5 font-normal text-muted-foreground hover:text-foreground",
+        "px-2.5 font-normal text-gray-700 hover:text-foreground",
         activeSidebar === "about" && "bg-accent/50 text-foreground",
       )}
       onClick={() => onToggleEditorSidebar("about")}
@@ -728,11 +725,11 @@ const LandingPageActions = ({
     <Button
       variant="ghost"
       size="icon"
-      className="rounded-lg text-muted-foreground hover:text-foreground"
+      className="rounded-lg text-gray-700 hover:text-foreground"
       onClick={() => onToggleEditorSidebar("settings")}
       aria-label="Settings"
     >
-      <SettingsIcon fill="transparent" />
+      <SettingsIcon fill="transparent" className="text-gray-700" />
     </Button>
     <DropdownMenu
       open={activeMenu === "local"}
@@ -743,12 +740,12 @@ const LandingPageActions = ({
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 text-muted-foreground hover:text-foreground"
+            className="size-7 text-gray-700 hover:text-foreground"
             aria-label="More options"
           />
         }
       >
-        <MoreHorizontalIcon className="size-[18px]" strokeWidth={1.5} />
+        <MoreHorizontalIcon className="size-[18px] text-gray-700" strokeWidth={1.5} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
         <DropdownMenuItem onClick={() => onToggleEditorSidebar("customize")}>
@@ -841,16 +838,16 @@ const FormBuilderHeaderActions = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="hidden size-7 text-muted-foreground hover:text-foreground md:inline-flex"
+                className="hidden size-7 text-gray-700 hover:text-foreground md:inline-flex"
                 onClick={() => onSetActiveDialog("discard")}
                 disabled={isDiscarding}
               />
             }
           >
             {isDiscarding ? (
-              <Loader2Icon className="size-4 animate-spin" strokeWidth={2} />
+              <Loader2Icon className="size-4 animate-spin text-gray-700" strokeWidth={2} />
             ) : (
-              <RotateCcwIcon className="size-4" strokeWidth={2} />
+              <RotateCcwIcon className="size-4 text-gray-700" strokeWidth={2} />
             )}
           </TooltipTrigger>
           <TooltipContent>
@@ -865,7 +862,7 @@ const FormBuilderHeaderActions = ({
             variant="ghost"
             size="sm"
             className={cn(
-              "hidden px-2.5 font-normal text-muted-foreground hover:text-foreground md:inline-flex",
+              "hidden px-2.5 font-normal text-gray-700 hover:text-foreground md:inline-flex",
               isShareSidebarOpen && "bg-accent/50 text-foreground",
             )}
             onClick={onToggleShareSidebar}
@@ -877,109 +874,132 @@ const FormBuilderHeaderActions = ({
         <Button
           variant="ghost"
           size="icon"
-          className="hidden text-muted-foreground hover:text-foreground md:inline-flex"
+          className="hidden text-gray-700 hover:text-foreground md:inline-flex"
           aria-label="Settings"
           onClick={onToggleSettingsSidebar}
         >
-          <SettingsIcon fill="transparent" />
+          <SettingsIcon
+            fill="transparent"
+            className="text-gray-700"
+            stroke="var(--color-gray-700)"
+          />
         </Button>
 
-        <DropdownMenu
-          open={activeMenu === "main"}
-          onOpenChange={(open) => onSetActiveMenu(open ? "main" : null)}
-        >
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hover:bg-sidebar-active mr-1 overflow-hidden rounded-lg p-[5px] text-muted-foreground hover:text-foreground"
-                aria-label="More options"
-              />
-            }
-          >
-            <MoreHorizontalIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
-            {menuItems.map((item) => (
-              <DropdownMenuItem key={item.key} onClick={() => item.onClick()}>
-                <span className="flex-1 text-left">{item.label}</span>
-                {item.shortcut && <DropdownMenuShortcut>{item.shortcut}</DropdownMenuShortcut>}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {(isEditRoute || (workspaceId && formId)) && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              isEditRoute ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "min-w-[72px] justify-center px-2.5 font-normal text-muted-foreground hover:text-foreground",
-                    previewMode && "bg-accent/50 text-foreground",
+        {(isEditRoute || (workspaceId && formId)) && (
+          <div className="ml-1 flex items-center gap-1">
+            {isEditRoute ? (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="hidden text-gray-700 hover:text-foreground md:inline-flex"
+                      onClick={onTogglePreview}
+                      aria-label={previewMode ? "Switch to editor" : "Switch to preview"}
+                    />
+                  }
+                >
+                  {previewMode ? (
+                    <EyeOffIcon className="text-gray-700" />
+                  ) : (
+                    <EyeIcon className="text-gray-700" />
                   )}
-                  onClick={onTogglePreview}
-                />
-              ) : (
-                <Button
-                  size="sm"
-                  className="ml-1 rounded-[8px] border-none bg-black py-1.5 pr-2 pl-2 text-[14px] font-normal text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
-                  onClick={onEdit}
-                />
-              )
-            }
-          >
-            {isEditRoute ? (previewMode ? "Editor" : "Preview") : "Edit"}
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            <p>{isEditRoute ? (previewMode ? "Back to Editor" : "Preview Form") : "Edit Form"}</p>
-            <p className="text-xs text-muted-foreground">
-              {formatForDisplay(isEditRoute ? HOTKEYS.TOGGLE_PREVIEW : HOTKEYS.EDIT_FORM)}
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      )}
-
-      {(isEditRoute || hasUnpublishedChanges) && workspaceId && formId && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                size="sm"
-                className={cn(
-                  "ml-1 rounded-[8px] border-none py-1.5 pr-2 pl-2 text-[14px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all",
-                  !isLoadingSavedDocs &&
-                    (hasUnpublishedChanges || savedDocs?.[0]?.status !== "published")
-                    ? "bg-black text-white hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80",
-                )}
-                onClick={onPublish}
-                disabled={
-                  isPublishing || (!hasUnpublishedChanges && savedDocs?.[0]?.status === "published")
-                }
-              />
-            }
-          >
-            {isPublishing ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : savedDocs?.[0]?.status === "published" && !hasUnpublishedChanges ? (
-              "Published"
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="end">
+                  <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatForDisplay(HOTKEYS.TOGGLE_PREVIEW)}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
             ) : (
-              "Publish"
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-gray-700 hover:text-foreground"
+                      onClick={onEdit}
+                      aria-label="Edit form"
+                    />
+                  }
+                >
+                  <PencilIcon className="text-gray-700" />
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="end">
+                  <p>Edit Form</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatForDisplay(HOTKEYS.EDIT_FORM)}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
             )}
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            <p className="text-xs text-muted-foreground">
-              {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      )}
+            <DropdownMenu
+              open={activeMenu === "main"}
+              onOpenChange={(open) => onSetActiveMenu(open ? "main" : null)}
+            >
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="mr-1 overflow-hidden rounded-lg p-1.25 hover:bg-secondary active:bg-secondary aria-expanded:bg-secondary"
+                    aria-label="More options"
+                  />
+                }
+              >
+                <MoreHorizontalIcon className="text-gray-700" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
+                {menuItems.map((item) => (
+                  <DropdownMenuItem key={item.key} onClick={() => item.onClick()}>
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {item.shortcut && <DropdownMenuShortcut>{item.shortcut}</DropdownMenuShortcut>}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {workspaceId && formId && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="sm"
+                      className={cn(
+                        "border-none py-1.5 pr-2 pl-2 text-[14px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all",
+                        !isLoadingSavedDocs &&
+                          (hasUnpublishedChanges || savedDocs?.[0]?.status !== "published")
+                          ? "bg-black text-white hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80",
+                      )}
+                      onClick={onPublish}
+                      disabled={
+                        isPublishing ||
+                        (!hasUnpublishedChanges && savedDocs?.[0]?.status === "published")
+                      }
+                    />
+                  }
+                >
+                  {isPublishing ? (
+                    <Loader2Icon className="size-4 animate-spin" />
+                  ) : savedDocs?.[0]?.status === "published" && !hasUnpublishedChanges ? (
+                    "Published"
+                  ) : (
+                    "Publish"
+                  )}
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="end">
+                  <p className="text-xs text-muted-foreground">
+                    {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        )}
+      </div>
     </>
   );
 };
