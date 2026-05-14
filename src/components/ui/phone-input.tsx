@@ -73,13 +73,16 @@ function PhoneInput({
       <BasePhoneInput.default
         key={defaultCountry ?? "no-default"}
         // The wrapper carries the visual outline (drop-shadow recipe in
-        // light mode, just bg-input contrast in dark — same as every other
-        // input on the page; no borders in either mode). The two inner
-        // pieces (country select + number field) stay transparent and just
-        // butt together inside this shared surface. `[&]:` bumps specificity
-        // past react-phone-number-input's own defaults.
+        // light mode, just bg contrast in dark — same as every other input
+        // on the page; no borders in either mode). The two inner pieces
+        // (country select + number field) stay transparent and just butt
+        // together inside this shared surface. Surface is driven by the
+        // same `--form-input-bg` token the `form-input` utility uses so
+        // themed and unthemed pages stay consistent with other inputs.
+        // `[&]:` bumps specificity past react-phone-number-input's own
+        // defaults.
         className={cn(
-          "flex flex-row items-stretch overflow-hidden rounded-lg text-foreground elevation-sm dark:shadow-none [&]:bg-card dark:[&]:bg-input",
+          "flex flex-row items-stretch overflow-hidden rounded-lg text-foreground elevation-sm dark:shadow-none [&]:bg-[var(--form-input-bg,var(--color-gray-50))]",
           phoneInputSize === "sm" && "[&]:h-7",
           phoneInputSize === "lg" && "[&]:h-9",
           phoneInputSize === "default" && "[&]:h-8",

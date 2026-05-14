@@ -34,22 +34,44 @@ export const createWorkspace = createServerFn({ method: "POST" })
     workspaceSchema.pick({ organizationId: true, name: true }).extend({
       id: z.uuid().optional(),
       name: workspaceSchema.shape.name.optional().default("Workspace"),
+      sortIndex: z.string().optional(),
     }),
   )
   .handler(async ({ data, context }) => {
     const now = new Date();
+    const userId = context.session.user.id;
+    const workspaceId = data.id ?? crypto.randomUUID();
 
-    const [workspace] = await db
-      .insert(workspaces)
-      .values({
-        id: data.id ?? crypto.randomUUID(),
-        organizationId: data.organizationId,
-        createdByUserId: context.session.user.id,
-        name: data.name,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning();
+    // Insert workspace + per-user sort entry in one transaction so the
+    // subsequent client-side refetch of getWorkspaces always sees the joined
+    // sortIndex; otherwise the new workspace would briefly come back without a
+    // sort row and fall to the bottom of the sidebar.
+    const [workspace] = await db.transaction(async (tx) => {
+      const [ws] = await tx
+        .insert(workspaces)
+        .values({
+          id: workspaceId,
+          organizationId: data.organizationId,
+          createdByUserId: userId,
+          name: data.name,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning();
+
+      if (data.sortIndex) {
+        await tx.insert(userWorkspaceOrder).values({
+          id: `${userId}:${workspaceId}`,
+          userId,
+          workspaceId,
+          sortIndex: data.sortIndex,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+
+      return [ws];
+    });
 
     return {
       workspace: {

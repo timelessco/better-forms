@@ -227,7 +227,18 @@ const config = defineConfig({
     // Force-include CJS-only `use-sync-external-store` so Vite extracts its
     // named exports correctly. The shim uses a `module.exports = require(...)`
     // indirection that Vite's auto-scan misses.
-    include: ["use-sync-external-store/shim", "use-sync-external-store/shim/with-selector"],
+    //
+    // Recharts is pinned here for the same reason — its internals reach into
+    // React through a CJS shim that Vite 7's deps bundler otherwise wires up
+    // inconsistently (the dev server occasionally serves a `recharts.js` that
+    // imports a stale `react.js` chunk, surfacing as
+    // `TypeError: require_react is not a function`). Explicit inclusion makes
+    // the pre-bundle deterministic.
+    include: [
+      "use-sync-external-store/shim",
+      "use-sync-external-store/shim/with-selector",
+      "recharts",
+    ],
   },
 });
 

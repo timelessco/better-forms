@@ -40,25 +40,15 @@ import {
   HomeIcon,
   Loader2Icon,
   LogOutIcon,
-  MoreHorizontalIcon,
-  Pencil2Icon,
   PlusIcon,
   SearchIcon,
   SettingsIcon,
+  StarIcon,
   Trash2Icon,
   Undo2Icon,
   UsersIcon,
   XIcon,
 } from "@/components/ui/icons";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import Loader from "@/components/ui/loader";
 import { LogoToggle } from "@/components/ui/logo";
@@ -100,7 +90,6 @@ import {
   isInitialized as isCollectionsInitialized,
   bulkPermanentDeleteFormsLocal,
   permanentDeleteFormLocal,
-  renameFormLocal,
   reorderFavoriteLocal,
   reorderFormLocal,
   reorderWorkspaceLocal,
@@ -161,6 +150,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Outlet, useLocation, useParams, useRouter } from "@tanstack/react-router";
 import { createClientOnlyFn } from "@tanstack/react-start";
+import { generateKeyBetween } from "fractional-indexing";
 import {
   closestCenter,
   DndContext,
@@ -178,7 +168,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { generateOrderedIndexes, sortByManualOrder } from "@/lib/sort-utils";
+import { generateOrderedIndexes, getLeadingSortIndex, sortByManualOrder } from "@/lib/sort-utils";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDistanceToNow } from "date-fns";
@@ -711,7 +701,11 @@ const AppSidebar = () => {
                 <CommandItem
                   onSelect={() => {
                     if (activeOrg) {
-                      createWorkspaceLocal(activeOrg.id, "New Workspace")
+                      const leadingSortIndex = generateKeyBetween(
+                        null,
+                        getLeadingSortIndex(workspacesData ?? []),
+                      );
+                      createWorkspaceLocal(activeOrg.id, "New Workspace", leadingSortIndex)
                         .then((workspace) => {
                           void router.navigate({
                             to: "/workspace/$workspaceId",
@@ -2216,7 +2210,7 @@ const WorkspaceRenameDialog = ({
   onKeyDown,
 }: WorkspaceRenameDialogProps) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent>
+    <DialogContent className="gap-4 sm:max-w-md">
       <DialogHeader>
         <DialogTitle>Rename workspace</DialogTitle>
         <DialogDescription>Enter a new name for this workspace.</DialogDescription>
@@ -2382,7 +2376,6 @@ const SortableFavoriteItem = ({
   userId: string;
 }) => {
   const pathname = useLocation({ select: (s) => s.pathname });
-  const [renameOpen, setRenameOpen] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: form.favoriteId,
     data: { type: "favorite" },
@@ -2424,96 +2417,21 @@ const SortableFavoriteItem = ({
             customization={form.customization as Record<string, string> | null | undefined}
           />
         }
+        className="group-hover/row:pe-7 group-has-[[data-state=open]]/row:pe-7"
       />
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <button
-              type="button"
-              aria-label="Favorite options"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className="hover:bg-sidebar-active absolute top-1/2 right-2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 hover:text-foreground data-[state=open]:opacity-100"
-            />
-          }
-        >
-          <MoreHorizontalIcon className="size-3.5" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="start"
-          sideOffset={4}
-          className="w-48"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Favorite</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => setRenameOpen(true)}>
-              <Pencil2Icon />
-              <span className="flex-1 text-left">Rename</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleUnfavorite}>
-              <Trash2Icon />
-              <span className="flex-1 text-left">Remove from favorites</span>
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {renameOpen && (
-        <FavoriteInlineRename
-          initialValue={form.title || ""}
-          onClose={() => setRenameOpen(false)}
-          onSubmit={(next) => {
-            renameFormLocal(form.id, next).catch(() => toast.error("Failed to rename form"));
-            setRenameOpen(false);
-          }}
-        />
-      )}
-    </div>
-  );
-};
-
-const FavoriteInlineRename = ({
-  initialValue,
-  onSubmit,
-  onClose,
-}: {
-  initialValue: string;
-  onSubmit: (value: string) => void;
-  onClose: () => void;
-}) => {
-  // eslint-disable-next-line react-doctor/no-derived-useState -- uncontrolled rename input; parent hands ownership to local state
-  const [value, setValue] = useState(initialValue);
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-  const commitOrClose = () => {
-    const trimmed = value.trim();
-    if (trimmed) onSubmit(trimmed);
-    else onClose();
-  };
-  return (
-    <div className="px-2 py-1">
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={onClose}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            commitOrClose();
-          } else if (e.key === "Escape") {
-            onClose();
-          }
+      <button
+        type="button"
+        aria-label="Remove from favorites"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleUnfavorite();
         }}
-        className="w-full rounded-md bg-secondary px-2 py-1 text-[13px] ring-1 ring-foreground/20 outline-hidden"
-        aria-label="Rename form"
-      />
+        className="hover:bg-sidebar-active absolute top-1/2 right-2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 hover:text-foreground"
+      >
+        <StarIcon className="size-3.5" />
+      </button>
     </div>
   );
 };

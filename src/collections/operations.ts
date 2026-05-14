@@ -221,6 +221,7 @@ export const bulkPermanentDeleteFormsLocal = async (ids: string[]) => {
 export const createWorkspaceLocal = async (
   organizationId: string,
   name = "Workspace",
+  sortIndex: string | null = null,
 ): Promise<WorkspaceSummary> => {
   const { workspaces } = getInit();
   const id = crypto.randomUUID();
@@ -232,6 +233,7 @@ export const createWorkspaceLocal = async (
     createdByUserId: null,
     createdAt: now,
     updatedAt: now,
+    sortIndex,
     forms: [],
   };
   workspaces.insert(ws);
@@ -295,14 +297,6 @@ export const moveFormToWorkspaceLocal = async (formId: string, workspaceId: stri
     draft.workspaceId = workspaceId;
     draft.updatedAt = new Date().toISOString();
     draft.sortIndex = null;
-  });
-};
-
-export const renameFormLocal = async (formId: string, title: string) => {
-  const { formListings } = getInit();
-  formListings.update(formId, (draft: Record<string, unknown>) => {
-    draft.title = title;
-    draft.updatedAt = new Date().toISOString();
   });
 };
 

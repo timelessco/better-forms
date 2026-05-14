@@ -25,3 +25,19 @@ export const sortByManualOrder = <T extends { sortIndex?: string | null }>(
     if (bIdx) return 1;
     return fallback(a, b);
   });
+
+/**
+ * Lowest existing `sortIndex` in a list, or `null` if none have one yet.
+ * Pass to `generateKeyBetween(null, leading)` to produce an index that places
+ * a new item before every other.
+ */
+export const getLeadingSortIndex = (
+  items: readonly { sortIndex?: string | null }[],
+): string | null => {
+  let leading: string | null = null;
+  for (const item of items) {
+    const idx = item.sortIndex ?? null;
+    if (idx && (leading === null || idx < leading)) leading = idx;
+  }
+  return leading;
+};
