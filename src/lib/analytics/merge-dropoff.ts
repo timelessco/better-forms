@@ -39,9 +39,12 @@ interface MergeDropoffArgs {
 interface QuestionAggregate {
   questionId: string;
   questionIndex: number;
+  stepId: string | null;
+  stepIndex: number | null;
   viewCount: number;
   startCount: number;
   completeCount: number;
+  terminalDropoffCount: number;
 }
 
 const getOrCreateAggregate = (
@@ -56,9 +59,12 @@ const getOrCreateAggregate = (
   const created: QuestionAggregate = {
     questionId,
     questionIndex,
+    stepId: null,
+    stepIndex: null,
     viewCount: 0,
     startCount: 0,
     completeCount: 0,
+    terminalDropoffCount: 0,
   };
   byQuestion.set(questionId, created);
   return created;
@@ -74,6 +80,13 @@ export const mergeDropoffMetrics = (args: MergeDropoffArgs): QuestionDropoffMetr
     agg.viewCount += row.viewCount;
     agg.startCount += row.startCount;
     agg.completeCount += row.completeCount;
+    agg.terminalDropoffCount += row.terminalDropoffCount;
+    if (agg.stepId === null && row.stepId !== null) {
+      agg.stepId = row.stepId;
+    }
+    if (agg.stepIndex === null && row.stepIndex !== null) {
+      agg.stepIndex = row.stepIndex;
+    }
   }
 
   for (const row of todayProgressRows) {
@@ -84,6 +97,12 @@ export const mergeDropoffMetrics = (args: MergeDropoffArgs): QuestionDropoffMetr
     }
     if (row.completedAt !== null) {
       agg.completeCount += 1;
+    }
+    if (agg.stepId === null && row.stepId !== null) {
+      agg.stepId = row.stepId;
+    }
+    if (agg.stepIndex === null && row.stepIndex !== null) {
+      agg.stepIndex = row.stepIndex;
     }
   }
 
@@ -117,10 +136,13 @@ export const mergeDropoffMetrics = (args: MergeDropoffArgs): QuestionDropoffMetr
       // questionLabel is not derivable from analytics tables alone in v1;
       // the UI hydrates it from the form schema separately.
       questionLabel: undefined,
+      stepId: agg.stepId,
+      stepIndex: agg.stepIndex,
       viewCount: agg.viewCount,
       startCount: agg.startCount,
       completeCount: agg.completeCount,
       dropoffCount,
+      terminalDropoffCount: agg.terminalDropoffCount,
       dropoffRate,
       completionRate,
     };
