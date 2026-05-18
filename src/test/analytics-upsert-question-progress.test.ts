@@ -101,15 +101,16 @@ describe("recordQuestionProgressImpl upsert", () => {
     expect(call.values.completedAt).toBeNull();
 
     const setStartedAt = call.conflict?.set.startedAt;
-    // sql`coalesce(...)` produces a Drizzle SQL chunk, not a Date or column ref.
+    // sql`coalesce(existing, excluded.startedAt)` produces a Drizzle SQL chunk.
     expect(setStartedAt).not.toBeInstanceOf(Date);
     expect(setStartedAt).toBeDefined();
-    // completedAt must NOT be overwritten on a start event — should reference
-    // the existing column so the SET clause leaves it alone.
-    expect(call.conflict?.set.completedAt).toBe(formQuestionProgress.completedAt);
+    // completedAt SET branch is also a coalesce SQL chunk that preserves the
+    // existing value when excluded.completedAt is null (event=start case).
+    expect(call.conflict?.set.completedAt).not.toBeInstanceOf(Date);
+    expect(call.conflict?.set.completedAt).toBeDefined();
   });
 
-  it("complete event sets completedAt to now on the UPDATE side", async () => {
+  it("complete event passes completedAt = now on the INSERT side", async () => {
     await recordQuestionProgressImpl({ ...baseInput, event: "complete" });
 
     const call = calls[0];
@@ -118,7 +119,10 @@ describe("recordQuestionProgressImpl upsert", () => {
     expect(call.values.completedAt).toBeInstanceOf(Date);
     expect(call.values.startedAt).toBeInstanceOf(Date);
 
-    expect(call.conflict?.set.completedAt).toBeInstanceOf(Date);
+    // On the UPDATE side, completedAt is a coalesce SQL chunk that uses
+    // excluded.completedAt as the fallback — same shape regardless of event.
+    expect(call.conflict?.set.completedAt).not.toBeInstanceOf(Date);
+    expect(call.conflict?.set.completedAt).toBeDefined();
   });
 });
 

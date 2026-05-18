@@ -173,14 +173,16 @@ export const recordQuestionProgressImpl = async (
     })
     .onConflictDoUpdate({
       target: [formQuestionProgress.visitId, formQuestionProgress.questionId],
+      // Reference excluded.* (the would-be-inserted row) instead of interpolating
+      // raw Date values into sql templates — postgres-js's parameter binder
+      // refuses a JS Date for a coalesce arg when the column type isn't
+      // explicit on its branch (issue triggered analytics-option-b.test.ts).
       set: {
-        startedAt: isStart
-          ? sql`coalesce(${formQuestionProgress.startedAt}, ${now})`
-          : formQuestionProgress.startedAt,
-        completedAt: isComplete ? now : formQuestionProgress.completedAt,
-        wasLastQuestion: data.wasLastQuestion ?? formQuestionProgress.wasLastQuestion,
-        stepId: sql`coalesce(${formQuestionProgress.stepId}, ${data.stepId ?? null})`,
-        stepIndex: sql`coalesce(${formQuestionProgress.stepIndex}, ${data.stepIndex ?? null})`,
+        startedAt: sql`coalesce(${formQuestionProgress.startedAt}, excluded."startedAt")`,
+        completedAt: sql`coalesce(${formQuestionProgress.completedAt}, excluded."completedAt")`,
+        wasLastQuestion: sql`${formQuestionProgress.wasLastQuestion} or excluded."wasLastQuestion"`,
+        stepId: sql`coalesce(${formQuestionProgress.stepId}, excluded."stepId")`,
+        stepIndex: sql`coalesce(${formQuestionProgress.stepIndex}, excluded."stepIndex")`,
       },
     });
 
