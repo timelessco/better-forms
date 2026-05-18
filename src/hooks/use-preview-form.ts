@@ -11,7 +11,8 @@ import {
   generateZodSchemaFromFields,
 } from "@/lib/form-schema/generate-preview-schema";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
-import type { QuestionRef } from "@/lib/forms/extract-questions";
+import { resolveQuestionFromFocus } from '@/lib/forms/extract-questions';
+import type { QuestionRef } from '@/lib/forms/extract-questions';
 import { logger } from "@/lib/utils";
 import { useDraftAutoSave } from "./use-draft-autosave";
 import type { AppForm } from "./use-form-builder";
@@ -54,24 +55,25 @@ export const useStepPreviewForm = ({
   const { saveDraft } = useDraftAutoSave(formId);
 
   // Per-Question `start` dedup latch keyed by `${visitId}::${questionId}`.
-  // Survives step changes within the same Visit so refocusing a Question
-  // after going back doesn't re-emit a `start` event.
+  // Dedupes within a single Step mount. Cross-step idempotency is guaranteed
+  // by the server upsert (coalesce on `startedAt`); `StepForm` is keyed on
+  // `currentStep` and remounts on back-navigation, which resets this ref.
   const startFiredRef = useRef<Set<string>>(new Set());
 
   const validationSchema = useMemo(() => generateZodSchemaFromFields(fields), [fields]);
 
-  // Build a quick lookup from form field `name` (the input's name attribute)
-  // to the matching Question ref. Inputs use the field `name`; Questions key
-  // off the Plate Block `id`. Both are 1:1 within a Step.
-  const questionsByName = useMemo<Map<string, QuestionRef>>(() => {
+  // Lookup from Question id → ref. Keyed by the Plate Block id (the same
+  // value rendered as `data-bf-question-id` on each Question wrapper), so
+  // focus on any descendant — including field types that don't expose `name`
+  // on the focusable element (Phone, MultiSelect, MultiChoice, Checkbox,
+  // Date, FileUpload, Ranking) — resolves cleanly.
+  const questionsById = useMemo<Map<string, QuestionRef>>(() => {
     const map = new Map<string, QuestionRef>();
-    for (const f of fields) {
-      if (f.fieldType === "Button") continue;
-      const q = questions.find((qq) => qq.questionId === f.id);
-      if (q) map.set(f.name, q);
+    for (const q of questions) {
+      map.set(q.questionId, q);
     }
     return map;
-  }, [fields, questions]);
+  }, [questions]);
 
   const defaultValues = useMemo(() => {
     const fieldDefaults = generateDefaultValuesFromFields(fields);
@@ -87,23 +89,7 @@ export const useStepPreviewForm = ({
 
   const handleFieldFocus = (event: React.FocusEvent<HTMLFormElement>): void => {
     if (!(tracking?.visitId && tracking.mode)) return;
-    const target = event.target as HTMLElement;
-    // Walk up from focused element to find a matching form input name. Some
-    // inputs nest the focusable element (e.g. PhoneInput, MultiSelect combobox)
-    // a level or two below the wrapper that carries `name`. Bounded walk
-    // keeps the lookup cheap.
-    let el: HTMLElement | null = target;
-    let name: string | null = null;
-    for (let depth = 0; depth < 4 && el; depth++) {
-      const candidate = el.getAttribute("name");
-      if (candidate && questionsByName.has(candidate)) {
-        name = candidate;
-        break;
-      }
-      el = el.parentElement;
-    }
-    if (!name) return;
-    const q = questionsByName.get(name);
+    const q = resolveQuestionFromFocus(event.target as Element, questionsById);
     if (!q) return;
 
     const visitId = tracking.visitId;

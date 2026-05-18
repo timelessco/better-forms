@@ -192,7 +192,7 @@ export const StepForm = ({
             }
 
             return (
-              <div key={field.id} className="w-full" data-bf-input>
+              <div key={field.id} className="w-full" data-bf-input data-bf-question-id={field.id}>
                 <Renderer element={field} form={form} />
               </div>
             );

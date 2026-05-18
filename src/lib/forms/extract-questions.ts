@@ -53,3 +53,23 @@ export const extractQuestionsForStep = (
   }
   return out;
 };
+
+/**
+ * Resolves a focused DOM element back to its Question by walking up to the
+ * nearest `[data-bf-question-id]` wrapper. Uniform across field types,
+ * including those whose focusable element doesn't carry a `name` attribute
+ * (Phone, MultiSelect, MultiChoice, Checkbox, Date, FileUpload, Ranking).
+ *
+ * Returns `null` if the target is outside any Question wrapper or its
+ * question id isn't in the lookup map.
+ */
+export const resolveQuestionFromFocus = (
+  target: Element | null,
+  questionsById: ReadonlyMap<string, QuestionRef>,
+): QuestionRef | null => {
+  if (!target) return null;
+  const wrapper = target.closest("[data-bf-question-id]");
+  const questionId = wrapper?.getAttribute("data-bf-question-id");
+  if (!questionId) return null;
+  return questionsById.get(questionId) ?? null;
+};
