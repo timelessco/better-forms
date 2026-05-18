@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { resolveQuestionFromFocus } from '@/lib/forms/extract-questions';
-import type { QuestionRef } from '@/lib/forms/extract-questions';
+import { resolveQuestionFromFocus } from "@/lib/forms/extract-questions";
+import type { QuestionRef } from "@/lib/forms/extract-questions";
 
 const q = (id: string, questionType: string): QuestionRef => ({
   questionId: id,

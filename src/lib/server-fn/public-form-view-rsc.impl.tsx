@@ -8,7 +8,11 @@ import { EditorStatic } from "@/components/ui/editor-static";
 import { DEFAULT_ICON } from "@/lib/config/app-config";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "@/lib/theme/customization-defaults";
 import { cn, DEFAULT_ICON_NAME, isValidUrl } from "@/lib/utils";
-import { getFieldLabelProps } from "@/components/form-components/fields/shared";
+import {
+  fieldLabelId,
+  getFieldLabelProps,
+  GROUP_FIELD_TYPES,
+} from "@/components/form-components/fields/shared";
 import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
 import type {
   FieldSegment,
@@ -31,7 +35,7 @@ const ServerPlateBlock = ({ nodes }: { nodes: Value }) => {
     <EditorStatic
       editor={editor}
       variant="none"
-      className="!mx-0 !my-0 !p-0 text-base [&_.slate-p]:m-0 [&_.slate-p]:px-0 [&_.slate-p]:py-1"
+      className="!mx-0 !my-0 overflow-x-visible! !p-0 text-base [&_.slate-p]:m-0 [&_.slate-p]:px-0 [&_.slate-p]:py-1"
     />
   );
 };
@@ -72,28 +76,50 @@ const ServerFieldLabel = ({
   labelType,
   htmlFor,
   required,
+  asGroupLabel = false,
 }: {
   text: string;
   labelType?: string;
   htmlFor: string;
   required?: boolean;
+  /** Group fields render the label as a span with stable id; the surrounding
+   * role=group wrapper handles AT association via aria-labelledby. */
+  asGroupLabel?: boolean;
 }) => {
   if (!text) return null;
   const badge = required ? <RequiredBadge /> : null;
+  const labelId = fieldLabelId(htmlFor);
 
   if (labelType && labelType in HEADING_VARIANTS) {
     const { Tag, className } = HEADING_VARIANTS[labelType as HeadingVariant];
     return (
       <div className="flex w-full items-center py-2.5">
-        <Tag className={className}>{text}</Tag>
+        <Tag id={labelId} className={className}>
+          {text}
+        </Tag>
         {badge}
       </div>
+    );
+  }
+
+  if (asGroupLabel) {
+    return (
+      <span
+        id={labelId}
+        data-slot="label"
+        data-bf-field-label
+        className="flex w-full items-center gap-2 py-2.5 text-sm select-none"
+      >
+        <span className="flex-1">{text}</span>
+        {badge}
+      </span>
     );
   }
 
   return (
     <label
       htmlFor={htmlFor}
+      id={labelId}
       data-slot="label"
       className="flex w-full items-center gap-2 py-2.5 text-sm select-none"
     >
@@ -182,17 +208,27 @@ export const renderStepComponent = async (segments: PreviewSegment[]) => {
               return <Field key={item.key} fieldId={field.id} field={field} />;
             }
             const { label, required, labelType } = getFieldLabelProps(field);
+            // Group fields have no single labelable control — wrap them in
+            // role=group with aria-labelledby so AT announces the group label.
+            // Mirrors PreviewInputShell.
+            const isGroup = GROUP_FIELD_TYPES.has(field.fieldType);
+            const groupAriaProps =
+              isGroup && label
+                ? { role: "group" as const, "aria-labelledby": fieldLabelId(field.name) }
+                : {};
             return (
               <div
                 key={item.key}
                 data-bf-input="true"
                 data-bf-standalone={label ? undefined : "true"}
+                {...groupAriaProps}
               >
                 <ServerFieldLabel
                   text={label}
                   labelType={labelType}
                   htmlFor={field.name}
                   required={required}
+                  asGroupLabel={isGroup}
                 />
                 <Field fieldId={field.id} field={field} />
               </div>

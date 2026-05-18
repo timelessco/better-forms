@@ -1,4 +1,4 @@
-import { getAriaLabelFallback } from "./shared";
+import { getAriaLabelFallback, getAriaLabelledBy } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
 const TextareaField = ({ element, form }: FieldRendererProps<"Textarea">) => (
@@ -12,6 +12,7 @@ const TextareaField = ({ element, form }: FieldRendererProps<"Textarea">) => (
           maxLength={element.maxLength}
           autoComplete="off"
           aria-label={getAriaLabelFallback(element)}
+          aria-labelledby={getAriaLabelledBy(element)}
           className="min-h-24 form-input pr-[8px] pl-[10px]"
         />
         <f.FieldError />

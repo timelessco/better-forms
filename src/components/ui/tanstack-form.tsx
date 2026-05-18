@@ -58,7 +58,7 @@ const Form = ({
     <form
       ref={ref}
       onSubmit={handleSubmit}
-      className={cn("mx-auto flex w-full flex-col", className)}
+      className={cn("mx-auto w-full", className)}
       noValidate
       {...props}
     >

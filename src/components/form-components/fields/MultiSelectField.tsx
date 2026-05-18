@@ -1,5 +1,6 @@
 import { MultiSelect } from "@/components/ui/multi-select";
 import { cn } from "@/lib/utils";
+import { getAriaLabelledBy } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
 const MultiSelectField = ({ element, form }: FieldRendererProps<"MultiSelect">) => (
@@ -11,9 +12,12 @@ const MultiSelectField = ({ element, form }: FieldRendererProps<"MultiSelect">) 
       return (
         <>
           <MultiSelect
+            id={element.name}
             options={element.options}
             value={selectedValues}
             onChange={(val) => f.handleChange(val)}
+            aria-invalid={hasErrors}
+            aria-labelledby={getAriaLabelledBy(element)}
             className={cn(hasErrors && "[&>button]:ring-1 [&>button]:ring-destructive")}
           />
           <f.FieldError />

@@ -1,5 +1,6 @@
 import { DatePicker } from "@/components/ui/date-picker";
 import { cn } from "@/lib/utils";
+import { getAriaLabelledBy } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
 const DateField = ({ element, form }: FieldRendererProps<"Date">) => (
@@ -9,9 +10,13 @@ const DateField = ({ element, form }: FieldRendererProps<"Date">) => (
       return (
         <>
           <DatePicker
+            id={element.name}
+            name={element.name}
             value={(f.state.value as string) ?? null}
             onChange={(val) => f.handleChange(val ?? "")}
             placeholder={element.placeholder}
+            aria-invalid={hasErrors}
+            aria-labelledby={getAriaLabelledBy(element)}
             className={cn(hasErrors && "ring-1 ring-destructive")}
           />
           <f.FieldError />

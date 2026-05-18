@@ -12,6 +12,11 @@ interface DatePickerProps {
   className?: string;
   /** Trigger label shown when no date is selected. Defaults to "Pick a date". */
   placeholder?: string;
+  /** id forwarded to the trigger button so `<label htmlFor>` resolves. */
+  id?: string;
+  name?: string;
+  "aria-labelledby"?: string;
+  "aria-invalid"?: boolean;
 }
 
 export const DatePicker = ({
@@ -19,6 +24,10 @@ export const DatePicker = ({
   onChange,
   className,
   placeholder = "Pick a date",
+  id,
+  name,
+  "aria-labelledby": ariaLabelledBy,
+  "aria-invalid": ariaInvalid,
 }: DatePickerProps) => {
   const [date, setDate] = React.useState<Date | undefined>(() => {
     if (value) {
@@ -52,6 +61,10 @@ export const DatePicker = ({
         render={
           <button
             type="button"
+            id={id}
+            name={name}
+            aria-labelledby={ariaLabelledBy}
+            aria-invalid={ariaInvalid}
             data-empty={!date}
             className={cn(
               "inline-flex h-[30px] w-full items-center justify-start rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-1.5 pl-2.5 text-left text-sm font-normal elevation-sm",

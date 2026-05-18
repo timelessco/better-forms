@@ -135,19 +135,6 @@ const Draggable = (props: PlateElementProps) => {
   const isFormHeader = element.type === "formHeader";
   const isPageBreak = element.type === "pageBreak";
 
-  const gutterPosition = React.useMemo(() => {
-    if (element.gutterPosition) return element.gutterPosition as "center" | "top";
-
-    const plugin = getPluginByType(editor, element.type);
-    if (plugin?.options?.gutterPosition) return plugin.options.gutterPosition as "center" | "top";
-
-    if (["formTextarea", "formFileUpload", KEYS.blockquote].includes(element.type)) {
-      return "top";
-    }
-
-    return "center";
-  }, [editor, element]);
-
   const buttonLayoutClass = React.useMemo(() => {
     if (isFormButton) {
       const role = (element as TElement & { buttonRole?: string }).buttonRole;
@@ -324,7 +311,7 @@ const Draggable = (props: PlateElementProps) => {
       {...wrapperInputAttrs}
     >
       {!isInTable && !isFormButton && !isFormHeader && !isPageBreak && (
-        <Gutter gutterPosition={gutterPosition} className="mr-1">
+        <Gutter gutterPosition="top" className="mr-1">
           <div
             className={cn(
               "slate-blockToolbarWrapper",

@@ -31,7 +31,7 @@ export const BlockSelectionKit = [
       },
     },
     render: {
-      belowRootNodes: (props) => <BlockSelection {...(props as PlateElementProps)} />,
+      belowRootNodes: (props) => <BlockSelection {...(props as unknown as PlateElementProps)} />,
     },
   })),
 ];

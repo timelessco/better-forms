@@ -59,20 +59,45 @@ export const StepForm = ({
   const formRef = useRef<HTMLFormElement>(null);
   const [isTextareaFocused, setIsTextareaFocused] = useState(false);
 
-  // Field-by-field: Enter advances/submits. Textareas keep native newline on
-  // plain Enter; require Cmd/Ctrl+Enter there to advance. Buttons keep native
-  // Enter so Tab → action button + Enter still works.
+  // Field-by-field shortcuts. Runs in CAPTURE phase so we intercept Enter
+  // before child handlers (e.g. Base UI Checkbox toggling on Enter).
+  // - Enter → advance/submit. Textareas keep native newline unless Cmd/Ctrl
+  //   is held. Navigation buttons (Next/Submit, outside [data-bf-input]) keep
+  //   native Enter. Widget triggers and checkbox/option buttons inside a
+  //   question get Enter→advance; users press Space to interact with those.
+  // - Esc → go back one step. When a popover is open, focus is inside the
+  //   portaled content (outside the form), so this handler doesn't fire and
+  //   the popover gets to close first.
   const handleFieldByFieldKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    if (event.key === "Escape") {
+      if (currentStep === 0) return;
+      // Defensive: bail if a popover trigger inside this form is currently
+      // open. Focus should normally be in the popover (portaled), but if it
+      // somehow stays on the trigger we don't want Esc to navigate away.
+      if (formRef.current?.querySelector('[aria-expanded="true"]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      goToPrevStep();
+      return;
+    }
+
     if (event.key !== "Enter") return;
     const target = event.target as HTMLElement;
-    if (target.tagName === "BUTTON") return;
+    const isInQuestion = target.closest("[data-bf-input]") !== null;
+    const isNavButton =
+      (target.tagName === "BUTTON" || target.getAttribute("role") === "button") && !isInQuestion;
+    if (isNavButton) return;
 
     const isTextarea = target.tagName === "TEXTAREA";
     const isMetaEnter = event.metaKey || event.ctrlKey;
 
     if (isTextarea && !isMetaEnter) return;
 
+    // stopPropagation prevents widget keydown handlers (Base UI PopoverTrigger,
+    // Checkbox, etc.) from also reacting to Enter — otherwise the popover
+    // flashes open for a frame before the next step replaces it.
     event.preventDefault();
+    event.stopPropagation();
     formRef.current?.requestSubmit();
   };
 
@@ -125,7 +150,7 @@ export const StepForm = ({
         ref={formRef}
         noValidate
         data-bf-field-list
-        onKeyDown={autoActionButton ? handleFieldByFieldKeyDown : undefined}
+        onKeyDownCapture={autoActionButton ? handleFieldByFieldKeyDown : undefined}
         onFocus={handleFormFocus}
         onBlur={autoActionButton ? handleTextareaFocusChange(false) : undefined}
         className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
@@ -229,6 +254,14 @@ export const StepForm = ({
               </kbd>
               <span aria-hidden="true">↵</span>
             </span>
+            {currentStep > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
+                  Esc
+                </kbd>
+                to go back
+              </span>
+            )}
           </div>
         )}
       </form.Form>

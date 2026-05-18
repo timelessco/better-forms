@@ -22,7 +22,7 @@ Concretely:
 - **Event semantics (per-Question)**:
   - `view` → fires when the Question's containing Step has mounted. In single-page `card`, all Questions view simultaneously on form load.
   - `start` → fires on first **focus** on the Question within the Visit (once per `(visit, question)`).
-  - `complete` → fires when the Respondent advanced past the Question successfully — i.e., the Step submit (or the form Submit in single-page) accepted validation. "Complete" means *advanced past*, not *answered*; an optional Question left blank but submitted still completes.
+  - `complete` → fires when the Respondent advanced past the Question successfully — i.e., the Step submit (or the form Submit in single-page) accepted validation. "Complete" means _advanced past_, not _answered_; an optional Question left blank but submitted still completes.
 - **Drop-off semantics (derived at read time)**: THE drop-off Question for a Visit = the Question with the latest `startedAt` whose `completedAt IS NULL` and whose Visit has `didSubmit = false` and `visitEndedAt IS NOT NULL`. At most one drop-off Question per Visit. No stored status column.
 - **Funnel UI**: primary view is expandable Step rows — collapsed shows Step-level rollup, expanded shows per-Question children. Secondary, experimental view: a Sankey using `recharts`' built-in `<Sankey>` component, switchable from the existing insights toolbar. Removable if it does not earn its complexity.
 - **Single-page `card` math**: with `view` uniform across all Questions on the page, the primary in-mode metric is `(started − completed) / started`, not `(viewed − completed) / viewed`. The funnel component branches on Step count.
@@ -53,7 +53,7 @@ Cut date chosen for honesty: there is genuinely no per-Question data for legacy 
 Both. Server-side upsert is free correctness cleanup (fixes the documented race condition, halves DB queries per event); client-side batching is the real efficiency win at the new event rate (a 20-Question single-page form fires ~60 events per Visit and most arrive in two bursts — form load and form Submit — that batch cleanly).
 
 **Validation-failure tracking.**
-Scoped out. The core question ("which Step, which Question did the Respondent drop off?") is fully answered without it. Validation friction is additional *why* on top of *where*; once the *where* lands we will have data on whether validation friction is the next biggest gap, and the schema does not preclude adding a `validationFailedAt` column later.
+Scoped out. The core question ("which Step, which Question did the Respondent drop off?") is fully answered without it. Validation friction is additional _why_ on top of _where_; once the _where_ lands we will have data on whether validation friction is the next biggest gap, and the schema does not preclude adding a `validationFailedAt` column later.
 
 ## Consequences
 
