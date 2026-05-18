@@ -467,14 +467,12 @@ export const FormPreviewFromPlate = ({
     );
   }
 
-  // Determine analytics mode from presentation settings + step count.
-  // `null` disables question-progress tracking on single-page forms.
+  // Determine analytics mode from presentation settings. Per ADR-0002,
+  // tracking is always on — single-page `card` forms still emit per-Question
+  // view/start/complete events (the single Step mounts once at load, focus
+  // events fire per Question, complete fires for every Question on Submit).
   const isFieldByField = settings?.presentationMode === "field-by-field";
-  const trackingMode: PublicFormTracking["mode"] = isFieldByField
-    ? "field-by-field"
-    : steps.length > 1
-      ? "card"
-      : null;
+  const trackingMode: PublicFormTracking["mode"] = isFieldByField ? "field-by-field" : "card";
   const tracking: PublicFormTracking | null =
     trackingBase && formId
       ? {
