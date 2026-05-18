@@ -6,15 +6,20 @@ import { Button } from "@/components/ui/button";
 import { useStepForm } from "@/contexts/step-form-context";
 import { useTranslation } from "@/contexts/translation-context";
 import { useStepPreviewForm } from "@/hooks/use-preview-form";
-import { fireQuestionProgress } from "@/lib/analytics/track-client";
+import { enqueueQuestionProgress } from "@/lib/analytics/track-client";
 import { getFieldsFromSegments } from "@/lib/editor/transform-plate-for-preview";
 import type { FieldSegment, PreviewSegment } from "@/lib/editor/transform-plate-for-preview";
+import type { QuestionRef } from "@/lib/forms/extract-questions";
 import { StaticContentBlock } from "./static-content-block";
 import { PreviewRendererContext, RenderStepPreviewInput } from "./render-step-preview-input";
 
 interface StepFormProps {
   stepIndex: number;
   segments: PreviewSegment[];
+  /** Pre-computed Questions in this Step with global question indices. Used
+   * by the per-Question analytics emitters; safe to omit in non-tracking
+   * previews (the emitters no-op when `tracking` is null). */
+  questions?: QuestionRef[];
   isLastStep: boolean;
   autoActionButton?: boolean;
 }
@@ -26,6 +31,7 @@ interface StepFormProps {
 export const StepForm = ({
   stepIndex,
   segments,
+  questions,
   isLastStep,
   autoActionButton = false,
 }: StepFormProps) => {
@@ -33,6 +39,7 @@ export const StepForm = ({
   const { t } = useTranslation();
   const Renderer = use(PreviewRendererContext) ?? RenderStepPreviewInput;
   const fields = useMemo(() => getFieldsFromSegments(segments), [segments]);
+  const stepQuestions = useMemo<QuestionRef[]>(() => questions ?? [], [questions]);
   const hasAuthoredButton = useMemo(
     () => segments.some((seg) => seg.type === "field" && seg.field.fieldType === "Button"),
     [segments],
@@ -41,6 +48,7 @@ export const StepForm = ({
 
   const { form, formName } = useStepPreviewForm({
     fields,
+    questions: stepQuestions,
     stepIndex,
     isLastStep,
     formName: `stepForm-${stepIndex}`,
@@ -77,25 +85,29 @@ export const StepForm = ({
 
   useFocusFirstField(formRef);
 
-  // Fire `view` analytics event when this step mounts. No-ops in builder
-  // previews (tracking is null) or single-page forms (mode is null) or
-  // before recordFormVisit resolves (visitId is null).
+  // Fire one `view` event per Question in this Step on mount. No-ops in
+  // builder previews (tracking is null) or before recordFormVisit resolves
+  // (visitId is null). The last Question of the final Step carries the
+  // `wasLastQuestion` flag so the funnel can identify terminal Questions.
   useMountEffect(() => {
     if (!(tracking?.visitId && tracking.mode)) return;
-    const isFieldByField = tracking.mode === "field-by-field";
-    const firstField = fields.length > 0 ? fields[0] : null;
-    const questionId = isFieldByField && firstField ? firstField.id : `step_${stepIndex}`;
-    const questionType = isFieldByField && firstField ? (firstField.fieldType ?? null) : null;
-    fireQuestionProgress({
-      visitId: tracking.visitId,
-      formId: tracking.formId,
-      visitorHash: tracking.visitorHash,
-      questionId,
-      questionType,
-      questionIndex: stepIndex,
-      event: "view",
-      wasLastQuestion: isLastStep,
-    });
+    const visitId = tracking.visitId;
+    const lastIndex = stepQuestions.length - 1;
+    for (let i = 0; i < stepQuestions.length; i++) {
+      const q = stepQuestions[i];
+      enqueueQuestionProgress({
+        visitId,
+        formId: tracking.formId,
+        visitorHash: tracking.visitorHash,
+        questionId: q.questionId,
+        questionType: q.questionType,
+        questionIndex: q.questionIndex,
+        stepId: q.stepId,
+        stepIndex: q.stepIndex,
+        event: "view",
+        wasLastQuestion: isLastStep && i === lastIndex,
+      });
+    }
   });
 
   return (

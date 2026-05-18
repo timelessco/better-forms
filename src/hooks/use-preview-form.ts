@@ -7,6 +7,7 @@ import {
   generateZodSchemaFromFields,
 } from "@/lib/form-schema/generate-preview-schema";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
+import type { QuestionRef } from "@/lib/forms/extract-questions";
 import { logger } from "@/lib/utils";
 import { useDraftAutoSave } from "./use-draft-autosave";
 import type { AppForm } from "./use-form-builder";
@@ -18,6 +19,11 @@ const didStartFiredVisits = new Set<string>();
 
 interface UseStepPreviewFormOptions {
   fields: PlateFormField[];
+  /** Pre-computed Questions in this Step (global indices, stepId, stepIndex).
+   * Reserved for the per-Question `start` (focus) and `complete` (submit)
+   * emitters wired in subsequent tasks. Currently unused — the step-mount
+   * `view` emitter lives on `StepForm`. */
+  questions?: QuestionRef[];
   stepIndex: number;
   isLastStep: boolean;
   formName?: string;
@@ -29,6 +35,7 @@ interface UseStepPreviewFormOptions {
  */
 export const useStepPreviewForm = ({
   fields,
+  questions: _questions = [],
   stepIndex,
   isLastStep,
   formName = "stepPreviewForm",
