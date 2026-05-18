@@ -387,7 +387,12 @@ export const aggregateAnalyticsDailyImpl = async (data: {
       );
 
     const analyticsRows = buildDailyAnalyticsRows(visits, date, now);
-    const dropoffRows = buildDailyDropoffRows(progress, date, now);
+    const dropoffRows = buildDailyDropoffRows({
+      rows: progress,
+      visits,
+      dateKey: date,
+      now,
+    });
 
     await tx.delete(formAnalyticsDaily).where(eq(formAnalyticsDaily.date, date));
     if (analyticsRows.length > 0) {

@@ -188,7 +188,7 @@ describe("buildDailyAnalyticsRows", () => {
 
 describe("buildDailyDropoffRows", () => {
   it("returns empty array for empty input", () => {
-    expect(buildDailyDropoffRows([], dateKey, now)).toStrictEqual([]);
+    expect(buildDailyDropoffRows({ rows: [], visits: [], dateKey, now })).toStrictEqual([]);
   });
 
   it("creates one row per (formId, questionId, questionIndex) group", () => {
@@ -225,14 +225,19 @@ describe("buildDailyDropoffRows", () => {
       }),
     ];
 
-    const rows = buildDailyDropoffRows(events, dateKey, now);
+    const rows = buildDailyDropoffRows({
+      rows: events,
+      visits: [],
+      dateKey,
+      now,
+    });
     expect(rows).toHaveLength(4);
     const lookup = new Map(rows.map((r) => [`${r.formId}:${r.questionId}`, r.viewCount]));
     expect(lookup.get("form-a:q1")).toBe(2);
     expect(lookup.get("form-b:q1")).toBe(1);
   });
 
-  it("counts views, starts, completes, and dropoffs correctly", () => {
+  it("counts views, starts, completes, and dropoffs correctly (started-but-not-completed)", () => {
     const events = [
       makeProgress({
         id: "p1",
@@ -247,17 +252,23 @@ describe("buildDailyDropoffRows", () => {
         completedAt: baseTimestamp,
       }),
     ];
-    const [row] = buildDailyDropoffRows(events, dateKey, now);
+    const [row] = buildDailyDropoffRows({
+      rows: events,
+      visits: [],
+      dateKey,
+      now,
+    });
+    // ADR-0002: dropoffCount = started && !completed = just p2 = 1.
     expect(row).toMatchObject({
       viewCount: 4,
       startCount: 3,
       completeCount: 2,
-      dropoffCount: 2,
+      dropoffCount: 1,
     });
   });
 
   it("computes dropoffRate at percentage*100 scale (50% -> 5000)", () => {
-    // half complete, half drop off
+    // half complete, half drop off (started but not completed)
     const completed: RawProgress[] = Array.from({ length: 50 }, (_, i) =>
       makeProgress({
         id: `c${i}`,
@@ -273,7 +284,12 @@ describe("buildDailyDropoffRows", () => {
       }),
     );
     const events = [...completed, ...dropped];
-    const [row] = buildDailyDropoffRows(events, dateKey, now);
+    const [row] = buildDailyDropoffRows({
+      rows: events,
+      visits: [],
+      dateKey,
+      now,
+    });
     expect(row).toMatchObject({
       viewCount: 100,
       completeCount: 50,
@@ -292,7 +308,12 @@ describe("buildDailyDropoffRows", () => {
         questionIndex: 7,
       }),
     ];
-    const [row] = buildDailyDropoffRows(events, dateKey, now);
+    const [row] = buildDailyDropoffRows({
+      rows: events,
+      visits: [],
+      dateKey,
+      now,
+    });
     expect(row).toMatchObject({
       date: dateKey,
       formId: "form-x",
