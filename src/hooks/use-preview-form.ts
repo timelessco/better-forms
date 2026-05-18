@@ -1,7 +1,11 @@
 import { useMemo, useRef } from "react";
 import { revalidateLogic, useAppForm } from "@/components/ui/tanstack-form";
 import { useStepForm } from "@/contexts/step-form-context";
-import { fireQuestionProgress, fireUpdateVisit } from "@/lib/analytics/track-client";
+import {
+  enqueueQuestionProgress,
+  fireQuestionProgress,
+  fireUpdateVisit,
+} from "@/lib/analytics/track-client";
 import {
   generateDefaultValuesFromFields,
   generateZodSchemaFromFields,
@@ -20,9 +24,9 @@ const didStartFiredVisits = new Set<string>();
 interface UseStepPreviewFormOptions {
   fields: PlateFormField[];
   /** Pre-computed Questions in this Step (global indices, stepId, stepIndex).
-   * Reserved for the per-Question `start` (focus) and `complete` (submit)
-   * emitters wired in subsequent tasks. Currently unused — the step-mount
-   * `view` emitter lives on `StepForm`. */
+   * Used by the per-Question `start` (on first focus) and `complete` (on
+   * submit) analytics emitters. Omit / pass `[]` when tracking is disabled
+   * (e.g. RSC-rendered preview, builder previews). */
   questions?: QuestionRef[];
   stepIndex: number;
   isLastStep: boolean;
@@ -35,28 +39,39 @@ interface UseStepPreviewFormOptions {
  */
 export const useStepPreviewForm = ({
   fields,
-  questions: _questions = [],
+  questions = [],
   stepIndex,
   isLastStep,
   formName = "stepPreviewForm",
 }: UseStepPreviewFormOptions): {
   form: AppForm;
   formName: string;
+  /** Form-level onFocus handler. Routes focus events to the per-Question
+   * `start` emitter, deduped per `(visitId, questionId)` for the Visit. */
+  handleFieldFocus: (event: React.FocusEvent<HTMLFormElement>) => void;
 } => {
   const { formData, goToNextStep, submitForm, formId, tracking } = useStepForm();
   const { saveDraft } = useDraftAutoSave(formId);
 
-  // `start` event is fired on the first blur per step. Reset the latch when
-  // the active step changes so the next step gets its own start event.
-  const hasStartedRef = useRef<{ stepIndex: number; fired: boolean }>({
-    stepIndex: -1,
-    fired: false,
-  });
-  if (hasStartedRef.current.stepIndex !== stepIndex) {
-    hasStartedRef.current = { stepIndex, fired: false };
-  }
+  // Per-Question `start` dedup latch keyed by `${visitId}::${questionId}`.
+  // Survives step changes within the same Visit so refocusing a Question
+  // after going back doesn't re-emit a `start` event.
+  const startFiredRef = useRef<Set<string>>(new Set());
 
   const validationSchema = useMemo(() => generateZodSchemaFromFields(fields), [fields]);
+
+  // Build a quick lookup from form field `name` (the input's name attribute)
+  // to the matching Question ref. Inputs use the field `name`; Questions key
+  // off the Plate Block `id`. Both are 1:1 within a Step.
+  const questionsByName = useMemo<Map<string, QuestionRef>>(() => {
+    const map = new Map<string, QuestionRef>();
+    for (const f of fields) {
+      if (f.fieldType === "Button") continue;
+      const q = questions.find((qq) => qq.questionId === f.id);
+      if (q) map.set(f.name, q);
+    }
+    return map;
+  }, [fields, questions]);
 
   const defaultValues = useMemo(() => {
     const fieldDefaults = generateDefaultValuesFromFields(fields);
@@ -70,6 +85,49 @@ export const useStepPreviewForm = ({
     return merged;
   }, [fields, formData]);
 
+  const handleFieldFocus = (event: React.FocusEvent<HTMLFormElement>): void => {
+    if (!(tracking?.visitId && tracking.mode)) return;
+    const target = event.target as HTMLElement;
+    // Walk up from focused element to find a matching form input name. Some
+    // inputs nest the focusable element (e.g. PhoneInput, MultiSelect combobox)
+    // a level or two below the wrapper that carries `name`. Bounded walk
+    // keeps the lookup cheap.
+    let el: HTMLElement | null = target;
+    let name: string | null = null;
+    for (let depth = 0; depth < 4 && el; depth++) {
+      const candidate = el.getAttribute("name");
+      if (candidate && questionsByName.has(candidate)) {
+        name = candidate;
+        break;
+      }
+      el = el.parentElement;
+    }
+    if (!name) return;
+    const q = questionsByName.get(name);
+    if (!q) return;
+
+    const visitId = tracking.visitId;
+    const key = `${visitId}::${q.questionId}`;
+    if (!startFiredRef.current.has(key)) {
+      startFiredRef.current.add(key);
+      enqueueQuestionProgress({
+        visitId,
+        formId: tracking.formId,
+        visitorHash: tracking.visitorHash,
+        questionId: q.questionId,
+        questionType: q.questionType,
+        questionIndex: q.questionIndex,
+        stepId: q.stepId,
+        stepIndex: q.stepIndex,
+        event: "start",
+      });
+    }
+    if (!didStartFiredVisits.has(visitId)) {
+      didStartFiredVisits.add(visitId);
+      fireUpdateVisit({ visitId, didStartForm: true });
+    }
+  };
+
   const form = useAppForm({
     defaultValues,
     validationLogic: revalidateLogic(),
@@ -79,7 +137,9 @@ export const useStepPreviewForm = ({
     },
     // Draft autosave: merge this step's current values with previously-captured
     // step data and persist as an in-progress submission. `onBlurDebounceMs`
-    // collapses rapid tabbing through fields into a single save.
+    // collapses rapid tabbing through fields into a single save. The per-
+    // Question `start` event lives on `handleFieldFocus` (on first focus),
+    // not on blur — see ADR-0002.
     listeners: {
       onBlur: ({ formApi }) => {
         if (formId) {
@@ -87,32 +147,6 @@ export const useStepPreviewForm = ({
             values: { ...formData, ...formApi.state.values },
             lastStepReached: stepIndex,
           });
-        }
-
-        // Analytics: first blur per step → `start`; first blur per visit →
-        // `didStartForm: true`. No-ops when tracking is disabled / pending.
-        if (tracking?.visitId && tracking.mode) {
-          if (!hasStartedRef.current.fired) {
-            hasStartedRef.current.fired = true;
-            const isFieldByField = tracking.mode === "field-by-field";
-            const firstField = fields.length > 0 ? fields[0] : null;
-            const questionId = isFieldByField && firstField ? firstField.id : `step_${stepIndex}`;
-            const questionType =
-              isFieldByField && firstField ? (firstField.fieldType ?? null) : null;
-            fireQuestionProgress({
-              visitId: tracking.visitId,
-              formId: tracking.formId,
-              visitorHash: tracking.visitorHash,
-              questionId,
-              questionType,
-              questionIndex: stepIndex,
-              event: "start",
-            });
-          }
-          if (!didStartFiredVisits.has(tracking.visitId)) {
-            didStartFiredVisits.add(tracking.visitId);
-            fireUpdateVisit({ visitId: tracking.visitId, didStartForm: true });
-          }
         }
       },
       onBlurDebounceMs: 1000,
@@ -169,5 +203,5 @@ export const useStepPreviewForm = ({
     },
   });
 
-  return { form: form as unknown as AppForm, formName };
+  return { form: form as unknown as AppForm, formName, handleFieldFocus };
 };

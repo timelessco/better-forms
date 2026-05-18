@@ -46,7 +46,7 @@ export const StepForm = ({
   );
   const showAutoActionButton = autoActionButton && !hasAuthoredButton;
 
-  const { form, formName } = useStepPreviewForm({
+  const { form, formName, handleFieldFocus } = useStepPreviewForm({
     fields,
     questions: stepQuestions,
     stepIndex,
@@ -83,6 +83,14 @@ export const StepForm = ({
       }
     };
 
+  // Compose form-level onFocus: textarea-state tracking (field-by-field
+  // chrome) plus the per-Question analytics `start` emitter. Focus bubbles
+  // so any input inside the form-tag reaches this handler.
+  const handleFormFocus = (event: React.FocusEvent<HTMLFormElement>) => {
+    if (autoActionButton) handleTextareaFocusChange(true)(event);
+    handleFieldFocus(event);
+  };
+
   useFocusFirstField(formRef);
 
   // Fire one `view` event per Question in this Step on mount. No-ops in
@@ -118,7 +126,7 @@ export const StepForm = ({
         noValidate
         data-bf-field-list
         onKeyDown={autoActionButton ? handleFieldByFieldKeyDown : undefined}
-        onFocus={autoActionButton ? handleTextareaFocusChange(true) : undefined}
+        onFocus={handleFormFocus}
         onBlur={autoActionButton ? handleTextareaFocusChange(false) : undefined}
         className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
