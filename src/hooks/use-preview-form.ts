@@ -1,7 +1,11 @@
 import { useMemo, useRef } from "react";
 import { revalidateLogic, useAppForm } from "@/components/ui/tanstack-form";
 import { useStepForm } from "@/contexts/step-form-context";
-import { enqueueQuestionProgress, fireUpdateVisit } from "@/lib/analytics/track-client";
+import {
+  enqueueQuestionProgress,
+  fireUpdateVisit,
+  flushQuestionProgressBuffer,
+} from "@/lib/analytics/track-client";
 import {
   generateDefaultValuesFromFields,
   generateZodSchemaFromFields,
@@ -155,6 +159,8 @@ export const useStepPreviewForm = ({
       // Analytics: emit `complete` for every Question in this Step before
       // navigating. The last Question of the final Step carries the
       // `wasLastQuestion` flag so the funnel can identify terminal Questions.
+      // Flush the buffer afterwards so the next Step's mount doesn't race
+      // ahead of the prior Step's events.
       if (tracking?.visitId && tracking.mode && questions.length > 0) {
         const visitId = tracking.visitId;
         const lastIndex = questions.length - 1;
@@ -173,6 +179,7 @@ export const useStepPreviewForm = ({
             wasLastQuestion: isLastStep && i === lastIndex,
           });
         }
+        flushQuestionProgressBuffer();
       }
 
       if (isLastStep) {
