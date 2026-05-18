@@ -13,6 +13,8 @@ import {
   workspaces,
 } from "@/db/schema";
 import { buildDailyAnalyticsRows, buildDailyDropoffRows } from "@/lib/analytics/aggregate-utils";
+import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
+import type { Value } from "platejs";
 import { isBotUserAgent } from "@/lib/analytics/bot-filter";
 import { PER_QUESTION_ANALYTICS_CUT_TS } from "@/lib/analytics/cut-date";
 import { filterByCutDate, mergeDropoffMetrics } from "@/lib/analytics/merge-dropoff";
@@ -302,12 +304,31 @@ export const getFormDropoffImpl = async (
     cutTs: PER_QUESTION_ANALYTICS_CUT_TS,
   });
 
+  // Build a Question-id → label map from the Form's current draft content so
+  // the funnel renders human-readable labels instead of raw Plate Block ids.
+  const labelMap = new Map<string, string>();
+  const [formRow] = await db
+    .select({ content: forms.content })
+    .from(forms)
+    .where(eq(forms.id, data.formId));
+  if (formRow?.content) {
+    const { steps } = transformPlateForPreview(formRow.content as Value);
+    for (const step of steps) {
+      for (const seg of step) {
+        if (seg.type === "field" && seg.field.fieldType !== "Button" && seg.field.label) {
+          labelMap.set(seg.field.id, seg.field.label);
+        }
+      }
+    }
+  }
+
   return mergeDropoffMetrics({
     formId: data.formId,
     startDate: data.startDate ?? toDateKey(range.start),
     endDate: data.endDate ?? toDateKey(range.end),
     dailyRows,
     todayProgressRows,
+    labelMap,
   });
 };
 

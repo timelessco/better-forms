@@ -1,4 +1,5 @@
 import type { PreviewSegment } from "@/lib/editor/transform-plate-for-preview";
+import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 
 /**
  * Lightweight per-Question reference used by analytics emitters. Each
@@ -45,6 +46,39 @@ export const extractQuestionsForStep = (
     out.push({
       questionId: seg.field.id,
       questionType: seg.field.fieldType,
+      questionIndex: globalIndex,
+      stepId,
+      stepIndex,
+    });
+    globalIndex++;
+  }
+  return out;
+};
+
+/**
+ * Variant of {@link extractQuestionsForStep} that walks the RSC step shape
+ * (`{ fields: PlateFormField[] }[]`) used by the published-form code path.
+ */
+export const extractQuestionsForStepRSC = (
+  steps: readonly { fields: PlateFormField[] }[],
+  stepIndex: number,
+): QuestionRef[] => {
+  if (stepIndex < 0 || stepIndex >= steps.length) return [];
+
+  let globalIndex = 0;
+  for (let s = 0; s < stepIndex; s++) {
+    for (const field of steps[s].fields) {
+      if (field.fieldType !== "Button") globalIndex++;
+    }
+  }
+
+  const stepId = `step_${stepIndex}`;
+  const out: QuestionRef[] = [];
+  for (const field of steps[stepIndex].fields) {
+    if (field.fieldType === "Button") continue;
+    out.push({
+      questionId: field.id,
+      questionType: field.fieldType,
       questionIndex: globalIndex,
       stepId,
       stepIndex,

@@ -167,33 +167,31 @@ const InsightsPage = () => {
               <TimeSeriesChart dailyData={metrics.dailyData} />
             </CardContent>
           </Card>
-          {dropoff.questions.length > 0 && (
-            <Card className="bg-transparent ring-0">
-              <CardHeader>
-                <CardTitle>Drop-off funnel</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="funnel">
-                  <TabsList className="mb-4">
-                    <TabsTrigger value="funnel">Funnel</TabsTrigger>
-                    <TabsTrigger value="flow">
-                      Flow
-                      <Badge variant="secondary" className="ml-1">
-                        experimental
-                      </Badge>
-                    </TabsTrigger>
-                    <TabsIndicator />
-                  </TabsList>
-                  <TabsContent value="funnel">
-                    <DropoffFunnel dropoff={dropoff} />
-                  </TabsContent>
-                  <TabsContent value="flow">
-                    <DropoffSankey dropoff={dropoff} />
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          )}
+          <Card className="bg-transparent ring-0">
+            <CardHeader>
+              <CardTitle>Drop-off funnel</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="funnel">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="funnel">Funnel</TabsTrigger>
+                  <TabsTrigger value="flow">
+                    Flow
+                    <Badge variant="secondary" className="ml-1">
+                      experimental
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsIndicator />
+                </TabsList>
+                <TabsContent value="funnel">
+                  <DropoffFunnel dropoff={dropoff} />
+                </TabsContent>
+                <TabsContent value="flow">
+                  <DropoffSankey dropoff={dropoff} />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
           <BreakdownCards metrics={metrics} />
         </>
       ) : (

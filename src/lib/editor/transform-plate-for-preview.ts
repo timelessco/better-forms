@@ -234,13 +234,19 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
       const baseName = slugify(labelText);
       const name = stableId || `${baseName}_${fieldIndex}`;
 
+      // Single-option checkboxes ("I agree to terms") and switches typically
+      // have no preceding label — the user-facing text lives on the option
+      // item itself. Fall back to the option's own text so the field has a
+      // readable label for downstream consumers (analytics, exports, etc.).
+      const fieldLabel = labelText || options[0]?.label;
+
       segments.push({
         type: "field",
         field: {
           id: name,
           name,
           fieldType: VARIANT_TO_FIELD_TYPE[variant] || "Checkbox",
-          label: labelText || undefined,
+          label: fieldLabel || undefined,
           labelType: label?.labelNode.type as string | undefined,
           required: isRequired,
           options,

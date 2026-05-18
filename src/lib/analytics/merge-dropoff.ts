@@ -34,6 +34,10 @@ interface MergeDropoffArgs {
   endDate: string;
   dailyRows: DropoffDailyRow[];
   todayProgressRows: QuestionProgressRow[];
+  /** Optional Question id → human-readable label lookup. Sourced from the
+   * Form's current Plate content; populates `questionLabel` so the funnel
+   * shows "Full Name" instead of the raw Plate Block id. */
+  labelMap?: ReadonlyMap<string, string>;
 }
 
 interface QuestionAggregate {
@@ -71,7 +75,7 @@ const getOrCreateAggregate = (
 };
 
 export const mergeDropoffMetrics = (args: MergeDropoffArgs): QuestionDropoffMetrics => {
-  const { formId, startDate, endDate, dailyRows, todayProgressRows } = args;
+  const { formId, startDate, endDate, dailyRows, todayProgressRows, labelMap } = args;
 
   const byQuestion = new Map<string, QuestionAggregate>();
 
@@ -133,9 +137,7 @@ export const mergeDropoffMetrics = (args: MergeDropoffArgs): QuestionDropoffMetr
     return {
       questionId: agg.questionId,
       questionIndex: agg.questionIndex,
-      // questionLabel is not derivable from analytics tables alone in v1;
-      // the UI hydrates it from the form schema separately.
-      questionLabel: undefined,
+      questionLabel: labelMap?.get(agg.questionId),
       stepId: agg.stepId,
       stepIndex: agg.stepIndex,
       viewCount: agg.viewCount,
