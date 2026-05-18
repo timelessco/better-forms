@@ -466,6 +466,9 @@ export const formQuestionProgress = pgTable(
     questionType: text(),
     questionIndex: integer().notNull(),
 
+    stepId: text(),
+    stepIndex: integer(),
+
     viewedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     startedAt: timestamp({ withTimezone: true }),
     completedAt: timestamp({ withTimezone: true }),
@@ -476,6 +479,7 @@ export const formQuestionProgress = pgTable(
   (t) => [
     index("idx_form_question_progress_form_id").on(t.formId),
     index("idx_form_question_progress_visit_id").on(t.visitId),
+    uniqueIndex("uq_form_question_progress_visit_question").on(t.visitId, t.questionId),
   ],
 );
 
@@ -526,7 +530,10 @@ export const formDropoffDaily = pgTable(
     formId: text()
       .notNull()
       .references(() => forms.id, { onDelete: "cascade" }),
-    date: text().notNull(), // 'YYYY-MM-DD'
+    date: text().notNull(),
+
+    stepId: text(),
+    stepIndex: integer(),
     questionId: text().notNull(),
     questionIndex: integer().notNull(),
 
@@ -534,7 +541,8 @@ export const formDropoffDaily = pgTable(
     startCount: integer().notNull().default(0),
     completeCount: integer().notNull().default(0),
     dropoffCount: integer().notNull().default(0),
-    dropoffRate: integer(), // Percentage * 100
+    terminalDropoffCount: integer().notNull().default(0),
+    dropoffRate: integer(),
     completionRate: integer(),
 
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

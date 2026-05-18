@@ -50,6 +50,8 @@ const makeProgress = (overrides: Partial<RawProgress> & { id: string }): RawProg
     questionId: "q-1",
     questionType: "text",
     questionIndex: 0,
+    stepId: null,
+    stepIndex: null,
     viewedAt: baseTimestamp,
     startedAt: null,
     completedAt: null,
