@@ -14,7 +14,8 @@ import {
 } from "@/db/schema";
 import { buildDailyAnalyticsRows, buildDailyDropoffRows } from "@/lib/analytics/aggregate-utils";
 import { isBotUserAgent } from "@/lib/analytics/bot-filter";
-import { mergeDropoffMetrics } from "@/lib/analytics/merge-dropoff";
+import { PER_QUESTION_ANALYTICS_CUT_TS } from "@/lib/analytics/cut-date";
+import { filterByCutDate, mergeDropoffMetrics } from "@/lib/analytics/merge-dropoff";
 import { mergeInsightsMetrics } from "@/lib/analytics/merge-metrics";
 import { parseUserAgent } from "@/lib/analytics/parse-user-agent";
 import { resolveTimeRange, splitTodayVsPast, toDateKey } from "@/lib/analytics/time-range";
@@ -262,7 +263,9 @@ export const getFormDropoffImpl = async (
   const split = splitTodayVsPast(range, now);
 
   const enabled = await isAnalyticsEnabled(data.formId);
-  const dailyRows =
+  const cutDateKey = PER_QUESTION_ANALYTICS_CUT_TS.slice(0, 10);
+  const cutDate = new Date(PER_QUESTION_ANALYTICS_CUT_TS);
+  const rawDailyRows =
     enabled && split.pastDays.length > 0
       ? await db
           .select()
@@ -271,11 +274,12 @@ export const getFormDropoffImpl = async (
             and(
               eq(formDropoffDaily.formId, data.formId),
               inArray(formDropoffDaily.date, split.pastDays),
+              gte(formDropoffDaily.date, cutDateKey),
             ),
           )
       : [];
 
-  const todayProgressRows =
+  const rawTodayProgressRows =
     enabled && split.rawStart
       ? await db
           .select()
@@ -285,9 +289,16 @@ export const getFormDropoffImpl = async (
               eq(formQuestionProgress.formId, data.formId),
               gte(formQuestionProgress.viewedAt, split.rawStart),
               lte(formQuestionProgress.viewedAt, range.end),
+              gte(formQuestionProgress.viewedAt, cutDate),
             ),
           )
       : [];
+
+  const { dailyRows, todayProgressRows } = filterByCutDate({
+    dailyRows: rawDailyRows,
+    todayProgressRows: rawTodayProgressRows,
+    cutTs: PER_QUESTION_ANALYTICS_CUT_TS,
+  });
 
   return mergeDropoffMetrics({
     formId: data.formId,

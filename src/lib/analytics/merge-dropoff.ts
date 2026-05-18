@@ -4,6 +4,30 @@ import type { QuestionDropoffMetrics } from "@/types/analytics";
 type DropoffDailyRow = typeof formDropoffDaily.$inferSelect;
 type QuestionProgressRow = typeof formQuestionProgress.$inferSelect;
 
+interface FilterByCutDateInput {
+  dailyRows: readonly DropoffDailyRow[];
+  todayProgressRows: readonly QuestionProgressRow[];
+  cutTs: string;
+}
+
+interface FilterByCutDateOutput {
+  dailyRows: DropoffDailyRow[];
+  todayProgressRows: QuestionProgressRow[];
+}
+
+// Drops pre-cut analytics rows so the funnel UI doesn't show data captured
+// before the per-Question rework deploy. Daily rows compare by `date` string
+// (YYYY-MM-DD ≥ first 10 chars of cutTs); raw progress rows compare by
+// `viewedAt` Date.
+export const filterByCutDate = (input: FilterByCutDateInput): FilterByCutDateOutput => {
+  const cutDateKey = input.cutTs.slice(0, 10);
+  const cutDate = new Date(input.cutTs);
+  return {
+    dailyRows: input.dailyRows.filter((row) => row.date >= cutDateKey),
+    todayProgressRows: input.todayProgressRows.filter((row) => row.viewedAt >= cutDate),
+  };
+};
+
 interface MergeDropoffArgs {
   formId: string;
   startDate: string;
