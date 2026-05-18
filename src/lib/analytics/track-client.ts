@@ -1,6 +1,7 @@
 import {
   recordFormVisit,
   recordQuestionProgress,
+  recordQuestionProgressBatch,
   updateFormVisit,
 } from "@/lib/server-fn/analytics";
 
@@ -30,6 +31,8 @@ type QuestionProgressArgs = {
   questionId: string;
   questionType?: string | null;
   questionIndex: number;
+  stepId?: string | null;
+  stepIndex?: number | null;
   event: "view" | "start" | "complete";
   wasLastQuestion?: boolean;
 };
@@ -94,9 +97,70 @@ export const fireUpdateVisitBeacon = (args: UpdateVisitArgs): void => {
   }
 };
 
-/** Fire-and-forget question-progress event. */
+/**
+ * @deprecated Use `enqueueQuestionProgress` instead — it batches via the
+ * `recordQuestionProgressBatch` serverFn. This singular path remains only
+ * for any unmigrated call sites; remove once Task 3.3 lands.
+ */
 export const fireQuestionProgress = (args: QuestionProgressArgs): void => {
   void recordQuestionProgress({ data: args }).catch((err) => {
     logDevError("recordQuestionProgress", err);
   });
 };
+
+const QUESTION_PROGRESS_BUFFER: QuestionProgressArgs[] = [];
+const QUESTION_PROGRESS_MAX_BATCH = 5;
+const QUESTION_PROGRESS_FLUSH_MS = 500;
+let questionProgressFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+const flushQuestionProgressNow = (): void => {
+  if (QUESTION_PROGRESS_BUFFER.length === 0) {
+    if (questionProgressFlushTimer) {
+      clearTimeout(questionProgressFlushTimer);
+      questionProgressFlushTimer = null;
+    }
+    return;
+  }
+  // Collapse intra-batch duplicates: keep only the latest entry per
+  // (visitId, questionId, event). Useful when StrictMode double-fires in
+  // dev or when redundant focus events stack up.
+  const dedup = new Map<string, QuestionProgressArgs>();
+  for (const item of QUESTION_PROGRESS_BUFFER) {
+    dedup.set(`${item.visitId}::${item.questionId}::${item.event}`, item);
+  }
+  const items = [...dedup.values()];
+  QUESTION_PROGRESS_BUFFER.length = 0;
+  if (questionProgressFlushTimer) {
+    clearTimeout(questionProgressFlushTimer);
+    questionProgressFlushTimer = null;
+  }
+  void recordQuestionProgressBatch({ data: { items } }).catch((err) => {
+    logDevError("recordQuestionProgressBatch", err);
+  });
+};
+
+const scheduleQuestionProgressFlush = (): void => {
+  if (questionProgressFlushTimer) return;
+  questionProgressFlushTimer = setTimeout(flushQuestionProgressNow, QUESTION_PROGRESS_FLUSH_MS);
+};
+
+/** Enqueue a question-progress event. Auto-flushes at 5 events or 500ms. */
+export const enqueueQuestionProgress = (args: QuestionProgressArgs): void => {
+  QUESTION_PROGRESS_BUFFER.push(args);
+  if (QUESTION_PROGRESS_BUFFER.length >= QUESTION_PROGRESS_MAX_BATCH) {
+    flushQuestionProgressNow();
+  } else {
+    scheduleQuestionProgressFlush();
+  }
+};
+
+// NOTE: The question-progress buffer flushes via the regular serverFn
+// (`recordQuestionProgressBatch`), which is NOT unload-safe — the browser
+// may tear down the fetch loop before the request lands. The
+// `usePublicFormTracking` hook (`use-public-form-tracking.ts`) calls this
+// manual flush from its `beforeunload`/`pagehide` handlers as a best-effort
+// drain; a dedicated beacon-friendly REST route can be added later if
+// real-world data loss proves material. See ADR-0002.
+/** Drain the question-progress buffer immediately. Call before Step submit
+ * or page unload so dropoff data isn't lost. */
+export const flushQuestionProgressBuffer = flushQuestionProgressNow;
