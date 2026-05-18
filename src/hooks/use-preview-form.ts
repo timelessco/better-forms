@@ -1,11 +1,7 @@
 import { useMemo, useRef } from "react";
 import { revalidateLogic, useAppForm } from "@/components/ui/tanstack-form";
 import { useStepForm } from "@/contexts/step-form-context";
-import {
-  enqueueQuestionProgress,
-  fireQuestionProgress,
-  fireUpdateVisit,
-} from "@/lib/analytics/track-client";
+import { enqueueQuestionProgress, fireUpdateVisit } from "@/lib/analytics/track-client";
 import {
   generateDefaultValuesFromFields,
   generateZodSchemaFromFields,
@@ -156,23 +152,27 @@ export const useStepPreviewForm = ({
       // No toast here — keeps the published form's bundle free of sonner.
       logger(`Step ${stepIndex + 1} submitted with values:`, value);
 
-      // Analytics: fire `complete` for this step before navigating away. The
-      // server fn is fire-and-forget so it doesn't delay submitForm.
-      if (tracking?.visitId && tracking.mode) {
-        const isFieldByField = tracking.mode === "field-by-field";
-        const firstField = fields.length > 0 ? fields[0] : null;
-        const questionId = isFieldByField && firstField ? firstField.id : `step_${stepIndex}`;
-        const questionType = isFieldByField && firstField ? (firstField.fieldType ?? null) : null;
-        fireQuestionProgress({
-          visitId: tracking.visitId,
-          formId: tracking.formId,
-          visitorHash: tracking.visitorHash,
-          questionId,
-          questionType,
-          questionIndex: stepIndex,
-          event: "complete",
-          wasLastQuestion: isLastStep,
-        });
+      // Analytics: emit `complete` for every Question in this Step before
+      // navigating. The last Question of the final Step carries the
+      // `wasLastQuestion` flag so the funnel can identify terminal Questions.
+      if (tracking?.visitId && tracking.mode && questions.length > 0) {
+        const visitId = tracking.visitId;
+        const lastIndex = questions.length - 1;
+        for (let i = 0; i < questions.length; i++) {
+          const q = questions[i];
+          enqueueQuestionProgress({
+            visitId,
+            formId: tracking.formId,
+            visitorHash: tracking.visitorHash,
+            questionId: q.questionId,
+            questionType: q.questionType,
+            questionIndex: q.questionIndex,
+            stepId: q.stepId,
+            stepIndex: q.stepIndex,
+            event: "complete",
+            wasLastQuestion: isLastStep && i === lastIndex,
+          });
+        }
       }
 
       if (isLastStep) {

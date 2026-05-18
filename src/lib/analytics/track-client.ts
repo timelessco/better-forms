@@ -1,6 +1,5 @@
 import {
   recordFormVisit,
-  recordQuestionProgress,
   recordQuestionProgressBatch,
   updateFormVisit,
 } from "@/lib/server-fn/analytics";
@@ -95,17 +94,6 @@ export const fireUpdateVisitBeacon = (args: UpdateVisitArgs): void => {
   if (!queued) {
     fireUpdateVisit(args);
   }
-};
-
-/**
- * @deprecated Use `enqueueQuestionProgress` instead — it batches via the
- * `recordQuestionProgressBatch` serverFn. This singular path remains only
- * for any unmigrated call sites; remove once Task 3.3 lands.
- */
-export const fireQuestionProgress = (args: QuestionProgressArgs): void => {
-  void recordQuestionProgress({ data: args }).catch((err) => {
-    logDevError("recordQuestionProgress", err);
-  });
 };
 
 const QUESTION_PROGRESS_BUFFER: QuestionProgressArgs[] = [];
