@@ -2,7 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getActiveOrgId } from "@/lib/server-fn/auth-helpers";
-import type { InsightsAvailability } from "@/lib/server-fn/analytics.server";
+import type {
+  InsightsAvailability,
+  RecordQuestionProgressBatchInput,
+} from "@/lib/server-fn/analytics.server";
 import type { FormInsightsMetrics, QuestionDropoffMetrics } from "@/types/analytics";
 
 // All DB-touching logic lives in `analytics.server.ts`. Each handler below
@@ -52,6 +55,8 @@ const questionProgressInputSchema = z.object({
   questionId: z.string().min(1).max(256),
   questionType: z.string().max(64).nullish(),
   questionIndex: z.number().int().nonnegative(),
+  stepId: z.string().max(256).nullish(),
+  stepIndex: z.number().int().nonnegative().nullish(),
   event: z.enum(["view", "start", "complete"]),
   wasLastQuestion: z.boolean().optional(),
 });
@@ -62,6 +67,28 @@ export const recordQuestionProgress = createServerFn({ method: "POST" })
     const { recordQuestionProgressImpl } = await import("./analytics.server");
     return recordQuestionProgressImpl(data);
   });
+
+const MAX_QUESTION_PROGRESS_BATCH = 20;
+
+const questionProgressBatchInputSchema = z.object({
+  items: z.array(questionProgressInputSchema).min(1).max(MAX_QUESTION_PROGRESS_BATCH),
+});
+
+export const recordQuestionProgressBatch = createServerFn({ method: "POST" })
+  .inputValidator(questionProgressBatchInputSchema)
+  .handler(
+    async ({
+      data,
+    }: {
+      data: RecordQuestionProgressBatchInput;
+    }): Promise<{
+      ok: true;
+      processed: number;
+    }> => {
+      const { recordQuestionProgressBatchImpl } = await import("./analytics.server");
+      return recordQuestionProgressBatchImpl(data);
+    },
+  );
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 

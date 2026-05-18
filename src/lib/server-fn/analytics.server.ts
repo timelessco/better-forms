@@ -1,5 +1,5 @@
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { and, count, eq, gte, inArray, lt, lte } from "drizzle-orm";
+import { and, count, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   formAnalyticsDaily,
@@ -49,8 +49,14 @@ export type RecordQuestionProgressInput = {
   questionId: string;
   questionType?: string | null;
   questionIndex: number;
+  stepId?: string | null;
+  stepIndex?: number | null;
   event: "view" | "start" | "complete";
   wasLastQuestion?: boolean;
+};
+
+export type RecordQuestionProgressBatchInput = {
+  items: RecordQuestionProgressInput[];
 };
 
 export type InsightsFilterInput = {
@@ -143,26 +149,13 @@ export const updateFormVisitImpl = async (data: UpdateFormVisitInput): Promise<{
 export const recordQuestionProgressImpl = async (
   data: RecordQuestionProgressInput,
 ): Promise<{ ok: true }> => {
-  // NOTE: race-prone if a single visitor fires multiple events simultaneously.
-  // V1 acceptable: duplicates inflate progress rows but aggregation in Task 12
-  // dedupes by max(viewedAt) per (visitorHash, questionId). A unique constraint
-  // on (visitId, questionId) would be the right v2 fix.
-  const [existing] = await db
-    .select()
-    .from(formQuestionProgress)
-    .where(
-      and(
-        eq(formQuestionProgress.visitId, data.visitId),
-        eq(formQuestionProgress.questionId, data.questionId),
-      ),
-    )
-    .limit(1);
-
   const now = new Date();
+  const isStart = data.event === "start" || data.event === "complete";
+  const isComplete = data.event === "complete";
 
-  if (!existing) {
-    const isStartOrComplete = data.event === "start" || data.event === "complete";
-    await db.insert(formQuestionProgress).values({
+  await db
+    .insert(formQuestionProgress)
+    .values({
       id: crypto.randomUUID(),
       visitId: data.visitId,
       formId: data.formId,
@@ -170,35 +163,36 @@ export const recordQuestionProgressImpl = async (
       questionId: data.questionId,
       questionType: data.questionType ?? null,
       questionIndex: data.questionIndex,
+      stepId: data.stepId ?? null,
+      stepIndex: data.stepIndex ?? null,
       viewedAt: now,
-      startedAt: isStartOrComplete ? now : null,
-      completedAt: data.event === "complete" ? now : null,
+      startedAt: isStart ? now : null,
+      completedAt: isComplete ? now : null,
       wasLastQuestion: data.wasLastQuestion ?? false,
+    })
+    .onConflictDoUpdate({
+      target: [formQuestionProgress.visitId, formQuestionProgress.questionId],
+      set: {
+        startedAt: isStart
+          ? sql`coalesce(${formQuestionProgress.startedAt}, ${now})`
+          : formQuestionProgress.startedAt,
+        completedAt: isComplete ? now : formQuestionProgress.completedAt,
+        wasLastQuestion: data.wasLastQuestion ?? formQuestionProgress.wasLastQuestion,
+        stepId: sql`coalesce(${formQuestionProgress.stepId}, ${data.stepId ?? null})`,
+        stepIndex: sql`coalesce(${formQuestionProgress.stepIndex}, ${data.stepIndex ?? null})`,
+      },
     });
-    return { ok: true };
-  }
 
-  const updates: Partial<typeof formQuestionProgress.$inferInsert> = {};
-  if (data.event === "start" && !existing.startedAt) {
-    updates.startedAt = now;
-  }
-  if (data.event === "complete") {
-    updates.completedAt = now;
-    if (!existing.startedAt) {
-      updates.startedAt = now;
-    }
-  }
-  if (data.wasLastQuestion !== undefined) {
-    updates.wasLastQuestion = data.wasLastQuestion;
-  }
-
-  if (Object.keys(updates).length > 0) {
-    await db
-      .update(formQuestionProgress)
-      .set(updates)
-      .where(eq(formQuestionProgress.id, existing.id));
-  }
   return { ok: true };
+};
+
+export const recordQuestionProgressBatchImpl = async (
+  data: RecordQuestionProgressBatchInput,
+): Promise<{ ok: true; processed: number }> => {
+  for (const item of data.items) {
+    await recordQuestionProgressImpl(item);
+  }
+  return { ok: true, processed: data.items.length };
 };
 
 export const getFormInsightsImpl = async (
