@@ -130,10 +130,10 @@ const StepRow = ({ step, mode }: StepRowProps) => {
   const hasQuestions = step.questions.length > 0;
 
   return (
-    <Collapsible className="border-b border-border last:border-b-0">
+    <Collapsible>
       <CollapsibleTrigger
         className={cn(
-          "group/funnel-step grid w-full grid-cols-[24px_minmax(0,1fr)_80px_90px_90px_100px] items-center gap-3 px-3 py-2.5 text-left text-[13px]",
+          "group/funnel-step grid w-full grid-cols-[24px_minmax(0,1fr)_80px_90px_90px_100px] items-center gap-3 border-b border-border px-3 py-2.5 text-left text-[13px] last:border-b-0",
           !hasQuestions && "pointer-events-none",
         )}
         disabled={!hasQuestions}
