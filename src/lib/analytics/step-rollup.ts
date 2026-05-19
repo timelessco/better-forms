@@ -25,10 +25,13 @@ interface StepAggregate {
   questions: QuestionDropoffRow[];
 }
 
-// Rolls up per-Question metrics into per-Step metrics. Skips questions with
-// a null stepId (legacy pre-rework rows). Step-level counts are summed from
-// the underlying questions, and dropoff/completion rates are recomputed
-// from the summed counts so the rolled-up percentage is well-defined.
+// Rolls up per-Question metrics into per-Step metrics, skipping rows with a
+// null stepId (legacy pre-rework data). Aggregation is set-based, not
+// additive: each visit can touch every Question in a Step once, so summing
+// would multiply counts by the Question count and break the funnel reading.
+// terminalDropoff is the exception — each visit terminates at exactly one
+// Question, so summing per-Question terminals across a Step correctly counts
+// visits that gave up somewhere in the Step.
 export const rollupToSteps = (questions: readonly QuestionDropoffRow[]): StepDropoffMetrics[] => {
   const byStep = new Map<string, StepAggregate>();
 
@@ -42,7 +45,8 @@ export const rollupToSteps = (questions: readonly QuestionDropoffRow[]): StepDro
       stepIndex: q.stepIndex,
       viewCount: 0,
       startCount: 0,
-      completeCount: 0,
+      // Sentinel so the first Math.min iteration becomes the running min.
+      completeCount: Number.POSITIVE_INFINITY,
       dropoffCount: 0,
       terminalDropoffCount: 0,
       questions: [],
@@ -50,18 +54,17 @@ export const rollupToSteps = (questions: readonly QuestionDropoffRow[]): StepDro
     if (!existing) {
       byStep.set(q.stepId, agg);
     }
-    agg.viewCount += q.viewCount;
-    agg.startCount += q.startCount;
-    agg.completeCount += q.completeCount;
-    agg.dropoffCount += q.dropoffCount;
+    agg.viewCount = Math.max(agg.viewCount, q.viewCount);
+    agg.startCount = Math.max(agg.startCount, q.startCount);
+    agg.completeCount = Math.min(agg.completeCount, q.completeCount);
     agg.terminalDropoffCount += q.terminalDropoffCount;
     agg.questions.push(q);
   }
 
   const steps: StepDropoffMetrics[] = [];
   for (const agg of byStep.values()) {
-    const dropoffRate =
-      agg.viewCount > 0 ? Math.round((agg.dropoffCount / agg.viewCount) * 100) : null;
+    const dropoffCount = Math.max(0, agg.viewCount - agg.completeCount);
+    const dropoffRate = agg.viewCount > 0 ? Math.round((dropoffCount / agg.viewCount) * 100) : null;
     const completionRate =
       agg.viewCount > 0 ? Math.round((agg.completeCount / agg.viewCount) * 100) : null;
     steps.push({
@@ -71,7 +74,7 @@ export const rollupToSteps = (questions: readonly QuestionDropoffRow[]): StepDro
       viewCount: agg.viewCount,
       startCount: agg.startCount,
       completeCount: agg.completeCount,
-      dropoffCount: agg.dropoffCount,
+      dropoffCount,
       terminalDropoffCount: agg.terminalDropoffCount,
       dropoffRate,
       completionRate,

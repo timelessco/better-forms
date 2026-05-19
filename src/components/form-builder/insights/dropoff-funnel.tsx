@@ -24,22 +24,8 @@ const formatPercent = (value: number | null | undefined): string => {
   return `${Math.round(value)}%`;
 };
 
-const STEP_ID_RE = /^step_(\d+)$/;
-
-const formatStepLabel = (step: StepDropoffMetrics): string => {
-  if (step.stepLabel) {
-    return step.stepLabel;
-  }
-  const firstQuestion = step.questions[0];
-  if (firstQuestion?.questionLabel) {
-    return firstQuestion.questionLabel;
-  }
-  const match = step.stepId.match(STEP_ID_RE);
-  if (match) {
-    return `Step ${Number(match[1]) + 1}`;
-  }
-  return step.stepId;
-};
+const formatStepLabel = (step: StepDropoffMetrics): string =>
+  step.stepLabel ?? `Step ${step.stepIndex + 1}`;
 
 const formatQuestionLabel = (q: QuestionDropoffRow): string => {
   if (q.questionLabel) {
@@ -84,9 +70,10 @@ const CutDateBanner = ({ startDate }: CutDateBannerProps) => {
 
 interface DropoffHeaderProps {
   mode: DropoffMode;
+  singleStep: boolean;
 }
 
-const DropoffHeader = ({ mode }: DropoffHeaderProps) => {
+const DropoffHeader = ({ mode, singleStep }: DropoffHeaderProps) => {
   const tooltipText =
     mode === "multi-step"
       ? "Drop-off = % who viewed but didn't complete"
@@ -94,7 +81,7 @@ const DropoffHeader = ({ mode }: DropoffHeaderProps) => {
   return (
     <div className="grid grid-cols-[24px_minmax(0,1fr)_80px_90px_90px_100px] items-center gap-3 border-b border-border px-3 py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
       <span aria-hidden="true" />
-      <span>Step / Question</span>
+      <span>{singleStep ? "Question" : "Step / Question"}</span>
       <span className="text-right">Viewed</span>
       <span className="text-right">Started</span>
       <span className="text-right">Completed</span>
@@ -115,6 +102,36 @@ const DropoffHeader = ({ mode }: DropoffHeaderProps) => {
           <TooltipContent>{tooltipText}</TooltipContent>
         </Tooltip>
       </span>
+    </div>
+  );
+};
+
+interface QuestionRowProps {
+  question: QuestionDropoffRow;
+  index: number;
+  mode: DropoffMode;
+}
+
+// Flat top-level row used for single-step Forms — same grid as StepRow but
+// without the chevron / accordion, so the Question reads as the primary row.
+const QuestionRow = ({ question, index, mode }: QuestionRowProps) => {
+  const dropoffRate = computeDropoffRate(question, mode, "question");
+  const label = formatQuestionLabel(question);
+  return (
+    <div className="grid grid-cols-[24px_minmax(0,1fr)_80px_90px_90px_100px] items-center gap-3 border-b border-border px-3 py-2.5 text-[13px] last:border-b-0">
+      <span aria-hidden="true" />
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="text-muted-foreground tabular-nums">{index + 1}.</span>
+        <span className="truncate font-medium text-foreground" title={label}>
+          {label}
+        </span>
+      </span>
+      <span className="text-right tabular-nums">{numberFormatter.format(question.viewCount)}</span>
+      <span className="text-right tabular-nums">{numberFormatter.format(question.startCount)}</span>
+      <span className="text-right tabular-nums">
+        {numberFormatter.format(question.completeCount)}
+      </span>
+      <span className="text-right tabular-nums">{formatPercent(dropoffRate)}</span>
     </div>
   );
 };
@@ -214,11 +231,13 @@ export const DropoffFunnel = ({ dropoff }: DropoffFunnelProps) => {
     <div className="space-y-4">
       <CutDateBanner startDate={dropoff.startDate} />
       <div className="overflow-hidden rounded-md border border-border">
-        <DropoffHeader mode={mode} />
+        <DropoffHeader mode={mode} singleStep={steps.length <= 1} />
         <div>
-          {steps.map((step) => (
-            <StepRow key={step.stepId} step={step} mode={mode} />
-          ))}
+          {steps.length === 1
+            ? steps[0].questions.map((q, i) => (
+                <QuestionRow key={q.questionId} question={q} index={i} mode={mode} />
+              ))
+            : steps.map((step) => <StepRow key={step.stepId} step={step} mode={mode} />)}
         </div>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

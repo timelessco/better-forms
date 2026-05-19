@@ -171,75 +171,98 @@ export const WorkspaceItemMinimal = ({
         label={workspace.name}
         initialOpen={true}
         action={
-          <DropdownMenu onOpenChange={handlePopoverOpenChange}>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="hover:bg-sidebar-active mr-1 overflow-hidden rounded-lg p-[5px] text-muted-foreground hover:text-foreground"
-                  title="More options"
-                  onPointerDown={(e) => e.stopPropagation()}
-                />
-              }
+          <>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="overflow-hidden rounded-lg p-[5px] text-muted-foreground"
+              title="New form"
+              aria-label="New form"
+              disabled={isCreatingForm}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleCreateForm();
+              }}
             >
-              <MoreHorizontalIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48" sideOffset={4}>
-              <div
-                onMouseEnter={() => setSortExpanded(true)}
-                onMouseLeave={() => setSortExpanded(false)}
+              {isCreatingForm ? <Loader2Icon className="animate-spin" /> : <PlusIcon />}
+            </Button>
+            <DropdownMenu onOpenChange={handlePopoverOpenChange}>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="hover:bg-sidebar-active mr-1 overflow-hidden rounded-lg p-[5px] text-muted-foreground hover:text-foreground"
+                    title="More options"
+                    onPointerDown={(e) => e.stopPropagation()}
+                  />
+                }
               >
-                <Collapsible open={sortExpanded} onOpenChange={setSortExpanded}>
-                  <CollapsibleTrigger className="inline-flex h-[26px] w-full cursor-pointer items-center gap-1.5 overflow-hidden rounded-lg px-2 py-[5.5px] text-[13px] text-foreground transition-colors">
-                    <currentSort.icon className="size-4 shrink-0" />
-                    <span className="flex-1 text-left">{currentSort.label}</span>
-                    <ChevronDownIcon
-                      className={cn("size-3 shrink-0 transition-transform duration-200")}
-                    />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0">
-                    <div className="flex flex-col pt-1">
-                      <DropdownMenuGroup>
-                        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                        {sortOptions.map((option) => (
-                          <DropdownMenuItem
-                            key={option.value}
-                            closeOnClick={false}
-                            onClick={() => {
-                              onSortChange(option.value);
-                              setSortExpanded(false);
-                            }}
-                            className={cn(sortMode === option.value && "bg-black/5")}
-                          >
-                            <option.icon />
-                            <span className="flex-1 text-left">{option.label}</span>
-                            {sortMode === option.value && <CheckIcon className="size-3 shrink-0" />}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuGroup>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Workspace</DropdownMenuLabel>
-                <DropdownMenuItem onClick={handleCreateForm} disabled={isCreatingForm}>
-                  {isCreatingForm ? <Loader2Icon className="size-4 animate-spin" /> : <PlusIcon />}
-                  <span className="flex-1 text-left">New form</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onRename(workspace)}>
-                  <Pencil2Icon />
-                  <span className="flex-1 text-left">Rename</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={() => onDelete(workspace)}>
-                  <TrashIcon />
-                  <span className="flex-1 text-left">Delete</span>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <MoreHorizontalIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48" sideOffset={4}>
+                <div
+                  onMouseEnter={() => setSortExpanded(true)}
+                  onMouseLeave={() => setSortExpanded(false)}
+                >
+                  <Collapsible open={sortExpanded} onOpenChange={setSortExpanded}>
+                    <CollapsibleTrigger className="inline-flex h-[26px] w-full cursor-pointer items-center gap-1.5 overflow-hidden rounded-lg px-2 py-[5.5px] text-[13px] text-foreground transition-colors">
+                      <currentSort.icon className="size-4 shrink-0" />
+                      <span className="flex-1 text-left">{currentSort.label}</span>
+                      <ChevronDownIcon
+                        className={cn("size-3 shrink-0 transition-transform duration-200")}
+                      />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0">
+                      <div className="flex flex-col pt-1">
+                        <DropdownMenuGroup>
+                          <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                          {sortOptions.map((option) => (
+                            <DropdownMenuItem
+                              key={option.value}
+                              closeOnClick={false}
+                              onClick={() => {
+                                onSortChange(option.value);
+                                setSortExpanded(false);
+                              }}
+                              className={cn(sortMode === option.value && "bg-black/5")}
+                            >
+                              <option.icon />
+                              <span className="flex-1 text-left">{option.label}</span>
+                              {sortMode === option.value && (
+                                <CheckIcon className="size-3 shrink-0" />
+                              )}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuGroup>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Workspace</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={handleCreateForm} disabled={isCreatingForm}>
+                    {isCreatingForm ? (
+                      <Loader2Icon className="size-4 animate-spin" />
+                    ) : (
+                      <PlusIcon />
+                    )}
+                    <span className="flex-1 text-left">New form</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onRename(workspace)}>
+                    <Pencil2Icon />
+                    <span className="flex-1 text-left">Rename</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onClick={() => onDelete(workspace)}>
+                    <TrashIcon />
+                    <span className="flex-1 text-left">Delete</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
         }
       >
         <DndContext

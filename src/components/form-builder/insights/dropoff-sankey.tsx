@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "motion/react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ComposedChart, ResponsiveContainer, useChartHeight, useChartWidth } from "recharts";
 
 import { rollupToSteps } from "@/lib/analytics/step-rollup";
 import type { StepDropoffMetrics } from "@/lib/analytics/step-rollup";
@@ -21,16 +23,8 @@ interface FunnelSegment {
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 
-const STEP_ID_RE = /^step_(\d+)$/;
-
-const formatStepLabel = (step: StepDropoffMetrics): string => {
-  if (step.stepLabel) return step.stepLabel;
-  const firstLabel = step.questions[0]?.questionLabel;
-  if (firstLabel) return firstLabel;
-  const match = step.stepId.match(STEP_ID_RE);
-  if (match) return `Step ${Number(match[1]) + 1}`;
-  return `Step ${step.stepIndex + 1}`;
-};
+const formatStepLabel = (step: StepDropoffMetrics): string =>
+  step.stepLabel ?? `Step ${step.stepIndex + 1}`;
 
 const formatQuestionLabel = (q: QuestionDropoffRow, fallbackIndex: number): string => {
   if (q.questionLabel) return q.questionLabel;
@@ -77,7 +71,11 @@ const CHART_HEIGHT = 220;
 const TOP_PADDING = 16;
 const MIN_BAR_RATIO = 0.12;
 const CORNER_RADIUS = 28;
-const DEFAULT_CONTAINER_WIDTH = 800;
+// Floor each segment to a width that fits a 2-digit count and ~5 characters of
+// the label. Below this the chart becomes unreadable; above this the chart
+// fills the container as usual. When N × MIN_SEGMENT_WIDTH exceeds the
+// container, the chart scrolls horizontally.
+const MIN_SEGMENT_WIDTH = 120;
 
 // Builds the inner commands of the funnel top edge — everything between the
 // first vertex and the last. Each transition between two segment heights is
@@ -117,138 +115,282 @@ const buildSteppedTopCommands = (tops: number[], segW: number, viewBoxW: number)
   return parts;
 };
 
+interface HoverState {
+  index: number;
+  x: number;
+  y: number;
+  chartWidth: number;
+  chartHeight: number;
+}
+
+const FUNNEL_COLOR = "oklch(0.62 0.18 270)";
+const DIVIDER_COLOR = "oklch(0.92 0.01 270)";
+
+const FunnelPaths = ({
+  segments,
+  onHoverChange,
+}: {
+  segments: FunnelSegment[];
+  onHoverChange: (state: HoverState | null) => void;
+}) => {
+  const width = useChartWidth();
+  const height = useChartHeight();
+
+  const geometry = useMemo(() => {
+    if (!width || !height || segments.length === 0) return null;
+    const maxCount = Math.max(1, ...segments.map((s) => s.count));
+    const usableHeight = height - TOP_PADDING;
+    const heights = segments.map((s) => Math.max(MIN_BAR_RATIO, s.count / maxCount));
+    const tops = heights.map((h) => height - h * usableHeight);
+    const segW = width / segments.length;
+    const stepCommands = buildSteppedTopCommands(tops, segW, width);
+    const topD = [`M 0 ${tops[0]}`, ...stepCommands].join(" ");
+    const fillD = [
+      `M 0 ${height}`,
+      `L 0 ${tops[0]}`,
+      ...stepCommands,
+      `L ${width} ${height}`,
+      "Z",
+    ].join(" ");
+    return { segW, topD, fillD };
+  }, [segments, width, height]);
+
+  if (!geometry || !width || !height) return null;
+  const { segW, topD, fillD } = geometry;
+
+  return (
+    <>
+      <defs>
+        <linearGradient id="dropoff-funnel-gradient" x1="0" y1="0" x2="1" y2="0">
+          {segments.map((seg, i) => {
+            const startPct = (i / segments.length) * 100;
+            const endPct = ((i + 1) / segments.length) * 100;
+            const opacity = 0.12 + (i / Math.max(1, segments.length - 1)) * 0.55;
+            return (
+              <Fragment key={seg.id}>
+                <stop offset={`${startPct}%`} stopColor={FUNNEL_COLOR} stopOpacity={opacity} />
+                <stop offset={`${endPct}%`} stopColor={FUNNEL_COLOR} stopOpacity={opacity} />
+              </Fragment>
+            );
+          })}
+        </linearGradient>
+        <linearGradient id="dropoff-funnel-fade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="white" stopOpacity="1" />
+          <stop offset="100%" stopColor="white" stopOpacity="0.2" />
+        </linearGradient>
+        <mask id="dropoff-funnel-fade-mask">
+          <rect x={0} y={0} width={width} height={height} fill="url(#dropoff-funnel-fade)" />
+        </mask>
+      </defs>
+      {segments.slice(0, -1).map((seg, i) => {
+        const x = (i + 1) * segW;
+        return (
+          <line
+            key={seg.id}
+            x1={x}
+            y1={0}
+            x2={x}
+            y2={height}
+            stroke={DIVIDER_COLOR}
+            strokeWidth={1}
+          />
+        );
+      })}
+      <motion.path
+        key={`fill-${segments.length}`}
+        d={fillD}
+        fill="url(#dropoff-funnel-gradient)"
+        mask="url(#dropoff-funnel-fade-mask)"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+      />
+      <motion.path
+        key={`stroke-${segments.length}`}
+        d={topD}
+        fill="none"
+        stroke={FUNNEL_COLOR}
+        strokeWidth={2}
+        strokeLinejoin="round"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+      />
+      <rect
+        x={0}
+        y={0}
+        width={width}
+        height={height}
+        fill="transparent"
+        onMouseMove={(e) => {
+          const rect = (e.currentTarget as SVGRectElement).getBoundingClientRect();
+          const mouseX = Math.round(e.clientX - rect.left);
+          const mouseY = Math.round(e.clientY - rect.top);
+          const index = Math.min(segments.length - 1, Math.max(0, Math.floor(mouseX / segW)));
+          onHoverChange({
+            index,
+            x: mouseX,
+            y: mouseY,
+            chartWidth: width,
+            chartHeight: height,
+          });
+        }}
+        onMouseLeave={() => onHoverChange(null)}
+      />
+    </>
+  );
+};
+
 const FunnelChart = ({ segments }: FunnelChartProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(DEFAULT_CONTAINER_WIDTH);
+  const [hover, setHover] = useState<HoverState | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [wrapperWidth, setWrapperWidth] = useState(800);
 
   useEffect(() => {
-    const el = containerRef.current;
+    const el = wrapperRef.current;
     if (!el) return;
     const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width;
-      if (width && width > 0) {
-        setContainerWidth(width);
-      }
+      const next = Math.round(entries[0]?.contentRect.width ?? 0);
+      if (next > 0) setWrapperWidth((prev) => (prev === next ? prev : next));
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  const { pathD, topD, segmentWidth, viewBoxWidth } = useMemo(() => {
-    const segCount = segments.length;
-    const viewBoxW = containerWidth;
-    const segW = viewBoxW / Math.max(1, segCount);
-    const maxCount = Math.max(1, ...segments.map((s) => s.count));
-    const usableHeight = CHART_HEIGHT - TOP_PADDING;
-    const heights = segments.map((s) => Math.max(MIN_BAR_RATIO, s.count / maxCount));
-    const tops = heights.map((h) => CHART_HEIGHT - h * usableHeight);
+  // When the natural width (N × MIN_SEGMENT_WIDTH) exceeds the wrapper, the
+  // inner content overflows and the wrapper scrolls horizontally.
+  const chartWidth = Math.max(wrapperWidth, segments.length * MIN_SEGMENT_WIDTH);
 
-    const stepCommands = buildSteppedTopCommands(tops, segW, viewBoxW);
-
-    const top = segCount === 0 ? "" : [`M 0 ${tops[0]}`, ...stepCommands].join(" ");
-    const fill =
-      segCount === 0
-        ? ""
-        : [
-            `M 0 ${CHART_HEIGHT}`,
-            `L 0 ${tops[0]}`,
-            ...stepCommands,
-            `L ${viewBoxW} ${CHART_HEIGHT}`,
-            "Z",
-          ].join(" ");
-
-    return {
-      pathD: fill,
-      topD: top,
-      segmentWidth: segW,
-      viewBoxWidth: viewBoxW,
-    };
-  }, [segments, containerWidth]);
-
-  const gradientStops = useMemo(() => {
-    if (segments.length === 0) return [];
-    const stops: Array<{ offset: string; opacity: number; key: string }> = [];
-    segments.forEach((_, i) => {
-      const startPct = (i / segments.length) * 100;
-      const endPct = ((i + 1) / segments.length) * 100;
-      const opacity = 0.12 + (i / Math.max(1, segments.length - 1)) * 0.55;
-      stops.push({ key: `${i}-a`, offset: `${startPct}%`, opacity });
-      stops.push({ key: `${i}-b`, offset: `${endPct}%`, opacity });
+  const handleHoverChange = useCallback((next: HoverState | null) => {
+    setHover((prev) => {
+      if (prev === null && next === null) return prev;
+      if (prev && next && prev.index === next.index && prev.x === next.x && prev.y === next.y) {
+        return prev;
+      }
+      return next;
     });
-    return stops;
-  }, [segments]);
+  }, []);
+
+  const hovered = hover ? segments[hover.index] : null;
 
   return (
-    <div ref={containerRef} className="w-full">
-      <div
-        className="grid"
-        style={{ gridTemplateColumns: `repeat(${segments.length}, minmax(0, 1fr))` }}
-      >
-        {segments.map((seg, i) => (
-          <div
-            key={seg.id}
-            className={cn("flex flex-col gap-1 px-3 py-2", i > 0 && "border-l border-border/60")}
-          >
-            <div className="truncate text-[13px] text-muted-foreground" title={seg.label}>
-              {seg.label}
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-semibold text-foreground tabular-nums">
-                {numberFormatter.format(seg.count)}
-              </span>
-              {seg.stepDrop !== null && seg.stepDrop > 0 && (
-                <span className="text-[11px] text-muted-foreground tabular-nums">
-                  −{Math.round(seg.stepDrop * 100)}%
-                </span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-      <svg
-        viewBox={`0 0 ${viewBoxWidth} ${CHART_HEIGHT}`}
-        preserveAspectRatio="none"
-        className="block w-full"
-        style={{ height: CHART_HEIGHT }}
-        aria-hidden="true"
-      >
-        <defs>
-          <linearGradient id="dropoff-funnel-gradient" x1="0" y1="0" x2="1" y2="0">
-            {gradientStops.map((stop) => (
-              <stop
-                key={stop.key}
-                offset={stop.offset}
-                stopColor="oklch(0.62 0.18 270)"
-                stopOpacity={stop.opacity}
-              />
-            ))}
-          </linearGradient>
-        </defs>
-        {segments.slice(0, -1).map((seg, i) => {
-          const x = (i + 1) * segmentWidth;
-          return (
-            <line
+    <div ref={wrapperRef} className="w-full overflow-x-auto">
+      <div style={{ width: chartWidth }}>
+        <div
+          className="grid"
+          style={{ gridTemplateColumns: `repeat(${segments.length}, minmax(0, 1fr))` }}
+        >
+          {segments.map((seg, i) => (
+            <div
               key={seg.id}
-              x1={x}
-              y1={0}
-              x2={x}
-              y2={CHART_HEIGHT}
-              stroke="oklch(0.92 0.01 270)"
-              strokeWidth={1}
-              vectorEffect="non-scaling-stroke"
+              className={cn(
+                "flex flex-col gap-1 px-3 py-2 transition-opacity",
+                i > 0 && "border-l border-border/60",
+                hover && hover.index !== i && "opacity-50",
+              )}
+            >
+              <div className="truncate text-[13px] text-muted-foreground" title={seg.label}>
+                {seg.label}
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-semibold text-foreground tabular-nums">
+                  {numberFormatter.format(seg.count)}
+                </span>
+                {seg.stepDrop !== null && seg.stepDrop > 0 && (
+                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                    −{Math.round(seg.stepDrop * 100)}%
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="relative [&_*:focus]:outline-none [&_svg]:outline-none">
+          <ResponsiveContainer width={chartWidth} height={CHART_HEIGHT}>
+            <ComposedChart data={[]} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+              <FunnelPaths segments={segments} onHoverChange={handleHoverChange} />
+            </ComposedChart>
+          </ResponsiveContainer>
+          {hover && hovered && (
+            <FunnelHoverCard
+              segment={hovered}
+              index={hover.index}
+              x={hover.x}
+              y={hover.y}
+              chartWidth={hover.chartWidth}
+              chartHeight={hover.chartHeight}
             />
-          );
-        })}
-        <path d={pathD} fill="url(#dropoff-funnel-gradient)" />
-        <path
-          d={topD}
-          fill="none"
-          stroke="oklch(0.62 0.18 270)"
-          strokeWidth={2}
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface FunnelHoverCardProps {
+  segment: FunnelSegment;
+  index: number;
+  x: number;
+  y: number;
+  chartWidth: number;
+  chartHeight: number;
+}
+
+const CURSOR_OFFSET = 16;
+
+const FunnelHoverCard = ({
+  segment,
+  index,
+  x,
+  y,
+  chartWidth,
+  chartHeight,
+}: FunnelHoverCardProps) => {
+  // Flip the card across the cursor when it would overflow the chart on the
+  // right or bottom — keeps the tooltip inside the visible viewport on the
+  // last column / bottom of the chart without measuring the card itself.
+  const flipX = x > chartWidth / 2;
+  const flipY = y > chartHeight / 2;
+  const transform = [
+    flipX ? `translateX(calc(-100% - ${CURSOR_OFFSET * 2}px))` : "translateX(0)",
+    flipY ? `translateY(calc(-100% - ${CURSOR_OFFSET * 2}px))` : "translateY(0)",
+  ].join(" ");
+
+  return (
+    <div
+      className="pointer-events-none absolute z-10 min-w-[180px] rounded-lg border border-border bg-popover px-3 py-2 elevation-sm"
+      style={{
+        left: x + CURSOR_OFFSET,
+        top: y + CURSOR_OFFSET,
+        transform,
+      }}
+    >
+      <div className="mb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+        Step {index + 1}
+      </div>
+      <div className="truncate text-[13px] font-medium text-foreground" title={segment.label}>
+        {segment.label}
+      </div>
+      <div className="mt-1 flex items-baseline justify-between gap-3 text-[13px]">
+        <span className="text-muted-foreground">Count</span>
+        <span className="font-semibold text-foreground tabular-nums">
+          {numberFormatter.format(segment.count)}
+        </span>
+      </div>
+      <div className="flex items-baseline justify-between gap-3 text-[13px]">
+        <span className="text-muted-foreground">Retention</span>
+        <span className="font-semibold text-foreground tabular-nums">
+          {Math.round(segment.retention * 100)}%
+        </span>
+      </div>
+      {segment.stepDrop !== null && (
+        <div className="flex items-baseline justify-between gap-3 text-[13px]">
+          <span className="text-muted-foreground">Drop vs. previous</span>
+          <span className="font-semibold text-foreground tabular-nums">
+            −{Math.round(segment.stepDrop * 100)}%
+          </span>
+        </div>
+      )}
     </div>
   );
 };
@@ -272,7 +414,7 @@ export const DropoffSankey = ({ dropoff }: DropoffSankeyProps) => {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-xl border border-border bg-background">
+      <div>
         <FunnelChart segments={segments} />
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -290,7 +432,7 @@ interface SummaryStatProps {
 }
 
 const SummaryStat = ({ label, value }: SummaryStatProps) => (
-  <div className="flex flex-col gap-1 rounded-xl border border-border px-3 py-2">
+  <div className="flex flex-col gap-1 px-3 py-2">
     <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
       {label}
     </span>
