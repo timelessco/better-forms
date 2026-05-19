@@ -10,6 +10,8 @@ import { CUSTOMIZATION_AUTO_DEFAULTS } from "@/lib/theme/customization-defaults"
 import { extractFormHeader } from "@/lib/editor/transform-plate-to-form";
 import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
 import type { PreviewSegment } from "@/lib/editor/transform-plate-for-preview";
+import { extractQuestionsForStep } from "@/lib/forms/extract-questions";
+import type { QuestionRef } from "@/lib/forms/extract-questions";
 import { DEFAULT_ICON } from "@/lib/config/app-config";
 import { cn, DEFAULT_ICON_NAME, isValidUrl } from "@/lib/utils";
 import type { PublicFormSettings } from "@/types/form-settings";
@@ -445,6 +447,14 @@ export const FormPreviewFromPlate = ({
     return flattened.length > 0 ? flattened : rawSteps;
   }, [rawSteps, settings?.presentationMode]);
 
+  // Pre-compute per-Step Question lists once so analytics emitters in
+  // `StepForm` / `useStepPreviewForm` don't re-walk the Plate tree on every
+  // render. Global `questionIndex` accumulates across all Steps.
+  const stepQuestions: QuestionRef[][] = useMemo(
+    () => steps.map((_, idx) => extractQuestionsForStep(steps, idx)),
+    [steps],
+  );
+
   if (steps.length === 0 || steps.flat().length === 0) {
     return (
       <div className="flex min-h-[300px] flex-col items-center justify-center p-8 text-center">
@@ -457,14 +467,12 @@ export const FormPreviewFromPlate = ({
     );
   }
 
-  // Determine analytics mode from presentation settings + step count.
-  // `null` disables question-progress tracking on single-page forms.
+  // Determine analytics mode from presentation settings. Per ADR-0002,
+  // tracking is always on — single-page `card` forms still emit per-Question
+  // view/start/complete events (the single Step mounts once at load, focus
+  // events fire per Question, complete fires for every Question on Submit).
   const isFieldByField = settings?.presentationMode === "field-by-field";
-  const trackingMode: PublicFormTracking["mode"] = isFieldByField
-    ? "field-by-field"
-    : steps.length > 1
-      ? "card"
-      : null;
+  const trackingMode: PublicFormTracking["mode"] = isFieldByField ? "field-by-field" : "card";
   const tracking: PublicFormTracking | null =
     trackingBase && formId
       ? {
@@ -488,6 +496,7 @@ export const FormPreviewFromPlate = ({
       <FormPreviewContent
         shortId={shortId}
         steps={steps}
+        stepQuestions={stepQuestions}
         thankYouNodes={thankYouNodes}
         title={title}
         icon={icon}
@@ -598,6 +607,9 @@ const ThankYouView = ({
 
 interface LayoutProps {
   steps: PreviewSegment[][];
+  /** Per-step list of Questions (non-Button fields) with global indices, used
+   * by the analytics emitters in `StepForm` / `useStepPreviewForm`. */
+  stepQuestions: QuestionRef[][];
   thankYouNodes: Value | null;
   title?: string;
   icon?: string;
@@ -664,6 +676,7 @@ const FieldByFieldHeaderIcon = ({
 
 const FieldByFieldLayout = ({
   steps,
+  stepQuestions,
   thankYouNodes,
   title,
   icon,
@@ -682,6 +695,7 @@ const FieldByFieldLayout = ({
   const coverIsColor = cover && isHexColor(cover);
   const isLastStep = currentStep === steps.length - 1;
   const currentStepSegments = steps[currentStep] || [];
+  const currentStepQuestions = stepQuestions[currentStep] || [];
 
   // In popup mode the avatar/icon is already used as the popup bubble, so
   // hide it inside the popup to save space and avoid duplication.
@@ -788,6 +802,7 @@ const FieldByFieldLayout = ({
                     key={currentStep}
                     stepIndex={currentStep}
                     segments={currentStepSegments}
+                    questions={currentStepQuestions}
                     isLastStep={isLastStep}
                     autoActionButton
                   />
@@ -803,6 +818,7 @@ const FieldByFieldLayout = ({
 
 const LinearLayout = ({
   steps,
+  stepQuestions,
   title,
   icon,
   cover,
@@ -815,6 +831,7 @@ const LinearLayout = ({
   const { currentStep, totalSteps, direction } = useStepForm();
   const isLastStep = currentStep === steps.length - 1;
   const currentStepSegments = steps[currentStep] || [];
+  const currentStepQuestions = stepQuestions[currentStep] || [];
 
   return (
     <div className="w-full">
@@ -867,6 +884,7 @@ const LinearLayout = ({
                 key={currentStep}
                 stepIndex={currentStep}
                 segments={currentStepSegments}
+                questions={currentStepQuestions}
                 isLastStep={isLastStep}
               />
             </m.div>
@@ -879,6 +897,7 @@ const LinearLayout = ({
 
 const FormPreviewContent = (props: {
   steps: PreviewSegment[][];
+  stepQuestions: QuestionRef[][];
   thankYouNodes: Value | null;
   title?: string;
   icon?: string;

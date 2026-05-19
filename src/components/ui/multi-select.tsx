@@ -20,6 +20,10 @@ interface MultiSelectProps {
   onChange: (value: string[]) => void;
   placeholder?: string;
   className?: string;
+  /** id forwarded to the trigger so `<label htmlFor>` / aria-labelledby resolve. */
+  id?: string;
+  "aria-labelledby"?: string;
+  "aria-invalid"?: boolean;
 }
 
 export const MultiSelect = ({
@@ -28,6 +32,9 @@ export const MultiSelect = ({
   onChange,
   placeholder = "Select options...",
   className,
+  id,
+  "aria-labelledby": ariaLabelledBy,
+  "aria-invalid": ariaInvalid,
 }: MultiSelectProps) => {
   const [open, setOpen] = useState(false);
 
@@ -56,9 +63,12 @@ export const MultiSelect = ({
         render={
           <div
             role="button"
+            id={id}
             tabIndex={0}
             aria-haspopup="listbox"
             aria-expanded={open}
+            aria-labelledby={ariaLabelledBy}
+            aria-invalid={ariaInvalid}
             className={cn(
               "flex min-h-[30px] w-full cursor-pointer items-center gap-1 rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-2 py-1 text-sm elevation-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               className,

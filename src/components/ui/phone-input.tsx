@@ -216,7 +216,7 @@ function CountrySelect({
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             showTrigger={false}
-            className="border-0 bg-transparent p-0 text-sm tracking-[0.28px] text-foreground shadow-none ring-0! outline-none! placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent"
+            className="border-0 bg-transparent px-0! text-sm tracking-[0.28px] text-foreground shadow-none ring-0! outline-none! placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent"
           />
         </div>
         <ComboboxSeparator className="my-1 hidden" />

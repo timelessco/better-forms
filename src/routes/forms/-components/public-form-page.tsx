@@ -499,21 +499,20 @@ const ThemeToggleButton = ({ themeToggle }: { themeToggle: ThemeToggleHandle }) 
 const DraftResumePrompt = ({
   handleResumeDraft,
   handleStartOver,
-  branding,
 }: {
   handleResumeDraft: () => void;
   handleStartOver: () => void;
-  branding: boolean;
 }) => (
   // x: "-50%" centers via motion's transform (Tailwind -translate-x-1/2 would be clobbered).
-  // bottom-16 clears the "Made with Reform" branding footer when present.
+  // Anchored top-6: users miss bottom toasts (eyes are on the form), so the
+  // resume affordance lives where the gaze already is on first paint.
   <motion.div
     role="status"
-    initial={{ opacity: 0, y: 16, x: "-50%" }}
+    initial={{ opacity: 0, y: -16, x: "-50%" }}
     animate={{ opacity: 1, y: 0, x: "-50%" }}
-    exit={{ opacity: 0, y: 16, x: "-50%" }}
+    exit={{ opacity: 0, y: -16, x: "-50%" }}
     transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-    className={cn("fixed left-1/2 z-50 w-[min(560px,90vw)]", branding ? "bottom-16" : "bottom-6")}
+    className="fixed top-6 left-1/2 z-50 w-[min(560px,90vw)]"
   >
     <div className="flex items-center justify-between rounded-xl bg-background px-2.75 py-2.25 shadow-md ring-1 ring-border/60">
       <div className="flex items-center gap-2 ps-1">
@@ -622,7 +621,6 @@ const PublicFormMain = ({
         <DraftResumePrompt
           handleResumeDraft={handleResumeDraft}
           handleStartOver={handleStartOver}
-          branding={settings.branding}
         />
       )}
     </AnimatePresence>

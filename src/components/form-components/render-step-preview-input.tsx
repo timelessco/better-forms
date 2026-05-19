@@ -3,7 +3,12 @@ import { createContext, lazy, Suspense } from "react";
 import type { AppForm } from "@/hooks/use-form-builder";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 import { FieldSkeleton } from "./field-skeleton";
-import { FieldLabelText, getFieldLabelProps } from "./fields/shared";
+import {
+  FieldLabelText,
+  GROUP_FIELD_TYPES,
+  fieldLabelId,
+  getFieldLabelProps,
+} from "./fields/shared";
 import type { FieldType } from "./fields/shared";
 
 // Editor preview supplies an eager (static-import) renderer here to avoid the
@@ -49,13 +54,24 @@ export const PreviewInputShell = ({
   children: React.ReactNode;
 }) => {
   const { label, required, labelType } = getFieldLabelProps(element);
+  // Group fields (Checkbox/MultiChoice/Ranking) render N controls and have no
+  // single labelable input — wrap them in role=group with aria-labelledby
+  // pointing at the visible label/heading id. For all other field types the
+  // standard `<label htmlFor>` / heading + `aria-labelledby` wiring handles
+  // accessibility (the field component itself reads it via element.name).
+  const isGroup = "fieldType" in element && GROUP_FIELD_TYPES.has(element.fieldType);
+  const groupAriaProps =
+    isGroup && label
+      ? { role: "group" as const, "aria-labelledby": fieldLabelId(element.name) }
+      : {};
   return (
-    <div data-bf-input="true" data-bf-standalone={label ? undefined : "true"}>
+    <div data-bf-input="true" data-bf-standalone={label ? undefined : "true"} {...groupAriaProps}>
       <FieldLabelText
         text={label}
         labelType={labelType}
         htmlFor={element.name}
         required={required}
+        asGroupLabel={isGroup}
       />
       {children}
     </div>

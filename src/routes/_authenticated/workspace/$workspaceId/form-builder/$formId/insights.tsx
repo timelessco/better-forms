@@ -5,14 +5,17 @@ import { toast } from "sonner";
 
 import { BreakdownCards } from "@/components/form-builder/insights/breakdown-cards";
 import { DropoffFunnel } from "@/components/form-builder/insights/dropoff-funnel";
+import { DropoffSankey } from "@/components/form-builder/insights/dropoff-sankey";
 import { EmptyState } from "@/components/form-builder/insights/empty-state";
 import { MetricsRow } from "@/components/form-builder/insights/metrics-row";
 import { TimeRangeSelector } from "@/components/form-builder/insights/time-range-selector";
 import { TimeSeriesChart } from "@/components/form-builder/insights/time-series-chart";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCwIcon } from "@/components/ui/icons";
 import Loader from "@/components/ui/loader";
+import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
   dropoffKey,
@@ -164,16 +167,31 @@ const InsightsPage = () => {
               <TimeSeriesChart dailyData={metrics.dailyData} />
             </CardContent>
           </Card>
-          {dropoff.questions.length > 0 && (
-            <Card className="bg-transparent ring-0">
-              <CardHeader>
-                <CardTitle>Drop-off funnel</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DropoffFunnel dropoff={dropoff} />
-              </CardContent>
-            </Card>
-          )}
+          <Card className="bg-transparent ring-0">
+            <CardHeader>
+              <CardTitle>Drop-off funnel</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="funnel">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="funnel">Funnel</TabsTrigger>
+                  <TabsTrigger value="flow">
+                    Flow
+                    <Badge variant="secondary" className="ml-1">
+                      experimental
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsIndicator />
+                </TabsList>
+                <TabsContent value="funnel">
+                  <DropoffFunnel dropoff={dropoff} />
+                </TabsContent>
+                <TabsContent value="flow">
+                  <DropoffSankey dropoff={dropoff} />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
           <BreakdownCards metrics={metrics} />
         </>
       ) : (

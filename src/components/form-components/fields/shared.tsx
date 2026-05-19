@@ -26,6 +26,25 @@ export const getAriaLabelFallback = (element: PlateFormField): string | undefine
   return placeholder ?? "Field";
 };
 
+/** Returns `aria-labelledby={fieldLabelId(name)}` when the field has a label
+ * rendered as a heading/blockquote (not a real `<label>`). For non-heading
+ * labels, the standard `<label htmlFor>` already does the association so we
+ * return undefined to avoid double-wiring. */
+export const getAriaLabelledBy = (element: PlateFormField): string | undefined => {
+  const labelType = "labelType" in element ? element.labelType : undefined;
+  const label = "label" in element ? element.label : undefined;
+  if (!label) return undefined;
+  if (
+    labelType === "h1" ||
+    labelType === "h2" ||
+    labelType === "h3" ||
+    labelType === "blockquote"
+  ) {
+    return fieldLabelId(element.name);
+  }
+  return undefined;
+};
+
 const RequiredBadge = () => (
   <Tooltip>
     <TooltipTrigger
@@ -57,24 +76,40 @@ const RequiredBadge = () => (
   </Tooltip>
 );
 
+/** Stable id for label-less render variants (h1/h2/h3/blockquote and group
+ * fields) so the input can wire `aria-labelledby` to it. */
+export const fieldLabelId = (fieldName: string): string => `${fieldName}-label`;
+
 export const FieldLabelText = ({
   text,
   labelType,
   htmlFor,
   required,
+  asGroupLabel = false,
 }: {
   text: string;
   labelType?: string;
   htmlFor: string;
   required?: boolean;
+  /** When true, render the label as a non-<label> element with a stable id,
+   * since group fields (Checkbox/MultiChoice/Ranking) have no single
+   * `<input id>` to bind to — the surrounding `role="group"` wrapper uses
+   * `aria-labelledby` instead. */
+  asGroupLabel?: boolean;
 }) => {
   if (!text) return null;
   const badge = required ? <RequiredBadge /> : null;
+  const labelId = fieldLabelId(htmlFor);
 
+  // Heading / blockquote label variants are non-<label> elements, so they
+  // can't use `htmlFor`. We give them a stable id and the input control wires
+  // `aria-labelledby={fieldLabelId(name)}` to it (see RenderStepPreviewInput).
   if (labelType === "h1") {
     return (
       <div className="flex w-full items-center py-2.5">
-        <h1 className="font-heading flex-1 text-4xl font-semibold">{text}</h1>
+        <h1 id={labelId} className="font-heading flex-1 text-4xl font-semibold">
+          {text}
+        </h1>
         {badge}
       </div>
     );
@@ -82,7 +117,9 @@ export const FieldLabelText = ({
   if (labelType === "h2") {
     return (
       <div className="flex w-full items-center py-2.5">
-        <h2 className="font-heading flex-1 text-2xl font-semibold">{text}</h2>
+        <h2 id={labelId} className="font-heading flex-1 text-2xl font-semibold">
+          {text}
+        </h2>
         {badge}
       </div>
     );
@@ -90,7 +127,9 @@ export const FieldLabelText = ({
   if (labelType === "h3") {
     return (
       <div className="flex w-full items-center py-2.5">
-        <h3 className="font-heading flex-1 text-xl font-semibold">{text}</h3>
+        <h3 id={labelId} className="font-heading flex-1 text-xl font-semibold">
+          {text}
+        </h3>
         {badge}
       </div>
     );
@@ -98,16 +137,47 @@ export const FieldLabelText = ({
   if (labelType === "blockquote") {
     return (
       <div className="flex w-full items-center py-2.5">
-        <blockquote className="flex-1 border-l-2 pl-6 italic">{text}</blockquote>
+        <blockquote id={labelId} className="flex-1 border-l-2 pl-6 italic">
+          {text}
+        </blockquote>
         {badge}
       </div>
     );
   }
 
+  // Group fields don't have a single labelable input — emit a <span> (with the
+  // stable id) styled like the label, rather than a <label htmlFor> that would
+  // point at nothing.
+  if (asGroupLabel) {
+    return (
+      <span
+        id={labelId}
+        className="flex w-full items-center gap-2 py-2.5 text-sm select-none"
+        data-bf-field-label
+      >
+        <span className="flex-1">{text}</span>
+        {badge}
+      </span>
+    );
+  }
+
   return (
-    <Label htmlFor={htmlFor} className="w-full" data-bf-field-label>
+    <Label htmlFor={htmlFor} id={labelId} className="w-full" data-bf-field-label>
       <span className="flex-1">{text}</span>
       {badge}
     </Label>
   );
 };
+
+/** Field types whose visible control is NOT a labelable HTML element
+ * (multi-checkbox + single-pick + ranking lists, plus MultiSelect whose
+ * outer trigger is a `<div role="button">` due to nested remove-tag buttons
+ * — see comment at top of multi-select.tsx). They render as groups, so the
+ * surrounding shell uses `role="group" aria-labelledby` rather than
+ * `<label htmlFor>`. */
+export const GROUP_FIELD_TYPES = new Set<PlateFormField["fieldType"]>([
+  "Checkbox",
+  "MultiChoice",
+  "Ranking",
+  "MultiSelect",
+]);

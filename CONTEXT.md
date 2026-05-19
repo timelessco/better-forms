@@ -60,6 +60,10 @@ _Avoid_: Page (overloads with web pages), Section
 A Plate Block (`type: "pageBreak"`) inserted by the Form author to separate **Steps** in `card` Presentation Mode. Ignored in `field-by-field` mode.
 _Avoid_: Divider, Separator
 
+**Drop-off Question**:
+For a single Respondent's Visit, the **Question** with the latest `startedAt` whose `completedAt IS NULL`, when the Visit ended without a Submit. The proxy for "where the Respondent stopped engaging." At most one per Visit. Derived at read time from `formQuestionProgress` + `formVisits`; not stored as a column. See [ADR-0002](./docs/adr/0002-per-question-analytics.md).
+_Avoid_: Abandonment point, Last field
+
 **Thank You Page**:
 The final **Step**, rendered after Submit. Marked by a Page Break Block with `isThankYouPage = true`. Has its own slash-menu entry (`pageBreakThankYou`).
 _Avoid_: Confirmation, End screen, Success page

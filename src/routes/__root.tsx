@@ -38,7 +38,11 @@ const RootDocument = ({ children }: { children: React.ReactNode }) => (
       <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       {import.meta.env.DEV && (
         // eslint-disable-next-line react-doctor/rendering-script-defer-async, react-doctor/no-undeferred-third-party -- dev-only react-scan script; not shipped to production
-        <script async crossOrigin="anonymous" src="//unpkg.com/react-scan/dist/auto.global.js" />
+        <script
+          async
+          crossOrigin="anonymous"
+          src="//unpkg.com/react-scan@latest/dist/auto.global.js"
+        />
       )}
       <HeadContent />
     </head>

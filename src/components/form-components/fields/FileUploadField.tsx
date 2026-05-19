@@ -196,6 +196,8 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
           <>
             <button
               type="button"
+              id={element.name}
+              aria-invalid={showError}
               className={cn(
                 "relative flex min-h-20 w-full cursor-pointer flex-col items-center justify-center rounded-[8px] border border-dashed border-border/60 bg-[var(--form-input-bg,var(--color-gray-50))] p-4 elevation-sm transition-colors hover:bg-accent/50",
                 showError && "border-destructive ring-1 ring-destructive",

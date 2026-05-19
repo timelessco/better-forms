@@ -9,6 +9,7 @@ export const TimePicker = ({ className, ...props }: TimePickerProps) => (
     variant="borderless"
     className={cn(
       "h-7 form-input pr-[8px] pl-[10px] has-[[aria-invalid=true]]:form-input-error",
+      "focus-within:ring-[3px] focus-within:ring-ring/50",
       className,
     )}
   >
@@ -17,7 +18,7 @@ export const TimePicker = ({ className, ...props }: TimePickerProps) => (
     </InputGroupAddon>
     <InputGroupInput
       type="time"
-      className="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+      className="appearance-none shadow-none! [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
       {...props}
     />
   </InputGroup>

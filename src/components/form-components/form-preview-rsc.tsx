@@ -1,7 +1,7 @@
 // Client-side consumer of `getPublicFormViewRSC`. Imports no Plate code — the
 // static prose is pre-rendered server-side; only field widgets fill slots.
 import { CompositeComponent } from "@tanstack/react-start/rsc";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { RenderFieldComponent } from "@/components/form-components/render-step-preview-input";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,14 @@ import { StepFormProvider, useStepForm } from "@/contexts/step-form-context";
 import type { PublicFormTracking, TrackingBase } from "@/contexts/step-form-context";
 import { useTranslation } from "@/contexts/translation-context";
 import { useFocusFirstField } from "@/hooks/use-focus-first-field";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useStepPreviewForm } from "@/hooks/use-preview-form";
+import { enqueueQuestionProgress } from "@/lib/analytics/track-client";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "@/lib/theme/customization-defaults";
 import { cn } from "@/lib/utils";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
+import { extractQuestionsForStepRSC } from "@/lib/forms/extract-questions";
+import type { QuestionRef } from "@/lib/forms/extract-questions";
 import type {
   ButtonGroupSlotProps,
   FieldSlotProps,
@@ -208,24 +212,52 @@ const StepFormRSC = ({
   stepIndex,
   stepRSC,
   isLastStep,
+  questions,
 }: {
   stepIndex: number;
   stepRSC: StepRSC;
   isLastStep: boolean;
+  questions: QuestionRef[];
 }) => {
   const { currentStep, totalSteps, goToPrevStep, isSubmitting } = useStepForm();
   const { t } = useTranslation();
   const fields = stepRSC.fields;
 
-  const { form, formName } = useStepPreviewForm({
+  const { form, formName, handleFieldFocus } = useStepPreviewForm({
     fields,
     stepIndex,
     isLastStep,
     formName: `stepForm-${stepIndex}`,
+    questions,
   });
 
   const formRef = useRef<HTMLFormElement>(null);
   useFocusFirstField(formRef);
+
+  const { tracking } = useStepForm();
+
+  // Fire one `view` event per Question on Step mount, mirroring the plate
+  // renderer (step-form.tsx). The server upsert collapses re-mount duplicates.
+  useMountEffect(() => {
+    if (!(tracking?.visitId && tracking.mode)) return;
+    const visitId = tracking.visitId;
+    const lastIndex = questions.length - 1;
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      enqueueQuestionProgress({
+        visitId,
+        formId: tracking.formId,
+        visitorHash: tracking.visitorHash,
+        questionId: q.questionId,
+        questionType: q.questionType,
+        questionIndex: q.questionIndex,
+        stepId: q.stepId,
+        stepIndex: q.stepIndex,
+        event: "view",
+        wasLastQuestion: isLastStep && i === lastIndex,
+      });
+    }
+  });
 
   const FieldSlot = useCallback(
     ({ fieldId, field }: FieldSlotProps) => {
@@ -249,7 +281,11 @@ const StepFormRSC = ({
           />
         );
       }
-      return <RenderFieldComponent key={fieldId} element={field} form={form} />;
+      return (
+        <div data-bf-question-id={field.id} className="w-full">
+          <RenderFieldComponent key={fieldId} element={field} form={form} />
+        </div>
+      );
     },
     [form, isSubmitting, currentStep, goToPrevStep, totalSteps, t],
   );
@@ -305,6 +341,7 @@ const StepFormRSC = ({
         ref={formRef}
         noValidate
         data-bf-field-list
+        onFocus={handleFieldFocus}
         className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         <TypedComposite src={stepRSC.src} Field={FieldSlot} ButtonGroup={ButtonGroupSlot} />
@@ -327,6 +364,10 @@ const FormPreviewRSCContent = ({
   const { currentStep, totalSteps, isSubmitted, direction, reset } = useStepForm();
   const { t } = useTranslation();
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
+  const currentStepQuestions = useMemo(
+    () => extractQuestionsForStepRSC(steps, currentStep),
+    [steps, currentStep],
+  );
 
   // eslint-disable-next-line react-doctor/no-cascading-set-state -- single state (redirectCountdown) updated via initial set + interval functional updater; not cascading independent state
   useEffect(() => {
@@ -428,6 +469,7 @@ const FormPreviewRSCContent = ({
               stepIndex={currentStep}
               stepRSC={currentStepRSC}
               isLastStep={isLastStep}
+              questions={currentStepQuestions}
             />
           )}
         </div>
@@ -461,9 +503,9 @@ export const FormPreviewRSC = ({
   }
 
   // RSC variant only handles card-mode presentation; field-by-field renders
-  // through FormPreviewFromPlate. Mode is `card` for multi-step forms,
-  // `null` for single-page (disables question-progress tracking).
-  const trackingMode: PublicFormTracking["mode"] = stepCount > 1 ? "card" : null;
+  // through FormPreviewFromPlate. Tracking is always `"card"` — single-page
+  // forms emit per-Question events too, matching the plate variant (ADR-0002).
+  const trackingMode: PublicFormTracking["mode"] = "card";
   const tracking: PublicFormTracking | null =
     trackingBase && formId
       ? {
