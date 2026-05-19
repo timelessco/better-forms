@@ -111,6 +111,25 @@ const resolveTokens = (customization: Record<string, string>): Record<string, st
     }
   }
 
+  // Card coherence: when the user overrides `background` (or `foreground`)
+  // but not card tokens, sync card to the page surface so inline themed
+  // cards read as one cohesive sheet with the form.
+  // Popover is intentionally NOT synced — portaled popups (date picker,
+  // multi-select dropdown, country picker) should keep a distinct surface
+  // tone from the page so they read as a layer above the form, not as
+  // an invisible patch of the same background.
+  const userOverrodeBg = Boolean(customization[`${mode}:background`] || customization.background);
+  const userOverrodeFg = Boolean(customization[`${mode}:foreground`] || customization.foreground);
+  const explicitCard = customization[`${mode}:card`] || customization.card;
+  if (userOverrodeBg && !explicitCard) {
+    tokens.card = tokens.background;
+  }
+  const explicitCardFg =
+    customization[`${mode}:card-foreground`] || customization["card-foreground"];
+  if (userOverrodeFg && !explicitCardFg) {
+    tokens["card-foreground"] = tokens.foreground;
+  }
+
   return tokens;
 };
 

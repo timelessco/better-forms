@@ -24,7 +24,7 @@ describe("rollupToSteps", () => {
     expect(rollupToSteps([])).toEqual([]);
   });
 
-  it("rolls up two questions in the same step into one step row with summed counts", () => {
+  it("rolls up two questions in the same step using max/min set semantics", () => {
     const questions: QuestionDropoffRow[] = [
       makeQuestion({
         questionId: "q1",
@@ -56,15 +56,15 @@ describe("rollupToSteps", () => {
     const [step] = result;
     expect(step.stepId).toBe("step_0");
     expect(step.stepIndex).toBe(0);
-    expect(step.viewCount).toBe(170);
-    expect(step.startCount).toBe(140);
-    expect(step.completeCount).toBe(120);
+    expect(step.viewCount).toBe(100);
+    expect(step.startCount).toBe(80);
+    expect(step.completeCount).toBe(50);
     expect(step.dropoffCount).toBe(50);
+    // terminalDropoff is the one count that still sums across Questions in
+    // a Step — each visit terminates at exactly one Question.
     expect(step.terminalDropoffCount).toBe(8);
-    // dropoffRate = round((50 / 170) * 100) = 29
-    expect(step.dropoffRate).toBe(29);
-    // completionRate = round((120 / 170) * 100) = 71
-    expect(step.completionRate).toBe(71);
+    expect(step.dropoffRate).toBe(50);
+    expect(step.completionRate).toBe(50);
     expect(step.questions.map((q) => q.questionId)).toEqual(["q1", "q2"]);
   });
 
@@ -101,10 +101,11 @@ describe("rollupToSteps", () => {
 
     expect(result).toHaveLength(2);
     expect(result.map((s) => s.stepId)).toEqual(["step_0", "step_1"]);
-    expect(result[0].viewCount).toBe(190);
-    expect(result[0].completeCount).toBe(170);
+    expect(result[0].viewCount).toBe(100);
+    expect(result[0].completeCount).toBe(80);
     expect(result[0].questions.map((q) => q.questionId)).toEqual(["q1", "q2"]);
     expect(result[1].viewCount).toBe(50);
+    expect(result[1].completeCount).toBe(40);
     expect(result[1].questions.map((q) => q.questionId)).toEqual(["q3"]);
   });
 

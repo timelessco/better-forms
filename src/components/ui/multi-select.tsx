@@ -52,6 +52,33 @@ export const MultiSelect = ({
   // CSS-var context. Re-anchor the theme on the popup.
   const themeReanchor = useReanchorThemeProps();
 
+  // Arrow-key roving focus across the options. Tab/Shift+Tab still work
+  // (native DOM order); this adds the standard listbox-style ArrowUp/Down +
+  // Home/End for keyboard users who expect a Combobox-like UX.
+  const handleOptionsKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const buttons = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>("[data-mselect-option]"),
+    );
+    if (buttons.length === 0) return;
+    const activeIndex = buttons.findIndex((btn) => btn === document.activeElement);
+    let nextIndex = activeIndex;
+    if (event.key === "ArrowDown") {
+      nextIndex = activeIndex < 0 ? 0 : (activeIndex + 1) % buttons.length;
+    } else if (event.key === "ArrowUp") {
+      nextIndex =
+        activeIndex < 0 ? buttons.length - 1 : (activeIndex - 1 + buttons.length) % buttons.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = buttons.length - 1;
+    }
+    if (nextIndex !== activeIndex) {
+      event.preventDefault();
+      buttons[nextIndex]?.focus();
+    }
+  };
+
   // Outer trigger must NOT be a <button> — it contains inner "remove tag"
   // buttons, and nested interactive elements are invalid HTML / cause
   // React hydration errors. A div with role=button preserves a11y without
@@ -121,6 +148,7 @@ export const MultiSelect = ({
         sideOffset={4}
         className={cn("w-(--anchor-width) p-1", themeReanchor.className)}
         style={themeReanchor.style}
+        onKeyDown={handleOptionsKeyDown}
       >
         {options.map((opt, idx) => {
           const isSelected = value.includes(opt.value);
@@ -129,6 +157,7 @@ export const MultiSelect = ({
             <button
               key={opt.value}
               type="button"
+              data-mselect-option
               className={cn(
                 "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent",
                 isSelected && cn(color.bg, color.text),

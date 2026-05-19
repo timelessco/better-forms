@@ -110,6 +110,7 @@ const PublicFormRoute = () => {
         formId={loaderData?.form?.id ?? ""}
         isPopup={search.popup}
         embedConfig={embedConfig}
+        resolvedAppTheme={resolvedTheme}
         rsc={
           loaderData?.form
             ? {

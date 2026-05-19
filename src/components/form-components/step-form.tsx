@@ -69,6 +69,14 @@ export const StepForm = ({
   //   portaled content (outside the form), so this handler doesn't fire and
   //   the popover gets to close first.
   const handleFieldByFieldKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    // React events bubble through the React tree, so portaled UI (combobox
+    // listbox, popovers rendered with createPortal) still reaches our form
+    // handler. Bail when the DOM target isn't a descendant of the form so
+    // those popups can handle their own Enter/Esc (e.g. selecting a country
+    // in the phone-input combobox).
+    const target = event.target as HTMLElement | null;
+    if (target && formRef.current && !formRef.current.contains(target)) return;
+
     if (event.key === "Escape") {
       if (currentStep === 0) return;
       // Defensive: bail if a popover trigger inside this form is currently
@@ -82,7 +90,7 @@ export const StepForm = ({
     }
 
     if (event.key !== "Enter") return;
-    const target = event.target as HTMLElement;
+    if (!target) return;
     const isInQuestion = target.closest("[data-bf-input]") !== null;
     const isNavButton =
       (target.tagName === "BUTTON" || target.getAttribute("role") === "button") && !isInQuestion;

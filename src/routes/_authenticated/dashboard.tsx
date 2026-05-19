@@ -53,14 +53,14 @@ import {
   updateFormStatus,
 } from "@/collections";
 import { useDuplicateForm } from "@/hooks/use-duplicate-form";
-import { useOrgForms, useOrgWorkspaces } from "@/hooks/use-live-hooks";
+import { useFavorites, useOrgForms, useOrgWorkspaces } from "@/hooks/use-live-hooks";
 import { useSession } from "@/lib/auth/auth-client";
 import { formatForDisplay, HOTKEYS } from "@/lib/hotkeys";
 import { clearLocalDraftIds } from "@/db/local-draft";
 import { hasLocalDataToSync, syncLocalDataToCloud } from "@/db/sync";
 import { getLeadingSortIndex, sortByManualOrder } from "@/lib/sort-utils";
-import { parseTimestampAsUTC } from "@/lib/utils";
-import { useHotkey } from "@tanstack/react-hotkeys";
+import { cn, parseTimestampAsUTC } from "@/lib/utils";
+import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import { createFileRoute, Link, useLoaderData, useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { generateKeyBetween } from "fractional-indexing";
@@ -68,6 +68,72 @@ import { FolderPlus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 const FORMS_PER_PAGE = 10;
+
+type FormFilter = "all" | "favorites" | "drafts" | "published";
+
+const FILTER_OPTIONS: ReadonlyArray<{ value: FormFilter; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "favorites", label: "Favorites" },
+  { value: "drafts", label: "Drafts" },
+  { value: "published", label: "Published" },
+];
+
+const DashboardFilters = ({
+  currentFilter,
+  counts,
+  onChange,
+}: {
+  currentFilter: FormFilter;
+  counts: Record<FormFilter, number>;
+  onChange: (next: FormFilter) => void;
+}) => (
+  <div role="tablist" aria-label="Filter forms" className="-mx-1 flex flex-wrap items-center gap-1">
+    {FILTER_OPTIONS.map((option) => {
+      const isActive = currentFilter === option.value;
+      const count = counts[option.value];
+      return (
+        <button
+          key={option.value}
+          type="button"
+          role="tab"
+          aria-selected={isActive}
+          onClick={() => onChange(option.value)}
+          className={cn(
+            "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors",
+            isActive
+              ? "border-transparent bg-foreground text-background"
+              : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground",
+          )}
+        >
+          <span>{option.label}</span>
+          <span
+            className={cn(
+              "tabular-nums",
+              isActive ? "text-background/70" : "text-muted-foreground/60",
+            )}
+          >
+            {count}
+          </span>
+        </button>
+      );
+    })}
+  </div>
+);
+
+const FILTER_EMPTY_COPY: Record<Exclude<FormFilter, "all">, string> = {
+  favorites: "No favorites yet. Star a form to see it here.",
+  drafts: "No drafts. New forms start as drafts until you publish them.",
+  published: "Nothing published yet.",
+};
+
+const FilteredEmptyState = ({ filter }: { filter: FormFilter }) => {
+  if (filter === "all") return null;
+  return (
+    <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+      {FILTER_EMPTY_COPY[filter]}
+    </div>
+  );
+};
 
 const SYNC_MESSAGES = [
   "Syncing your local forms to the cloud",
@@ -168,6 +234,7 @@ const DashboardPage = () => {
   const [selectedFormIds, setSelectedFormIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [duplicatingFormId, setDuplicatingFormId] = useState<string | null>(null);
+  const [currentFilter, setCurrentFilter] = useState<FormFilter>("all");
 
   const { data: session } = useSession();
   const { isSyncing } = useLocalDataSync(session?.user, activeOrg?.id);
@@ -185,14 +252,51 @@ const DashboardPage = () => {
 
   const orgForms = useMemo(() => (isDataReady ? liveForms || [] : []), [isDataReady, liveForms]);
 
+  const { data: favorites } = useFavorites(session?.user?.id);
+  const favoriteFormIds = useMemo(
+    () => new Set((favorites ?? []).map((f) => f.formId)),
+    [favorites],
+  );
+
+  const filterCounts = useMemo<Record<FormFilter, number>>(() => {
+    let drafts = 0;
+    let published = 0;
+    let favs = 0;
+    for (const form of orgForms) {
+      if (form.status === "draft") drafts++;
+      else if (form.status === "published") published++;
+      if (favoriteFormIds.has(form.id)) favs++;
+    }
+    return { all: orgForms.length, favorites: favs, drafts, published };
+  }, [orgForms, favoriteFormIds]);
+
+  const filteredForms = useMemo(() => {
+    switch (currentFilter) {
+      case "favorites":
+        return orgForms.filter((f) => favoriteFormIds.has(f.id));
+      case "drafts":
+        return orgForms.filter((f) => f.status === "draft");
+      case "published":
+        return orgForms.filter((f) => f.status === "published");
+      default:
+        return orgForms;
+    }
+  }, [orgForms, currentFilter, favoriteFormIds]);
+
   const workspaceNameMap = useMemo(
     () => new Map(orgWorkspaces.map((ws) => [ws.id, ws.name])),
     [orgWorkspaces],
   );
 
-  const totalPages = Math.ceil(orgForms.length / FORMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filteredForms.length / FORMS_PER_PAGE));
   const startIndex = (currentPage - 1) * FORMS_PER_PAGE;
-  const paginatedForms = orgForms.slice(startIndex, startIndex + FORMS_PER_PAGE);
+  const paginatedForms = filteredForms.slice(startIndex, startIndex + FORMS_PER_PAGE);
+
+  const handleFilterChange = useCallback((next: FormFilter) => {
+    setCurrentFilter(next);
+    setCurrentPage(1);
+    setSelectedFormIds(new Set());
+  }, []);
 
   const handleOpenCreateWorkspace = useCallback(() => {
     setNewWorkspaceName("");
@@ -326,7 +430,18 @@ const DashboardPage = () => {
     });
   }, []);
 
+  // Global dashboard hotkeys (Mod+A / Delete / Escape) sit at the document
+  // level. When a modal dialog is open (trash, settings, command palette),
+  // its own hotkeys should win — so each handler bails if a Base UI dialog
+  // is currently open. Base UI signals open state via the `data-open`
+  // attribute on its dialog content; checking that is more reliable than
+  // tracking each dialog's state in context.
+  const isModalDialogOpen = () =>
+    typeof document !== "undefined" &&
+    document.querySelector('[data-slot="dialog-content"][data-open]') !== null;
+
   const handleSelectAll = useCallback(() => {
+    if (isModalDialogOpen()) return;
     if (selectedFormIds.size === paginatedForms.length) {
       setSelectedFormIds(new Set());
     } else {
@@ -335,10 +450,12 @@ const DashboardPage = () => {
   }, [selectedFormIds.size, paginatedForms]);
 
   const handleClearSelection = useCallback(() => {
+    if (isModalDialogOpen()) return;
     setSelectedFormIds(new Set());
   }, []);
 
   const handleBulkDelete = useCallback(() => {
+    if (isModalDialogOpen()) return;
     if (selectedFormIds.size === 0) return;
     setBulkDeleteDialogOpen(true);
   }, [selectedFormIds.size]);
@@ -368,11 +485,13 @@ const DashboardPage = () => {
     ignoreInputs: true,
   });
 
-  useHotkey(HOTKEYS.DASHBOARD_DELETE, handleBulkDelete, {
-    enabled: hasSelection,
-    conflictBehavior: "replace",
-    ignoreInputs: true,
-  });
+  useHotkeys(
+    [
+      { hotkey: HOTKEYS.DASHBOARD_DELETE, callback: handleBulkDelete },
+      { hotkey: "Delete", callback: handleBulkDelete },
+    ],
+    { enabled: hasSelection, conflictBehavior: "replace", ignoreInputs: true },
+  );
 
   useHotkey(HOTKEYS.DASHBOARD_CLEAR_SELECTION, handleClearSelection, {
     enabled: hasSelection,
@@ -393,6 +512,14 @@ const DashboardPage = () => {
         />
 
         <div className="space-y-6">
+          {!isLoading && orgForms.length > 0 && (
+            <DashboardFilters
+              currentFilter={currentFilter}
+              counts={filterCounts}
+              onChange={handleFilterChange}
+            />
+          )}
+
           <DashboardFormList
             isSyncing={isSyncing}
             isLoading={isLoading}
@@ -406,10 +533,14 @@ const DashboardPage = () => {
             handleToggleSelect={handleToggleSelect}
           />
 
+          {!isLoading && filteredForms.length === 0 && orgForms.length > 0 && (
+            <FilteredEmptyState filter={currentFilter} />
+          )}
+
           {!isLoading && totalPages > 1 && (
             <DashboardPagination
               startIndex={startIndex}
-              totalForms={orgForms.length}
+              totalForms={filteredForms.length}
               currentPage={currentPage}
               totalPages={totalPages}
               onPrevPage={handlePrevPage}
@@ -699,7 +830,7 @@ const FloatingHelpButton = () => (
     <Button
       variant="ghost"
       size="icon"
-      className="size-10 rounded-full border bg-muted/50 shadow-sm hover:bg-secondary"
+      className="size-10 rounded-full bg-muted/50 elevation-sm hover:bg-secondary dark:shadow-none"
       aria-label="Help"
     >
       <HelpCircleIcon className="size-5 text-muted-foreground" />
@@ -954,7 +1085,7 @@ const FormListItem = ({
                   />
                 }
               >
-                <Trash2Icon className="size-4 text-muted-foreground" />
+                <Trash2Icon className="size-4 text-[var(--sidebar-icon-stroke)]" />
               </TooltipTrigger>
               <TooltipContent>Delete</TooltipContent>
             </Tooltip>
@@ -968,7 +1099,7 @@ const FormListItem = ({
                     aria-label={isSelected ? "Deselect form" : "Select form"}
                     className={
                       isSelected
-                        ? "border border-muted-foreground/30 bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/30"
+                        ? "bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/30"
                         : "text-muted-foreground"
                     }
                     onClick={(e) => {
@@ -979,7 +1110,7 @@ const FormListItem = ({
                   />
                 }
               >
-                <CheckIcon className="size-3.5" />
+                <CheckIcon className="size-3.5 text-[var(--sidebar-icon-stroke)]" />
               </TooltipTrigger>
               <TooltipContent>{isSelected ? "Deselect" : "Select"}</TooltipContent>
             </Tooltip>
@@ -1002,7 +1133,7 @@ const BulkSelectionToolbar = ({
   onClearSelection,
 }: BulkSelectionToolbarProps) => (
   <div className="fixed bottom-6 left-1/2 z-50 w-[min(560px,90vw)] -translate-x-1/2 animate-in duration-300 fade-in slide-in-from-bottom-4">
-    <div className="shadow-card-elevated flex items-center justify-between rounded-2xl border border-border/40 bg-background px-4 py-3">
+    <div className="shadow-card-elevated flex items-center justify-between rounded-2xl bg-background px-4 py-3 dark:bg-muted/50">
       <div className="flex items-center gap-2.5">
         <div className="flex size-6 items-center justify-center rounded-md bg-foreground text-background">
           <CheckIcon className="size-4" strokeWidth={3} />
@@ -1016,12 +1147,7 @@ const BulkSelectionToolbar = ({
             {formatForDisplay(HOTKEYS.DASHBOARD_DELETE)}
           </span>
         </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="border border-border/50"
-          onClick={onClearSelection}
-        >
+        <Button variant="secondary" size="sm" onClick={onClearSelection}>
           <XIcon className="size-3.5" />
           Clear
           <span className="ml-1 text-xs text-muted-foreground">

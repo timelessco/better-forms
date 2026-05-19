@@ -106,6 +106,7 @@ const CustomDomainSlugRoute = () => {
         gated={loaderData?.gated ?? null}
         formId={formId}
         embedConfig={embedConfig}
+        resolvedAppTheme={resolvedTheme}
         rsc={
           loaderData?.form
             ? {
