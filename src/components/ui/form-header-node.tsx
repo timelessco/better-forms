@@ -754,7 +754,7 @@ const HeaderCoverSection = ({
         className="absolute top-2 z-30 opacity-0 transition-opacity group-hover:opacity-100"
         style={{ right: "calc(var(--editor-px, 64px) * -1 + 16px)" }}
       >
-        <ButtonGroup className="rounded-lg border border-border bg-background/80 shadow-lg backdrop-blur-sm">
+        <ButtonGroup className="rounded-lg bg-background/80 shadow-lg backdrop-blur-sm dark:bg-muted/60">
           <PopoverTrigger
             render={
               <Button

@@ -1,7 +1,8 @@
 import { motion } from "motion/react";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ComposedChart, ResponsiveContainer, useChartHeight, useChartWidth } from "recharts";
 
+import { numberFormatter } from "@/lib/analytics/format";
 import { rollupToSteps } from "@/lib/analytics/step-rollup";
 import type { StepDropoffMetrics } from "@/lib/analytics/step-rollup";
 import { cn } from "@/lib/utils";
@@ -20,8 +21,6 @@ interface FunnelSegment {
   // Drop relative to previous segment (0–1). null for the first segment.
   stepDrop: number | null;
 }
-
-const numberFormatter = new Intl.NumberFormat("en-US");
 
 const formatStepLabel = (step: StepDropoffMetrics): string =>
   step.stepLabel ?? `Step ${step.stepIndex + 1}`;
@@ -261,16 +260,6 @@ const FunnelChart = ({ segments }: FunnelChartProps) => {
   // inner content overflows and the wrapper scrolls horizontally.
   const chartWidth = Math.max(wrapperWidth, segments.length * MIN_SEGMENT_WIDTH);
 
-  const handleHoverChange = useCallback((next: HoverState | null) => {
-    setHover((prev) => {
-      if (prev === null && next === null) return prev;
-      if (prev && next && prev.index === next.index && prev.x === next.x && prev.y === next.y) {
-        return prev;
-      }
-      return next;
-    });
-  }, []);
-
   const hovered = hover ? segments[hover.index] : null;
 
   return (
@@ -308,7 +297,7 @@ const FunnelChart = ({ segments }: FunnelChartProps) => {
         <div className="relative [&_*:focus]:outline-none [&_svg]:outline-none">
           <ResponsiveContainer width={chartWidth} height={CHART_HEIGHT}>
             <ComposedChart data={[]} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-              <FunnelPaths segments={segments} onHoverChange={handleHoverChange} />
+              <FunnelPaths segments={segments} onHoverChange={setHover} />
             </ComposedChart>
           </ResponsiveContainer>
           {hover && hovered && (

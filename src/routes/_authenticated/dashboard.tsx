@@ -60,7 +60,7 @@ import { clearLocalDraftIds } from "@/db/local-draft";
 import { hasLocalDataToSync, syncLocalDataToCloud } from "@/db/sync";
 import { getLeadingSortIndex, sortByManualOrder } from "@/lib/sort-utils";
 import { cn, parseTimestampAsUTC } from "@/lib/utils";
-import { useHotkey } from "@tanstack/react-hotkeys";
+import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import { createFileRoute, Link, useLoaderData, useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { generateKeyBetween } from "fractional-indexing";
@@ -485,17 +485,13 @@ const DashboardPage = () => {
     ignoreInputs: true,
   });
 
-  useHotkey(HOTKEYS.DASHBOARD_DELETE, handleBulkDelete, {
-    enabled: hasSelection,
-    conflictBehavior: "replace",
-    ignoreInputs: true,
-  });
-
-  useHotkey(HOTKEYS.DASHBOARD_DELETE_ALT, handleBulkDelete, {
-    enabled: hasSelection,
-    conflictBehavior: "replace",
-    ignoreInputs: true,
-  });
+  useHotkeys(
+    [
+      { hotkey: HOTKEYS.DASHBOARD_DELETE, callback: handleBulkDelete },
+      { hotkey: "Delete", callback: handleBulkDelete },
+    ],
+    { enabled: hasSelection, conflictBehavior: "replace", ignoreInputs: true },
+  );
 
   useHotkey(HOTKEYS.DASHBOARD_CLEAR_SELECTION, handleClearSelection, {
     enabled: hasSelection,

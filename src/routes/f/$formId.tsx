@@ -109,6 +109,7 @@ const CustomDomainFormIdRoute = () => {
         formId={formId}
         isPopup={search.popup}
         embedConfig={embedConfig}
+        resolvedAppTheme={resolvedTheme}
         rsc={
           loaderData?.form
             ? {

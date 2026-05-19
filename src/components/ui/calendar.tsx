@@ -2,17 +2,30 @@
 
 import * as React from "react";
 import { DayPicker, getDefaultClassNames } from "react-day-picker";
-import type { DayButton, Locale } from "react-day-picker";
+import type { DayButton, DropdownProps, Locale } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
+import { useReanchorThemeProps } from "@/hooks/use-form-theme";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "@/components/ui/icons";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Calendar = ({
   className,
   classNames,
   showOutsideDays = true,
-  captionLayout = "label",
+  // Default to dropdown so users can jump months/years from the caption
+  // without clicking the arrows repeatedly. Existing `dropdown_root` and
+  // `caption_label` styles below already support this layout — the native
+  // <select> sits transparently over the caption text so OS pickers fire on
+  // mobile and the visible label stays themed.
+  captionLayout = "dropdown",
   buttonVariant = "ghost",
   locale,
   formatters,
@@ -43,7 +56,12 @@ export const Calendar = ({
         months: cn("relative flex flex-col gap-4 md:flex-row", defaultClassNames.months),
         month: cn("flex w-full flex-col gap-4", defaultClassNames.month),
         nav: cn(
-          "absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1",
+          // pointer-events-none on the nav + auto on its inner buttons:
+          // the nav is absolutely positioned across the full caption row to
+          // park prev/next chevrons on the edges. Without this, its empty
+          // middle area sits on top of the month/year dropdowns and eats
+          // their clicks (Tab still works since tab order is DOM-source).
+          "pointer-events-none absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1 [&>button]:pointer-events-auto",
           defaultClassNames.nav,
         ),
         button_previous: cn(
@@ -117,6 +135,7 @@ export const Calendar = ({
         Root: ({ className: rootClassName, rootRef, ...rootProps }) => (
           <div data-slot="calendar" ref={rootRef} className={cn(rootClassName)} {...rootProps} />
         ),
+        Dropdown: CalendarDropdown,
         Chevron: ({ className: chevronClassName, orientation, ...chevronProps }) => {
           if (orientation === "left") {
             return (
@@ -152,6 +171,52 @@ export const Calendar = ({
       }}
       {...props}
     />
+  );
+};
+
+/**
+ * Replaces RDP's native <select> caption dropdowns with our themed Base UI
+ * Select. RDP passes `onChange` as a ChangeEventHandler<HTMLSelectElement>;
+ * we synthesize a minimal event whose `target.value` is what RDP actually
+ * reads, so navigation works without touching the rest of the library.
+ *
+ * The popup portals to document.body, so we re-anchor `bf-themed` + theme
+ * vars onto it — same pattern as date-picker / multi-select / phone-input.
+ */
+const CalendarDropdown = ({ value, onChange, options }: DropdownProps) => {
+  const themeReanchor = useReanchorThemeProps();
+  return (
+    <Select
+      value={String(value)}
+      onValueChange={(next) => {
+        if (!onChange || next == null) return;
+        const synthetic = {
+          target: { value: String(next) },
+        } as unknown as React.ChangeEvent<HTMLSelectElement>;
+        onChange(synthetic);
+      }}
+    >
+      <SelectTrigger
+        size="sm"
+        className="cursor-pointer gap-1 border-0 bg-transparent px-2 font-medium hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        <SelectValue>
+          {options?.find((option) => String(option.value) === String(value))?.label}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent
+        align="start"
+        alignItemWithTrigger={false}
+        className={cn("max-h-60", themeReanchor.className)}
+        style={themeReanchor.style}
+      >
+        {options?.map((option) => (
+          <SelectItem key={option.value} value={String(option.value)} disabled={option.disabled}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 };
 

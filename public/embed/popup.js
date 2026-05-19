@@ -8,10 +8,10 @@
         n !== void 0 && (i.crossOrigin = n),
         document.head.appendChild(i));
     },
-    T = (e) => {
+    C = (e) => {
       e !== window.location.origin && (L("preconnect", e, "anonymous"), L("dns-prefetch", e));
     },
-    C = (e, t) => {
+    T = (e, t) => {
       let n = !1,
         o = () => {
           n || ((n = !0), t());
@@ -139,7 +139,7 @@
       let o = K(n);
       if (!o) return;
       let i = X(n);
-      T(i);
+      C(i);
       let r = J(o, null, i),
         s = {
           position: o.position,
@@ -150,7 +150,7 @@
           autoClose: o.autoClose,
           hiddenFields: o.hiddenFields,
         };
-      (C(r, () => t(o.formId, s)),
+      (T(r, () => t(o.formId, s)),
         q(i, o.formId).then((a) => {
           a && (a.title && r.setAttribute("aria-label", a.title), a.icon && k(r, i, a.icon));
         }),
@@ -214,12 +214,12 @@
       let i = Q(e, t);
       return ((o.src = i), n.appendChild(o), o);
     };
-  var I = (e, t) => {
+  var M = (e, t) => {
       let n = Math.min(600, window.innerHeight - 40),
         o = Math.min(t + 2, n);
       e.style.height = `${o}px`;
     },
-    M = (e) => {
+    I = (e) => {
       e.remove();
     };
   var ee =
@@ -732,7 +732,7 @@
     },
     re = (e) => {
       let t = p.get(e);
-      t && (M(t.iframe), t.overlay && F(t.overlay), p.delete(e));
+      t && (I(t.iframe), t.overlay && F(t.overlay), p.delete(e));
     },
     se = (e) => {
       let t;
@@ -754,7 +754,10 @@
             n.loadingEl && y(n.loadingEl);
             break;
           case "Reform.Resize":
-            typeof t.height == "number" && (I(n.iframe, t.height), R(n.container, t.height));
+            if (typeof t.height == "number") {
+              let o = Math.max(n.maxContentHeight ?? 0, t.height);
+              ((n.maxContentHeight = o), M(n.iframe, o), R(n.container, o));
+            }
             break;
           case "Reform.FormSubmitted":
             if (n.options.onSubmit)

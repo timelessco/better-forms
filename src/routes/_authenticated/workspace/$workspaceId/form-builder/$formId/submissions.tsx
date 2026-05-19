@@ -44,7 +44,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { Value } from "platejs";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { useHotkey } from "@tanstack/react-hotkeys";
+import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import { HOTKEYS, formatForDisplay } from "@/lib/hotkeys";
 
 type FieldStatus = "current" | "deleted";
@@ -837,10 +837,13 @@ const useSubmissionsHotkeys = ({
     ignoreInputs: true,
   });
 
-  useHotkey(HOTKEYS.SUBMISSIONS_DELETE, () => onBulkDelete(), {
-    enabled: hasSelection,
-    ignoreInputs: true,
-  });
+  useHotkeys(
+    [
+      { hotkey: HOTKEYS.SUBMISSIONS_DELETE, callback: () => onBulkDelete() },
+      { hotkey: "Delete", callback: () => onBulkDelete() },
+    ],
+    { enabled: hasSelection, ignoreInputs: true },
+  );
 
   useHotkey(HOTKEYS.SUBMISSIONS_CLEAR_SELECTION, () => setRowSelection({}), {
     enabled: hasSelection,

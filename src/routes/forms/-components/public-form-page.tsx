@@ -38,6 +38,9 @@ import {
 } from "@/components/ui/empty";
 import { defaultPublicFormSettings } from "@/types/form-settings";
 import type { PublicFormSettings } from "@/types/form-settings";
+import { EditorThemeProvider } from "@/contexts/editor-theme-context";
+import { useFormCustomization } from "@/hooks/use-form-customization";
+import { useFormThemeContextValue } from "@/hooks/use-form-theme";
 
 interface PublicForm {
   id: string;
@@ -88,6 +91,10 @@ interface PublicFormPageProps {
     current: "light" | "dark";
     onChange: (next: "light" | "dark" | "system") => void;
   };
+  /** Currently-resolved app theme. Used to derive theme tokens for portaled
+   * popovers (Date/MultiSelect/Phone Combobox), which lose the cascade from
+   * `.bf-themed` on `<main>` because they render via createPortal. */
+  resolvedAppTheme?: "light" | "dark";
   // When present, renders via FormPreviewRSC — static prose is server-rendered
   // so the client bundle no longer ships platejs/static.
   rsc?: {
@@ -290,6 +297,7 @@ export const PublicFormPage = ({
   isPopup = false,
   embedConfig = defaultPublicFormEmbedConfig,
   themeToggle,
+  resolvedAppTheme = "light",
 }: PublicFormPageProps) => {
   const transparentBackground = embedConfig.background === "transparent";
   const hideTitle = embedConfig.title === "hidden";
@@ -297,6 +305,16 @@ export const PublicFormPage = ({
   const dynamicHeight = embedConfig.dynamicHeight;
   const dynamicWidth = embedConfig.dynamicWidth;
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Portaled popovers (date picker, country combobox, multi-select) lose the
+  // CSS-var cascade from `.bf-themed` on <main>. Publish themeVars +
+  // hasCustomization via EditorThemeProvider so useReanchorThemeProps() can
+  // re-apply them on each portaled popup. Must run before any early return.
+  const { customization, hasCustomization, themeVars } = useFormCustomization(
+    form,
+    resolvedAppTheme,
+  );
+  const themeCtxValue = useFormThemeContextValue({ themeVars, hasCustomization, customization });
   // Analytics writers run unconditionally (Option B): we always record visits
   // and question progress so flipping the analytics toggle on later surfaces
   // historical data instead of starting from zero. The toggle gates DISPLAY
@@ -459,15 +477,18 @@ export const PublicFormPage = ({
     />
   );
 
-  if (gated?.type === "password_required") {
-    return (
-      <TranslationProvider language={resolvedLanguage}>
-        <PasswordGate formId={formId}>{formContent}</PasswordGate>
-      </TranslationProvider>
+  const themedContent =
+    gated?.type === "password_required" ? (
+      <PasswordGate formId={formId}>{formContent}</PasswordGate>
+    ) : (
+      formContent
     );
-  }
 
-  return <TranslationProvider language={resolvedLanguage}>{formContent}</TranslationProvider>;
+  return (
+    <TranslationProvider language={resolvedLanguage}>
+      <EditorThemeProvider value={themeCtxValue}>{themedContent}</EditorThemeProvider>
+    </TranslationProvider>
+  );
 };
 
 interface ThemeToggleHandle {
@@ -483,7 +504,7 @@ const ThemeToggleButton = ({ themeToggle }: { themeToggle: ThemeToggleHandle }) 
       size="icon"
       aria-label="Toggle color theme"
       onClick={() => themeToggle.onChange(themeToggle.current === "dark" ? "light" : "dark")}
-      className="rounded-full border border-border/60 bg-background/80 shadow-sm backdrop-blur"
+      className="rounded-full bg-background/80 elevation-sm backdrop-blur dark:bg-muted/50 dark:shadow-none"
     >
       {/* Render both icons; the pre-hydration script sets `.dark` on the
           root before paint, so CSS picks the right one. Doing this in

@@ -1,31 +1,32 @@
 /* eslint-disable eslint/func-style, eslint-plugin-react/jsx-no-constructed-context-values */
+import { Combobox as ComboboxPrimitive } from "@base-ui/react";
+import { Search } from "lucide-react";
 import { createContext, use, useMemo, useState } from "react";
 import * as BasePhoneInput from "react-phone-number-input";
 
 import { useMounted } from "@/hooks/use-mounted";
+import { useReanchorThemeProps } from "@/hooks/use-form-theme";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
-const getBrowserDefaultCountry = (): BasePhoneInput.Country | undefined => {
-  if (typeof navigator === "undefined") return undefined;
-  const region = navigator.language.split(/[-_]/)[1]?.toUpperCase();
-  return region && BasePhoneInput.isSupportedCountry(region) ? region : undefined;
-};
 import {
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
-  ComboboxInput,
   ComboboxItem,
   ComboboxList,
   ComboboxSeparator,
   ComboboxTrigger,
   ComboboxValue,
 } from "@/components/ui/combobox";
-import { InputGroupInput } from "@/components/ui/input-group";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChevronDownIcon } from "@/components/ui/icons";
-import { Search } from "lucide-react";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+const getBrowserDefaultCountry = (): BasePhoneInput.Country | undefined => {
+  if (typeof navigator === "undefined") return undefined;
+  const region = navigator.language.split(/[-_]/)[1]?.toUpperCase();
+  return region && BasePhoneInput.isSupportedCountry(region) ? region : undefined;
+};
 
 type PhoneInputSize = "sm" | "default" | "lg";
 
@@ -151,6 +152,10 @@ function CountrySelect({
 }: CountrySelectProps) {
   const { variant, popupClassName } = use(PhoneInputContext);
   const [searchValue, setSearchValue] = useState("");
+  // ComboboxContent portals to document.body, so it loses the .bf-themed
+  // CSS-var context. Re-anchor the theme on the popup (same pattern as
+  // date-picker / multi-select).
+  const themeReanchor = useReanchorThemeProps();
 
   const filteredCountries = useMemo(() => {
     if (!searchValue) return countryList;
@@ -205,20 +210,39 @@ function CountrySelect({
       <ComboboxContent
         align="start"
         className={cn(
-          "w-[246px] rounded-xl bg-popover p-1 elevation-xl *:data-[slot=input-group]:bg-transparent",
+          // Drop any blanket "*:data-[slot=input-group]:bg-transparent"
+          // override here — the search-input InputGroup below intentionally
+          // carries `bg-secondary` so the search row reads as a themed chip
+          // inside the popover (matches the Command palette pattern).
+          "w-[246px] rounded-xl bg-popover p-1 elevation-xl",
+          themeReanchor.className,
           popupClassName,
         )}
+        style={themeReanchor.style}
       >
-        <div className="flex h-7 items-center gap-1.5 rounded-lg bg-secondary px-2 py-1.5">
-          <Search className="size-4 shrink-0" strokeWidth={2} color="var(--color-gray-alpha-600)" />
-          <ComboboxInput
+        {/* Single InputGroup carries bg + the focus ring so search icon and
+            input read as one focused control. variant="borderless" suppresses
+            the default border; focus-within paints the unified ring. */}
+        <InputGroup
+          variant="borderless"
+          className="h-7 gap-1.5 rounded-lg bg-secondary px-2 focus-within:ring-2 focus-within:ring-ring/50"
+        >
+          <InputGroupAddon align="inline-start" className="ps-0 pe-0">
+            <Search
+              className="size-4 shrink-0"
+              strokeWidth={2}
+              color="var(--color-gray-alpha-600)"
+            />
+          </InputGroupAddon>
+          <ComboboxPrimitive.Input
             placeholder="Search for countries"
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            showTrigger={false}
-            className="border-0 bg-transparent px-0! text-sm tracking-[0.28px] text-foreground shadow-none ring-0! outline-none! placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent"
+            render={
+              <InputGroupInput className="bg-transparent! px-0 text-sm tracking-[0.28px] text-foreground shadow-none ring-0! outline-none! placeholder:text-muted-foreground/70 focus-visible:ring-0 dark:bg-transparent!" />
+            }
           />
-        </div>
+        </InputGroup>
         <ComboboxSeparator className="my-1 hidden" />
         <ComboboxEmpty className="px-2 py-1.5 text-sm text-muted-foreground">
           No country found.

@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { numberFormatter } from "@/lib/analytics/format";
 import type { CountBreakdown, FormInsightsMetrics } from "@/types/analytics";
 
 interface BreakdownCardsProps {
@@ -33,7 +34,6 @@ const PALETTE: string[] = [
 ];
 
 const TOP_N_SOURCES = 5;
-const numberFormatter = new Intl.NumberFormat("en-US");
 
 const breakdownToArray = (breakdown: CountBreakdown): BreakdownDatum[] =>
   Object.entries(breakdown)

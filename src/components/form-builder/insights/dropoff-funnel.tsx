@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { PER_QUESTION_ANALYTICS_CUT_TS } from "@/lib/analytics/cut-date";
 import { computeDropoffRate, modeForStepCount } from "@/lib/analytics/dropoff-metric";
 import type { DropoffMode } from "@/lib/analytics/dropoff-metric";
+import { formatPercent, numberFormatter } from "@/lib/analytics/format";
 import { rollupToSteps } from "@/lib/analytics/step-rollup";
 import type { StepDropoffMetrics } from "@/lib/analytics/step-rollup";
 import { cn } from "@/lib/utils";
@@ -14,15 +15,6 @@ import type { QuestionDropoffMetrics, QuestionDropoffRow } from "@/types/analyti
 interface DropoffFunnelProps {
   dropoff: QuestionDropoffMetrics;
 }
-
-const numberFormatter = new Intl.NumberFormat("en-US");
-
-const formatPercent = (value: number | null | undefined): string => {
-  if (value === null || value === undefined || !Number.isFinite(value)) {
-    return "—";
-  }
-  return `${Math.round(value)}%`;
-};
 
 const formatStepLabel = (step: StepDropoffMetrics): string =>
   step.stepLabel ?? `Step ${step.stepIndex + 1}`;

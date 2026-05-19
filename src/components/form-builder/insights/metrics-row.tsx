@@ -1,13 +1,12 @@
 import { CheckCircle2, Clock, MousePointerClick, TrendingUp, Users } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { numberFormatter } from "@/lib/analytics/format";
 import type { FormInsightsMetrics } from "@/types/analytics";
 
 interface MetricsRowProps {
   metrics: FormInsightsMetrics;
 }
-
-const numberFormatter = new Intl.NumberFormat("en-US");
 
 const formatDuration = (ms: number): string => {
   if (!ms || ms <= 0) {

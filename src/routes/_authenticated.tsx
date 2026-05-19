@@ -82,6 +82,7 @@ import {
   useEditorHeaderVisibility,
 } from "@/contexts/editor-header-visibility-context";
 import { MinimalSidebarProvider, useMinimalSidebar } from "@/contexts/minimal-sidebar-context";
+import { Search as LucideSearch } from "lucide-react";
 import {
   createFormLocal,
   createWorkspaceLocal,
@@ -145,7 +146,7 @@ import {
 import { HOTKEYS } from "@/lib/hotkeys";
 import { cn } from "@/lib/utils";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { formatForDisplay, useHotkey } from "@tanstack/react-hotkeys";
+import { formatForDisplay, useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import type { QueryClient } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Outlet, useLocation, useParams, useRouter } from "@tanstack/react-router";
@@ -965,17 +966,23 @@ const TrashDialog = ({
 
   const hasSelection = selectedIds.size > 0;
 
+  // `allow` (not `replace`): dashboard registers the same hotkeys at document
+  // level. `replace` would unregister those and leak — they'd be gone after
+  // this dialog closes. With `allow`, both stay registered; the dashboard
+  // handlers no-op when a dialog is open, so this one wins while open.
   useHotkey("Mod+A", handleSelectAll, {
     enabled: open,
-    conflictBehavior: "replace",
+    conflictBehavior: "allow",
     ignoreInputs: true,
   });
 
-  useHotkey("Delete", handleBulkDelete, {
-    enabled: open && hasSelection,
-    conflictBehavior: "replace",
-    ignoreInputs: true,
-  });
+  useHotkeys(
+    [
+      { hotkey: "Backspace", callback: handleBulkDelete },
+      { hotkey: "Delete", callback: handleBulkDelete },
+    ],
+    { enabled: open && hasSelection, conflictBehavior: "allow", ignoreInputs: true },
+  );
 
   useHotkey(
     "Escape",
@@ -988,7 +995,7 @@ const TrashDialog = ({
     },
     {
       enabled: open,
-      conflictBehavior: "replace",
+      conflictBehavior: "allow",
     },
   );
 
@@ -998,14 +1005,24 @@ const TrashDialog = ({
         showCloseButton={false}
         className="gap-0 border-foreground/10 bg-background p-0 sm:max-w-[500px]"
       >
-        <div className="border-b border-foreground/5 p-3">
-          <Input
-            placeholder="Search pages in Trash"
-            value={searchQuery}
-            onChange={handleSearchChange}
-            className="h-9 border-0 bg-muted/30 focus-visible:ring-1 focus-visible:ring-foreground/20"
-            aria-label="Search trash"
-          />
+        <div className="p-1.5 pb-0">
+          {/* Matches CommandInput shell so trash search reads as the same
+              search affordance used elsewhere in the app. */}
+          <div className="flex h-[30px] w-full items-center gap-1.5 overflow-hidden rounded-xl bg-accent px-2.5 py-1.75">
+            <LucideSearch
+              className="size-4 shrink-0 text-muted-foreground"
+              strokeWidth={2}
+              aria-hidden="true"
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              placeholder="Search pages in Trash"
+              aria-label="Search trash"
+              className="min-w-0 flex-1 border-0 bg-transparent p-0 text-base text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
         </div>
 
         <div className="max-h-[400px] overflow-y-auto">
@@ -1099,7 +1116,7 @@ const TrashRow = ({
           ) : (
             <>
               <FileTextIcon className="size-4 text-muted-foreground group-hover:hidden" />
-              <div className="hidden size-5 items-center justify-center rounded border border-muted-foreground/30 text-muted-foreground transition-colors group-hover:flex">
+              <div className="hidden size-5 items-center justify-center rounded bg-foreground/10 text-muted-foreground transition-colors group-hover:flex">
                 <CheckIcon className="size-3.5" />
               </div>
             </>
