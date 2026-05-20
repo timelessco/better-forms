@@ -294,6 +294,30 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
   return segments;
 };
 
+/**
+ * Re-chunk preview segments for field-by-field presentation: each non-Button
+ * field becomes its own step, with preceding static content carried into the
+ * same step. Authored Button fields are dropped — the runtime auto-renders a
+ * submit/next button per step. If the result is empty (form has no fields),
+ * falls back to the original chunking so static-only previews still render.
+ */
+export const chunkSegmentsForFieldByField = (steps: PreviewSegment[][]): PreviewSegment[][] => {
+  const flattened: PreviewSegment[][] = [];
+  let pending: PreviewSegment[] = [];
+  for (const step of steps) {
+    for (const seg of step) {
+      if (seg.type === "field" && seg.field.fieldType === "Button") continue;
+      pending.push(seg);
+      if (seg.type === "field") {
+        flattened.push(pending);
+        pending = [];
+      }
+    }
+  }
+  if (pending.length > 0) flattened.push(pending);
+  return flattened.length > 0 ? flattened : steps;
+};
+
 export const getFieldsFromSegments = (segments: PreviewSegment[]): PlateFormField[] =>
   segments.filter((seg): seg is FieldSegment => seg.type === "field").map((seg) => seg.field);
 

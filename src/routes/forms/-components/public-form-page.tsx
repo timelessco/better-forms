@@ -6,29 +6,18 @@ import {
   SunIcon,
 } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
-import type { Value } from "platejs";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-// Lazy: pulls StaticContentBlock → platejs runtime + BaseEditorKit + Plate CSS
-// (~370 kB). The RSC path renders static content server-side, so this fallback
-// only runs when `rsc` is unavailable.
-const FormPreviewFromPlate = lazy(() =>
-  import("@/components/form-components/form-preview-from-plate").then((m) => ({
-    default: m.FormPreviewFromPlate,
-  })),
-);
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FormPreviewRSC } from "@/components/form-components/form-preview-rsc";
 import type { StepRSC } from "@/components/form-components/form-preview-rsc";
 import { BrandingFooter } from "./branding-footer";
 import { AlreadySubmitted, FormClosed } from "@/routes/forms/-components/form-closed";
 import { PasswordGate } from "@/routes/forms/-components/password-gate";
 import { TranslationProvider, useTranslation } from "@/contexts/translation-context";
-import { createPublicSubmission, getPublicDraft } from "@/lib/server-fn/public-submissions";
-import { clearDraftId, readDraftId } from "@/hooks/use-draft-autosave";
+import { createPublicSubmission } from "@/lib/server-fn/public-submissions";
+import { clearDraftId, readDraftId, readLocalDraft } from "@/hooks/use-draft-autosave";
 import { usePublicFormTracking } from "@/lib/analytics/use-public-form-tracking";
 import { getTranslations } from "@/lib/translations";
 import { cn } from "@/lib/utils";
-import { AnimatePresence, motion } from "motion/react";
 import {
   Empty,
   EmptyDescription,
@@ -103,6 +92,9 @@ interface PublicFormPageProps {
     stepCount: number;
     /** Pre-rendered header composite (cover + icon + title). */
     header?: unknown;
+    /** Icon background color extracted from the Plate formHeader node;
+     * field-by-field only (card mode uses the pre-rendered header composite). */
+    formHeaderIconColor?: string | null;
   };
 }
 
@@ -161,49 +153,32 @@ type DraftState =
   | { status: "dismissed" };
 
 const usePublicDraftState = (formId: string) => {
-  const draftId = readDraftId(formId);
-  const draftQuery = useQuery({
-    queryKey: ["publicDraft", formId, draftId],
-    enabled: !!draftId,
-    queryFn: async () => {
-      if (!draftId) return null;
-      const res = await getPublicDraft({ data: { formId, draftId } });
-      return res.draft ?? null;
-    },
-    staleTime: Number.POSITIVE_INFINITY,
-    retry: false,
-  });
+  // Start "loading" so SSR HTML and the first client render match (no
+  // DraftResumePrompt in either). useEffect resolves on mount by reading
+  // localStorage synchronously — no server roundtrip.
+  const [draftState, setDraftState] = useState<DraftState>({ status: "loading" });
 
-  if (draftQuery.isError) {
-    console.error("[Reform] Failed to load draft:", draftQuery.error);
-  }
-
-  const [draftOverride, setDraftOverride] = useState<DraftState | null>(null);
-
-  const computedDraftState: DraftState = useMemo(() => {
-    if (!draftId) return { status: "dismissed" };
-    if (draftQuery.isLoading) return { status: "loading" };
-    if (draftQuery.isError || !draftQuery.data) return { status: "dismissed" };
-    return {
+  useEffect(() => {
+    const local = readLocalDraft(formId);
+    if (!local) {
+      setDraftState({ status: "dismissed" });
+      return;
+    }
+    setDraftState({
       status: "prompt",
-      draft: {
-        data: draftQuery.data.data,
-        lastStepReached: draftQuery.data.lastStepReached,
-      },
-    };
-  }, [draftId, draftQuery.isLoading, draftQuery.isError, draftQuery.data]);
-
-  const draftState: DraftState = draftOverride ?? computedDraftState;
+      draft: { data: local.data, lastStepReached: local.lastStepReached },
+    });
+  }, [formId]);
 
   const handleResumeDraft = useCallback(() => {
-    if (computedDraftState.status === "prompt") {
-      setDraftOverride({ status: "resumed", draft: computedDraftState.draft });
-    }
-  }, [computedDraftState]);
+    setDraftState((prev) =>
+      prev.status === "prompt" ? { status: "resumed", draft: prev.draft } : prev,
+    );
+  }, []);
 
   const handleStartOver = useCallback(() => {
     clearDraftId(formId);
-    setDraftOverride({ status: "dismissed" });
+    setDraftState({ status: "dismissed" });
   }, [formId]);
 
   return { draftState, handleResumeDraft, handleStartOver };
@@ -450,6 +425,15 @@ export const PublicFormPage = ({
     );
   }
 
+  // Loader invariant: when `form` is set so is `rsc`. Defensive only.
+  if (!rsc) {
+    return (
+      <TranslationProvider language={resolvedLanguage}>
+        <FormNotFound />
+      </TranslationProvider>
+    );
+  }
+
   const settings = form.settings ?? defaultPublicFormSettings;
 
   const formContent = (
@@ -524,16 +508,11 @@ const DraftResumePrompt = ({
   handleResumeDraft: () => void;
   handleStartOver: () => void;
 }) => (
-  // x: "-50%" centers via motion's transform (Tailwind -translate-x-1/2 would be clobbered).
   // Anchored top-6: users miss bottom toasts (eyes are on the form), so the
   // resume affordance lives where the gaze already is on first paint.
-  <motion.div
+  <div
     role="status"
-    initial={{ opacity: 0, y: -16, x: "-50%" }}
-    animate={{ opacity: 1, y: 0, x: "-50%" }}
-    exit={{ opacity: 0, y: -16, x: "-50%" }}
-    transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-    className="fixed top-6 left-1/2 z-50 w-[min(560px,90vw)]"
+    className="fixed top-6 left-1/2 z-50 w-[min(560px,90vw)] -translate-x-1/2 animate-in duration-250 ease-out fade-in slide-in-from-top-4"
   >
     <div className="flex items-center justify-between rounded-xl bg-background px-2.75 py-2.25 shadow-md ring-1 ring-border/60">
       <div className="flex items-center gap-2 ps-1">
@@ -549,7 +528,7 @@ const DraftResumePrompt = ({
         </Button>
       </div>
     </div>
-  </motion.div>
+  </div>
 );
 
 const SubmitErrorToast = ({ submitError }: { submitError: string }) => (
@@ -582,7 +561,7 @@ interface PublicFormMainProps {
     | { status: "dismissed" };
   handleResumeDraft: () => void;
   handleStartOver: () => void;
-  rsc: PublicFormPageProps["rsc"];
+  rsc: NonNullable<PublicFormPageProps["rsc"]>;
   previewKey: string;
   hideTitle: boolean;
   handleSubmit: (values: Record<string, unknown>) => Promise<void>;
@@ -637,47 +616,33 @@ const PublicFormMain = ({
     aria-live="polite"
   >
     {themeToggle && <ThemeToggleButton themeToggle={themeToggle} />}
-    <AnimatePresence>
-      {draftState.status === "prompt" && (
-        <DraftResumePrompt
-          handleResumeDraft={handleResumeDraft}
-          handleStartOver={handleStartOver}
-        />
-      )}
-    </AnimatePresence>
-    {rsc && settings.presentationMode !== "field-by-field" ? (
-      <FormPreviewRSC
-        key={previewKey}
-        steps={rsc.steps}
-        thankYou={(rsc.thankYou as string | null) ?? null}
-        stepCount={rsc.stepCount}
-        header={hideTitle ? null : rsc.header}
-        onSubmit={handleSubmit}
-        settings={settings}
-        formId={formId}
-        trackingBase={trackingBase}
-        {...resumeProps}
-      />
-    ) : (
-      <Suspense fallback={null}>
-        <FormPreviewFromPlate
-          key={previewKey}
-          content={form.content as Value}
-          title={hideTitle ? undefined : form.title}
-          icon={hideTitle ? undefined : (form.icon ?? undefined)}
-          cover={hideTitle ? undefined : (form.cover ?? undefined)}
-          onSubmit={handleSubmit}
-          hideTitle={hideTitle}
-          settings={settings}
-          formId={formId}
-          shortId={form.shortId}
-          customization={form.customization}
-          isPopup={isPopup}
-          trackingBase={trackingBase}
-          {...resumeProps}
-        />
-      </Suspense>
+    {draftState.status === "prompt" && (
+      <DraftResumePrompt handleResumeDraft={handleResumeDraft} handleStartOver={handleStartOver} />
     )}
+    <FormPreviewRSC
+      key={previewKey}
+      steps={rsc.steps}
+      thankYou={(rsc.thankYou as string | null) ?? null}
+      stepCount={rsc.stepCount}
+      header={hideTitle ? null : rsc.header}
+      onSubmit={handleSubmit}
+      settings={settings}
+      formId={formId}
+      trackingBase={trackingBase}
+      fieldByFieldMeta={
+        settings.presentationMode === "field-by-field"
+          ? {
+              title: form.title,
+              icon: form.icon,
+              iconColor: rsc.formHeaderIconColor ?? null,
+              cover: form.cover,
+              hideTitle,
+              isPopup,
+            }
+          : undefined
+      }
+      {...resumeProps}
+    />
     {submitError && <SubmitErrorToast submitError={submitError} />}
     {settings.branding && <BrandingFooter />}
   </main>

@@ -7,18 +7,22 @@ import { ServerFormIcon } from "@/components/form-components/server-form-icon";
 import { EditorStatic } from "@/components/ui/editor-static";
 import { DEFAULT_ICON } from "@/lib/config/app-config";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "@/lib/theme/customization-defaults";
-import { cn, DEFAULT_ICON_NAME, isValidUrl } from "@/lib/utils";
+import { cn, DEFAULT_ICON_NAME, isHexColor, isValidUrl } from "@/lib/utils";
 import {
   fieldLabelId,
   getFieldLabelProps,
   GROUP_FIELD_TYPES,
 } from "@/components/form-components/fields/shared";
-import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
+import {
+  chunkSegmentsForFieldByField,
+  transformPlateForPreview,
+} from "@/lib/editor/transform-plate-for-preview";
 import type {
   FieldSegment,
   PreviewSegment,
   PreviewStepResult,
 } from "@/lib/editor/transform-plate-for-preview";
+import { extractFormHeader } from "@/lib/editor/transform-plate-to-form";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 import { applyFormCacheHeaders } from "@/lib/server-fn/cdn-cache";
 import { getFieldChunkUrls } from "@/lib/server-fn/field-chunk-manifest.server";
@@ -244,7 +248,6 @@ export const renderStepComponent = async (segments: PreviewSegment[]) => {
 };
 
 const VERCEL_BLOB_HOST = ".public.blob.vercel-storage.com";
-const HEX_COLOR_RE = /^#([0-9A-Fa-f]{3}){1,2}$/;
 const PAGE_MAX_WIDTH = `var(--bf-page-width, ${CUSTOMIZATION_AUTO_DEFAULTS.pageWidth})`;
 
 const vercelImg = (url: string, w: number, q = 75) =>
@@ -282,7 +285,7 @@ export const renderHeaderComponent = async ({
   cover,
   customization,
 }: PublicFormHeaderData) => {
-  const coverIsHex = !!cover && HEX_COLOR_RE.test(cover);
+  const coverIsHex = !!cover && isHexColor(cover);
   const coverIsUrl = !!cover && isValidUrl(cover);
   const hasCover = coverIsHex || coverIsUrl;
   const iconIsUrl = !!icon && isValidUrl(icon);
@@ -386,14 +389,25 @@ export const runPublicFormViewRSC = async (data: { shortId: string }) => {
   // skips Cache-Tag entirely, so an empty placeholder is fine here.
   applyFormCacheHeaders(base.form?.id ?? "", { gated: !(base.form && !base.gated) });
 
-  const { steps, thankYouNodes }: PreviewStepResult = base.form
+  const { steps: rawSteps, thankYouNodes }: PreviewStepResult = base.form
     ? transformPlateForPreview(base.form.content as Value)
     : { steps: [], thankYouNodes: null };
+
+  const isFieldByField = base.form?.settings?.presentationMode === "field-by-field";
+  const steps = isFieldByField ? chunkSegmentsForFieldByField(rawSteps) : rawSteps;
+  // Custom icon color lives in the Plate `formHeader` node, not the form row.
+  // Extract here so the field-by-field client header can match the builder.
+  const formHeaderIconColor =
+    isFieldByField && base.form
+      ? (extractFormHeader(base.form.content as Value)?.iconColor ?? null)
+      : null;
 
   const [stepComponents, thankYou, header] = await Promise.all([
     Promise.all(steps.map((segs) => renderStepComponent(segs))),
     renderThankYouComponent(thankYouNodes),
-    base.form
+    // Field-by-field renders its own icon+title header client-side (different
+    // layout: icon beside title, no cover band). Skip the card-mode header.
+    base.form && !isFieldByField
       ? renderHeaderComponent({
           title: base.form.title,
           icon: base.form.icon,
@@ -415,5 +429,6 @@ export const runPublicFormViewRSC = async (data: { shortId: string }) => {
     thankYou,
     header,
     preloadModuleUrls,
+    formHeaderIconColor,
   };
 };

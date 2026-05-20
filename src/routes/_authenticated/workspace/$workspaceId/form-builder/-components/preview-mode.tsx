@@ -4,10 +4,7 @@ import { SparklesIcon, XIcon } from "@/components/ui/icons";
 import { useState, useCallback, useMemo } from "react";
 import { PopoverContainerContext } from "@/components/ui/popover";
 import type { Value } from "platejs";
-import {
-  FormPreviewFromPlate,
-  isHexColor,
-} from "@/components/form-components/form-preview-from-plate";
+import { FormPreviewFromPlate } from "@/components/form-components/form-preview-from-plate";
 import { extractFormHeader } from "@/lib/editor/transform-plate-to-form";
 import { RenderStepPreviewInputEager } from "@/components/form-components/render-step-preview-input-eager";
 import { PreviewRendererContext } from "@/components/form-components/render-step-preview-input";
@@ -19,7 +16,7 @@ import { useFormThemeContextValue } from "@/hooks/use-form-theme";
 import { useForm } from "@/hooks/use-live-hooks";
 import { useResolvedTheme } from "@/components/theme-provider";
 import { EditorThemeProvider } from "@/contexts/editor-theme-context";
-import { cn, isValidUrl } from "@/lib/utils";
+import { cn, isHexColor, isValidUrl } from "@/lib/utils";
 import { buildPublicFormSettings } from "@/types/form-settings";
 import type { PublicFormSettings } from "@/types/form-settings";
 

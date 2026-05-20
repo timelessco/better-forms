@@ -15,6 +15,10 @@ export const parseTimestampAsUTC = (value: string | undefined): Date | null => {
 /** Fallback sprite icon name when no icon is set */
 export const DEFAULT_ICON_NAME = "file-06";
 
+/** Matches `#rgb` and `#rrggbb`. Use `HEX_COLOR_WITH_ALPHA_RE` for 8-digit variants. */
+const HEX_COLOR_RE = /^#([0-9A-Fa-f]{3}){1,2}$/;
+export const isHexColor = (str: string): boolean => HEX_COLOR_RE.test(str);
+
 /** Check if a string is a valid URL (absolute, relative path, blob, or data URI) */
 export const isValidUrl = (str: string): boolean => {
   if (!str) return false;

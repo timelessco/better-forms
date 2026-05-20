@@ -1,4 +1,4 @@
-import { BarChart3, LineChart, Rocket, Share2 } from "lucide-react";
+import { BarChart3, LineChart, Lock, Rocket, Share2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,27 +10,29 @@ interface EmptyStateProps {
   submissionCount: number;
   /** Whether any raw visit has been recorded (writers run unconditionally). */
   hasAnyVisits: boolean;
-  /** Whether the analytics toggle is on AND the org plan unlocks analytics. */
+  /** Raw `formSettings.analytics` — distinguishes "off" from "on but plan-locked". */
+  analyticsToggle: boolean;
+  /** Toggle AND the org plan unlocks analytics. */
   analyticsEnabled: boolean;
-  /** Spinner state on the "Enable analytics" button while the mutation runs. */
   isEnablingAnalytics?: boolean;
-  /** Caller-supplied actions for the relevant prompt. */
   onPublishClick?: () => void;
   onShareClick?: () => void;
   onEnableAnalyticsClick?: () => void;
+  onUpgradeClick?: () => void;
 }
 
 export const EmptyState = ({
   formStatus,
   submissionCount,
   hasAnyVisits,
+  analyticsToggle,
   analyticsEnabled,
   isEnablingAnalytics = false,
   onPublishClick,
   onShareClick,
   onEnableAnalyticsClick,
+  onUpgradeClick,
 }: EmptyStateProps) => {
-  // Branch 1: form isn't published yet — nothing else matters until it is.
   if (formStatus !== "published") {
     return (
       <PromptCard
@@ -48,9 +50,29 @@ export const EmptyState = ({
     );
   }
 
-  // Branch 2: form is published and there's something to look at (submissions
-  // or raw visits) but the analytics toggle/plan is off — we already kept the
-  // data, just need the user to flip the switch (or upgrade) to see it.
+  // Toggle on but plan-locked → upgrade prompt (flipping the toggle is a no-op).
+  if (!analyticsEnabled && analyticsToggle && (submissionCount > 0 || hasAnyVisits)) {
+    return (
+      <PromptCard
+        icon={<Lock className="size-6 text-muted-foreground" aria-hidden="true" />}
+        title="Analytics is on, but your plan blocks the view"
+        body={
+          submissionCount > 0
+            ? `Your form has ${submissionCount} ${submissionCount === 1 ? "submission" : "submissions"} so far. Upgrade to Pro to see visits, drop-off, and device breakdowns — your data has been kept and will appear here once you upgrade.`
+            : "Visits are being recorded. Upgrade to Pro to surface them as charts — your data has been kept and will appear here once you upgrade."
+        }
+        action={
+          onUpgradeClick && (
+            <Button size="sm" onClick={onUpgradeClick}>
+              Upgrade to Pro
+            </Button>
+          )
+        }
+      />
+    );
+  }
+
+  // Toggle off → enable prompt. `setFormAnalytics` re-checks the plan server-side.
   if (!analyticsEnabled && (submissionCount > 0 || hasAnyVisits)) {
     return (
       <PromptCard
@@ -72,8 +94,6 @@ export const EmptyState = ({
     );
   }
 
-  // Branch 3: published, no data yet (and analytics-enabled if applicable) —
-  // the user just needs to send people to the form.
   return (
     <PromptCard
       icon={<Share2 className="size-6 text-muted-foreground" aria-hidden="true" />}

@@ -292,41 +292,6 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
     return { submissionId, success: true };
   });
 
-/**
- * Fetch an in-progress draft for a given (formId, draftId) pair so the client
- * can rehydrate the form on refresh. Returns null if no draft exists or the
- * row is already completed (completed rows are not resumable).
- */
-export const getPublicDraft = createServerFn({ method: "GET" })
-  .inputValidator(
-    z.object({
-      formId: z.uuid(),
-      draftId: z.uuid(),
-    }),
-  )
-  .handler(async ({ data }) => {
-    const [row] = await db
-      .select({
-        id: submissions.id,
-        data: submissions.data,
-        isCompleted: submissions.isCompleted,
-        lastStepReached: submissions.lastStepReached,
-      })
-      .from(submissions)
-      .where(and(eq(submissions.formId, data.formId), eq(submissions.draftId, data.draftId)))
-      .limit(1);
-
-    if (!row || row.isCompleted) return { draft: null };
-    return {
-      draft: {
-        submissionId: row.id,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- passed through as opaque JSON
-        data: row.data as Record<string, any>,
-        lastStepReached: row.lastStepReached,
-      },
-    };
-  });
-
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**

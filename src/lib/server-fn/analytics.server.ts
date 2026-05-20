@@ -24,6 +24,7 @@ import { resolveTimeRange, splitTodayVsPast, toDateKey } from "@/lib/analytics/t
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { authForm } from "@/lib/server-fn/auth-helpers.server";
 import { isServerPlan } from "@/lib/server-fn/plan-helpers";
+import { getOrgPlanWithPolarSync } from "@/lib/server-fn/plan-helpers.server";
 import type { FormInsightsMetrics, QuestionDropoffMetrics } from "@/types/analytics";
 
 export type RecordFormVisitInput = {
@@ -76,6 +77,22 @@ export type InsightsFilterInput = {
 // window where a Polar downgrade webhook hasn't yet flipped any cached
 // state.
 export const isAnalyticsEnabled = async (formId: string): Promise<boolean> => {
+  const { display } = await getAnalyticsState(formId);
+  return display;
+};
+
+/**
+ * Returns the two booleans that drive every analytics-availability decision:
+ *   - `toggle`: raw `formSettings.settings.analytics` (what the user can flip)
+ *   - `display`: whether visits/dropoff should render — toggle AND plan unlock
+ *
+ * `display` consults the cached `organization.plan` column. UI surfaces that
+ * need Polar-confirmed state should ignore `display` and re-derive it against
+ * `getOrgPlanWithPolarSync` themselves; recorders are fine with the column.
+ */
+export const getAnalyticsState = async (
+  formId: string,
+): Promise<{ toggle: boolean; display: boolean }> => {
   // Read the LIVE settings (form_settings table), not the working draft —
   // analytics display should reflect what's published, not pending edits.
   const [row] = await db
@@ -85,8 +102,9 @@ export const isAnalyticsEnabled = async (formId: string): Promise<boolean> => {
     .innerJoin(organization, eq(organization.id, workspaces.organizationId))
     .leftJoin(formSettings, eq(formSettings.formId, forms.id))
     .where(eq(forms.id, formId));
-  if (row?.settings?.analytics !== true) return false;
-  return isServerPlan(row.plan) && planUnlocks(row.plan, "analytics");
+  const toggle = row?.settings?.analytics === true;
+  const display = toggle && isServerPlan(row?.plan) && planUnlocks(row.plan, "analytics");
+  return { toggle, display };
 };
 
 export const recordFormVisitImpl = async (
@@ -341,31 +359,44 @@ export interface InsightsAvailability {
    *  unconditionally now, so this is true once anyone has loaded the public
    *  form even if the analytics toggle has never been flipped on. */
   hasAnyVisits: boolean;
-  /** Live `forms.analytics` setting + plan unlock — only true when both the
-   *  toggle is on AND the org plan allows analytics. Drives the "enable
-   *  analytics" prompt vs. showing the dashboard. */
+  /** Raw `formSettings.settings.analytics` value — whether the per-form
+   *  toggle is flipped on, regardless of whether the org plan allows it.
+   *  Lets the empty state tell "off" apart from "on-but-plan-locked". */
+  analyticsToggle: boolean;
+  /** Live toggle AND plan-unlock both true — drives the actual dashboard
+   *  render. False when the toggle is off OR the plan doesn't include
+   *  analytics. */
   analyticsEnabled: boolean;
 }
 
 export const getInsightsAvailabilityImpl = async (
   data: { formId: string },
-  context: { session: { user: { id: string } } },
+  context: { session: { user: { id: string; email?: string | null } } },
   orgId: string,
 ): Promise<InsightsAvailability> => {
   await authForm(data.formId, context.session.user.id, orgId);
 
-  const [[form], [{ value: submissionCount }], [{ value: visitCount }], analyticsEnabled] =
+  // Plan resolves via Polar-sync (the `organization.plan` column drifts if a
+  // webhook missed) but the count queries don't depend on it — run them in
+  // parallel with the Polar roundtrip rather than serializing.
+  const [plan, [form], [{ value: submissionCount }], [{ value: visitCount }], analyticsState] =
     await Promise.all([
+      getOrgPlanWithPolarSync(orgId, context.session.user.email ?? null),
       db.select({ status: forms.status }).from(forms).where(eq(forms.id, data.formId)).limit(1),
       db.select({ value: count() }).from(submissions).where(eq(submissions.formId, data.formId)),
       db.select({ value: count() }).from(formVisits).where(eq(formVisits.formId, data.formId)),
-      isAnalyticsEnabled(data.formId),
+      getAnalyticsState(data.formId),
     ]);
+
+  // `getAnalyticsState` ran without the override (so it could parallelize with
+  // the Polar fetch); re-derive `display` against the Polar-confirmed plan.
+  const analyticsEnabled = analyticsState.toggle && planUnlocks(plan, "analytics");
 
   return {
     formStatus: form?.status ?? "draft",
     submissionCount,
     hasAnyVisits: visitCount > 0,
+    analyticsToggle: analyticsState.toggle,
     analyticsEnabled,
   };
 };

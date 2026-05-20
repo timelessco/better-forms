@@ -30,6 +30,7 @@ import {
 } from "@/lib/server-fn/analytics";
 import { setFormAnalytics } from "@/lib/server-fn/forms";
 import type { TimeRangeFilter } from "@/types/analytics";
+import { settingsDialogStore } from "@/hooks/use-settings-dialog";
 
 const DEFAULT_FILTER: TimeRangeFilter = "last_30_days";
 
@@ -199,11 +200,13 @@ const InsightsPage = () => {
           formStatus={availability?.formStatus ?? "draft"}
           submissionCount={availability?.submissionCount ?? 0}
           hasAnyVisits={availability?.hasAnyVisits ?? false}
+          analyticsToggle={availability?.analyticsToggle ?? false}
           analyticsEnabled={availability?.analyticsEnabled ?? false}
           isEnablingAnalytics={isEnablingAnalytics}
           onPublishClick={goToEditor}
           onShareClick={goToEditor}
           onEnableAnalyticsClick={() => enableAnalytics()}
+          onUpgradeClick={() => settingsDialogStore.open("billing")}
         />
       )}
     </div>

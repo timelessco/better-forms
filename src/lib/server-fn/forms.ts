@@ -12,7 +12,7 @@ import { defaultFormSettings } from "@/types/form-settings";
 import type { FormSettings } from "@/types/form-settings";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm, authFormsBulk } from "./auth-helpers.server";
-import { getOrgPlan } from "./plan-helpers.server";
+import { getOrgPlan, getOrgPlanWithPolarSync } from "./plan-helpers.server";
 import { generateShortId } from "@/lib/short-id";
 
 const MAX_SHORT_ID_ATTEMPTS = 5;
@@ -161,6 +161,19 @@ export const setFormAnalytics = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authForm(data.formId, context.session.user.id, orgId);
+
+    // Explicit plan gate. `formProSettingsMiddleware` scans input *field names*
+    // for gated settings; this fn's input is `{ enabled }`, not `{ analytics }`,
+    // so the middleware finds zero gates and waves it through. Re-check here
+    // when turning analytics ON. Polar-sync flavour because `organization.plan`
+    // drifts if a webhook missed — same reason getInsightsAvailability uses it.
+    // Turning OFF is always allowed (downgrade path).
+    if (data.enabled) {
+      const plan = await getOrgPlanWithPolarSync(orgId, context.session.user.email ?? null);
+      if (!planUnlocks(plan, "analytics")) {
+        throw new Error("Analytics requires a Pro subscription. Please upgrade to continue.");
+      }
+    }
 
     const now = new Date();
     await db.transaction(async (tx) => {
