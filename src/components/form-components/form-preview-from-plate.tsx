@@ -8,12 +8,15 @@ import type { PublicFormTracking, TrackingBase } from "@/contexts/step-form-cont
 import { useTranslation } from "@/contexts/translation-context";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "@/lib/theme/customization-defaults";
 import { extractFormHeader } from "@/lib/editor/transform-plate-to-form";
-import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
+import {
+  chunkSegmentsForFieldByField,
+  transformPlateForPreview,
+} from "@/lib/editor/transform-plate-for-preview";
 import type { PreviewSegment } from "@/lib/editor/transform-plate-for-preview";
 import { extractQuestionsForStep } from "@/lib/forms/extract-questions";
 import type { QuestionRef } from "@/lib/forms/extract-questions";
 import { DEFAULT_ICON } from "@/lib/config/app-config";
-import { cn, DEFAULT_ICON_NAME, isValidUrl } from "@/lib/utils";
+import { cn, DEFAULT_ICON_NAME, isHexColor, isValidUrl } from "@/lib/utils";
 import type { PublicFormSettings } from "@/types/form-settings";
 import { IconPickerPreview } from "@/components/icon-picker";
 import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
@@ -101,8 +104,6 @@ interface FormPreviewFromPlateProps {
    * tracking. */
   trackingBase?: TrackingBase;
 }
-
-export const isHexColor = (str: string): boolean => /^#([0-9A-Fa-f]{3}){1,2}$/.test(str);
 
 const PAGE_MAX_WIDTH = {
   editor: `var(--bf-page-width, ${CUSTOMIZATION_AUTO_DEFAULTS.pageWidth})`,
@@ -424,28 +425,13 @@ export const FormPreviewFromPlate = ({
     [content],
   );
 
-  // Field-by-field mode: re-chunk so each field becomes its own step, with
-  // preceding static content carried into the same step as the next field.
-  // Skip authored Button fields entirely — page boundaries are invisible here,
-  // so a standalone Next/Previous button step would just be noise. The
-  // auto-rendered submit/next button on each input step handles navigation.
-  const steps = useMemo(() => {
-    if (settings?.presentationMode !== "field-by-field") return rawSteps;
-    const flattened: PreviewSegment[][] = [];
-    let pending: PreviewSegment[] = [];
-    for (const step of rawSteps) {
-      for (const seg of step) {
-        if (seg.type === "field" && seg.field.fieldType === "Button") continue;
-        pending.push(seg);
-        if (seg.type === "field") {
-          flattened.push(pending);
-          pending = [];
-        }
-      }
-    }
-    if (pending.length > 0) flattened.push(pending);
-    return flattened.length > 0 ? flattened : rawSteps;
-  }, [rawSteps, settings?.presentationMode]);
+  const steps = useMemo(
+    () =>
+      settings?.presentationMode === "field-by-field"
+        ? chunkSegmentsForFieldByField(rawSteps)
+        : rawSteps,
+    [rawSteps, settings?.presentationMode],
+  );
 
   // Pre-compute per-Step Question lists once so analytics emitters in
   // `StepForm` / `useStepPreviewForm` don't re-walk the Plate tree on every

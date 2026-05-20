@@ -4,6 +4,7 @@ import { CompositeComponent } from "@tanstack/react-start/rsc";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { RenderFieldComponent } from "@/components/form-components/render-step-preview-input";
+import { ServerFormIcon } from "@/components/form-components/server-form-icon";
 import { Button } from "@/components/ui/button";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import { ProgressBar } from "@/routes/forms/-components/progress-bar";
@@ -14,8 +15,9 @@ import { useFocusFirstField } from "@/hooks/use-focus-first-field";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useStepPreviewForm } from "@/hooks/use-preview-form";
 import { enqueueQuestionProgress } from "@/lib/analytics/track-client";
+import { DEFAULT_ICON } from "@/lib/config/app-config";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "@/lib/theme/customization-defaults";
-import { cn } from "@/lib/utils";
+import { cn, DEFAULT_ICON_NAME, isHexColor, isValidUrl } from "@/lib/utils";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 import { extractQuestionsForStepRSC } from "@/lib/forms/extract-questions";
 import type { QuestionRef } from "@/lib/forms/extract-questions";
@@ -23,7 +25,7 @@ import type {
   ButtonGroupSlotProps,
   FieldSlotProps,
 } from "@/lib/server-fn/public-form-view-rsc.types";
-import type { PublicFormSettings } from "@/types/form-settings";
+import type { PresentationMode, PublicFormSettings } from "@/types/form-settings";
 
 // `src` is the opaque Composite Component payload; `fields` travels alongside
 // so the client can build the TanStack Form instance.
@@ -50,6 +52,8 @@ interface FormPreviewRSCProps {
    * Pre-rendered header composite (cover + icon + title). Server-rendered so
    * the client ships no cover/icon rendering code. `null` when the form has
    * no header content, `undefined` when the viewer requested `hideTitle`.
+   * Skipped server-side for field-by-field mode — that layout renders its
+   * own icon+title client-side.
    */
   header?: unknown;
   settings?: PublicFormSettings;
@@ -62,6 +66,19 @@ interface FormPreviewRSCProps {
    * public form route — builder previews leave this undefined to disable
    * tracking. */
   trackingBase?: TrackingBase;
+  /** Field-by-field metadata. Required when settings.presentationMode is
+   * "field-by-field" — the client renders the icon+title+cover-as-background
+   * layout instead of using the pre-rendered card-mode header composite.
+   * `iconColor` mirrors the builder's icon picker bg color (extracted from
+   * the Plate `formHeader` node server-side). */
+  fieldByFieldMeta?: {
+    title?: string;
+    icon?: string | null;
+    iconColor?: string | null;
+    cover?: string | null;
+    hideTitle?: boolean;
+    isPopup?: boolean;
+  };
 }
 
 const PAGE_MAX_WIDTH = `var(--bf-page-width, ${CUSTOMIZATION_AUTO_DEFAULTS.pageWidth})`;
@@ -213,11 +230,15 @@ const StepFormRSC = ({
   stepRSC,
   isLastStep,
   questions,
+  autoActionButton = false,
 }: {
   stepIndex: number;
   stepRSC: StepRSC;
   isLastStep: boolean;
   questions: QuestionRef[];
+  /** Field-by-field mode: server strips Button fields from segments, so render
+   * an auto Submit/Next here with the Enter/Esc keyboard shortcuts. */
+  autoActionButton?: boolean;
 }) => {
   const { currentStep, totalSteps, goToPrevStep, isSubmitting } = useStepForm();
   const { t } = useTranslation();
@@ -232,7 +253,51 @@ const StepFormRSC = ({
   });
 
   const formRef = useRef<HTMLFormElement>(null);
+  const [isTextareaFocused, setIsTextareaFocused] = useState(false);
   useFocusFirstField(formRef);
+
+  // Field-by-field shortcuts: Enter advances/submits (textareas keep native
+  // newline unless ⌘/Ctrl is held), Esc steps back. Mirrors step-form.tsx.
+  const handleFieldByFieldKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (target && formRef.current && !formRef.current.contains(target)) return;
+
+    if (event.key === "Escape") {
+      if (currentStep === 0) return;
+      if (formRef.current?.querySelector('[aria-expanded="true"]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      goToPrevStep();
+      return;
+    }
+
+    if (event.key !== "Enter") return;
+    if (!target) return;
+    const isInQuestion = target.closest("[data-bf-input]") !== null;
+    const isNavButton =
+      (target.tagName === "BUTTON" || target.getAttribute("role") === "button") && !isInQuestion;
+    if (isNavButton) return;
+
+    const isTextarea = target.tagName === "TEXTAREA";
+    const isMetaEnter = event.metaKey || event.ctrlKey;
+    if (isTextarea && !isMetaEnter) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    formRef.current?.requestSubmit();
+  };
+
+  const handleTextareaFocusChange =
+    (focused: boolean) => (event: React.FocusEvent<HTMLFormElement>) => {
+      if ((event.target as HTMLElement).tagName === "TEXTAREA") {
+        setIsTextareaFocused(focused);
+      }
+    };
+
+  const handleFormFocus = (event: React.FocusEvent<HTMLFormElement>) => {
+    if (autoActionButton) handleTextareaFocusChange(true)(event);
+    handleFieldFocus(event);
+  };
 
   const { tracking } = useStepForm();
 
@@ -341,10 +406,50 @@ const StepFormRSC = ({
         ref={formRef}
         noValidate
         data-bf-field-list
-        onFocus={handleFieldFocus}
+        onKeyDownCapture={autoActionButton ? handleFieldByFieldKeyDown : undefined}
+        onFocus={handleFormFocus}
+        onBlur={autoActionButton ? handleTextareaFocusChange(false) : undefined}
         className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         <TypedComposite src={stepRSC.src} Field={FieldSlot} ButtonGroup={ButtonGroupSlot} />
+        {autoActionButton && (
+          <div
+            className="flex w-full items-center gap-3 pt-2"
+            style={{ maxWidth: "var(--bf-input-width)" }}
+          >
+            <Button
+              type="submit"
+              style={{ fontSize: "13px" }}
+              className="h-9 gap-1.5 rounded-lg px-4"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? t("submitting") : isLastStep ? t("submit") : t("next")}
+            </Button>
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              press{" "}
+              {isTextareaFocused && (
+                <>
+                  <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
+                    ⌘
+                  </kbd>
+                  +
+                </>
+              )}
+              <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
+                Enter
+              </kbd>
+              <span aria-hidden="true">↵</span>
+            </span>
+            {currentStep > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
+                  Esc
+                </kbd>
+                to go back
+              </span>
+            )}
+          </div>
+        )}
       </form.Form>
     </form.AppForm>
   );
@@ -478,6 +583,255 @@ const FormPreviewRSCContent = ({
   );
 };
 
+const WHITE_HEX = "#ffffff";
+const BLACK_HEX = "#000000";
+
+/**
+ * Sprite-icon variant for field-by-field that honors the picker's custom
+ * iconColor. When a color is set we render with that bg + contrasting fg
+ * (white on dark, black on white). Mirrors IconPickerPreview's static
+ * behavior. Falls back to the theme-tinted ServerFormIcon when no color
+ * is set, matching card-mode header rendering.
+ */
+const ColoredSpriteIcon = ({
+  iconName,
+  iconColor,
+  iconSize = "40",
+  size = "80",
+}: {
+  iconName: string;
+  iconColor: string;
+  iconSize?: string;
+  size?: string;
+}) => {
+  const fgColor = iconColor.toLowerCase() === WHITE_HEX ? BLACK_HEX : WHITE_HEX;
+  return (
+    <div
+      className="flex items-center justify-center rounded-full"
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        backgroundColor: iconColor,
+        color: fgColor,
+      }}
+    >
+      <svg height={iconSize} style={{ color: "currentColor" }} viewBox="0 0 18 18" width={iconSize}>
+        <use href={`/api/icons/${iconName}.svg#${iconName}`} />
+      </svg>
+    </div>
+  );
+};
+
+const FieldByFieldHeaderIconRSC = ({
+  icon,
+  iconColor,
+}: {
+  icon: string;
+  iconColor?: string | null;
+}) => {
+  if (icon === DEFAULT_ICON) {
+    return (
+      <span className="flex-shrink-0" data-bf-logo-icon>
+        {iconColor ? (
+          <ColoredSpriteIcon iconName={DEFAULT_ICON_NAME} iconColor={iconColor} />
+        ) : (
+          <ServerFormIcon iconName={DEFAULT_ICON_NAME} iconSize="40" size="80" />
+        )}
+      </span>
+    );
+  }
+
+  if (isValidUrl(icon)) {
+    return (
+      <img
+        src={icon}
+        alt=""
+        width={80}
+        height={80}
+        className="size-20 flex-shrink-0 rounded-md object-cover"
+        data-bf-logo
+      />
+    );
+  }
+
+  return (
+    <span className="flex-shrink-0" data-bf-logo-icon>
+      {iconColor ? (
+        <ColoredSpriteIcon iconName={icon} iconColor={iconColor} />
+      ) : (
+        <ServerFormIcon iconName={icon} iconSize="40" size="80" />
+      )}
+    </span>
+  );
+};
+
+const FieldByFieldRSCContent = ({
+  steps,
+  thankYou,
+  settings,
+  meta,
+}: {
+  steps: StepRSC[];
+  thankYou?: string | null;
+  settings?: PublicFormSettings;
+  meta: NonNullable<FormPreviewRSCProps["fieldByFieldMeta"]>;
+}) => {
+  const { currentStep, totalSteps, isSubmitted, direction, reset } = useStepForm();
+  const { t } = useTranslation();
+  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
+  const currentStepQuestions = useMemo(
+    () => extractQuestionsForStepRSC(steps, currentStep),
+    [steps, currentStep],
+  );
+
+  // eslint-disable-next-line react-doctor/no-cascading-set-state -- single state updated via initial set + interval functional updater
+  useEffect(() => {
+    if (!isSubmitted) return;
+    if (!settings?.redirectOnCompletion || !settings?.redirectUrl) return;
+
+    const delay = settings.redirectDelay ?? 0;
+    if (delay === 0) {
+      window.location.href = settings.redirectUrl;
+      return;
+    }
+
+    setRedirectCountdown(delay);
+    const interval = setInterval(() => {
+      setRedirectCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval);
+          if (settings.redirectUrl) window.location.href = settings.redirectUrl;
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isSubmitted, settings?.redirectOnCompletion, settings?.redirectUrl, settings?.redirectDelay]);
+
+  const { title, icon, iconColor, cover, hideTitle, isPopup } = meta;
+  const coverImage = cover && isValidUrl(cover) ? cover : null;
+  const coverColor = cover && isHexColor(cover) ? cover : null;
+  // In popup mode the avatar/icon is already used as the popup bubble, so
+  // hide it inside the popup to save space and avoid duplication.
+  const hasIcon = !!icon && !isPopup;
+  const showHeader = !hideTitle && (!!title || hasIcon);
+  const hasTint = coverImage?.includes("tint=true") ?? false;
+  const isLastStep = currentStep === steps.length - 1;
+  const currentStepRSC = steps[currentStep];
+
+  return (
+    <div
+      className="relative flex size-full min-h-full flex-col overflow-hidden"
+      style={{
+        backgroundImage: coverImage ? `url("${coverImage}")` : undefined,
+        backgroundColor: coverColor ?? undefined,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+      data-bf-cover
+    >
+      {hasTint && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0 bg-primary opacity-50 mix-blend-color"
+        />
+      )}
+
+      {showHeader && (
+        <div
+          className={cn(
+            "relative z-10 flex items-center gap-4",
+            isPopup ? "px-4.5 pt-3" : "mx-auto w-full px-4 pt-6 sm:px-6 sm:pt-8",
+          )}
+          style={isPopup ? undefined : { maxWidth: PAGE_MAX_WIDTH }}
+        >
+          {hasIcon && icon && <FieldByFieldHeaderIconRSC icon={icon} iconColor={iconColor} />}
+          {title && (
+            <h1
+              data-bf-title
+              style={{ textWrap: "pretty" }}
+              className={cn(
+                "font-serif leading-none font-light -tracking-[0.03em] text-foreground",
+                isPopup ? "text-2xl sm:text-3xl" : "text-6xl sm:text-[48px]",
+              )}
+            >
+              {title}
+            </h1>
+          )}
+        </div>
+      )}
+
+      <div
+        className="relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col justify-center overflow-hidden px-4 pb-12 sm:px-6"
+        style={{ maxWidth: PAGE_MAX_WIDTH }}
+        data-bf-form-container
+      >
+        {!isSubmitted && settings?.progressBar && totalSteps > 1 && (
+          <div className="mb-4 w-full">
+            <ProgressBar currentStep={currentStep} totalSteps={totalSteps} />
+          </div>
+        )}
+
+        <div className="w-full">
+          {isSubmitted ? (
+            <div className="animate-in duration-300 fade-in slide-in-from-bottom-2">
+              {thankYou ? (
+                <div data-bf-field-list className="space-y-4">
+                  <TypedComposite src={thankYou} />
+                  {reset && (
+                    <div className="flex justify-center pt-4">
+                      <Button
+                        type="button"
+                        onClick={reset}
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg"
+                      >
+                        {t("submitAnother")}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <DefaultThankYou onReset={reset} />
+              )}
+              {redirectCountdown !== null && (
+                <p className="mt-4 text-center text-muted-foreground">
+                  {t("redirecting", {
+                    n: redirectCountdown,
+                    s: redirectCountdown !== 1 ? "s" : "",
+                  })}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div
+              key={currentStep}
+              className={cn(
+                "w-full animate-in duration-200 fade-in",
+                direction >= 0 ? "slide-in-from-right-2" : "slide-in-from-left-2",
+              )}
+            >
+              {currentStepRSC && (
+                <StepFormRSC
+                  key={currentStep}
+                  stepIndex={currentStep}
+                  stepRSC={currentStepRSC}
+                  isLastStep={isLastStep}
+                  questions={currentStepQuestions}
+                  autoActionButton
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const FormPreviewRSC = ({
   steps,
   thankYou,
@@ -489,6 +843,7 @@ export const FormPreviewRSC = ({
   initialFormData,
   initialCurrentStep,
   trackingBase,
+  fieldByFieldMeta,
 }: FormPreviewRSCProps) => {
   if (steps.length === 0 || stepCount === 0) {
     return (
@@ -502,10 +857,11 @@ export const FormPreviewRSC = ({
     );
   }
 
-  // RSC variant only handles card-mode presentation; field-by-field renders
-  // through FormPreviewFromPlate. Tracking is always `"card"` — single-page
-  // forms emit per-Question events too, matching the plate variant (ADR-0002).
-  const trackingMode: PublicFormTracking["mode"] = "card";
+  const presentationMode: PresentationMode = settings?.presentationMode ?? "card";
+  const isFieldByField = presentationMode === "field-by-field";
+  // Per ADR-0002, tracking is always on — single-page card forms still emit
+  // per-Question view/start/complete events.
+  const trackingMode: PublicFormTracking["mode"] = isFieldByField ? "field-by-field" : "card";
   const tracking: PublicFormTracking | null =
     trackingBase && formId
       ? {
@@ -526,12 +882,21 @@ export const FormPreviewRSC = ({
       initialCurrentStep={initialCurrentStep}
       tracking={tracking}
     >
-      <FormPreviewRSCContent
-        steps={steps}
-        thankYou={thankYou}
-        header={header}
-        settings={settings}
-      />
+      {isFieldByField && fieldByFieldMeta ? (
+        <FieldByFieldRSCContent
+          steps={steps}
+          thankYou={thankYou}
+          settings={settings}
+          meta={fieldByFieldMeta}
+        />
+      ) : (
+        <FormPreviewRSCContent
+          steps={steps}
+          thankYou={thankYou}
+          header={header}
+          settings={settings}
+        />
+      )}
     </StepFormProvider>
   );
 };
