@@ -83,14 +83,15 @@ const config = defineConfig({
       rsc: {
         enabled: true,
       },
-      // Embed manifest-managed CSS as an inline <style> in SSR HTML on prod
-      // builds. Eliminates the blocking external stylesheet round-trip on the
-      // first paint of public-form pages (-100-250ms LCP on cold visits) and
-      // works alongside the existing route-scoped Early Hints. Experimental
-      // flag — revert by setting `inlineCss: false` if anything regresses.
+      // CSS inlining was enabled for -100-250ms LCP on cold visits, but it
+      // forces Vite to hold the full client CSS graph in memory during the
+      // SSR build pass. Combined with platejs + the RSC graph it pushed the
+      // Vercel build past V8's 8 GB heap cap (OOM in mark-compact). Disabled
+      // until either a Vercel build-memory upgrade lands or the CSS graph
+      // is trimmed; revert by flipping back to `true`.
       server: {
         build: {
-          inlineCss: true,
+          inlineCss: false,
         },
       },
     }),
