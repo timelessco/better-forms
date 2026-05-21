@@ -1,9 +1,14 @@
 import { setResponseHeader } from "@tanstack/react-start/server";
+import { addCacheTag } from "@vercel/functions";
 import { vercel, vercelProjectId, vercelTeamId } from "@/integrations/vercel";
-// Feature flag for the public-form edge cache. Default: OFF (dev mode +
-// Vercel's tag-purge silently reports success without actually evicting
-// this project's entries). Set `ENABLE_FORM_CDN_CACHE=1` in the Vercel
-// project to turn it back on once the platform issue is sorted out.
+// Feature flag for the public-form edge cache. Previously OFF because
+// purges appeared to succeed via the Vercel API but cached responses kept
+// serving stale content. Root cause was emitting `Cache-Tag` (Fastly/
+// Akamai convention) instead of Vercel's `Vercel-Cache-Tag` — the edge
+// stored responses untagged, so `invalidateByTags` matched nothing.
+// Switched to `addCacheTag()` from `@vercel/functions` (the documented
+// runtime helper) and `Vercel-CDN-Cache-Control` for the Cache-Control
+// header (edge-only, not sent to clients).
 const isCdnCacheEnabled = (): boolean =>
   process.env.ENABLE_FORM_CDN_CACHE === "1" || process.env.ENABLE_FORM_CDN_CACHE === "true";
 
@@ -20,17 +25,21 @@ const PRIVATE_CACHE_CONTROL = "private, no-store";
 
 export const formCacheTag = (formId: string) => `form:${formId}`;
 
-// Header object form for routes that build their own `Response`. Equivalent
-// to `applyFormCacheHeaders` but doesn't depend on the request-context
-// `setResponseHeader` side effect.
+// Header object form for routes that build their own `Response`. Mirrors
+// the side-effect form (`applyFormCacheHeaders`) for use in handlers that
+// return a constructed `Response` rather than relying on request-context.
 export const formCacheHeaders = (
   formId: string,
   { gated }: { gated: boolean },
 ): Record<string, string> => {
   if (gated || !isCdnCacheEnabled()) return { "Cache-Control": PRIVATE_CACHE_CONTROL };
   return {
-    "Cache-Control": PUBLIC_CACHE_CONTROL_ENABLED,
-    "Cache-Tag": formCacheTag(formId),
+    // Vercel-CDN-Cache-Control targets only the edge — `Cache-Control`
+    // would also reach client browsers and downstream proxies, which we
+    // don't want at s-maxage=1y. The edge respects this header in
+    // preference to `Cache-Control` when both are present.
+    "Vercel-CDN-Cache-Control": PUBLIC_CACHE_CONTROL_ENABLED,
+    "Vercel-Cache-Tag": formCacheTag(formId),
   };
 };
 
@@ -43,10 +52,12 @@ export const applyFormCacheHeaders = (formId: string, { gated }: { gated: boolea
     setResponseHeader("Cache-Control", PRIVATE_CACHE_CONTROL);
     return;
   }
-  setResponseHeader("Cache-Control", PUBLIC_CACHE_CONTROL_ENABLED);
-  // Vercel honours Cache-Tag on the Edge Network for tag-based purging;
-  // non-Vercel CDNs ignore it harmlessly.
-  setResponseHeader("Cache-Tag", formCacheTag(formId));
+  setResponseHeader("Vercel-CDN-Cache-Control", PUBLIC_CACHE_CONTROL_ENABLED);
+  // Use the runtime helper rather than setting `Vercel-Cache-Tag` directly
+  // — it's the documented and supported tagging path on Vercel. The
+  // helper returns a promise but is a fire-and-forget response-tag side
+  // effect; the response itself doesn't depend on awaiting it.
+  void addCacheTag(formCacheTag(formId));
 };
 
 // DEBUG: awaited (not waitUntil) and verbose-logged so we can read Vercel
