@@ -83,15 +83,15 @@ const config = defineConfig({
       rsc: {
         enabled: true,
       },
-      // CSS inlining was enabled for -100-250ms LCP on cold visits, but it
-      // forces Vite to hold the full client CSS graph in memory during the
-      // SSR build pass. Combined with platejs + the RSC graph it pushed the
-      // Vercel build past V8's 8 GB heap cap (OOM in mark-compact). Disabled
-      // until either a Vercel build-memory upgrade lands or the CSS graph
-      // is trimmed; revert by flipping back to `true`.
+      // Embed manifest-managed CSS as an inline <style> in SSR HTML on prod
+      // builds. Drops the high-priority 45 kB stylesheet round-trip on cold
+      // visits. Originally OOM'd the Vercel build when V8 was capped at 8 GB
+      // — paired with the bump to 12 GB in package.json (`build` script) it
+      // should fit. If the build OOMs again, flip back to `false` and revisit
+      // the Vercel build container size.
       server: {
         build: {
-          inlineCss: false,
+          inlineCss: true,
         },
       },
     }),
