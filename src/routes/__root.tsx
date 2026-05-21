@@ -10,7 +10,12 @@ import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
-import appCss from "../styles/styles.css?url";
+// Side-effect import (not `?url`) so the Vite/Start manifest owns the asset:
+// HeadContent emits the <link> automatically, static Early Hints picks it up,
+// and `server.build.inlineCss` (vite.config.ts) can embed it as an inline
+// <style> in the SSR HTML — removing the blocking stylesheet round-trip on
+// first paint of public-form pages. `?url` imports bypass all three.
+import "../styles/styles.css";
 
 const LazyDevtools = lazy(() =>
   import("./-components/devtools").then((m) => ({ default: m.Devtools })),
@@ -41,7 +46,7 @@ const RootDocument = ({ children }: { children: React.ReactNode }) => (
         <script
           async
           crossOrigin="anonymous"
-          src="//unpkg.com/react-scan@latest/dist/auto.global.js"
+          src="//unpkg.com/react-scan@0.5.6/dist/auto.global.js"
         />
       )}
       <HeadContent />
@@ -76,7 +81,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       ...seo(),
     ],
     links: [
-      { rel: "stylesheet", href: appCss },
+      // App CSS link is emitted automatically via HeadContent (side-effect import above).
       { rel: "icon", type: "image/svg+xml", href: "/metadata/favicon.svg" },
       { rel: "icon", href: "/metadata/favicon.ico" },
       { rel: "apple-touch-icon", href: "/metadata/apple-touch-icon.png" },

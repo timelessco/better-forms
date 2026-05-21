@@ -16,6 +16,7 @@ import {
 } from "@/lib/theme/generate-theme-css";
 import { seo } from "@/lib/seo";
 import { APP_WEBSITE_URL } from "@/lib/config/app-config";
+import { getCoverPreloadLinks } from "@/lib/vercel-image";
 
 type PublicTheme = "light" | "dark" | "system";
 
@@ -190,6 +191,7 @@ export const Route = createFileRoute("/forms/$shortId")({
           href,
           crossOrigin: "anonymous" as const,
         })),
+        ...getCoverPreloadLinks(loaderData?.form?.cover),
         ...(googleFontUrl
           ? [...GOOGLE_FONTS_PRECONNECTS, { rel: "stylesheet", href: googleFontUrl }]
           : []),

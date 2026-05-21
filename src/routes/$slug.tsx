@@ -15,6 +15,7 @@ import {
   GOOGLE_FONTS_PRECONNECTS,
 } from "@/lib/theme/generate-theme-css";
 import { seo } from "@/lib/seo";
+import { getCoverPreloadLinks } from "@/lib/vercel-image";
 
 type PublicTheme = "light" | "dark" | "system";
 
@@ -176,6 +177,7 @@ export const Route = createFileRoute("/$slug")({
         ...(loaderData?.domainMeta?.faviconUrl
           ? [{ rel: "icon", href: loaderData.domainMeta.faviconUrl }]
           : []),
+        ...getCoverPreloadLinks(loaderData?.form?.cover),
       ],
       scripts: [
         {

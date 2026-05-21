@@ -8,6 +8,7 @@ import { EditorStatic } from "@/components/ui/editor-static";
 import { DEFAULT_ICON } from "@/lib/config/app-config";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "@/lib/theme/customization-defaults";
 import { cn, DEFAULT_ICON_NAME, isHexColor, isValidUrl } from "@/lib/utils";
+import { COVER_SRCSET_WIDTHS, vercelImg, vercelSrcSet } from "@/lib/vercel-image";
 import {
   fieldLabelId,
   getFieldLabelProps,
@@ -247,18 +248,7 @@ export const renderStepComponent = async (segments: PreviewSegment[]) => {
   return { src, fields };
 };
 
-const VERCEL_BLOB_HOST = ".public.blob.vercel-storage.com";
 const PAGE_MAX_WIDTH = `var(--bf-page-width, ${CUSTOMIZATION_AUTO_DEFAULTS.pageWidth})`;
-
-const vercelImg = (url: string, w: number, q = 75) =>
-  url.includes(VERCEL_BLOB_HOST)
-    ? `/_vercel/image?url=${encodeURIComponent(url)}&w=${w}&q=${q}`
-    : url;
-
-const vercelSrcSet = (url: string, widths: number[], q = 75) =>
-  url.includes(VERCEL_BLOB_HOST)
-    ? widths.map((w) => `${vercelImg(url, w, q)} ${w}w`).join(", ")
-    : undefined;
 
 interface PublicFormHeaderData {
   title?: string | null;
@@ -314,12 +304,13 @@ export const renderHeaderComponent = async ({
           )}
           <img
             src={vercelImg(cover, 1200)}
-            srcSet={vercelSrcSet(cover, [640, 960, 1200, 1600])}
+            srcSet={vercelSrcSet(cover, [...COVER_SRCSET_WIDTHS])}
             sizes="100vw"
             alt="Form cover"
             width={1200}
             height={200}
             decoding="async"
+            fetchPriority="high"
             className={cn(
               "size-full object-cover",
               tinted && "relative z-0 brightness-60 grayscale",

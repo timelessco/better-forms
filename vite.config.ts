@@ -83,6 +83,16 @@ const config = defineConfig({
       rsc: {
         enabled: true,
       },
+      // Embed manifest-managed CSS as an inline <style> in SSR HTML on prod
+      // builds. Eliminates the blocking external stylesheet round-trip on the
+      // first paint of public-form pages (-100-250ms LCP on cold visits) and
+      // works alongside the existing route-scoped Early Hints. Experimental
+      // flag — revert by setting `inlineCss: false` if anything regresses.
+      server: {
+        build: {
+          inlineCss: true,
+        },
+      },
     }),
     rsc(),
     viteReact({
