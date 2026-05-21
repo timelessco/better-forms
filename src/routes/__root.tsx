@@ -2,7 +2,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
-import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Session } from "@/lib/auth/auth";
 import { seo } from "@/lib/seo";
@@ -10,6 +9,12 @@ import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
+
+// Lazy: sonner is ~14 kB gz and the public form never fires a toast. Static
+// `import { toast } from "sonner"` calls still pull sonner into their own
+// route chunks (auth/login/builder) — lazying the Toaster MOUNT just keeps
+// the library out of the root entry chunk, which loads on every page.
+const Toaster = lazy(() => import("@/components/ui/sonner").then((m) => ({ default: m.Toaster })));
 // Side-effect import (not `?url`) so the Vite/Start manifest owns the asset:
 // HeadContent emits the <link> automatically, static Early Hints picks it up,
 // and `server.build.inlineCss` (vite.config.ts) can embed it as an inline
@@ -59,7 +64,9 @@ const RootDocument = ({ children }: { children: React.ReactNode }) => (
         <ThemeProvider defaultTheme="system">
           <TooltipProvider>
             {children}
-            <Toaster richColors />
+            <Suspense fallback={null}>
+              <Toaster richColors />
+            </Suspense>
             {process.env.NODE_ENV === "development" && (
               <Suspense>
                 <LazyDevtools />
