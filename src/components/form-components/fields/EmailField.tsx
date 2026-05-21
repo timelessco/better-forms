@@ -9,7 +9,8 @@ const EmailField = ({ element, form }: FieldRendererProps<"Email">) => (
           id={element.name}
           type="email"
           placeholder={element.placeholder}
-          autoComplete="off"
+          autoComplete="email"
+          inputMode="email"
           aria-label={getAriaLabelFallback(element)}
           aria-labelledby={getAriaLabelledBy(element)}
           className="h-7 form-input pr-[8px] pl-[10px]"

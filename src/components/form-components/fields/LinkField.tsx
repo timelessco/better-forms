@@ -9,7 +9,8 @@ const LinkField = ({ element, form }: FieldRendererProps<"Link">) => (
           id={element.name}
           type="url"
           placeholder={element.placeholder}
-          autoComplete="off"
+          autoComplete="url"
+          inputMode="url"
           aria-label={getAriaLabelFallback(element)}
           aria-labelledby={getAriaLabelledBy(element)}
           className="h-7 form-input pr-[8px] pl-[10px]"

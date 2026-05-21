@@ -14,7 +14,11 @@ const NumberField = ({ element, form }: FieldRendererProps<"Number">) => (
               e.preventDefault();
             }
           }}
-          autoComplete="off"
+          // Numbers are too ambiguous to autofill reliably (could be age,
+          // amount, quantity, postal code, year, …). "on" lets browsers
+          // skip autofill on no-match instead of being actively suppressed.
+          autoComplete="on"
+          inputMode="numeric"
           aria-label={getAriaLabelFallback(element)}
           aria-labelledby={getAriaLabelledBy(element)}
           className="h-7 form-input pr-[8px] pl-[10px]"

@@ -26,6 +26,51 @@ export const getAriaLabelFallback = (element: PlateFormField): string | undefine
   return placeholder ?? "Field";
 };
 
+// Label → WHATWG `autocomplete` token map. Match order matters — list more
+// specific patterns first (e.g. "first name" before bare "name") so they
+// win when both could match. Tokens come from
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill
+const AUTOCOMPLETE_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/first\s*name|given\s*name/i, "given-name"],
+  [/(last|family|sur)\s*name/i, "family-name"],
+  [/middle\s*name/i, "additional-name"],
+  [/full\s*name|^\s*name\s*$/i, "name"],
+  [/nick\s*name|user\s*name|handle/i, "nickname"],
+  [/e[-\s]?mail/i, "email"],
+  [/(phone|mobile|cell|tel)(\s*number)?/i, "tel"],
+  [/organization|company|business|employer/i, "organization"],
+  [/job\s*title|position|role/i, "organization-title"],
+  [/street\s*address|address\s*line\s*1|^\s*address\s*$/i, "street-address"],
+  [/address\s*line\s*2|apt|suite|unit/i, "address-line2"],
+  [/city|town|locality/i, "address-level2"],
+  [/state|province|region/i, "address-level1"],
+  [/(zip|postal|post)\s*code|post\s*code/i, "postal-code"],
+  [/country/i, "country-name"],
+  [/birth(\s*day|\s*date|day)|date\s*of\s*birth|dob/i, "bday"],
+  [/website|^\s*url\s*$|^\s*link\s*$/i, "url"],
+] as const;
+
+/**
+ * Maps the field's label/placeholder text to a WHATWG `autocomplete` token
+ * so browsers and password managers can fill it. Without this most fields
+ * fall back to the generic `name` attribute (which is a random short id
+ * here) and autofill silently no-ops.
+ *
+ * Falls back to "on" (i.e. let the browser try its own heuristics) when no
+ * pattern matches — never returns "off", since the public-form pattern is
+ * "respondent fills personal details," not "auth/secret entry".
+ */
+export const guessAutocomplete = (element: PlateFormField): string => {
+  const text = (("label" in element && element.label) ||
+    ("placeholder" in element && element.placeholder) ||
+    "") as string;
+  if (!text) return "on";
+  for (const [pattern, token] of AUTOCOMPLETE_PATTERNS) {
+    if (pattern.test(text)) return token;
+  }
+  return "on";
+};
+
 /** Returns `aria-labelledby={fieldLabelId(name)}` when the field has a label
  * rendered as a heading/blockquote (not a real `<label>`). For non-heading
  * labels, the standard `<label htmlFor>` already does the association so we
