@@ -83,15 +83,15 @@ const config = defineConfig({
       rsc: {
         enabled: true,
       },
-      // Embed manifest-managed CSS as an inline <style> in SSR HTML on prod
-      // builds. Drops the high-priority 45 kB stylesheet round-trip on cold
-      // visits. Originally OOM'd the Vercel build when V8 was capped at 8 GB
-      // — paired with the bump to 12 GB in package.json (`build` script) it
-      // should fit. If the build OOMs again, flip back to `false` and revisit
-      // the Vercel build container size.
+      // Inline CSS is now handled manually in `__root.tsx` via a
+      // `styles.css?inline` import — that path emits exactly one inline
+      // <style> and no <link>. The framework's `inlineCss: true` produced
+      // BOTH an inline style AND a manifest-driven `<link rel="stylesheet">`
+      // for the same content, so Lighthouse flagged the link as render-
+      // blocking (~70 ms est savings).
       server: {
         build: {
-          inlineCss: true,
+          inlineCss: false,
         },
       },
     }),
