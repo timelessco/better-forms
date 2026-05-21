@@ -8,6 +8,7 @@ const PhoneField = ({ element, form }: FieldRendererProps<"Phone">) => (
         <f.PhoneInput
           id={element.name}
           placeholder={element.placeholder}
+          autoComplete="tel"
           aria-label={getAriaLabelFallback(element)}
           aria-labelledby={getAriaLabelledBy(element)}
           variant="sm"

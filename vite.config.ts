@@ -83,13 +83,16 @@ const config = defineConfig({
       rsc: {
         enabled: true,
       },
-      // CSS inlining tried twice (96f4a09, 1d99bb8) — both times it
-      // regressed mobile Perf score by trading a background stylesheet
-      // download for a synchronous ~3s parse/style-recalc block on slow
-      // CPUs (Lighthouse mobile shows 4× ~800 ms "Unattributable" long
-      // tasks at HTML-parse time when 45 kB of CSS lands inline). The
-      // network savings (~one RTT) don't recover the main-thread cost.
-      // Revisit only if the CSS graph is trimmed under ~10 kB.
+      // Inline CSS is now handled manually in `__root.tsx` via a
+      // `styles.css?inline` import — that path emits exactly one inline
+      // <style> and no <link>. The framework's `inlineCss: true` produced
+      // BOTH an inline style AND a manifest-driven `<link rel="stylesheet">`
+      // for the same content, so Lighthouse flagged the link as render-
+      // blocking (~70 ms est savings). It also regressed mobile Perf by
+      // bundling every CSS chunk in the manifest into one ~309 kB inline
+      // block that triggered ~3s of synchronous style-recalc on 4× CPU
+      // throttled mobile. The manual `?inline` path only emits styles.css
+      // (Tailwind output), small enough to parse without a long task.
       server: {
         build: {
           inlineCss: false,
