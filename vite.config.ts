@@ -151,12 +151,21 @@ const config = defineConfig({
             return "shared-runtime";
           if (id.includes("@platejs/") || id.includes("platejs")) return "editor";
           if (id.includes("@radix-ui/")) return "ui";
-          // Pin Base UI primitives to their own chunk. Without this, modules
-          // like `getDisabledMountTransitionStyles` / `useOpenInteractionType`
-          // end up grouped with `editor` by Rollup's auto-chunker, which forces
-          // every field chunk (InputField, TextareaField, …) that uses a Base
-          // UI primitive to pull the full 361 kB platejs chunk + KaTeX CSS.
-          if (id.includes("@base-ui/")) return "ui";
+          // Base UI: split per-primitive (menu, select, popover, …). The
+          // previous one-bucket "ui" chunk shipped 117 kB / 89 kB unused
+          // (76% dead) on the public form because that route only uses a
+          // few primitives. Each primitive gets its own chunk so importing
+          // a field that uses Popover doesn't drag Dialog/Tabs/Accordion/…
+          // along. The umbrella `ui-base-shared` covers `@base-ui/utils`,
+          // `react-remove-scroll`, and any module the regex doesn't match
+          // (cross-primitive internals), still kept out of the editor chunk
+          // for the same reason as before (auto-chunker would otherwise
+          // group these with platejs and drag KaTeX CSS).
+          const baseUiPrimitive = id.match(/@base-ui\/react\/esm\/([^/]+)\//);
+          if (baseUiPrimitive) return `ui-base-${baseUiPrimitive[1]}`;
+          if (id.includes("@base-ui/") || id.includes("react-remove-scroll"))
+            return "ui-base-shared";
+          if (id.includes("@floating-ui/")) return "ui-floating";
           if (id.includes("@sentry/")) return "sentry";
         },
       },
