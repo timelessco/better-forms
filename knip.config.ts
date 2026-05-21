@@ -40,9 +40,6 @@ export default {
     "tailwindcss", // vite plugin + CSS @import
     "type-fest", // HasRequiredKeys type import in auth-query.ts
     "agentation", // reserved for in-progress devtools work (commented import in src/routes/-components/devtools.tsx)
-    "@takumi-rs/core", // SSR-external in vite.config.ts; runtime peer of @takumi-rs/image-response
-    "@takumi-rs/helpers", // SSR-external in vite.config.ts; runtime peer of @takumi-rs/image-response
-    "@takumi-rs/wasm", // resolved at runtime via require.resolve("@takumi-rs/wasm/takumi_wasm_bg.wasm") in src/lib/og/render.server.ts
   ],
   ignoreExportsUsedInFile: true,
   rules: {

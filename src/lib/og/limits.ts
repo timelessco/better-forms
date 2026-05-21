@@ -1,6 +1,6 @@
 // OG image text limits — shared between the Plate-tree description extractor
-// (extract-description.ts) and the takumi renderer (render.server.ts) so the
-// hash baked into the URL agrees with what the renderer actually paints.
+// (extract-description.ts) and the OG renderer template so the hash baked into
+// the URL agrees with what the renderer actually paints.
 //
 // The description limit (180) is unchanged from the previous extract-description
 // constant — bumping it would invalidate every cached OG URL via the hash.
