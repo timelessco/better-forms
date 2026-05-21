@@ -1025,6 +1025,23 @@
   animation-timing-function: ease-out;
 }
 
+/* View Transition: public-form theme toggle. Smooths the light↔dark
+   flip — dozens of CSS variables swap at once, so the default instant
+   apply is visually harsh. The crossfade animates the snapshot of the
+   whole viewport. Both old/new layers fade simultaneously (no slide). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
 /* Card elevated shadow - raw box-shadow bypasses Tailwind's color-mix processing */
 .shadow-card-elevated {
   box-shadow:

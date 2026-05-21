@@ -74,7 +74,28 @@ const PublicFormRoute = () => {
 
   const handleThemeChange = useCallback(
     (next: PublicTheme) => {
-      setViewerTheme(next);
+      // Apply the DOM class change synchronously so View Transitions can
+      // snapshot both "before" and "after" cleanly. Without this, the
+      // setViewerTheme() React update + the useEffect that swaps the
+      // <html> class both run AFTER startViewTransition has already taken
+      // its "after" snapshot — the transition would crossfade between
+      // two identical frames and look like nothing happened.
+      const resolved: "light" | "dark" = next === "system" ? resolveSystemTheme() : next;
+      const applyDom = () => {
+        const root = document.documentElement;
+        root.classList.remove("light", "dark");
+        root.classList.add(resolved);
+        root.style.colorScheme = resolved;
+        setResolvedTheme(resolved);
+        setViewerTheme(next);
+      };
+
+      if (typeof document !== "undefined" && "startViewTransition" in document) {
+        document.startViewTransition(applyDom);
+      } else {
+        applyDom();
+      }
+
       try {
         window.localStorage.setItem(themeStorageKey(shortId), next);
       } catch {
