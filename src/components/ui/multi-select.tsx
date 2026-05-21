@@ -131,7 +131,7 @@ export const MultiSelect = ({
                   );
                 })
               ) : (
-                <span className="text-muted-foreground">{placeholder}</span>
+                <span className="text-foreground/70">{placeholder}</span>
               )}
             </div>
             <ChevronDownIcon

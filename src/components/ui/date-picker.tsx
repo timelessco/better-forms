@@ -68,7 +68,10 @@ export const DatePicker = ({
             data-empty={!date}
             className={cn(
               "inline-flex h-[30px] w-full items-center justify-start rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-1.5 pl-2.5 text-left text-sm font-normal elevation-sm",
-              !date && "text-muted-foreground",
+              // Track foreground (not the themable muted token) so
+              // custom-themed forms can't drop placeholder contrast below
+              // WCAG AA. 70% of gray-950 ≈ gray-700, ~7:1 on gray-50 bg.
+              !date && "text-foreground/70",
               className,
             )}
           >
