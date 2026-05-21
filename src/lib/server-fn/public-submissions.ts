@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { waitUntil } from "@vercel/functions";
 import { and, count, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Value } from "platejs";
@@ -245,23 +246,29 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
           createdAt: now,
         }).catch(() => {});
 
-        sendEmailNotifications(
-          {
-            selfEmailNotifications: vSettings.selfEmailNotifications ?? false,
-            notificationEmail: vSettings.notificationEmail ?? null,
-            // Pro-only — defense in depth for the post-downgrade webhook race.
-            respondentEmailNotifications:
-              (vSettings.respondentEmailNotifications ?? false) &&
-              isServerPlan(form.orgPlan) &&
-              planUnlocks(form.orgPlan, "respondentEmailNotifications"),
-            respondentEmailSubject: vSettings.respondentEmailSubject ?? null,
-            respondentEmailBody: vSettings.respondentEmailBody ?? null,
-          },
-          form.createdByUserId,
-          data.formId,
-          submissionId,
-          sanitizedData,
-        ).catch((err) => console.error("[Email] Notification error:", err));
+        // waitUntil keeps the email send tied to the request's extended
+        // lifetime on Vercel — the response returns immediately but the
+        // function instance stays alive until the promise settles, instead
+        // of being an orphan promise that may be killed mid-send.
+        waitUntil(
+          sendEmailNotifications(
+            {
+              selfEmailNotifications: vSettings.selfEmailNotifications ?? false,
+              notificationEmail: vSettings.notificationEmail ?? null,
+              // Pro-only — defense in depth for the post-downgrade webhook race.
+              respondentEmailNotifications:
+                (vSettings.respondentEmailNotifications ?? false) &&
+                isServerPlan(form.orgPlan) &&
+                planUnlocks(form.orgPlan, "respondentEmailNotifications"),
+              respondentEmailSubject: vSettings.respondentEmailSubject ?? null,
+              respondentEmailBody: vSettings.respondentEmailBody ?? null,
+            },
+            form.createdByUserId,
+            data.formId,
+            submissionId,
+            sanitizedData,
+          ).catch((err) => console.error("[Email] Notification error:", err)),
+        );
       }
 
       // Attribute the submission to its visit row. For incomplete → completed flows,

@@ -30,6 +30,8 @@ import type { PublicFormSettings } from "@/types/form-settings";
 import { EditorThemeProvider } from "@/contexts/editor-theme-context";
 import { useFormCustomization } from "@/hooks/use-form-customization";
 import { useFormThemeContextValue } from "@/hooks/use-form-theme";
+import { Hydrate } from "@tanstack/react-start";
+import { interaction, never } from "@tanstack/react-start/hydration";
 
 interface PublicForm {
   id: string;
@@ -615,7 +617,15 @@ const PublicFormMain = ({
     style={dynamicWidth ? ({ "--bf-page-width": "100%" } as React.CSSProperties) : undefined}
     aria-live="polite"
   >
-    {themeToggle && <ThemeToggleButton themeToggle={themeToggle} />}
+    {themeToggle && (
+      // Theme toggle only matters when the viewer clicks/focuses it. Defer
+      // hydration to first interaction so the icon paints from SSR HTML
+      // without dragging its handler chunk into the critical path. Safe
+      // because the pre-hydration script already sets the .dark class.
+      <Hydrate when={interaction({ events: ["pointerdown", "focusin"] })}>
+        <ThemeToggleButton themeToggle={themeToggle} />
+      </Hydrate>
+    )}
     {draftState.status === "prompt" && (
       <DraftResumePrompt handleResumeDraft={handleResumeDraft} handleStartOver={handleStartOver} />
     )}
@@ -644,6 +654,12 @@ const PublicFormMain = ({
       {...resumeProps}
     />
     {submitError && <SubmitErrorToast submitError={submitError} />}
-    {settings.branding && <BrandingFooter />}
+    {settings.branding && (
+      // Static fixed-bottom link with no client behavior — ship SSR HTML
+      // and skip hydration entirely.
+      <Hydrate when={never()}>
+        <BrandingFooter />
+      </Hydrate>
+    )}
   </main>
 );

@@ -11,9 +11,11 @@ import { getCustomDomainFormByIdRSC } from "@/lib/server-fn/custom-domain-view-r
 import {
   generateThemeCss,
   getGoogleFontLinkUrl,
+  getMediaPreconnects,
   GOOGLE_FONTS_PRECONNECTS,
 } from "@/lib/theme/generate-theme-css";
 import { seo } from "@/lib/seo";
+import { getCoverPreloadLinks } from "@/lib/vercel-image";
 
 type PublicTheme = "light" | "dark" | "system";
 
@@ -170,12 +172,18 @@ export const Route = createFileRoute("/f/$formId")({
         noindex: true,
       }),
       links: [
+        ...getMediaPreconnects(
+          loaderData?.form?.cover,
+          loaderData?.form?.icon,
+          loaderData?.form?.ogImageUrl,
+        ),
         ...(googleFontUrl
           ? [...GOOGLE_FONTS_PRECONNECTS, { rel: "stylesheet", href: googleFontUrl }]
           : []),
         ...(loaderData?.domainMeta?.faviconUrl
           ? [{ rel: "icon", href: loaderData.domainMeta.faviconUrl }]
           : []),
+        ...getCoverPreloadLinks(loaderData?.form?.cover),
       ],
       scripts: [
         {

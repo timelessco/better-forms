@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ImageResponse } from "@vercel/og";
 import { and, eq } from "drizzle-orm";
 // `?raw` inlines the sprite at build time so the function bundle on Vercel
 // (where /var/task has no public/) can extract <symbol> bodies for OG icons.
@@ -7,7 +8,6 @@ import { db } from "@/db";
 import { formVersions, forms } from "@/db/schema";
 import { computeOgHash } from "@/lib/og/hash";
 import { isValidShortId } from "@/lib/short-id";
-import { renderOgImage } from "@/lib/og/render.server";
 import { resolveOgInputs } from "@/lib/og/resolve-inputs";
 import { buildIconDataUrl, isIconUrl, isSpriteIconName } from "@/lib/og/sprite-icon";
 import { OgCard } from "@/lib/og/template";
@@ -100,13 +100,14 @@ export const Route = createFileRoute("/api/og/$shortId/$hash")({
         // silently truncating the body to 0 bytes (which the edge then caches
         // as `immutable` for a year).
         try {
-          const image = renderOgImage(
+          const image = new ImageResponse(
             <OgCard
               description={og.description}
               iconUrl={iconUrl}
               themeColorName={og.themeColorName}
               title={og.title}
             />,
+            { width: 1200, height: 630 },
           );
           const body = await image.arrayBuffer();
           return new Response(body, {
