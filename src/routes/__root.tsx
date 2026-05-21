@@ -2,7 +2,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
-import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Session } from "@/lib/auth/auth";
 import { seo } from "@/lib/seo";
@@ -18,6 +17,13 @@ import { lazy, Suspense } from "react";
 // a render-blocking link for the same content (Lighthouse flagged 70ms
 // savings); this path emits inline only.
 import styles from "../styles/styles.css?inline";
+
+// Lazy: sonner is ~14 kB gz and the public form never fires a toast.
+// Static `import { toast } from "sonner"` calls still pull sonner into
+// their own route chunks (auth/login/builder) — lazying the Toaster
+// MOUNT just keeps the library out of the root entry chunk, which
+// loads on every page.
+const Toaster = lazy(() => import("@/components/ui/sonner").then((m) => ({ default: m.Toaster })));
 
 const LazyDevtools = lazy(() =>
   import("./-components/devtools").then((m) => ({ default: m.Devtools })),
@@ -69,7 +75,9 @@ const RootDocument = ({ children }: { children: React.ReactNode }) => (
         <ThemeProvider defaultTheme="system">
           <TooltipProvider>
             {children}
-            <Toaster richColors />
+            <Suspense fallback={null}>
+              <Toaster richColors />
+            </Suspense>
             {process.env.NODE_ENV === "development" && (
               <Suspense>
                 <LazyDevtools />
@@ -91,7 +99,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       ...seo(),
     ],
     links: [
-      // App CSS link is emitted automatically via HeadContent (side-effect import above).
+      // App CSS is inlined into RootDocument (see `styles.css?inline` above);
+      // no <link rel="stylesheet"> needed here.
       { rel: "icon", type: "image/svg+xml", href: "/metadata/favicon.svg" },
       { rel: "icon", href: "/metadata/favicon.ico" },
       { rel: "apple-touch-icon", href: "/metadata/apple-touch-icon.png" },
