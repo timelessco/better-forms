@@ -83,15 +83,16 @@ const config = defineConfig({
       rsc: {
         enabled: true,
       },
-      // Embed manifest-managed CSS as an inline <style> in SSR HTML on prod
-      // builds. Drops the high-priority 45 kB stylesheet round-trip on cold
-      // visits. Originally OOM'd the Vercel build when V8 was capped at 8 GB
-      // — paired with the bump to 12 GB in package.json (`build` script) it
-      // should fit. If the build OOMs again, flip back to `false` and revisit
-      // the Vercel build container size.
+      // CSS inlining tried twice (96f4a09, 1d99bb8) — both times it
+      // regressed mobile Perf score by trading a background stylesheet
+      // download for a synchronous ~3s parse/style-recalc block on slow
+      // CPUs (Lighthouse mobile shows 4× ~800 ms "Unattributable" long
+      // tasks at HTML-parse time when 45 kB of CSS lands inline). The
+      // network savings (~one RTT) don't recover the main-thread cost.
+      // Revisit only if the CSS graph is trimmed under ~10 kB.
       server: {
         build: {
-          inlineCss: true,
+          inlineCss: false,
         },
       },
     }),
