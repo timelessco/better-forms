@@ -58,6 +58,20 @@ export const publishFormVersion = createServerFn({ method: "POST" })
         cover: form.cover,
       });
 
+      // DEBUG: log the snapshot publish actually reads from the DB so we
+      // can diagnose "I changed colour/fields but the published form is
+      // stale" reports. Revert this block once verified.
+      console.log("[publish] read forms row", {
+        formId: data.formId,
+        title: form.title,
+        contentLen: Array.isArray(form.content) ? form.content.length : null,
+        customization: form.customization,
+        previousPublishedContentHash: form.publishedContentHash,
+        newContentHash: contentHash,
+        lastPublishedVersionId: form.lastPublishedVersionId,
+        updatedAt: form.updatedAt,
+      });
+
       // Per-domain conditional publish (see plan §2):
       //   - Versioned domain (editor + customization): create new version row
       //     only if hash differs from the current `publishedContentHash`.
@@ -66,6 +80,12 @@ export const publishFormVersion = createServerFn({ method: "POST" })
       // First publish ever: both branches always fire (no baseline to diff).
       const versionedDirty = form.publishedContentHash !== contentHash;
       const isFirstPublish = !form.lastPublishedVersionId;
+
+      console.log("[publish] decision", {
+        versionedDirty,
+        isFirstPublish,
+        willInsertVersion: versionedDirty || isFirstPublish,
+      });
 
       let newVersion: typeof formVersions.$inferSelect | undefined;
       let versionId = form.lastPublishedVersionId ?? null;
@@ -89,11 +109,23 @@ export const publishFormVersion = createServerFn({ method: "POST" })
             icon: form.icon,
             cover: form.cover,
             publishedByUserId: context.session.user.id,
+            publishedByName: context.session.user.name || null,
+            publishedByImage: context.session.user.image || null,
             publishedAt: now,
             createdAt: now,
           })
           .returning();
         newVersion = inserted;
+
+        console.log("[publish] inserted new version row", {
+          versionId,
+          version: nextVersionNumber,
+          contentLen: Array.isArray(inserted?.content)
+            ? (inserted.content as unknown[]).length
+            : null,
+          customization: inserted?.customization,
+          title: inserted?.title,
+        });
 
         await tx
           .update(forms)
@@ -153,9 +185,7 @@ export const publishFormVersion = createServerFn({ method: "POST" })
       };
     });
 
-    // Purge CDN cache so viewers see the new version immediately. Runs after
-    // commit so a failed transaction doesn't nuke the cache for no reason.
-    void purgeFormCache(data.formId);
+    await purgeFormCache(data.formId);
 
     return result;
   });
@@ -174,8 +204,13 @@ export const getFormVersions = createServerFn({ method: "GET" })
           title: formVersions.title,
           publishedAt: formVersions.publishedAt,
           publishedByUserId: formVersions.publishedByUserId,
-          publishedByName: user.name,
-          publishedByImage: user.image,
+          // Snapshot first (authoritative for who published this version),
+          // then fall back to the joined user row for legacy versions that
+          // were written before the snapshot columns existed.
+          publishedByName: formVersions.publishedByName,
+          publishedByImage: formVersions.publishedByImage,
+          fallbackName: user.name,
+          fallbackImage: user.image,
         })
         .from(formVersions)
         .leftJoin(user, eq(formVersions.publishedByUserId, user.id))
@@ -191,8 +226,8 @@ export const getFormVersions = createServerFn({ method: "GET" })
         publishedAt: v.publishedAt.toISOString(),
         publishedBy: {
           id: v.publishedByUserId,
-          name: v.publishedByName,
-          image: v.publishedByImage,
+          name: v.publishedByName || v.fallbackName,
+          image: v.publishedByImage || v.fallbackImage,
         },
       })),
     };

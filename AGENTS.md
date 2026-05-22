@@ -2,16 +2,32 @@
 
 Reform is a TanStack Start (Router + Vite) + React 19 app with TanStack DB collections, Drizzle ORM, Better Auth, Polar billing, the Plate.js editor, and the AI SDK.
 
+## STOP — Package manager rules (read first)
+
+**Never run `bun`, `bun x`, `bun run`, or `bunx` in this repository.** This includes invoking binaries: no `bun x tsc`, `bun x vitest`, `bun x oxlint`, `bun x knip`, `bun x prettier`, etc. Use `pnpm` / `pnpm exec` for everything. Mise installs `node` 24.x; pnpm-installed binaries shell out to node and will not work under Bun's runtime.
+
+Why this matters (real failures observed in this repo):
+
+- `bun x vitest run …` silently skips vitest's `vi.mock` hoisting transform, so mocked modules resolve to the real implementation and tests fail with bogus `vi.mocked(x).mockResolvedValue is not a function` errors. The same tests pass under `pnpm exec vitest run`.
+- `bun x tsc --noEmit` can pass while `pnpm exec tsc --noEmit` fails (different module-resolution behavior with the project's `tsconfig.json`).
+- Lefthook pre-commit / pre-push hooks invoke `pnpm exec …`, which calls `node`. If you verified locally under Bun and saw green, the hooks will still fail in the user's shell when pushing — and `--no-verify` is **not** the answer. Re-run the checks under `pnpm exec` and fix any real failures before pushing.
+
+If a check passes for you, re-run it under `pnpm exec` before claiming success or pushing. If `node` isn't on PATH inside your shell, run `eval "$(mise activate bash)"` first — node is installed via mise.
+
+The `.npmrc` also sets `minimum-release-age=10080` (7 days) to quarantine fresh registry publishes as a supply-chain defense. `ERR_PNPM_NO_MATURE_MATCHING_VERSION` from `pnpm install` is that defense working — widen or pin the semver, don't add to `minimum-release-age-exclude` without a real reason.
+
 ## Quick Reference
 
-- **Format / fix**: `bun fix` (runs `oxfmt .` then `oxlint --type-aware --fix`)
-- **Check**: `bun run check` (runs `oxfmt --check` then `oxlint --type-aware && knip`)
-- **Lint**: `bun lint` (oxlint --type-aware + knip)
-- **Typecheck**: `bun typecheck`
-- **Tests**: `bun run test` (runs Vitest via the package script). Do **not** use `bun test` — that invokes Bun's built-in runner, which doesn't implement parts of the Vitest API the suite uses (`vi.stubGlobal`, `vi.unstubAllGlobals`, etc.) and silently fails those tests. To run a single file, use `bun x vitest run path/to/file.test.ts`.
-- **Dev server**: `bun dev` (or `bun dev:auto` to pick a free port)
+- **Install**: `pnpm install` (use `--frozen-lockfile` in CI)
+- **Format / fix**: `pnpm fix` (runs `oxfmt .` then `oxlint --type-aware --fix`)
+- **Check**: `pnpm run check` (runs `oxfmt --check` then `oxlint --type-aware && knip`)
+- **Lint**: `pnpm lint` (oxlint --type-aware + knip)
+- **Typecheck**: `pnpm exec tsc --noEmit` (the `pnpm typecheck` script runs oxlint's type-check, which is separate)
+- **Tests**: `pnpm run test` (Vitest). To run a single file: `pnpm exec vitest run path/to/file.test.ts`.
+- **Dev server**: `pnpm dev` (or `pnpm dev:auto` to pick a free port)
+- **Run TS scripts**: `pnpm exec tsx scripts/<name>.ts`
 
-Oxlint + Oxfmt (configured via `.oxlintrc.json`) enforce formatting, type safety, accessibility, security, and most code-quality rules automatically. Run `bun fix` before committing — focus your judgement on what the linter can't check: business logic, naming, architecture, edge cases, UX.
+Oxlint + Oxfmt (configured via `.oxlintrc.json`) enforce formatting, type safety, accessibility, security, and most code-quality rules automatically. Run `pnpm fix` before committing — focus your judgement on what the linter can't check: business logic, naming, architecture, edge cases, UX.
 
 ## Stack-Specific Guidance
 
@@ -39,13 +55,13 @@ Oxlint + Oxfmt (configured via `.oxlintrc.json`) enforce formatting, type safety
 
 **Drizzle ORM**
 
-- Schema in `src/db/`. Use `bun db:generate | db:migrate | db:push | db:studio`.
+- Schema in `src/db/`. Use `pnpm db:generate | db:migrate | db:push | db:studio`.
 
 ## Testing
 
 - Vitest. Assertions inside `it()` / `test()`. Use async/await, not done callbacks. No `.only` / `.skip` committed.
 - Match the current typed `vi.mock` signature — don't regress to older shapes.
-- Always run via `bun run test` (or `bun x vitest run <file>` for a single file). `bun test` is a different runner — it skips/fails Vitest-only APIs without warning.
+- Always run via `pnpm run test` (or `pnpm exec vitest run <file>` for a single file).
 
 ## Agent skills
 

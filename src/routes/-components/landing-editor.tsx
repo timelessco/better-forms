@@ -137,7 +137,7 @@ const LandingLayout = () => {
           width: showSidebar ? `${rightSidebarWidth}px` : 0,
         }}
       >
-        <div className="h-full w-full">
+        <div className="size-full">
           <Suspense fallback={null}>
             <SidebarProvider className="h-full min-h-0">
               <LandingSidebar />
@@ -198,7 +198,10 @@ const LocalEditorApp = () => {
   }
 
   const resolvedAppTheme = useResolvedTheme();
-  const { hasCustomization, themeVars } = useFormCustomization(savedDocs?.[0], resolvedAppTheme);
+  const { hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
+    savedDocs?.[0],
+    resolvedAppTheme,
+  );
   const themeCtx = useMemo(() => ({ themeVars, hasCustomization }), [themeVars, hasCustomization]);
 
   const skipSaveRef = useRef(false);
@@ -223,7 +226,7 @@ const LocalEditorApp = () => {
     value: initialContent,
   });
 
-  const handleChange = useCallback(
+  const persistLocalForm = useCallback(
     ({ value }: { value: Value }) => {
       if (skipSaveRef.current) {
         skipSaveRef.current = false;
@@ -275,11 +278,11 @@ const LocalEditorApp = () => {
         className={cn(
           "min-h-full w-full overflow-x-hidden bg-background text-foreground",
           hasCustomization && "bf-themed",
-          resolvedAppTheme === "dark" && "dark",
+          effectiveTheme === "dark" && "dark",
         )}
         style={hasCustomization ? themeVars : undefined}
       >
-        <Plate editor={editor} readOnly={false} onChange={handleChange}>
+        <Plate editor={editor} readOnly={false} onChange={persistLocalForm}>
           <EditorContainer
             variant="default"
             className="max-w-full overflow-y-visible border-none px-0 shadow-none sm:px-0"
@@ -298,7 +301,7 @@ const LocalPreviewMode = () => {
   const resolvedAppTheme = useResolvedTheme();
 
   const doc = savedDocs?.[0];
-  const { customization, hasCustomization, themeVars } = useFormCustomization(
+  const { customization, hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
     doc,
     resolvedAppTheme,
   );
@@ -309,9 +312,9 @@ const LocalPreviewMode = () => {
   return (
     <div
       className={cn(
-        "flex h-full w-full flex-col overflow-x-hidden overflow-y-auto bg-background transition-colors duration-300",
+        "flex size-full flex-col overflow-x-hidden overflow-y-auto bg-background transition-colors duration-300",
         hasCustomization && "bf-themed",
-        resolvedAppTheme === "dark" && "dark",
+        effectiveTheme === "dark" && "dark",
       )}
       style={hasCustomization ? themeVars : undefined}
     >

@@ -50,8 +50,8 @@ const DesignPage = () => {
             <span className="text-accent-800 text-sm">
               {isLoadingVersionContent ? (
                 <span className="flex items-center gap-2">
-                  <Loader2Icon className="h-4 w-4 animate-spin" />
-                  Loading version...
+                  <Loader2Icon className="size-4 animate-spin" />
+                  Loading version…
                 </span>
               ) : versionData?.publishedAt ? (
                 <>
@@ -83,14 +83,14 @@ const DesignPage = () => {
               hidden ↔ visible flip. */}
           <Activity mode={previewMode ? "hidden" : "visible"}>
             {isViewingVersion && isLoadingVersionContent ? (
-              <div className="flex h-full w-full items-center justify-center">
-                <Loader2Icon className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div className="flex size-full items-center justify-center">
+                <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
               </div>
             ) : (
               <Suspense
                 fallback={
                   <div className="flex h-full items-center justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                    <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                   </div>
                 }
               >
@@ -139,23 +139,25 @@ export const Route = createFileRoute(
       embedHideOnSubmitDelay: z.coerce.number().catch(0).optional(),
     }),
   ),
+  ssr: "data-only",
   // Redirect published forms to submissions (prevents flash of editor)
   beforeLoad: async ({ context, params, search }) => {
+    // Warm the editor-app chunk during route preload (e.g. on Link hover with
+    // preload="intent") and on navigation. Window guard keeps the dynamic
+    // import off the server module graph in `ssr: "data-only"` mode.
+    if (typeof window !== "undefined") {
+      void import("../-components/editor-app");
+    }
+
     if (search.force === true) return;
 
+    let status: FormStatus | undefined;
     try {
       const cachedForm = getFormListings().get(params.formId);
-      let status = cachedForm?.status as FormStatus | undefined;
+      status = cachedForm?.status as FormStatus | undefined;
 
       if (!status) {
         status = await getFormStatus(context.queryClient, params.formId);
-      }
-
-      if (status === "published") {
-        throw redirect({
-          to: "/workspace/$workspaceId/form-builder/$formId/submissions",
-          params: { workspaceId: params.workspaceId, formId: params.formId },
-        });
       }
     } catch (error: unknown) {
       if (isRedirect(error)) {
@@ -163,10 +165,16 @@ export const Route = createFileRoute(
       }
       // On error, allow edit route to load
     }
+
+    if (status === "published") {
+      throw redirect({
+        to: "/workspace/$workspaceId/form-builder/$formId/submissions",
+        params: { workspaceId: params.workspaceId, formId: params.formId },
+      });
+    }
   },
-  ssr: "data-only",
   component: DesignPage,
-  pendingComponent: () => <div>Loading...</div>,
+  pendingComponent: () => <div>Loading…</div>,
   errorComponent: ErrorBoundary,
   notFoundComponent: NotFound,
 });

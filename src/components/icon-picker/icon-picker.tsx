@@ -81,7 +81,7 @@ const IconPickerHeader = ({ searchValue, onSearchChange }: IconPickerHeaderProps
   <div className="flex items-center justify-between border-b border-b-border py-3">
     <span className="text-sm text-foreground">Choose an icon</span>
     <div className="flex w-[139px] items-center rounded-lg bg-muted px-[10px] py-[7px]">
-      <figure className="mr-[6px] h-3 w-3 text-muted-foreground">
+      <figure className="mr-[6px] size-3 text-muted-foreground">
         <svg
           fill="none"
           height="12"
@@ -153,7 +153,7 @@ const IconGridItem = ({ label, onSelect }: IconGridItemProps) => {
       title={data?.label}
       type="button"
     >
-      <div className="h-[18px] w-[18px]">{data?.icon(iconColor)}</div>
+      <div className="size-[18px]">{data?.icon(iconColor)}</div>
     </button>
   );
 };

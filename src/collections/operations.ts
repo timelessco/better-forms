@@ -139,8 +139,17 @@ export const updateFormStatus = async (id: string, status: "draft" | "published"
 
     const tx = createTransaction({
       mutationFn: async () => {
-        await serverFns.updateForm(stripNulls(existing) as never);
-        await queryClient.invalidateQueries({ queryKey: ["form-listings-archived"] });
+        await serverFns.updateForm(
+          stripNulls({ ...existing, status: "archived" } as Record<string, unknown>) as never,
+        );
+        // Refetch the active listings so the now-archived row is gone from
+        // the server snapshot before TanStack DB drops our optimistic delete —
+        // otherwise the collection falls back to the cached pre-archive
+        // snapshot and the form reappears in the UI.
+        await Promise.all([
+          formListings.utils.refetch(),
+          queryClient.invalidateQueries({ queryKey: ["form-listings-archived"] }),
+        ]);
       },
     });
     tx.mutate(() => {
@@ -193,7 +202,13 @@ export const bulkArchiveFormsLocal = async (ids: string[]) => {
     mutationFn: async () => {
       const result = await serverFns.bulkArchiveForms({ ids });
       archived = result.archived;
-      await queryClient.invalidateQueries({ queryKey: ["form-listings-archived"] });
+      // Refetch listings so the archived rows are gone from the server
+      // snapshot before TanStack DB drops the optimistic deletes (see same
+      // pattern in updateFormStatus).
+      await Promise.all([
+        formListings.utils.refetch(),
+        queryClient.invalidateQueries({ queryKey: ["form-listings-archived"] }),
+      ]);
       return result;
     },
   });
@@ -219,6 +234,7 @@ export const bulkPermanentDeleteFormsLocal = async (ids: string[]) => {
 export const createWorkspaceLocal = async (
   organizationId: string,
   name = "Workspace",
+  sortIndex: string | null = null,
 ): Promise<WorkspaceSummary> => {
   const { workspaces } = getInit();
   const id = crypto.randomUUID();
@@ -230,6 +246,7 @@ export const createWorkspaceLocal = async (
     createdByUserId: null,
     createdAt: now,
     updatedAt: now,
+    sortIndex,
     forms: [],
   };
   workspaces.insert(ws);
@@ -293,14 +310,6 @@ export const moveFormToWorkspaceLocal = async (formId: string, workspaceId: stri
     draft.workspaceId = workspaceId;
     draft.updatedAt = new Date().toISOString();
     draft.sortIndex = null;
-  });
-};
-
-export const renameFormLocal = async (formId: string, title: string) => {
-  const { formListings } = getInit();
-  formListings.update(formId, (draft: Record<string, unknown>) => {
-    draft.title = title;
-    draft.updatedAt = new Date().toISOString();
   });
 };
 

@@ -21,8 +21,12 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import type { fieldVariants } from "@/components/ui/field";
+import { Input as InputBase } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { PhoneInput as PhoneInputBase } from "@/components/ui/phone-input";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea as TextareaBase } from "@/components/ui/textarea";
+import { TimePicker as TimePickerBase } from "@/components/ui/time-picker";
 import { cn } from "@/lib/utils";
 
 const {
@@ -54,7 +58,7 @@ const Form = ({
     <form
       ref={ref}
       onSubmit={handleSubmit}
-      className={cn("mx-auto flex w-full flex-col", className)}
+      className={cn("mx-auto w-full", className)}
       noValidate
       {...props}
     >
@@ -82,12 +86,17 @@ const FieldSet = ({ className, children, ...props }: React.ComponentProps<"field
   );
 };
 
-// Stable selector function to ensure consistent hook calls
+// Stable selector function to ensure consistent hook calls. `value` is
+// intentionally excluded — only the input wrappers need it, and including it
+// here would re-render every Field/FieldError on every keystroke.
 // eslint-disable-next-line typescript-eslint/no-explicit-any
 const fieldStateSelector = (state: any) => ({
   errors: state?.meta?.errors ?? [],
   isTouched: state?.meta?.isTouched ?? false,
 });
+
+// eslint-disable-next-line typescript-eslint/no-explicit-any
+const fieldValueSelector = (state: any) => state?.value as unknown;
 
 const useFieldContext = () => {
   const { id } = React.use(FormItemContext);
@@ -127,19 +136,35 @@ const useFieldContext = () => {
   };
 };
 
+const useFieldValue = () => {
+  const innerFieldContext = _useFieldContext();
+  const storeRef = React.useRef<unknown>(null);
+  if (innerFieldContext?.store !== undefined) {
+    storeRef.current = innerFieldContext.store ?? null;
+  }
+  // eslint-disable-next-line typescript-eslint/no-explicit-any
+  return useStore(storeRef.current as any, fieldValueSelector);
+};
+
 const Field = ({
   children,
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) => {
-  const { errors, isTouched, formItemId, formDescriptionId, formMessageId, handleBlur } =
-    useFieldContext();
+  const {
+    errors,
+    isTouched,
+    formItemId,
+    formDescriptionId,
+    formMessageId,
+    handleBlur: markFieldTouched,
+  } = useFieldContext();
   const hasVisibleErrors = !!errors.length && isTouched;
 
   return (
     <DefaultField
       data-invalid={hasVisibleErrors}
       id={formItemId}
-      onBlur={handleBlur}
+      onBlur={markFieldTouched}
       aria-describedby={
         !hasVisibleErrors ? `${formDescriptionId}` : `${formDescriptionId} ${formMessageId}`
       }
@@ -151,6 +176,89 @@ const Field = ({
   );
 };
 
+// Field-bound input wrappers — pull value/onChange/onBlur/aria-invalid from
+// `useFieldContext()` so renderers don't have to wire them up by hand. Use
+// as `<f.Input />`, `<f.Textarea />`, `<f.PhoneInput />` inside `form.AppField`.
+
+const Input = ({
+  className,
+  ...props
+}: Omit<React.ComponentProps<typeof InputBase>, "value" | "onChange" | "onBlur">) => {
+  const field = useFieldContext();
+  const value = useFieldValue();
+  const hasErrors = field.errors.length > 0 && field.isTouched;
+  return (
+    <InputBase
+      name={field.name}
+      value={(value as string | undefined) ?? ""}
+      onChange={(e) => field.handleChange(e.target.value as never)}
+      onBlur={field.handleBlur}
+      aria-invalid={hasErrors}
+      className={cn("aria-invalid:form-input-error", className)}
+      {...props}
+    />
+  );
+};
+
+const Textarea = ({
+  className,
+  ...props
+}: Omit<React.ComponentProps<typeof TextareaBase>, "value" | "onChange" | "onBlur">) => {
+  const field = useFieldContext();
+  const value = useFieldValue();
+  const hasErrors = field.errors.length > 0 && field.isTouched;
+  return (
+    <TextareaBase
+      name={field.name}
+      value={(value as string | undefined) ?? ""}
+      onChange={(e) => field.handleChange(e.target.value as never)}
+      onBlur={field.handleBlur}
+      aria-invalid={hasErrors}
+      className={cn("aria-invalid:form-input-error", className)}
+      {...props}
+    />
+  );
+};
+
+const PhoneInput = ({
+  className,
+  ...props
+}: Omit<React.ComponentProps<typeof PhoneInputBase>, "value" | "onChange" | "onBlur">) => {
+  const field = useFieldContext();
+  const value = useFieldValue();
+  const hasErrors = field.errors.length > 0 && field.isTouched;
+  return (
+    <PhoneInputBase
+      value={(value as string | undefined) ?? ""}
+      onChange={(next) => field.handleChange(next as never)}
+      onBlur={field.handleBlur}
+      aria-invalid={hasErrors}
+      className={className}
+      {...props}
+    />
+  );
+};
+
+const TimePicker = ({
+  className,
+  ...props
+}: Omit<React.ComponentProps<typeof TimePickerBase>, "value" | "onChange" | "onBlur">) => {
+  const field = useFieldContext();
+  const value = useFieldValue();
+  const hasErrors = field.errors.length > 0 && field.isTouched;
+  return (
+    <TimePickerBase
+      name={field.name}
+      value={(value as string | undefined) ?? ""}
+      onChange={(e) => field.handleChange(e.target.value as never)}
+      onBlur={field.handleBlur}
+      aria-invalid={hasErrors}
+      className={className}
+      {...props}
+    />
+  );
+};
+
 const FieldError = ({ className, ...props }: React.ComponentProps<"p">) => {
   const { errors, isTouched, formMessageId } = useFieldContext();
   const body = errors.length ? String(errors.at(0)?.message ?? "") : "";
@@ -159,7 +267,7 @@ const FieldError = ({ className, ...props }: React.ComponentProps<"p">) => {
     <DefaultFieldError
       data-slot="form-message"
       id={formMessageId}
-      className={cn("text-sm text-destructive", className)}
+      className={cn("mt-1.5 text-sm text-destructive", className)}
       {...props}
       errors={body ? [{ message: body }] : []}
     />
@@ -216,9 +324,13 @@ const { useAppForm, withForm, withFieldGroup } = createFormHook({
     FieldLegend,
     FieldSeparator,
     FieldTitle,
+    Input,
     InputGroup,
     InputGroupAddon,
     InputGroupInput,
+    PhoneInput,
+    Textarea,
+    TimePicker,
   },
   formComponents: {
     SubmitButton,

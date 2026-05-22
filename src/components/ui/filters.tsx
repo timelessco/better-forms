@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, use, useCallback, useMemo, useState } from "react";
 
 const filterRegexCache = new Map<string, RegExp>();
 const getFilterRegex = (pattern: string): RegExp => {
@@ -205,7 +205,7 @@ const FilterContext = createContext<FilterContextValue>({
   allowMultiple: true,
 });
 
-const useFilterContext = () => useContext(FilterContext);
+const useFilterContext = () => use(FilterContext);
 
 const filterInputVariants = cva(
   [
@@ -257,9 +257,9 @@ const filterRemoveButtonVariants = cva(
         outline: "border border-s-0 border-border hover:bg-secondary",
       },
       size: {
-        lg: "h-10 w-10 [&_svg:not([class*=size-])]:size-4",
-        md: "h-9 w-9 [&_svg:not([class*=size-])]:size-3.5",
-        sm: "h-8 w-8 [&_svg:not([class*=size-])]:size-3",
+        lg: "size-10 [&_svg:not([class*=size-])]:size-4",
+        md: "size-9 [&_svg:not([class*=size-])]:size-3.5",
+        sm: "size-8 [&_svg:not([class*=size-])]:size-3",
       },
       cursorPointer: {
         true: "cursor-pointer",
@@ -501,11 +501,11 @@ const FilterInput = <T = unknown,>({
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const forwardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange?.(e);
   };
 
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  const validateOnBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const value = e.target.value;
     const pattern = field?.pattern || props.pattern;
 
@@ -582,8 +582,8 @@ const FilterInput = <T = unknown,>({
           aria-describedby={
             !isValid && validationMessage ? `${field?.key || "input"}-error` : undefined
           }
-          onChange={handleChange}
-          onBlur={handleBlur}
+          onChange={forwardChange}
+          onBlur={validateOnBlur}
           onKeyDown={handleKeyDown}
           data-slot="filters-input"
           {...props}
@@ -1251,98 +1251,14 @@ const FilterValueSelector = <T = unknown,>({
     );
   }
 
-  if (field.type === "time") {
-    if (operator === "between") {
-      const startTime = (values[0] as string) || "";
-      const endTime = (values[1] as string) || "";
-
-      return (
-        <div className="flex items-center" data-slot="filters-item">
-          <FilterInput
-            type="time"
-            value={startTime}
-            onChange={(e) => onChange([e.target.value, endTime] as T[])}
-            onInputChange={field.onInputChange}
-            className={field.className}
-            field={field}
-          />
-          <div
-            data-slot="filters-between"
-            className={filterFieldBetweenVariants({
-              variant: context.variant,
-              size: context.size,
-            })}
-          >
-            {context.i18n.to}
-          </div>
-          <FilterInput
-            type="time"
-            value={endTime}
-            onChange={(e) => onChange([startTime, e.target.value] as T[])}
-            onInputChange={field.onInputChange}
-            className={field.className}
-            field={field}
-          />
-        </div>
-      );
-    }
-
+  if (field.type === "time" || field.type === "datetime") {
     return (
-      <FilterInput
-        type="time"
-        value={(values[0] as string) || ""}
-        onChange={(e) => onChange([e.target.value] as T[])}
-        onInputChange={field.onInputChange}
+      <FilterTimeOrDateTimeValue
         field={field}
-        className={field.className}
-      />
-    );
-  }
-
-  if (field.type === "datetime") {
-    if (operator === "between") {
-      const startDateTime = (values[0] as string) || "";
-      const endDateTime = (values[1] as string) || "";
-
-      return (
-        <div className="flex items-center" data-slot="filters-item">
-          <FilterInput
-            type="datetime-local"
-            value={startDateTime}
-            onChange={(e) => onChange([e.target.value, endDateTime] as T[])}
-            onInputChange={field.onInputChange}
-            className={cn("w-36", field.className)}
-            field={field}
-          />
-          <div
-            data-slot="filters-between"
-            className={filterFieldBetweenVariants({
-              variant: context.variant,
-              size: context.size,
-            })}
-          >
-            {context.i18n.to}
-          </div>
-          <FilterInput
-            type="datetime-local"
-            value={endDateTime}
-            onChange={(e) => onChange([startDateTime, e.target.value] as T[])}
-            onInputChange={field.onInputChange}
-            className={cn("w-36", field.className)}
-            field={field}
-          />
-        </div>
-      );
-    }
-
-    return (
-      <FilterInput
-        type="datetime-local"
-        value={(values[0] as string) || ""}
-        onChange={(e) => onChange([e.target.value] as T[])}
-        onInputChange={field.onInputChange}
-        className={cn("w-36", field.className)}
-        field={field}
+        values={values}
+        onChange={onChange}
+        operator={operator}
+        kind={field.type}
       />
     );
   }
@@ -1513,6 +1429,104 @@ const FilterValueSelector = <T = unknown,>({
     return <SelectOptionsPopover field={field} values={values} onChange={onChange} />;
   }
 
+  return (
+    <FilterOptionsPopover
+      field={field}
+      values={values}
+      onChange={onChange}
+      open={open}
+      onOpenChange={setOpen}
+      searchInput={searchInput}
+      onSearchInputChange={setSearchInput}
+    />
+  );
+};
+
+interface FilterTimeOrDateTimeValueProps<T> {
+  field: FilterFieldConfig<T>;
+  values: T[];
+  onChange: (values: T[]) => void;
+  operator: string;
+  kind: "time" | "datetime";
+}
+
+const FilterTimeOrDateTimeValue = <T,>({
+  field,
+  values,
+  onChange,
+  operator,
+  kind,
+}: FilterTimeOrDateTimeValueProps<T>) => {
+  const context = useFilterContext();
+  const inputType = kind === "time" ? "time" : "datetime-local";
+  const wrapperClass = kind === "datetime" ? cn("w-36", field.className) : field.className;
+
+  if (operator === "between") {
+    const start = (values[0] as string) || "";
+    const end = (values[1] as string) || "";
+    return (
+      <div className="flex items-center" data-slot="filters-item">
+        <FilterInput
+          type={inputType}
+          value={start}
+          onChange={(e) => onChange([e.target.value, end] as T[])}
+          onInputChange={field.onInputChange}
+          className={wrapperClass}
+          field={field}
+        />
+        <div
+          data-slot="filters-between"
+          className={filterFieldBetweenVariants({
+            variant: context.variant,
+            size: context.size,
+          })}
+        >
+          {context.i18n.to}
+        </div>
+        <FilterInput
+          type={inputType}
+          value={end}
+          onChange={(e) => onChange([start, e.target.value] as T[])}
+          onInputChange={field.onInputChange}
+          className={wrapperClass}
+          field={field}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <FilterInput
+      type={inputType}
+      value={(values[0] as string) || ""}
+      onChange={(e) => onChange([e.target.value] as T[])}
+      onInputChange={field.onInputChange}
+      field={field}
+      className={wrapperClass}
+    />
+  );
+};
+
+interface FilterOptionsPopoverProps<T> {
+  field: FilterFieldConfig<T>;
+  values: T[];
+  onChange: (values: T[]) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  searchInput: string;
+  onSearchInputChange: (value: string) => void;
+}
+
+const FilterOptionsPopover = <T,>({
+  field,
+  values,
+  onChange,
+  open,
+  onOpenChange,
+  searchInput,
+  onSearchInputChange,
+}: FilterOptionsPopoverProps<T>) => {
+  const context = useFilterContext();
   const isMultiSelect = values.length > 1;
   const selectedOptions = field.options?.filter((opt) => values.includes(opt.value)) || [];
   const unselectedOptions = field.options?.filter((opt) => !values.includes(opt.value)) || [];
@@ -1521,9 +1535,9 @@ const FilterValueSelector = <T = unknown,>({
     <Popover
       open={open}
       onOpenChange={(isOpen) => {
-        setOpen(isOpen);
+        onOpenChange(isOpen);
         if (!isOpen) {
-          setTimeout(() => setSearchInput(""), 200);
+          setTimeout(() => onSearchInputChange(""), 200);
         }
       }}
     >
@@ -1540,6 +1554,7 @@ const FilterValueSelector = <T = unknown,>({
           ) : (
             <>
               {selectedOptions.length > 0 && (
+                // eslint-disable-next-line react-doctor/design-no-space-on-flex-children -- intentional negative spacing creates the avatar-stack overlap effect; gap-* would push siblings apart
                 <div className="flex items-center -space-x-1.5">
                   {selectedOptions.slice(0, 3).map((option) => (
                     <div key={String(option.value)}>{option.icon}</div>
@@ -1562,7 +1577,7 @@ const FilterValueSelector = <T = unknown,>({
               placeholder={context.i18n.placeholders.searchField(field.label || "")}
               className="h-9 text-sm"
               value={searchInput}
-              onValueChange={setSearchInput}
+              onValueChange={onSearchInputChange}
             />
           )}
           <CommandList>
@@ -1580,7 +1595,7 @@ const FilterValueSelector = <T = unknown,>({
                       } else {
                         onChange([] as T[]);
                       }
-                      if (!isMultiSelect) setOpen(false);
+                      if (!isMultiSelect) onOpenChange(false);
                     }}
                   >
                     {option.icon}
@@ -1604,12 +1619,12 @@ const FilterValueSelector = <T = unknown,>({
                         if (isMultiSelect) {
                           const newValues = [...values, option.value] as T[];
                           if (field.maxSelections && newValues.length > field.maxSelections) {
-                            return; // Don't exceed max selections
+                            return;
                           }
                           onChange(newValues);
                         } else {
                           onChange([option.value] as T[]);
-                          setOpen(false);
+                          onOpenChange(false);
                         }
                       }}
                     >
@@ -1963,7 +1978,7 @@ export const Filters = <T = unknown,>({
     <FilterContext.Provider value={filterContextValue}>
       <div className={cn(filtersContainerVariants({ variant, size }), className)}>
         {showAddButton && selectableFields.length > 0 && (
-          <Popover
+          <AddFilterPopover<T>
             open={addFilterOpen}
             onOpenChange={(open) => {
               setAddFilterOpen(open);
@@ -1972,170 +1987,26 @@ export const Filters = <T = unknown,>({
                 setTempSelectedValues([]);
               }
             }}
-          >
-            <PopoverTrigger
-              render={
-                addButton && typeof addButton !== "string" && typeof addButton !== "number" ? (
-                  (addButton as React.ReactElement)
-                ) : (
-                  <button
-                    type="button"
-                    className={cn(
-                      filterAddButtonVariants({
-                        variant: variant,
-                        size: size,
-                        cursorPointer: cursorPointer,
-                        radius: radius,
-                      }),
-                      addButtonClassName,
-                    )}
-                    title={mergedI18n.addFilterTitle}
-                  />
-                )
-              }
-            >
-              {addButton && (typeof addButton === "string" || typeof addButton === "number") ? (
-                addButton
-              ) : (
-                <>
-                  {addButtonIcon || <PlusIcon />}
-                  {addButtonText || mergedI18n.addFilter}
-                </>
-              )}
-            </PopoverTrigger>
-            <PopoverContent className={cn("w-[200px] p-0", popoverContentClassName)} align="start">
-              <Command>
-                {selectedFieldForOptions ? (
-                  <SelectOptionsPopover<T>
-                    field={selectedFieldForOptions}
-                    values={tempSelectedValues as T[]}
-                    onChange={(values) => {
-                      const shouldClosePopover = selectedFieldForOptions.type === "select";
-                      addFilterWithOption(
-                        selectedFieldForOptions,
-                        values as unknown[],
-                        shouldClosePopover,
-                      );
-                    }}
-                    onClose={() => setAddFilterOpen(false)}
-                    inline={true}
-                  />
-                ) : (
-                  <>
-                    {showSearchInput && (
-                      <CommandInput placeholder={mergedI18n.searchFields} className="h-9" />
-                    )}
-                    <CommandList>
-                      <CommandEmpty>{mergedI18n.noFieldsFound}</CommandEmpty>
-                      {fields.map((item, _index) => {
-                        if (isFieldGroup(item)) {
-                          const groupFields = item.fields.filter((field) => {
-                            if (field.type === "separator") {
-                              return true;
-                            }
-                            if (allowMultiple) {
-                              return true;
-                            }
-                            return !filters.some((filter) => filter.field === field.key);
-                          });
-
-                          if (groupFields.length === 0) return null;
-
-                          return (
-                            <CommandGroup
-                              key={`group-${item.group || "fields"}`}
-                              heading={item.group || "Fields"}
-                            >
-                              {groupFields.map((field) => {
-                                if (field.type === "separator") {
-                                  return (
-                                    <CommandSeparator
-                                      key={`separator-${field.label || field.key || "sep"}`}
-                                    />
-                                  );
-                                }
-
-                                return (
-                                  <CommandItem
-                                    key={field.key}
-                                    onSelect={() => field.key && addFilter(field.key)}
-                                  >
-                                    {field.icon}
-                                    <span>{field.label}</span>
-                                  </CommandItem>
-                                );
-                              })}
-                            </CommandGroup>
-                          );
-                        }
-
-                        if (isGroupLevelField(item)) {
-                          const groupFields = (item.fields ?? []).filter((field) => {
-                            if (field.type === "separator") {
-                              return true;
-                            }
-                            if (allowMultiple) {
-                              return true;
-                            }
-                            return !filters.some((filter) => filter.field === field.key);
-                          });
-
-                          if (groupFields.length === 0) return null;
-
-                          return (
-                            <CommandGroup
-                              key={`group-${item.group || "fields"}`}
-                              heading={item.group || "Fields"}
-                            >
-                              {groupFields.map((field) => {
-                                if (field.type === "separator") {
-                                  return (
-                                    <CommandSeparator
-                                      key={`separator-${field.label || field.key || "sep"}`}
-                                    />
-                                  );
-                                }
-
-                                return (
-                                  <CommandItem
-                                    key={field.key}
-                                    onSelect={() => field.key && addFilter(field.key)}
-                                  >
-                                    {field.icon}
-                                    <span>{field.label}</span>
-                                  </CommandItem>
-                                );
-                              })}
-                            </CommandGroup>
-                          );
-                        }
-
-                        const field = item;
-
-                        if (field.type === "separator") {
-                          return (
-                            <CommandSeparator
-                              key={`separator-${field.label || field.key || "sep"}`}
-                            />
-                          );
-                        }
-
-                        return (
-                          <CommandItem
-                            key={field.key}
-                            onSelect={() => field.key && addFilter(field.key)}
-                          >
-                            {field.icon}
-                            <span>{field.label}</span>
-                          </CommandItem>
-                        );
-                      })}
-                    </CommandList>
-                  </>
-                )}
-              </Command>
-            </PopoverContent>
-          </Popover>
+            fields={fields}
+            filters={filters}
+            allowMultiple={allowMultiple}
+            mergedI18n={mergedI18n}
+            showSearchInput={showSearchInput}
+            addButton={addButton}
+            addButtonText={addButtonText}
+            addButtonIcon={addButtonIcon}
+            addButtonClassName={addButtonClassName}
+            popoverContentClassName={popoverContentClassName}
+            variant={variant}
+            size={size}
+            radius={radius}
+            cursorPointer={cursorPointer}
+            selectedFieldForOptions={selectedFieldForOptions}
+            tempSelectedValues={tempSelectedValues}
+            onAddFilter={addFilter}
+            onAddFilterWithOption={addFilterWithOption}
+            onCloseAddPopover={() => setAddFilterOpen(false)}
+          />
         )}
 
         {filters.map((filter) => {
@@ -2143,44 +2014,210 @@ export const Filters = <T = unknown,>({
           if (!field) return null;
 
           return (
-            <div
+            <FilterRow<T>
               key={filter.id}
-              className={filterItemVariants({ variant })}
-              data-slot="filter-item"
-            >
-              <div
-                className={filterFieldLabelVariants({
-                  variant: variant,
-                  size: size,
-                  radius: radius,
-                })}
-              >
-                {field.icon}
-                {field.label}
-              </div>
-
-              <FilterOperatorDropdown<T>
-                field={field}
-                operator={filter.operator}
-                values={filter.values}
-                onChange={(operator) => updateFilter(filter.id, { operator })}
-              />
-
-              <FilterValueSelector<T>
-                field={field}
-                values={filter.values}
-                onChange={(values) => updateFilter(filter.id, { values })}
-                operator={filter.operator}
-              />
-
-              <FilterRemoveButton onClick={() => removeFilter(filter.id)} />
-            </div>
+              filter={filter}
+              field={field}
+              variant={variant}
+              size={size}
+              radius={radius}
+              onUpdate={(updates) => updateFilter(filter.id, updates)}
+              onRemove={() => removeFilter(filter.id)}
+            />
           );
         })}
       </div>
     </FilterContext.Provider>
   );
 };
+
+interface AddFilterPopoverProps<T> {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  fields: FilterFieldsConfig<T>;
+  filters: Filter<T>[];
+  allowMultiple: boolean;
+  mergedI18n: FilterI18nConfig;
+  showSearchInput: boolean;
+  addButton?: React.ReactNode;
+  addButtonText?: React.ReactNode;
+  addButtonIcon?: React.ReactNode;
+  addButtonClassName?: string;
+  popoverContentClassName?: string;
+  variant: VariantProps<typeof filtersContainerVariants>["variant"];
+  size: VariantProps<typeof filtersContainerVariants>["size"];
+  radius: VariantProps<typeof filterAddButtonVariants>["radius"];
+  cursorPointer: boolean;
+  selectedFieldForOptions: FilterFieldConfig<T> | null;
+  tempSelectedValues: unknown[];
+  onAddFilter: (fieldKey: string) => void;
+  onAddFilterWithOption: (
+    field: FilterFieldConfig<T>,
+    values: unknown[],
+    closePopover?: boolean,
+  ) => void;
+  onCloseAddPopover: () => void;
+}
+
+const AddFilterPopover = <T,>({
+  open,
+  onOpenChange,
+  fields,
+  filters,
+  allowMultiple,
+  mergedI18n,
+  showSearchInput,
+  addButton,
+  addButtonText,
+  addButtonIcon,
+  addButtonClassName,
+  popoverContentClassName,
+  variant,
+  size,
+  radius,
+  cursorPointer,
+  selectedFieldForOptions,
+  tempSelectedValues,
+  onAddFilter,
+  onAddFilterWithOption,
+  onCloseAddPopover,
+}: AddFilterPopoverProps<T>) => {
+  const renderField = (field: FilterFieldConfig<T>) => {
+    if (field.type === "separator") {
+      return <CommandSeparator key={`separator-${field.label || field.key || "sep"}`} />;
+    }
+    return (
+      <CommandItem key={field.key} onSelect={() => field.key && onAddFilter(field.key)}>
+        {field.icon}
+        <span>{field.label}</span>
+      </CommandItem>
+    );
+  };
+
+  const groupFieldsFilter = (field: FilterFieldConfig<T>) => {
+    if (field.type === "separator") return true;
+    if (allowMultiple) return true;
+    return !filters.some((filter) => filter.field === field.key);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger
+        render={
+          addButton && typeof addButton !== "string" && typeof addButton !== "number" ? (
+            (addButton as React.ReactElement)
+          ) : (
+            <button
+              type="button"
+              className={cn(
+                filterAddButtonVariants({ variant, size, cursorPointer, radius }),
+                addButtonClassName,
+              )}
+              title={mergedI18n.addFilterTitle}
+            />
+          )
+        }
+      >
+        {addButton && (typeof addButton === "string" || typeof addButton === "number") ? (
+          addButton
+        ) : (
+          <>
+            {addButtonIcon || <PlusIcon />}
+            {addButtonText || mergedI18n.addFilter}
+          </>
+        )}
+      </PopoverTrigger>
+      <PopoverContent className={cn("w-[200px] p-0", popoverContentClassName)} align="start">
+        <Command>
+          {selectedFieldForOptions ? (
+            <SelectOptionsPopover<T>
+              field={selectedFieldForOptions}
+              values={tempSelectedValues as T[]}
+              onChange={(values) => {
+                const shouldClosePopover = selectedFieldForOptions.type === "select";
+                onAddFilterWithOption(
+                  selectedFieldForOptions,
+                  values as unknown[],
+                  shouldClosePopover,
+                );
+              }}
+              onClose={onCloseAddPopover}
+              inline={true}
+            />
+          ) : (
+            <>
+              {showSearchInput && (
+                <CommandInput placeholder={mergedI18n.searchFields} className="h-9" />
+              )}
+              <CommandList>
+                <CommandEmpty>{mergedI18n.noFieldsFound}</CommandEmpty>
+                {fields.map((item) => {
+                  if (isFieldGroup(item) || isGroupLevelField(item)) {
+                    const itemFields = isFieldGroup(item) ? item.fields : (item.fields ?? []);
+                    const groupFields = itemFields.filter(groupFieldsFilter);
+                    if (groupFields.length === 0) return null;
+                    return (
+                      <CommandGroup
+                        key={`group-${item.group || "fields"}`}
+                        heading={item.group || "Fields"}
+                      >
+                        {groupFields.map(renderField)}
+                      </CommandGroup>
+                    );
+                  }
+                  return renderField(item);
+                })}
+              </CommandList>
+            </>
+          )}
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+interface FilterRowProps<T> {
+  filter: Filter<T>;
+  field: FilterFieldConfig<T>;
+  variant: VariantProps<typeof filterItemVariants>["variant"];
+  size: VariantProps<typeof filterFieldLabelVariants>["size"];
+  radius: VariantProps<typeof filterFieldLabelVariants>["radius"];
+  onUpdate: (updates: Partial<Filter<T>>) => void;
+  onRemove: () => void;
+}
+
+const FilterRow = <T,>({
+  filter,
+  field,
+  variant,
+  size,
+  radius,
+  onUpdate,
+  onRemove,
+}: FilterRowProps<T>) => (
+  <div className={filterItemVariants({ variant })} data-slot="filter-item">
+    <div className={filterFieldLabelVariants({ variant, size, radius })}>
+      {field.icon}
+      {field.label}
+    </div>
+
+    <FilterOperatorDropdown<T>
+      field={field}
+      operator={filter.operator}
+      values={filter.values}
+      onChange={(operator) => onUpdate({ operator })}
+    />
+
+    <FilterValueSelector<T>
+      field={field}
+      values={filter.values}
+      onChange={(values) => onUpdate({ values })}
+      operator={filter.operator}
+    />
+
+    <FilterRemoveButton onClick={onRemove} />
+  </div>
+);
 
 export const createFilter = <T = unknown,>(
   field: string,

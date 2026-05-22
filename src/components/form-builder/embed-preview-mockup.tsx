@@ -2,16 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
 import { motion, AnimatePresence } from "motion/react";
 import { XIcon } from "@/components/ui/icons";
-import { iconMap } from "@/components/icon-picker/icon-data";
 import { SPRITE_PATH } from "@/lib/config/app-config";
-import { isValidUrl } from "@/lib/utils";
+import { cn, isValidUrl } from "@/lib/utils";
 import type { EmbedType } from "@/hooks/use-editor-sidebar";
 
 interface EmbedPreviewMockupProps {
   embedType: EmbedType;
   popupPosition?: "bottom-right" | "bottom-left" | "center";
   darkOverlay?: boolean;
-  emoji?: boolean;
   emojiIcon?: string;
   alignLeft?: boolean;
 }
@@ -28,15 +26,15 @@ type IconDisplay =
   | { type: "sprite"; value: string }
   | null;
 
-const resolveIconDisplay = (emoji: boolean, emojiIcon: string | undefined): IconDisplay => {
-  if (!emoji) return null;
+const resolveIconDisplay = (emojiIcon: string | undefined): IconDisplay => {
   const icon = (emojiIcon || "").trim();
   if (!icon) return null;
   if (isValidUrl(icon)) return { type: "image", value: icon };
-  if (iconMap.has(icon)) return { type: "sprite", value: icon };
-  // Short string likely emoji (e.g. 👋)
+  // Short strings (e.g. 👋) are emoji; longer strings are sprite names. The
+  // sprite has more icons than `iconMap`, so don't gate on `iconMap.has` —
+  // any name that exists in the sprite will resolve via the cross-doc <use>.
   if (icon.length <= 4) return { type: "emoji", value: icon };
-  return null;
+  return { type: "sprite", value: icon };
 };
 
 const PopupIconContent = ({ display }: { display: IconDisplay }) => {
@@ -56,14 +54,14 @@ const PopupIconContent = ({ display }: { display: IconDisplay }) => {
   }
   if (display.type === "emoji") {
     return (
-      <span className="absolute inset-0 flex items-center justify-center bg-muted text-[14px] text-muted">
+      <span className="absolute inset-0 flex items-center justify-center bg-input text-[14px] text-muted">
         {display.value}
       </span>
     );
   }
   if (display.type === "sprite") {
     return (
-      <span className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+      <span className="absolute inset-0 flex items-center justify-center">
         <svg className="size-[14px]" fill="currentColor" viewBox="0 0 24 24">
           <use href={`${SPRITE_PATH}#${display.value}`} />
         </svg>
@@ -144,7 +142,6 @@ export const EmbedPreviewMockup = ({
   embedType = "fullpage",
   popupPosition = "bottom-right",
   darkOverlay = false,
-  emoji = true,
   emojiIcon = "👋",
   alignLeft = false,
 }: EmbedPreviewMockupProps) => {
@@ -219,15 +216,15 @@ export const EmbedPreviewMockup = ({
 
   const bubblePos = size.w > 0 ? getBubblePos(popupPosition, size.w, size.h) : null;
   const isPopup = embedType === "popup";
-  const popupIconDisplay = resolveIconDisplay(emoji, emojiIcon);
+  const popupIconDisplay = resolveIconDisplay(emojiIcon);
 
   return (
     <div className="overflow-hidden rounded-[12px] bg-secondary">
       <div className="flex items-center gap-1 px-2.25 pt-2.5 pb-2">
         <div className="flex gap-1.5">
-          <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/20" />
-          <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/20" />
-          <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/20" />
+          <div className="size-1.5 rounded-full bg-input" />
+          <div className="size-1.5 rounded-full bg-input" />
+          <div className="size-1.5 rounded-full bg-input" />
         </div>
       </div>
 
@@ -243,14 +240,14 @@ export const EmbedPreviewMockup = ({
               transition={FADE_TRANSITION}
             >
               <div className="space-y-2 px-2 opacity-30">
-                <div className="h-2 w-1/4 rounded-full bg-muted" />
-                <div className="h-1.5 w-full rounded-full bg-muted" />
-                <div className="h-1.5 w-4/5 rounded-full bg-muted" />
+                <div className="h-2 w-1/4 rounded-full bg-input" />
+                <div className="h-1.5 w-full rounded-full bg-input" />
+                <div className="h-1.5 w-4/5 rounded-full bg-input" />
               </div>
               <div className="h-16" />
               <div className="space-y-2 px-2 opacity-10">
-                <div className="h-1.5 w-full rounded-full bg-muted" />
-                <div className="h-1.5 w-11/12 rounded-full bg-muted" />
+                <div className="h-1.5 w-full rounded-full bg-input" />
+                <div className="h-1.5 w-11/12 rounded-full bg-input" />
               </div>
             </motion.div>
           )}
@@ -263,11 +260,11 @@ export const EmbedPreviewMockup = ({
               exit={{ opacity: 0 }}
               transition={FADE_TRANSITION}
             >
-              <div className="h-2.5 w-1/5 rounded-full bg-muted" />
+              <div className="h-2.5 w-1/5 rounded-full bg-input" />
               <div className="space-y-2">
-                <div className="h-2 w-full rounded-full bg-muted" />
-                <div className="h-2 w-full rounded-full bg-muted" />
-                <div className="h-2 w-3/4 rounded-full bg-muted" />
+                <div className="h-2 w-full rounded-full bg-input" />
+                <div className="h-2 w-full rounded-full bg-input" />
+                <div className="h-2 w-3/4 rounded-full bg-input" />
               </div>
             </motion.div>
           )}
@@ -288,21 +285,43 @@ export const EmbedPreviewMockup = ({
 
         {target && (
           <motion.div
-            className="absolute z-20 overflow-hidden bg-muted shadow-[0_2px_10px_rgba(0,0,0,0.04)]"
+            className={cn(
+              "absolute z-20 overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.04)]",
+              isPopup && !isPopupExpanded ? "bg-primary text-primary-foreground" : "bg-input",
+            )}
             animate={target}
             transition={transition}
             onAnimationComplete={handleAnimationComplete}
             onMouseEnter={isPopup ? handleMouseEnterMorph : undefined}
             onMouseLeave={isPopup ? handleMouseLeaveMorph : undefined}
           >
+            {embedType === "fullpage" && (
+              <div className="absolute inset-0 flex flex-col">
+                <div className="relative h-1/3 bg-secondary/70">
+                  <div className="absolute -bottom-3 left-3 size-6 rounded-full bg-secondary shadow-[0_1px_3px_rgba(0,0,0,0.12)]" />
+                </div>
+                <div className="flex flex-1 flex-col gap-2 px-3 pt-5 pb-2">
+                  <div className="h-2 w-2/5 rounded-full bg-secondary" />
+                  <div className="mt-1 space-y-1.5">
+                    <div className="h-1.5 w-1/4 rounded-full bg-secondary/80" />
+                    <div className="h-3 w-full rounded-[3px] bg-secondary/60" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="h-1.5 w-1/5 rounded-full bg-secondary/80" />
+                    <div className="h-3 w-full rounded-[3px] bg-secondary/60" />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {isPopup && isPopupExpanded && (
               <button
                 type="button"
                 aria-label="Close preview"
-                className="absolute top-1 right-1 z-30 flex h-3.5 w-3.5 cursor-pointer items-center justify-center rounded-full bg-muted-foreground/10 transition-colors hover:bg-muted-foreground/20"
+                className="absolute top-1 right-1 z-30 flex size-3.5 cursor-pointer items-center justify-center rounded-full bg-muted-foreground/10 transition-colors hover:bg-muted-foreground/20"
                 onClick={handleCloseClick}
               >
-                <XIcon className="h-2 w-2 text-muted-foreground" />
+                <XIcon className="size-2 text-muted-foreground" />
               </button>
             )}
 
@@ -322,12 +341,14 @@ export const EmbedPreviewMockup = ({
           </motion.div>
         )}
 
-        {/* Separate bubble trigger (visible when popup is collapsed & no emoji) */}
-        {isPopup && !isPopupExpanded && !emoji && bubblePos && (
+        {/* Fallback bubble for forms without a resolvable icon. Sits at the
+            same corner as the morphing target so the visual stays consistent.
+            Only renders when the icon overlay would otherwise be empty. */}
+        {isPopup && !isPopupExpanded && !popupIconDisplay && bubblePos && (
           <button
             type="button"
             aria-label="Open popup preview"
-            className="absolute z-20 h-[28px] w-[28px] cursor-pointer rounded-full bg-[#e0e0e0] p-0 shadow-[0_2px_10px_rgba(0,0,0,0.04)] dark:bg-card"
+            className="absolute z-20 size-[28px] cursor-pointer rounded-full bg-[#e0e0e0] p-0 shadow-[0_2px_10px_rgba(0,0,0,0.04)] dark:bg-card"
             style={{ left: bubblePos.left, top: bubblePos.top }}
             onMouseEnter={handleBubbleMouseEnter}
             onClick={handleBubbleClick}

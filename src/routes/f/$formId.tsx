@@ -11,9 +11,11 @@ import { getCustomDomainFormByIdRSC } from "@/lib/server-fn/custom-domain-view-r
 import {
   generateThemeCss,
   getGoogleFontLinkUrl,
+  getMediaPreconnects,
   GOOGLE_FONTS_PRECONNECTS,
 } from "@/lib/theme/generate-theme-css";
 import { seo } from "@/lib/seo";
+import { getCoverPreloadLinks } from "@/lib/vercel-image";
 
 type PublicTheme = "light" | "dark" | "system";
 
@@ -109,6 +111,7 @@ const CustomDomainFormIdRoute = () => {
         formId={formId}
         isPopup={search.popup}
         embedConfig={embedConfig}
+        resolvedAppTheme={resolvedTheme}
         rsc={
           loaderData?.form
             ? {
@@ -130,6 +133,20 @@ const CustomDomainFormIdRoute = () => {
 };
 
 export const Route = createFileRoute("/f/$formId")({
+  validateSearch: zodValidator(
+    z.object({
+      // No `.default()` — would 307-redirect bare URLs to a canonical form
+      // with all defaults appended, breaking link-preview crawlers.
+      transparentBackground: z.boolean().optional(),
+      transparent: z.coerce.boolean().optional(),
+      popup: z.coerce.boolean().optional(),
+      hideTitle: z.coerce.boolean().optional(),
+      alignLeft: z.coerce.boolean().optional(),
+      originPage: z.string().optional(),
+      dynamicHeight: z.coerce.boolean().optional(),
+      dynamicWidth: z.coerce.boolean().optional(),
+    }),
+  ),
   loader: async ({ params }) => {
     try {
       return await getCustomDomainFormByIdRSC({ data: { formId: params.formId } });
@@ -155,12 +172,18 @@ export const Route = createFileRoute("/f/$formId")({
         noindex: true,
       }),
       links: [
+        ...getMediaPreconnects(
+          loaderData?.form?.cover,
+          loaderData?.form?.icon,
+          loaderData?.form?.ogImageUrl,
+        ),
         ...(googleFontUrl
           ? [...GOOGLE_FONTS_PRECONNECTS, { rel: "stylesheet", href: googleFontUrl }]
           : []),
         ...(loaderData?.domainMeta?.faviconUrl
           ? [{ rel: "icon", href: loaderData.domainMeta.faviconUrl }]
           : []),
+        ...getCoverPreloadLinks(loaderData?.form?.cover),
       ],
       scripts: [
         {
@@ -177,18 +200,4 @@ export const Route = createFileRoute("/f/$formId")({
   pendingComponent: Loader,
   errorComponent: ErrorBoundary,
   notFoundComponent: CustomDomainNotFound,
-  validateSearch: zodValidator(
-    z.object({
-      // No `.default()` — would 307-redirect bare URLs to a canonical form
-      // with all defaults appended, breaking link-preview crawlers.
-      transparentBackground: z.boolean().optional(),
-      transparent: z.coerce.boolean().optional(),
-      popup: z.coerce.boolean().optional(),
-      hideTitle: z.coerce.boolean().optional(),
-      alignLeft: z.coerce.boolean().optional(),
-      originPage: z.string().optional(),
-      dynamicHeight: z.coerce.boolean().optional(),
-      dynamicWidth: z.coerce.boolean().optional(),
-    }),
-  ),
 });

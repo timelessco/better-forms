@@ -7,18 +7,27 @@ import { ServerFormIcon } from "@/components/form-components/server-form-icon";
 import { EditorStatic } from "@/components/ui/editor-static";
 import { DEFAULT_ICON } from "@/lib/config/app-config";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "@/lib/theme/customization-defaults";
-import { cn, DEFAULT_ICON_NAME, isValidUrl } from "@/lib/utils";
-import { getFieldLabelProps } from "@/components/form-components/fields/shared";
-import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
+import { cn, DEFAULT_ICON_NAME, isHexColor, isValidUrl } from "@/lib/utils";
+import { COVER_SRCSET_WIDTHS, vercelImg, vercelSrcSet } from "@/lib/vercel-image";
+import {
+  fieldLabelId,
+  getFieldLabelProps,
+  GROUP_FIELD_TYPES,
+} from "@/components/form-components/fields/shared";
+import {
+  chunkSegmentsForFieldByField,
+  transformPlateForPreview,
+} from "@/lib/editor/transform-plate-for-preview";
 import type {
   FieldSegment,
   PreviewSegment,
   PreviewStepResult,
 } from "@/lib/editor/transform-plate-for-preview";
+import { extractFormHeader } from "@/lib/editor/transform-plate-to-form";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 import { applyFormCacheHeaders } from "@/lib/server-fn/cdn-cache";
 import { getFieldChunkUrls } from "@/lib/server-fn/field-chunk-manifest.server";
-import { getPublishedFormById } from "@/lib/server-fn/public-form-view";
+import { getPublishedFormByShortId } from "@/lib/server-fn/public-form-view";
 import type {
   ButtonGroupSlotProps,
   FieldSlotProps,
@@ -31,7 +40,7 @@ const ServerPlateBlock = ({ nodes }: { nodes: Value }) => {
     <EditorStatic
       editor={editor}
       variant="none"
-      className="!mx-0 !my-0 !p-0 text-base [&_.slate-p]:m-0 [&_.slate-p]:px-0 [&_.slate-p]:py-1"
+      className="!mx-0 !my-0 overflow-x-visible! !p-0 text-base [&_.slate-p]:m-0 [&_.slate-p]:px-0 [&_.slate-p]:py-1"
     />
   );
 };
@@ -51,7 +60,7 @@ const RequiredBadge = () => (
     <svg width="10" height="10" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
       <title>Required</title>
       <path
-        d="M12.3892 5.68944L12.793 6.92754L9.02484 8.21946L11.4741 11.53L10.4244 12.3375L7.94824 8.91925L5.57971 12.3106L4.53002 11.5031L6.89855 8.21946L3.15735 6.95445L3.58799 5.68944L7.27536 7.00828V3.02484H8.64803V6.98137L12.3892 5.68944Z"
+        d="M12.39 5.69L12.79 6.93L9.02 8.22L11.47 11.53L10.42 12.34L7.95 8.92L5.58 12.31L4.53 11.5L6.9 8.22L3.16 6.95L3.59 5.69L7.28 7.01V3.02H8.65V6.98L12.39 5.69Z"
         fill="currentColor"
       />
     </svg>
@@ -72,28 +81,50 @@ const ServerFieldLabel = ({
   labelType,
   htmlFor,
   required,
+  asGroupLabel = false,
 }: {
   text: string;
   labelType?: string;
   htmlFor: string;
   required?: boolean;
+  /** Group fields render the label as a span with stable id; the surrounding
+   * role=group wrapper handles AT association via aria-labelledby. */
+  asGroupLabel?: boolean;
 }) => {
   if (!text) return null;
   const badge = required ? <RequiredBadge /> : null;
+  const labelId = fieldLabelId(htmlFor);
 
   if (labelType && labelType in HEADING_VARIANTS) {
     const { Tag, className } = HEADING_VARIANTS[labelType as HeadingVariant];
     return (
       <div className="flex w-full items-center py-2.5">
-        <Tag className={className}>{text}</Tag>
+        <Tag id={labelId} className={className}>
+          {text}
+        </Tag>
         {badge}
       </div>
+    );
+  }
+
+  if (asGroupLabel) {
+    return (
+      <span
+        id={labelId}
+        data-slot="label"
+        data-bf-field-label
+        className="flex w-full items-center gap-2 py-2.5 text-sm select-none"
+      >
+        <span className="flex-1">{text}</span>
+        {badge}
+      </span>
     );
   }
 
   return (
     <label
       htmlFor={htmlFor}
+      id={labelId}
       data-slot="label"
       className="flex w-full items-center gap-2 py-2.5 text-sm select-none"
     >
@@ -182,17 +213,27 @@ export const renderStepComponent = async (segments: PreviewSegment[]) => {
               return <Field key={item.key} fieldId={field.id} field={field} />;
             }
             const { label, required, labelType } = getFieldLabelProps(field);
+            // Group fields have no single labelable control — wrap them in
+            // role=group with aria-labelledby so AT announces the group label.
+            // Mirrors PreviewInputShell.
+            const isGroup = GROUP_FIELD_TYPES.has(field.fieldType);
+            const groupAriaProps =
+              isGroup && label
+                ? { role: "group" as const, "aria-labelledby": fieldLabelId(field.name) }
+                : {};
             return (
               <div
                 key={item.key}
                 data-bf-input="true"
                 data-bf-standalone={label ? undefined : "true"}
+                {...groupAriaProps}
               >
                 <ServerFieldLabel
                   text={label}
                   labelType={labelType}
                   htmlFor={field.name}
                   required={required}
+                  asGroupLabel={isGroup}
                 />
                 <Field fieldId={field.id} field={field} />
               </div>
@@ -207,19 +248,7 @@ export const renderStepComponent = async (segments: PreviewSegment[]) => {
   return { src, fields };
 };
 
-const VERCEL_BLOB_HOST = ".public.blob.vercel-storage.com";
-const HEX_COLOR_RE = /^#([0-9A-Fa-f]{3}){1,2}$/;
 const PAGE_MAX_WIDTH = `var(--bf-page-width, ${CUSTOMIZATION_AUTO_DEFAULTS.pageWidth})`;
-
-const vercelImg = (url: string, w: number, q = 75) =>
-  url.includes(VERCEL_BLOB_HOST)
-    ? `/_vercel/image?url=${encodeURIComponent(url)}&w=${w}&q=${q}`
-    : url;
-
-const vercelSrcSet = (url: string, widths: number[], q = 75) =>
-  url.includes(VERCEL_BLOB_HOST)
-    ? widths.map((w) => `${vercelImg(url, w, q)} ${w}w`).join(", ")
-    : undefined;
 
 interface PublicFormHeaderData {
   title?: string | null;
@@ -246,7 +275,7 @@ export const renderHeaderComponent = async ({
   cover,
   customization,
 }: PublicFormHeaderData) => {
-  const coverIsHex = !!cover && HEX_COLOR_RE.test(cover);
+  const coverIsHex = !!cover && isHexColor(cover);
   const coverIsUrl = !!cover && isValidUrl(cover);
   const hasCover = coverIsHex || coverIsUrl;
   const iconIsUrl = !!icon && isValidUrl(icon);
@@ -275,14 +304,15 @@ export const renderHeaderComponent = async ({
           )}
           <img
             src={vercelImg(cover, 1200)}
-            srcSet={vercelSrcSet(cover, [640, 960, 1200, 1600])}
+            srcSet={vercelSrcSet(cover, [...COVER_SRCSET_WIDTHS])}
             sizes="100vw"
             alt="Form cover"
             width={1200}
             height={200}
             decoding="async"
+            fetchPriority="high"
             className={cn(
-              "h-full w-full object-cover",
+              "size-full object-cover",
               tinted && "relative z-0 brightness-60 grayscale",
             )}
           />
@@ -300,7 +330,7 @@ export const renderHeaderComponent = async ({
                 width={120}
                 height={120}
                 decoding="async"
-                className="h-[100px] w-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
+                className="size-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
                 data-bf-logo
               />
             </div>
@@ -342,19 +372,33 @@ export const renderThankYouComponent = async (nodes: Value | null) => {
   return createCompositeComponent(() => <ServerPlateBlock nodes={nodes} />);
 };
 
-export const runPublicFormViewRSC = async (data: { id: string }) => {
-  const base = await getPublishedFormById({ data: { id: data.id } });
+export const runPublicFormViewRSC = async (data: { shortId: string }) => {
+  const base = await getPublishedFormByShortId({ data: { shortId: data.shortId } });
 
-  applyFormCacheHeaders(data.id, { gated: !(base.form && !base.gated) });
+  // Cache-Tag must be the UUID so `purgeFormCache(formId)` can invalidate.
+  // When base.form is null (gated/closed/over-limit) the gated:true branch
+  // skips Cache-Tag entirely, so an empty placeholder is fine here.
+  applyFormCacheHeaders(base.form?.id ?? "", { gated: !(base.form && !base.gated) });
 
-  const { steps, thankYouNodes }: PreviewStepResult = base.form
+  const { steps: rawSteps, thankYouNodes }: PreviewStepResult = base.form
     ? transformPlateForPreview(base.form.content as Value)
     : { steps: [], thankYouNodes: null };
+
+  const isFieldByField = base.form?.settings?.presentationMode === "field-by-field";
+  const steps = isFieldByField ? chunkSegmentsForFieldByField(rawSteps) : rawSteps;
+  // Custom icon color lives in the Plate `formHeader` node, not the form row.
+  // Extract here so the field-by-field client header can match the builder.
+  const formHeaderIconColor =
+    isFieldByField && base.form
+      ? (extractFormHeader(base.form.content as Value)?.iconColor ?? null)
+      : null;
 
   const [stepComponents, thankYou, header] = await Promise.all([
     Promise.all(steps.map((segs) => renderStepComponent(segs))),
     renderThankYouComponent(thankYouNodes),
-    base.form
+    // Field-by-field renders its own icon+title header client-side (different
+    // layout: icon beside title, no cover band). Skip the card-mode header.
+    base.form && !isFieldByField
       ? renderHeaderComponent({
           title: base.form.title,
           icon: base.form.icon,
@@ -376,5 +420,6 @@ export const runPublicFormViewRSC = async (data: { id: string }) => {
     thankYou,
     header,
     preloadModuleUrls,
+    formHeaderIconColor,
   };
 };

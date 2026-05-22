@@ -49,7 +49,7 @@ export const DialogContent = ({
     <DialogPrimitive.Popup
       data-slot="dialog-content"
       className={cn(
-        "fixed start-1/2 top-1/2 z-102 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg bg-background p-4 text-sm outline-hidden duration-100 sm:max-w-sm rtl:translate-x-1/2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+        "fixed inset-s-1/2 top-1/2 z-102 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg bg-background p-4 text-sm outline-hidden duration-100 sm:max-w-sm rtl:translate-x-1/2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
         className,
       )}
       {...props}
@@ -58,7 +58,7 @@ export const DialogContent = ({
       {showCloseButton && (
         <DialogPrimitive.Close
           data-slot="dialog-close"
-          render={<Button variant="ghost" className="absolute end-2 top-2" size="icon-sm" />}
+          render={<Button variant="ghost" className="absolute inset-e-2 top-2" size="icon-sm" />}
         >
           <XIcon />
           <span className="sr-only">Close</span>

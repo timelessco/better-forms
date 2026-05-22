@@ -1,7 +1,7 @@
 import { HTMLAttributes, ReactNode, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useDataGrid } from "@/components/ui/data-grid";
+import { useColumnPinned, useColumnSorted, useDataGrid } from "@/components/ui/data-grid";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -16,7 +16,9 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Column } from "@tanstack/react-table";
+import type { Column, RowData } from "@tanstack/table-core";
+
+import type { DataGridFeatures } from "@/components/ui/data-grid";
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "@/components/ui/icons";
 import {
   ArrowDown,
@@ -27,15 +29,18 @@ import {
   Settings2,
 } from "lucide-react";
 
-interface DataGridColumnHeaderProps<TData, TValue> extends HTMLAttributes<HTMLDivElement> {
-  column: Column<TData, TValue>;
+interface DataGridColumnHeaderProps<
+  TData extends RowData,
+  TValue,
+> extends HTMLAttributes<HTMLDivElement> {
+  column: Column<DataGridFeatures, TData, TValue>;
   title?: string;
   icon?: ReactNode;
   filter?: ReactNode;
   visibility?: boolean;
 }
 
-export const DataGridColumnHeader = <TData, TValue>({
+export const DataGridColumnHeader = <TData extends RowData, TValue>({
   column,
   title = "",
   icon,
@@ -44,9 +49,11 @@ export const DataGridColumnHeader = <TData, TValue>({
   visibility = false,
 }: DataGridColumnHeaderProps<TData, TValue>) => {
   const { isLoading, table, props, recordCount } = useDataGrid();
+  const sortDirection = useColumnSorted(table, column.id);
+  const pinDirection = useColumnPinned(table, column.id);
 
   const getColumnPosition = () => {
-    const stateOrder = table.getState().columnOrder;
+    const stateOrder = table.state.columnOrder;
     const order = stateOrder.length > 0 ? stateOrder : table.getAllLeafColumns().map((c) => c.id);
     const index = order.indexOf(column.id);
     return { order, index };
@@ -85,42 +92,41 @@ export const DataGridColumnHeader = <TData, TValue>({
   );
 
   const handleSort = useCallback(() => {
-    const isSorted = column.getIsSorted();
-    if (isSorted === "asc") {
+    if (sortDirection === "asc") {
       column.toggleSorting(true);
-    } else if (isSorted === "desc") {
+    } else if (sortDirection === "desc") {
       column.clearSorting();
     } else {
       column.toggleSorting(false);
     }
-  }, [column]);
+  }, [column, sortDirection]);
 
   const handleUnpin = useCallback(() => column.pin(false), [column]);
 
   const handleSortAsc = useCallback(() => {
-    if (column.getIsSorted() === "asc") {
+    if (sortDirection === "asc") {
       column.clearSorting();
     } else {
       column.toggleSorting(false);
     }
-  }, [column]);
+  }, [column, sortDirection]);
 
   const handleSortDesc = useCallback(() => {
-    if (column.getIsSorted() === "desc") {
+    if (sortDirection === "desc") {
       column.clearSorting();
     } else {
       column.toggleSorting(true);
     }
-  }, [column]);
+  }, [column, sortDirection]);
 
   const handlePinLeft = useCallback(
-    () => column.pin(column.getIsPinned() === "left" ? false : "left"),
-    [column],
+    () => column.pin(pinDirection === "left" ? false : "left"),
+    [column, pinDirection],
   );
 
   const handlePinRight = useCallback(
-    () => column.pin(column.getIsPinned() === "right" ? false : "right"),
-    [column],
+    () => column.pin(pinDirection === "right" ? false : "right"),
+    [column, pinDirection],
   );
 
   const handleMoveLeft = useCallback(() => moveColumn("left"), [moveColumn]);
@@ -129,7 +135,7 @@ export const DataGridColumnHeader = <TData, TValue>({
   const headerButtonProps = {
     variant: "ghost" as const,
     className: cn(
-      "h-full w-full justify-between rounded-none px-2 font-normal text-secondary-foreground/80 hover:bg-transparent! aria-expanded:bg-transparent! data-[state=open]:bg-transparent!",
+      "size-full justify-between rounded-none px-2 font-normal text-secondary-foreground/80 hover:bg-transparent! aria-expanded:bg-transparent! data-[state=open]:bg-transparent!",
       className,
     ),
     disabled: isLoading || recordCount === 0,
@@ -143,9 +149,9 @@ export const DataGridColumnHeader = <TData, TValue>({
         <span className="truncate">{title}</span>
       </span>
       {column.getCanSort() &&
-        (column.getIsSorted() === "desc" ? (
+        (sortDirection === "desc" ? (
           <ArrowDown className="mt-px size-[0.7rem]!" />
-        ) : column.getIsSorted() === "asc" ? (
+        ) : sortDirection === "asc" ? (
           <ArrowUp className="mt-px size-[0.7rem]!" />
         ) : null)}
     </>
@@ -188,14 +194,14 @@ export const DataGridColumnHeader = <TData, TValue>({
               <DropdownMenuItem onClick={handleSortAsc} disabled={!column.getCanSort()}>
                 <ArrowUp className="size-3.5!" />
                 <span className="grow">Asc</span>
-                {column.getIsSorted() === "asc" && (
+                {sortDirection === "asc" && (
                   <CheckIcon className="size-4 text-primary opacity-100!" />
                 )}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSortDesc} disabled={!column.getCanSort()}>
                 <ArrowDown className="size-3.5!" />
                 <span className="grow">Desc</span>
-                {column.getIsSorted() === "desc" && (
+                {sortDirection === "desc" && (
                   <CheckIcon className="size-4 text-primary opacity-100!" />
                 )}
               </DropdownMenuItem>
@@ -211,14 +217,14 @@ export const DataGridColumnHeader = <TData, TValue>({
               <DropdownMenuItem onClick={handlePinLeft}>
                 <ArrowLeftToLine className="size-3.5!" aria-hidden="true" />
                 <span className="grow">Pin to left</span>
-                {column.getIsPinned() === "left" && (
+                {pinDirection === "left" && (
                   <CheckIcon className="size-4 text-primary opacity-100!" />
                 )}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handlePinRight}>
                 <ArrowRightToLine className="size-3.5!" aria-hidden="true" />
                 <span className="grow">Pin to right</span>
-                {column.getIsPinned() === "right" && (
+                {pinDirection === "right" && (
                   <CheckIcon className="size-4 text-primary opacity-100!" />
                 )}
               </DropdownMenuItem>
@@ -257,10 +263,9 @@ export const DataGridColumnHeader = <TData, TValue>({
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuSubContent>
-                  {table
-                    .getAllColumns()
-                    .filter((col) => typeof col.accessorFn !== "undefined" && col.getCanHide())
-                    .map((col) => (
+                  {table.getAllColumns().flatMap((col) => {
+                    if (typeof col.accessorFn === "undefined" || !col.getCanHide()) return [];
+                    return [
                       <DropdownMenuCheckboxItem
                         key={col.id}
                         checked={col.getIsVisible()}
@@ -269,8 +274,9 @@ export const DataGridColumnHeader = <TData, TValue>({
                         className="capitalize"
                       >
                         {col.columnDef.meta?.headerTitle || col.id}
-                      </DropdownMenuCheckboxItem>
-                    ))}
+                      </DropdownMenuCheckboxItem>,
+                    ];
+                  })}
                 </DropdownMenuSubContent>
               </DropdownMenuPortal>
             </DropdownMenuSub>

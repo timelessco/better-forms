@@ -206,7 +206,7 @@ const InlineComboboxInput = ({
     inputRef: contextRef,
     showTrigger,
     trigger,
-  } = React.useContext(InlineComboboxContext);
+  } = React.use(InlineComboboxContext);
 
   // eslint-disable-next-line typescript-eslint/no-non-null-assertion -- context is guaranteed by parent provider
   const store = useComboboxContext()!;
@@ -318,7 +318,7 @@ const InlineComboboxContent = ({
     <Portal>
       <ComboboxPopover
         className={cn(
-          "z-500 w-[300px] rounded-xl bg-popover shadow-md",
+          "z-500 w-[300px] rounded-xl bg-popover elevation-lg",
           hasPreview ? "overflow-visible" : "max-h-[288px] overflow-y-auto",
           className,
         )}
@@ -336,7 +336,7 @@ const InlineComboboxContent = ({
             style={{ paddingLeft: PREVIEW_GAP }}
           >
             <div
-              className="pointer-events-auto rounded-xl bg-popover shadow-md"
+              className="pointer-events-auto rounded-xl bg-popover elevation-lg"
               style={{ width: PREVIEW_WIDTH }}
             >
               {preview({ activeValue })}
@@ -380,7 +380,7 @@ const InlineComboboxItem = ({
   Required<Pick<ComboboxItemProps, "value">>) => {
   const { value } = props;
 
-  const { filter, removeInput } = React.useContext(InlineComboboxContext);
+  const { filter, removeInput } = React.use(InlineComboboxContext);
 
   // eslint-disable-next-line typescript-eslint/no-non-null-assertion -- context is guaranteed by parent provider
   const store = useComboboxContext()!;
@@ -408,7 +408,7 @@ const InlineComboboxItem = ({
 };
 
 const InlineComboboxEmpty = ({ children, className }: React.HTMLAttributes<HTMLDivElement>) => {
-  const { setHasEmpty } = React.useContext(InlineComboboxContext);
+  const { setHasEmpty } = React.use(InlineComboboxContext);
   // eslint-disable-next-line typescript-eslint/no-non-null-assertion -- context is guaranteed by parent provider
   const store = useComboboxContext()!;
   const items = store.useState("items");

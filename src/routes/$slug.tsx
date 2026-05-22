@@ -9,11 +9,13 @@ import Loader from "@/components/ui/loader";
 import { CustomDomainNotFound } from "@/components/ui/custom-domain-not-found";
 import { getCustomDomainFormBySlugRSC } from "@/lib/server-fn/custom-domain-view-rsc";
 import {
-  generateThemeCss,
+  generateDualThemeCss,
   getGoogleFontLinkUrl,
+  getMediaPreconnects,
   GOOGLE_FONTS_PRECONNECTS,
 } from "@/lib/theme/generate-theme-css";
 import { seo } from "@/lib/seo";
+import { getCoverPreloadLinks } from "@/lib/vercel-image";
 
 type PublicTheme = "light" | "dark" | "system";
 
@@ -88,11 +90,11 @@ const CustomDomainSlugRoute = () => {
     dynamicWidth: false,
   };
 
-  const customization = useMemo(
-    () => (rawCustomization ? { ...rawCustomization, mode: resolvedTheme } : rawCustomization),
-    [rawCustomization, resolvedTheme],
-  );
-  const themeCss = useMemo(() => generateThemeCss(customization), [customization]);
+  // Dual-mode CSS — both light and dark tokens emitted, with the root `.dark`
+  // class picking one purely in CSS. Avoids the hydration flash that happens
+  // when single-mode CSS is generated for SSR's default (light) and then
+  // regenerated on the client once `prefers-color-scheme: dark` is read.
+  const themeCss = useMemo(() => generateDualThemeCss(rawCustomization), [rawCustomization]);
 
   const showThemeToggle = defaultMode === "system";
 
@@ -105,6 +107,7 @@ const CustomDomainSlugRoute = () => {
         gated={loaderData?.gated ?? null}
         formId={formId}
         embedConfig={embedConfig}
+        resolvedAppTheme={resolvedTheme}
         rsc={
           loaderData?.form
             ? {
@@ -126,6 +129,18 @@ const CustomDomainSlugRoute = () => {
 };
 
 export const Route = createFileRoute("/$slug")({
+  validateSearch: zodValidator(
+    z.object({
+      transparentBackground: z.boolean().optional().default(false),
+      transparent: z.coerce.boolean().optional(),
+      popup: z.coerce.boolean().optional().default(false),
+      hideTitle: z.coerce.boolean().optional().default(false),
+      alignLeft: z.coerce.boolean().optional().default(false),
+      originPage: z.string().optional(),
+      dynamicHeight: z.coerce.boolean().optional().default(false),
+      dynamicWidth: z.coerce.boolean().optional().default(false),
+    }),
+  ),
   loader: async ({ params }) => {
     try {
       return await getCustomDomainFormBySlugRSC({ data: { slug: params.slug } });
@@ -151,12 +166,18 @@ export const Route = createFileRoute("/$slug")({
         noindex: true,
       }),
       links: [
+        ...getMediaPreconnects(
+          loaderData?.form?.cover,
+          loaderData?.form?.icon,
+          loaderData?.form?.ogImageUrl,
+        ),
         ...(googleFontUrl
           ? [...GOOGLE_FONTS_PRECONNECTS, { rel: "stylesheet", href: googleFontUrl }]
           : []),
         ...(loaderData?.domainMeta?.faviconUrl
           ? [{ rel: "icon", href: loaderData.domainMeta.faviconUrl }]
           : []),
+        ...getCoverPreloadLinks(loaderData?.form?.cover),
       ],
       scripts: [
         {
@@ -173,16 +194,4 @@ export const Route = createFileRoute("/$slug")({
   pendingComponent: Loader,
   errorComponent: ErrorBoundary,
   notFoundComponent: CustomDomainNotFound,
-  validateSearch: zodValidator(
-    z.object({
-      transparentBackground: z.boolean().optional().default(false),
-      transparent: z.coerce.boolean().optional(),
-      popup: z.coerce.boolean().optional().default(false),
-      hideTitle: z.coerce.boolean().optional().default(false),
-      alignLeft: z.coerce.boolean().optional().default(false),
-      originPage: z.string().optional(),
-      dynamicHeight: z.coerce.boolean().optional().default(false),
-      dynamicWidth: z.coerce.boolean().optional().default(false),
-    }),
-  ),
 });

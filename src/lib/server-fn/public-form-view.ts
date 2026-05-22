@@ -3,6 +3,7 @@ import { notFound } from "@tanstack/react-router";
 import { and, count, eq } from "drizzle-orm";
 import { z } from "zod";
 import {
+  customDomains,
   formSettings,
   forms,
   formVersions,
@@ -15,6 +16,7 @@ import { planUnlocks } from "@/lib/config/plan-gates";
 import { resolveOgInputs } from "@/lib/og/resolve-inputs";
 import { buildOgImageUrl } from "@/lib/og/url";
 import { isServerPlan } from "@/lib/server-fn/plan-helpers";
+import { shortIdSchema } from "@/lib/short-id";
 import { buildPublicFormSettings } from "@/types/form-settings";
 
 /**
@@ -23,12 +25,12 @@ import { buildPublicFormSettings } from "@/types/form-settings";
  */
 
 /**
- * Get a published form by ID (public access).
+ * Get a published form by its public Form Short ID.
  * Returns the published version content, not the draft content.
  * Only returns forms with status === "published".
  */
-export const getPublishedFormById = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ id: z.uuid() }))
+export const getPublishedFormByShortId = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ shortId: shortIdSchema }))
   .handler(async ({ data }) => {
     // Settings live in the form_settings table now (split from versioning —
     // see docs/plans/2026-05-04-settings-version-split.md). Editor content
@@ -37,6 +39,9 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
     const [form] = await db
       .select({
         id: forms.id,
+        shortId: forms.shortId,
+        slug: forms.slug,
+        customDomain: customDomains.domain,
         status: forms.status,
         lastPublishedVersionId: forms.lastPublishedVersionId,
         liveSettings: formSettings.settings,
@@ -50,7 +55,8 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
       .innerJoin(workspaces, eq(workspaces.id, forms.workspaceId))
       .innerJoin(organization, eq(organization.id, workspaces.organizationId))
       .leftJoin(formSettings, eq(formSettings.formId, forms.id))
-      .where(and(eq(forms.id, data.id), eq(forms.status, "published")));
+      .leftJoin(customDomains, eq(customDomains.id, forms.customDomainId))
+      .where(and(eq(forms.shortId, data.shortId), eq(forms.status, "published")));
 
     if (!form) {
       throw notFound();
@@ -109,7 +115,7 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
       const [{ value: submissionCount }] = await db
         .select({ value: count() })
         .from(submissions)
-        .where(eq(submissions.formId, data.id));
+        .where(eq(submissions.formId, form.id));
       if (submissionCount >= settings.maxSubmissions) {
         return {
           form: null,
@@ -134,7 +140,7 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
       icon: form.draftIcon,
     });
     const ogImageUrl = buildOgImageUrl({
-      formId: form.id,
+      shortId: form.shortId,
       title: og.title,
       description: og.description,
     });
@@ -144,6 +150,9 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
       return {
         form: {
           id: form.id,
+          shortId: form.shortId,
+          slug: form.slug,
+          customDomain: form.customDomain,
           title: version.title,
           content: version.content as object[],
           customization: (version.customization ?? {}) as Record<string, string>,
@@ -165,6 +174,9 @@ export const getPublishedFormById = createServerFn({ method: "GET" })
     return {
       form: {
         id: form.id,
+        shortId: form.shortId,
+        slug: form.slug,
+        customDomain: form.customDomain,
         title: form.draftTitle,
         content: form.draftContent as object[],
         customization: {} as Record<string, string>,

@@ -1,5 +1,5 @@
-import { animate, motion, useMotionValue, useTransform } from "motion/react";
-import { useEffect, useRef } from "react";
+import { animate, domAnimation, LazyMotion, m, useMotionValue, useTransform } from "motion/react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { cn } from "@/lib/utils";
 import {
   classifyDirection,
@@ -75,6 +75,8 @@ export const MobileSidebarDrawer = ({
     animate(x, open ? 0 : -DRAWER_WIDTH_PX, SPRING_CONFIG);
   }, [open, x]);
 
+  const notifyOpenChange = useEffectEvent((next: boolean) => onOpenChange(next));
+
   useEffect(() => {
     // `touchmove` is attached lazily (only while a gesture is in flight)
     // rather than permanently, so passive-scroll optimizations aren't
@@ -83,6 +85,7 @@ export const MobileSidebarDrawer = ({
 
     const attachMove = () => {
       if (moveAttached) return;
+      // eslint-disable-next-line react-doctor/client-passive-event-listeners -- handler intentionally calls preventDefault to suppress page scroll during drawer drag; passive listeners would silently ignore preventDefault
       document.addEventListener("touchmove", onTouchMove, { passive: false });
       moveAttached = true;
     };
@@ -165,7 +168,7 @@ export const MobileSidebarDrawer = ({
       gestureRef.current = freshGesture();
 
       animate(x, shouldOpen ? 0 : -DRAWER_WIDTH_PX, { ...SPRING_CONFIG, velocity });
-      if (shouldOpen !== openRef.current) onOpenChange(shouldOpen);
+      if (shouldOpen !== openRef.current) notifyOpenChange(shouldOpen);
     };
 
     document.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -178,20 +181,20 @@ export const MobileSidebarDrawer = ({
       document.removeEventListener("touchcancel", onTouchEnd);
       detachMove();
     };
-  }, [onOpenChange, x]);
+  }, [x]);
 
   return (
-    <>
-      <motion.div
+    <LazyMotion features={domAnimation} strict>
+      <m.div
         aria-hidden
         style={{
           opacity: overlayOpacity,
           pointerEvents: open ? "auto" : "none",
         }}
-        className="fixed inset-0 z-40 bg-black"
+        className="fixed inset-0 z-40 bg-neutral-950"
         onClick={() => onOpenChange(false)}
       />
-      <motion.aside
+      <m.aside
         role="dialog"
         aria-modal="true"
         aria-label="Sidebar"
@@ -204,7 +207,7 @@ export const MobileSidebarDrawer = ({
         data-no-drawer-swipe
       >
         {children}
-      </motion.aside>
-    </>
+      </m.aside>
+    </LazyMotion>
   );
 };

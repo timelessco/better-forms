@@ -8,11 +8,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuPortal,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -30,12 +26,7 @@ import {
   StarIcon,
   TrashIcon,
 } from "@/components/ui/icons";
-import {
-  createFormLocal,
-  moveFormToWorkspaceLocal,
-  renameFormLocal,
-  toggleFavoriteLocal,
-} from "@/collections";
+import { createFormLocal, moveFormToWorkspaceLocal, toggleFavoriteLocal } from "@/collections";
 import { useSession } from "@/lib/auth/auth-client";
 import { cn } from "@/lib/utils";
 import {
@@ -180,70 +171,98 @@ export const WorkspaceItemMinimal = ({
         label={workspace.name}
         initialOpen={true}
         action={
-          <DropdownMenu onOpenChange={handlePopoverOpenChange}>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="hover:bg-sidebar-active mr-1 overflow-hidden rounded-lg p-[5px] text-muted-foreground hover:text-foreground"
-                  title="More options"
-                  onPointerDown={(e) => e.stopPropagation()}
-                />
-              }
+          <>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="overflow-hidden rounded-lg p-[5px] text-muted-foreground"
+              title="New form"
+              aria-label="New form"
+              disabled={isCreatingForm}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleCreateForm();
+              }}
             >
-              <MoreHorizontalIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48" sideOffset={4}>
-              <Collapsible open={sortExpanded} onOpenChange={setSortExpanded}>
-                <CollapsibleTrigger className="inline-flex h-[26px] w-full cursor-pointer items-center gap-1.5 overflow-hidden rounded-lg px-2 py-[5.5px] text-[13px] text-foreground transition-colors">
-                  <currentSort.icon className="size-4 shrink-0" />
-                  <span className="flex-1 text-left">{currentSort.label}</span>
-                  <ChevronDownIcon
-                    className={cn("size-3 shrink-0 transition-transform duration-200")}
+              {isCreatingForm ? <Loader2Icon className="animate-spin" /> : <PlusIcon />}
+            </Button>
+            <DropdownMenu onOpenChange={handlePopoverOpenChange}>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="hover:bg-sidebar-active mr-1 overflow-hidden rounded-lg p-[5px] text-muted-foreground hover:text-foreground"
+                    title="More options"
+                    onPointerDown={(e) => e.stopPropagation()}
                   />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0">
-                  <div className="flex flex-col pt-1">
-                    <DropdownMenuGroup>
-                      <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                      {sortOptions.map((option) => (
-                        <DropdownMenuItem
-                          key={option.value}
-                          closeOnClick={false}
-                          onClick={() => {
-                            onSortChange(option.value);
-                            setSortExpanded(false);
-                          }}
-                          className={cn(sortMode === option.value && "bg-black/5")}
-                        >
-                          <option.icon />
-                          <span className="flex-1 text-left">{option.label}</span>
-                          {sortMode === option.value && <CheckIcon className="size-3 shrink-0" />}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuGroup>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Workspace</DropdownMenuLabel>
-                <DropdownMenuItem onClick={handleCreateForm} disabled={isCreatingForm}>
-                  {isCreatingForm ? <Loader2Icon className="size-4 animate-spin" /> : <PlusIcon />}
-                  <span className="flex-1 text-left">New form</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onRename(workspace)}>
-                  <Pencil2Icon />
-                  <span className="flex-1 text-left">Rename</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={() => onDelete(workspace)}>
-                  <TrashIcon />
-                  <span className="flex-1 text-left">Delete</span>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                }
+              >
+                <MoreHorizontalIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48" sideOffset={4}>
+                <div
+                  onMouseEnter={() => setSortExpanded(true)}
+                  onMouseLeave={() => setSortExpanded(false)}
+                >
+                  <Collapsible open={sortExpanded} onOpenChange={setSortExpanded}>
+                    <CollapsibleTrigger className="inline-flex h-[26px] w-full cursor-pointer items-center gap-1.5 overflow-hidden rounded-lg px-2 py-[5.5px] text-[13px] text-foreground transition-colors">
+                      <currentSort.icon className="size-4 shrink-0" />
+                      <span className="flex-1 text-left">{currentSort.label}</span>
+                      <ChevronDownIcon
+                        className={cn("size-3 shrink-0 transition-transform duration-200")}
+                      />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0">
+                      <div className="flex flex-col pt-1">
+                        <DropdownMenuGroup>
+                          <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                          {sortOptions.map((option) => (
+                            <DropdownMenuItem
+                              key={option.value}
+                              closeOnClick={false}
+                              onClick={() => {
+                                onSortChange(option.value);
+                                setSortExpanded(false);
+                              }}
+                              className={cn(sortMode === option.value && "bg-black/5")}
+                            >
+                              <option.icon />
+                              <span className="flex-1 text-left">{option.label}</span>
+                              {sortMode === option.value && (
+                                <CheckIcon className="size-3 shrink-0" />
+                              )}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuGroup>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Workspace</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={handleCreateForm} disabled={isCreatingForm}>
+                    {isCreatingForm ? (
+                      <Loader2Icon className="size-4 animate-spin" />
+                    ) : (
+                      <PlusIcon />
+                    )}
+                    <span className="flex-1 text-left">New form</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onRename(workspace)}>
+                    <Pencil2Icon />
+                    <span className="flex-1 text-left">Rename</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onClick={() => onDelete(workspace)}>
+                    <TrashIcon />
+                    <span className="flex-1 text-left">Delete</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
         }
       >
         <DndContext
@@ -297,6 +316,7 @@ const LiteSidebarSection = ({
   action?: React.ReactNode;
   initialOpen?: boolean;
 }) => {
+  // eslint-disable-next-line react-doctor/no-derived-useState -- uncontrolled component with initial-value pattern; later prop changes intentionally do not override user toggling
   const [open, setOpen] = useState(initialOpen);
   const toggle = useCallback(() => setOpen((prev) => !prev), []);
 
@@ -380,7 +400,7 @@ const WorkspaceFormMinimal = ({
 }: WorkspaceFormMinimalProps) => {
   const { data: session } = useSession();
   const userId = session?.user?.id;
-  const [renameOpen, setRenameOpen] = useState(false);
+  const [moveExpanded, setMoveExpanded] = useState(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: form.id,
@@ -429,7 +449,16 @@ const WorkspaceFormMinimal = ({
       {...listeners}
       className="group/row relative"
     >
-      <SidebarItem label={label} linkOptions={linkOptions} isActive={isActive} prefix={prefix}>
+      <SidebarItem
+        label={label}
+        linkOptions={linkOptions}
+        isActive={isActive}
+        prefix={prefix}
+        // Reserve space for the absolute-positioned options button so the
+        // truncated title's ellipsis doesn't end up underneath it.
+        className="group-hover/row:pe-7 group-has-[[data-state=open]]/row:pe-7"
+      >
+        {/* eslint-disable-next-line react-doctor/rendering-conditional-render -- showCount is a derived boolean (isPublished && submissionCount > 0); cannot render numeric 0 */}
         {showCount && (
           <span className="shrink-0 font-case text-[11px] tracking-5 text-muted-foreground tabular-nums transition-opacity group-hover/row:opacity-0 group-has-[[data-state=open]]/row:opacity-0">
             {submissionCount}
@@ -467,10 +496,6 @@ const WorkspaceFormMinimal = ({
                 {isDuplicating ? "Duplicating…" : "Duplicate"}
               </span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setRenameOpen(true)}>
-              <Pencil2Icon />
-              <span className="flex-1 text-left">Rename</span>
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={handleToggleFavorite} disabled={!userId}>
               <StarIcon className="size-3.5" />
               <span className="flex-1 text-left">
@@ -478,21 +503,39 @@ const WorkspaceFormMinimal = ({
               </span>
             </DropdownMenuItem>
             {otherWorkspaces.length > 0 && (
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <FolderIcon className="size-3.5" />
-                  <span className="flex-1 text-left">Move to workspace</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                  <DropdownMenuSubContent className="w-48">
-                    {otherWorkspaces.map((ws) => (
-                      <DropdownMenuItem key={ws.id} onClick={() => handleMoveToWorkspace(ws.id)}>
-                        <span className="flex-1 truncate text-left">{ws.name}</span>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-              </DropdownMenuSub>
+              <div
+                onMouseEnter={() => setMoveExpanded(true)}
+                onMouseLeave={() => setMoveExpanded(false)}
+              >
+                <Collapsible open={moveExpanded} onOpenChange={setMoveExpanded}>
+                  <CollapsibleTrigger className="inline-flex h-[26px] w-full cursor-pointer items-center gap-1.5 overflow-hidden rounded-lg px-2 py-[5.5px] text-[13px] text-foreground transition-colors hover:bg-accent">
+                    <FolderIcon className="size-3.5 shrink-0" />
+                    <span className="flex-1 text-left">Move to workspace</span>
+                    <ChevronDownIcon
+                      className={cn(
+                        "size-3 shrink-0 transition-transform duration-200",
+                        moveExpanded && "rotate-180",
+                      )}
+                    />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0">
+                    <div className="flex flex-col pt-1">
+                      {otherWorkspaces.map((ws) => (
+                        <DropdownMenuItem
+                          key={ws.id}
+                          closeOnClick={false}
+                          onClick={() => {
+                            handleMoveToWorkspace(ws.id);
+                            setMoveExpanded(false);
+                          }}
+                        >
+                          <span className="flex-1 truncate text-left">{ws.name}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
             )}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
@@ -505,54 +548,6 @@ const WorkspaceFormMinimal = ({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {renameOpen && (
-        <InlineRenameForm
-          initialValue={form.title || ""}
-          onClose={() => setRenameOpen(false)}
-          onSubmit={(next) => {
-            renameFormLocal(form.id, next).catch(() => toast.error("Failed to rename form"));
-            setRenameOpen(false);
-          }}
-        />
-      )}
     </div>
-  );
-};
-
-const InlineRenameForm = ({
-  initialValue,
-  onSubmit,
-  onClose,
-}: {
-  initialValue: string;
-  onSubmit: (value: string) => void;
-  onClose: () => void;
-}) => {
-  const [value, setValue] = useState(initialValue);
-
-  return (
-    <form
-      className="px-2 py-1"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const trimmed = value.trim();
-        if (trimmed) onSubmit(trimmed);
-        else onClose();
-      }}
-    >
-      <input
-        // biome-ignore lint/a11y/noAutofocus: rename input should focus immediately
-        autoFocus
-        type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={onClose}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-        }}
-        className="w-full rounded-md bg-secondary px-2 py-1 text-[13px] ring-1 ring-foreground/20 outline-hidden"
-        aria-label="Rename form"
-      />
-    </form>
   );
 };

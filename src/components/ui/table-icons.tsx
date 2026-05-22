@@ -12,7 +12,7 @@ export const BorderAllIcon = (props: LucideProps) => (
     <title>Border All</title>
     <path
       clipRule="evenodd"
-      d="M0.25 1C0.25 0.585786 0.585786 0.25 1 0.25H14C14.4142 0.25 14.75 0.585786 14.75 1V14C14.75 14.4142 14.4142 14.75 14 14.75H1C0.585786 14.75 0.25 14.4142 0.25 14V1ZM1.75 1.75V13.25H13.25V1.75H1.75Z"
+      d="M0.25 1C0.25 0.59 0.59 0.25 1 0.25H14C14.41 0.25 14.75 0.59 14.75 1V14C14.75 14.41 14.41 14.75 14 14.75H1C0.59 14.75 0.25 14.41 0.25 14V1ZM1.75 1.75V13.25H13.25V1.75H1.75Z"
       fill="currentColor"
       fillRule="evenodd"
     />
@@ -85,7 +85,7 @@ export const BorderLeftIcon = (props: LucideProps) => (
     <title>Border Left</title>
     <path
       clipRule="evenodd"
-      d="M1.75 1L1.75 14L0.249999 14L0.25 1L1.75 1Z"
+      d="M1.75 1L1.75 14L0.25 14L0.25 1L1.75 1Z"
       fill="currentColor"
       fillRule="evenodd"
     />
@@ -357,7 +357,7 @@ export const BorderTopIcon = (props: LucideProps) => (
     <title>Border Top</title>
     <path
       clipRule="evenodd"
-      d="M14 1.75L1 1.75L1 0.249999L14 0.25L14 1.75Z"
+      d="M14 1.75L1 1.75L1 0.25L14 0.25L14 1.75Z"
       fill="currentColor"
       fillRule="evenodd"
     />

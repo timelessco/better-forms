@@ -1,3 +1,4 @@
+import { MAX_OG_TITLE_LENGTH, clampOgText } from "@/lib/og/limits";
 import { THEME_COLORS } from "@/lib/theme/theme-presets";
 
 const DEFAULT_ACCENT = THEME_COLORS.neutral.primary;
@@ -19,6 +20,9 @@ export const OgCard = ({ title, description, iconUrl, themeColorName }: OgCardPr
   const accent =
     (themeColorName && THEME_COLORS[themeColorName as keyof typeof THEME_COLORS]?.primary) ||
     DEFAULT_ACCENT;
+
+  // Clamp at render time only (post-hash, so existing OG URLs stay valid).
+  const renderedTitle = clampOgText(title, MAX_OG_TITLE_LENGTH);
 
   return (
     <div
@@ -80,7 +84,7 @@ export const OgCard = ({ title, description, iconUrl, themeColorName }: OgCardPr
             display: "flex",
           }}
         >
-          {title}
+          {renderedTitle}
         </div>
         {description ? (
           <div

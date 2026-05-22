@@ -9,7 +9,7 @@ import {
   findNextNonButtonPath,
   findPrevNonButtonPath,
   moveToPath,
-} from "@/components/editor/plugins/form-blocks-kit";
+} from "@/components/editor/plugins/form-blocks-utils";
 import { BlockSelection } from "@/components/ui/block-selection";
 import { TagIcon, XIcon } from "@/components/ui/icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -72,7 +72,7 @@ export const FormMultiSelectInputElement = ({ children, ...props }: PlateElement
         if (focusedChipIndex >= options.length - 1) {
           setFocusedChipIndex(null);
         } else {
-          setFocusedChipIndex(focusedChipIndex + 1);
+          setFocusedChipIndex((prev) => (prev === null ? null : prev + 1));
         }
         return;
       }
@@ -181,7 +181,7 @@ export const FormMultiSelectInputElement = ({ children, ...props }: PlateElement
     <PlateElement
       attributes={{ ...attributes, "data-bf-input": "true" }}
       className={cn(
-        "relative flex min-h-7 w-full max-w-[464px] cursor-default items-center rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-2 py-1 text-sm shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]",
+        "relative flex min-h-7 w-full max-w-[464px] cursor-default items-center rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-2 py-1 text-sm elevation-sm",
         isSelected && focused && "ring-[3px] ring-ring/50",
       )}
       element={element}

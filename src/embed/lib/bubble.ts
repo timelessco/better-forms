@@ -7,8 +7,8 @@ import { preconnectOrigin, warmupFormOnIntent } from "./warmup";
 
 type PopupCallback = (formId: string, options: PopupOptions) => void;
 
-/** data-form-id values must be UUID-ish — guards against path traversal. */
-const FORM_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
+/** data-form-id holds the Form Short ID (7-char base62) — guards against path traversal. */
+const FORM_ID_RE = /^[A-Za-z0-9]{7}$/;
 
 /** data-* attributes read as config rather than treated as hidden fields. */
 const KNOWN_CONFIG_KEYS = new Set([
@@ -172,7 +172,7 @@ const setBubbleContent = (
   }
 
   replaceBubbleContent(btn, buildDefaultIcon());
-  fetch(`${origin}/api/icons/${icon}.svg`)
+  fetch(`${origin}/api/icons/${icon}`)
     .then((r) => (r.ok ? r.text() : null))
     .then((text) => {
       if (!text) return;

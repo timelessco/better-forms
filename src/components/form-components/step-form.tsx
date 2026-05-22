@@ -1,20 +1,25 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
-import { useContext, useMemo, useRef } from "react";
+import { use, useMemo, useRef, useState } from "react";
 import { useFocusFirstField } from "@/hooks/use-focus-first-field";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { Button } from "@/components/ui/button";
 import { useStepForm } from "@/contexts/step-form-context";
 import { useTranslation } from "@/contexts/translation-context";
 import { useStepPreviewForm } from "@/hooks/use-preview-form";
-import { fireQuestionProgress } from "@/lib/analytics/track-client";
+import { enqueueQuestionProgress } from "@/lib/analytics/track-client";
 import { getFieldsFromSegments } from "@/lib/editor/transform-plate-for-preview";
 import type { FieldSegment, PreviewSegment } from "@/lib/editor/transform-plate-for-preview";
+import type { QuestionRef } from "@/lib/forms/extract-questions";
 import { StaticContentBlock } from "./static-content-block";
 import { PreviewRendererContext, RenderStepPreviewInput } from "./render-step-preview-input";
 
 interface StepFormProps {
   stepIndex: number;
   segments: PreviewSegment[];
+  /** Pre-computed Questions in this Step with global question indices. Used
+   * by the per-Question analytics emitters; safe to omit in non-tracking
+   * previews (the emitters no-op when `tracking` is null). */
+  questions?: QuestionRef[];
   isLastStep: boolean;
   autoActionButton?: boolean;
 }
@@ -26,21 +31,24 @@ interface StepFormProps {
 export const StepForm = ({
   stepIndex,
   segments,
+  questions,
   isLastStep,
   autoActionButton = false,
 }: StepFormProps) => {
   const { currentStep, totalSteps, goToPrevStep, isSubmitting, tracking } = useStepForm();
   const { t } = useTranslation();
-  const Renderer = useContext(PreviewRendererContext) ?? RenderStepPreviewInput;
+  const Renderer = use(PreviewRendererContext) ?? RenderStepPreviewInput;
   const fields = useMemo(() => getFieldsFromSegments(segments), [segments]);
+  const stepQuestions = useMemo<QuestionRef[]>(() => questions ?? [], [questions]);
   const hasAuthoredButton = useMemo(
     () => segments.some((seg) => seg.type === "field" && seg.field.fieldType === "Button"),
     [segments],
   );
   const showAutoActionButton = autoActionButton && !hasAuthoredButton;
 
-  const { form, formName } = useStepPreviewForm({
+  const { form, formName, handleFieldFocus } = useStepPreviewForm({
     fields,
+    questions: stepQuestions,
     stepIndex,
     isLastStep,
     formName: `stepForm-${stepIndex}`,
@@ -49,47 +57,98 @@ export const StepForm = ({
   const groupedItems = useMemo(() => groupSegmentsForRendering(segments), [segments]);
 
   const formRef = useRef<HTMLFormElement>(null);
+  const [isTextareaFocused, setIsTextareaFocused] = useState(false);
 
-  // Field-by-field uses Shift+Enter to advance because plain Enter is needed
-  // for newlines inside textareas. Suppress plain-Enter submit on non-textarea
-  // inputs to keep the shortcut consistent across every step.
+  // Field-by-field shortcuts. Runs in CAPTURE phase so we intercept Enter
+  // before child handlers (e.g. Base UI Checkbox toggling on Enter).
+  // - Enter → advance/submit. Textareas keep native newline unless Cmd/Ctrl
+  //   is held. Navigation buttons (Next/Submit, outside [data-bf-input]) keep
+  //   native Enter. Widget triggers and checkbox/option buttons inside a
+  //   question get Enter→advance; users press Space to interact with those.
+  // - Esc → go back one step. When a popover is open, focus is inside the
+  //   portaled content (outside the form), so this handler doesn't fire and
+  //   the popover gets to close first.
   const handleFieldByFieldKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
-    if (event.key !== "Enter") return;
-    if (event.shiftKey) {
+    // React events bubble through the React tree, so portaled UI (combobox
+    // listbox, popovers rendered with createPortal) still reaches our form
+    // handler. Bail when the DOM target isn't a descendant of the form so
+    // those popups can handle their own Enter/Esc (e.g. selecting a country
+    // in the phone-input combobox).
+    const target = event.target as HTMLElement | null;
+    if (target && formRef.current && !formRef.current.contains(target)) return;
+
+    if (event.key === "Escape") {
+      if (currentStep === 0) return;
+      // Defensive: bail if a popover trigger inside this form is currently
+      // open. Focus should normally be in the popover (portaled), but if it
+      // somehow stays on the trigger we don't want Esc to navigate away.
+      if (formRef.current?.querySelector('[aria-expanded="true"]')) return;
       event.preventDefault();
-      formRef.current?.requestSubmit();
+      event.stopPropagation();
+      goToPrevStep();
       return;
     }
-    // Allow Enter to keep its native behavior on textareas (newline) and on
-    // buttons (click — so Tab → Next + Enter still advances). Only suppress
-    // the implicit form submit triggered by Enter on a single-line input.
-    const target = event.target as HTMLElement;
-    if (target.tagName === "INPUT") {
-      event.preventDefault();
-    }
+
+    if (event.key !== "Enter") return;
+    if (!target) return;
+    const isInQuestion = target.closest("[data-bf-input]") !== null;
+    const isNavButton =
+      (target.tagName === "BUTTON" || target.getAttribute("role") === "button") && !isInQuestion;
+    if (isNavButton) return;
+
+    const isTextarea = target.tagName === "TEXTAREA";
+    const isMetaEnter = event.metaKey || event.ctrlKey;
+
+    if (isTextarea && !isMetaEnter) return;
+
+    // stopPropagation prevents widget keydown handlers (Base UI PopoverTrigger,
+    // Checkbox, etc.) from also reacting to Enter — otherwise the popover
+    // flashes open for a frame before the next step replaces it.
+    event.preventDefault();
+    event.stopPropagation();
+    formRef.current?.requestSubmit();
+  };
+
+  const handleTextareaFocusChange =
+    (focused: boolean) => (event: React.FocusEvent<HTMLFormElement>) => {
+      if ((event.target as HTMLElement).tagName === "TEXTAREA") {
+        setIsTextareaFocused(focused);
+      }
+    };
+
+  // Compose form-level onFocus: textarea-state tracking (field-by-field
+  // chrome) plus the per-Question analytics `start` emitter. Focus bubbles
+  // so any input inside the form-tag reaches this handler.
+  const handleFormFocus = (event: React.FocusEvent<HTMLFormElement>) => {
+    if (autoActionButton) handleTextareaFocusChange(true)(event);
+    handleFieldFocus(event);
   };
 
   useFocusFirstField(formRef);
 
-  // Fire `view` analytics event when this step mounts. No-ops in builder
-  // previews (tracking is null) or single-page forms (mode is null) or
-  // before recordFormVisit resolves (visitId is null).
+  // Fire one `view` event per Question in this Step on mount. No-ops in
+  // builder previews (tracking is null) or before recordFormVisit resolves
+  // (visitId is null). The last Question of the final Step carries the
+  // `wasLastQuestion` flag so the funnel can identify terminal Questions.
   useMountEffect(() => {
     if (!(tracking?.visitId && tracking.mode)) return;
-    const isFieldByField = tracking.mode === "field-by-field";
-    const firstField = fields.length > 0 ? fields[0] : null;
-    const questionId = isFieldByField && firstField ? firstField.id : `step_${stepIndex}`;
-    const questionType = isFieldByField && firstField ? (firstField.fieldType ?? null) : null;
-    fireQuestionProgress({
-      visitId: tracking.visitId,
-      formId: tracking.formId,
-      visitorHash: tracking.visitorHash,
-      questionId,
-      questionType,
-      questionIndex: stepIndex,
-      event: "view",
-      wasLastQuestion: isLastStep,
-    });
+    const visitId = tracking.visitId;
+    const lastIndex = stepQuestions.length - 1;
+    for (let i = 0; i < stepQuestions.length; i++) {
+      const q = stepQuestions[i];
+      enqueueQuestionProgress({
+        visitId,
+        formId: tracking.formId,
+        visitorHash: tracking.visitorHash,
+        questionId: q.questionId,
+        questionType: q.questionType,
+        questionIndex: q.questionIndex,
+        stepId: q.stepId,
+        stepIndex: q.stepIndex,
+        event: "view",
+        wasLastQuestion: isLastStep && i === lastIndex,
+      });
+    }
   });
 
   return (
@@ -99,7 +158,9 @@ export const StepForm = ({
         ref={formRef}
         noValidate
         data-bf-field-list
-        onKeyDown={autoActionButton ? handleFieldByFieldKeyDown : undefined}
+        onKeyDownCapture={autoActionButton ? handleFieldByFieldKeyDown : undefined}
+        onFocus={handleFormFocus}
+        onBlur={autoActionButton ? handleTextareaFocusChange(false) : undefined}
         className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         {groupedItems.map((item) => {
@@ -164,7 +225,7 @@ export const StepForm = ({
             }
 
             return (
-              <div key={field.id} className="w-full" data-bf-input>
+              <div key={field.id} className="w-full" data-bf-input data-bf-question-id={field.id}>
                 <Renderer element={field} form={form} />
               </div>
             );
@@ -188,15 +249,27 @@ export const StepForm = ({
             </Button>
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               press{" "}
-              <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
-                Shift
-              </kbd>
-              +
+              {isTextareaFocused && (
+                <>
+                  <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
+                    ⌘
+                  </kbd>
+                  +
+                </>
+              )}
               <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
                 Enter
               </kbd>
               <span aria-hidden="true">↵</span>
             </span>
+            {currentStep > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
+                  Esc
+                </kbd>
+                to go back
+              </span>
+            )}
           </div>
         )}
       </form.Form>

@@ -5,7 +5,13 @@ import { getFormListings, isInitialized } from "@/collections";
 import { getFormVersions } from "@/lib/server-fn/form-versions";
 import { getFormbyIdQueryOption, getFormStatus } from "@/lib/server-fn/forms";
 import type { FormStatus } from "@/lib/server-fn/forms";
+import {
+  importCustomizeSidebar,
+  importFormSettingsSidebar,
+  importShareSummarySidebar,
+} from "@/routes/_authenticated/-components/lazy-modules";
 import { createFileRoute, isRedirect, Outlet, redirect, useLocation } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 const FormLayout = () => {
   const pathname = useLocation({ select: (s) => s.pathname });
@@ -13,6 +19,16 @@ const FormLayout = () => {
   const formIdFromPath = pathname.split("/form-builder/")[1]?.split("/")[0] || "";
   const params = Route.useParams();
   const formId = formIdFromPath || params.formId;
+
+  // Warm the right-sidebar chunks in the background so the first open of
+  // Settings / Share / Customize doesn't flash an empty panel behind
+  // <Suspense fallback={null}>. Version History is intentionally skipped — it's
+  // opened rarely, so lazy-on-click is fine.
+  useEffect(() => {
+    void importFormSettingsSidebar();
+    void importShareSummarySidebar();
+    void importCustomizeSidebar();
+  }, []);
 
   // Hide header on edit route (editor has its own full-screen layout)
   const isEditRoute = pathname.includes("/form-builder/") && pathname.includes("/edit");
@@ -37,40 +53,38 @@ const FormLayout = () => {
 
 export const Route = createFileRoute("/_authenticated/workspace/$workspaceId/form-builder/$formId")(
   {
+    ssr: false,
     beforeLoad: async ({ context, params, location }) => {
       const isExactParentRoute =
         location.pathname === `/workspace/${params.workspaceId}/form-builder/${params.formId}` ||
         location.pathname === `/workspace/${params.workspaceId}/form-builder/${params.formId}/`;
 
       if (isExactParentRoute) {
+        let status: FormStatus | undefined;
         try {
           const cachedForm = getFormListings().get(params.formId);
-          let status = cachedForm?.status as FormStatus | undefined;
+          status = cachedForm?.status as FormStatus | undefined;
 
           if (!status) {
             status = await getFormStatus(context.queryClient, params.formId);
-          }
-
-          if (status === "published") {
-            throw redirect({
-              to: "/workspace/$workspaceId/form-builder/$formId/submissions",
-              params: { workspaceId: params.workspaceId, formId: params.formId },
-            });
-          } else {
-            throw redirect({
-              to: "/workspace/$workspaceId/form-builder/$formId/edit",
-              params: { workspaceId: params.workspaceId, formId: params.formId },
-            });
           }
         } catch (error: unknown) {
           if (isRedirect(error)) {
             throw error;
           }
+          // Fall through to default redirect to edit
+        }
+
+        if (status === "published") {
           throw redirect({
-            to: "/workspace/$workspaceId/form-builder/$formId/edit",
+            to: "/workspace/$workspaceId/form-builder/$formId/submissions",
             params: { workspaceId: params.workspaceId, formId: params.formId },
           });
         }
+        throw redirect({
+          to: "/workspace/$workspaceId/form-builder/$formId/edit",
+          params: { workspaceId: params.workspaceId, formId: params.formId },
+        });
       }
     },
     loader: async ({ context, params }) => {
@@ -95,7 +109,6 @@ export const Route = createFileRoute("/_authenticated/workspace/$workspaceId/for
     staleTime: 30_000,
     gcTime: 5 * 60_000,
     component: FormLayout,
-    ssr: false,
     pendingComponent: Loader,
     errorComponent: ErrorBoundary,
     notFoundComponent: NotFound,

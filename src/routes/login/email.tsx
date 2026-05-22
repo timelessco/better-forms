@@ -9,22 +9,26 @@ import { Input } from "@/components/ui/input";
 import { revalidateLogic, useAppForm } from "@/components/ui/tanstack-form";
 import { authClient } from "@/lib/auth/auth-client";
 import { guestMiddleware } from "@/lib/auth/middleware";
+import { isSafeRedirect } from "@/lib/auth/safe-redirect";
 import { Logo } from "@/components/ui/logo";
 
 const emailSchema = z.object({
   email: z.email({ error: "Please enter a valid email address" }),
 });
 
-const SAFE_REDIRECT_PATTERN = /^\/[a-zA-Z0-9\-_/$.~]+$/;
-
 const EmailLoginPage = () => {
+  // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value gates between login form and "check your email" view in JSX
   const [sent, setSent] = React.useState(false);
   const [sentEmail, setSentEmail] = React.useState("");
   const { redirect: redirectTo } = Route.useSearch();
+  const emailInputRef = React.useRef<HTMLInputElement>(null);
+  React.useEffect(() => {
+    emailInputRef.current?.focus();
+  }, []);
 
-  const callbackURL =
-    redirectTo && SAFE_REDIRECT_PATTERN.test(redirectTo) ? redirectTo : "/dashboard";
+  const callbackURL = isSafeRedirect(redirectTo) ? redirectTo : "/dashboard";
 
+  // eslint-disable-next-line react-doctor/query-mutation-missing-invalidation -- magic link sends email; no cache to invalidate
   const magicLinkMutation = useMutation({
     mutationFn: async (emailAddress: string) => {
       const result = await authClient.signIn.magicLink({
@@ -111,7 +115,7 @@ const EmailLoginPage = () => {
                         aria-label="Email address"
                         autoComplete="email"
                         name="email"
-                        autoFocus
+                        ref={emailInputRef}
                         value={field.state.value ?? ""}
                         onBlur={field.handleBlur}
                         onChange={(e) => field.handleChange(e.target.value)}
@@ -133,7 +137,7 @@ const EmailLoginPage = () => {
               size="lg"
             >
               {isPending ? (
-                <Loader2Icon className="h-4 w-4 animate-spin" aria-label="Loading" />
+                <Loader2Icon className="size-4 animate-spin" aria-label="Loading" />
               ) : (
                 "Continue with Email"
               )}

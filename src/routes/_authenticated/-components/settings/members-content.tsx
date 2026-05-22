@@ -132,7 +132,7 @@ export const MembersContent = () => {
                           className="h-4 px-1.5 py-0 text-[10px] capitalize"
                         >
                           {invitation.status === "pending" && (
-                            <ClockIcon className="mr-1 h-2.5 w-2.5" />
+                            <ClockIcon className="mr-1 size-2.5" />
                           )}
                           {invitation.status}
                         </Badge>
@@ -148,7 +148,7 @@ export const MembersContent = () => {
                         }
                         disabled={cancelInvitationMutation.isPending}
                         aria-label="Cancel invitation"
-                        className="h-[30px] shrink-0 cursor-pointer rounded-lg bg-white px-3 text-[13px] text-destructive shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] transition-colors hover:bg-gray-50"
+                        className="h-[30px] shrink-0 cursor-pointer rounded-lg bg-white px-3 text-[13px] text-destructive shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] transition-colors hover:bg-neutral-50"
                       >
                         <XIcon className="size-3.5" />
                       </button>
@@ -166,7 +166,7 @@ export const MembersContent = () => {
           <p className="text-[13px] text-[var(--gray-600)]">Manage members of your organization.</p>
           <div className="flex flex-col gap-2">
             {isLoadingMembers ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">Loading members...</p>
+              <p className="py-4 text-center text-sm text-muted-foreground">Loading members…</p>
             ) : members.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">No members yet</p>
             ) : (
@@ -199,7 +199,7 @@ export const MembersContent = () => {
                         }
                         disabled={removeMemberMutation.isPending}
                         aria-label="Remove member"
-                        className="h-[30px] shrink-0 cursor-pointer rounded-lg bg-white px-3 text-[13px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] transition-colors hover:bg-gray-50"
+                        className="h-[30px] shrink-0 cursor-pointer rounded-lg bg-white px-3 text-[13px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] transition-colors hover:bg-neutral-50"
                       >
                         <Trash2Icon className="size-3.5 text-destructive" />
                       </button>

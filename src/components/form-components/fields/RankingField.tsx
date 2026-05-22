@@ -1,13 +1,11 @@
 import { ChevronsUpDownIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
-import { extractErrorMessage } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
 const RankingField = ({ element, form }: FieldRendererProps<"Ranking">) => (
   <form.AppField name={element.name}>
     {(f) => {
       const hasErrors = f.state.meta.errors.length > 0 && f.state.meta.isTouched;
-      const errorMessage = hasErrors ? extractErrorMessage(f.state.meta.errors[0]) : "";
       const rankedValues = (f.state.value as string[] | undefined) ?? [];
 
       const handleRankClick = (optionValue: string) => {
@@ -31,9 +29,10 @@ const RankingField = ({ element, form }: FieldRendererProps<"Ranking">) => (
         <>
           <div className="flex flex-col gap-2">
             {[
-              ...rankedValues
-                .map((v) => element.options.find((o) => o.value === v))
-                .filter((o): o is { value: string; label: string } => Boolean(o)),
+              ...rankedValues.flatMap((v) => {
+                const opt = element.options.find((o) => o.value === v);
+                return opt ? [opt] : [];
+              }),
               ...element.options.filter((o) => !rankedValues.includes(o.value)),
             ].map((option) => {
               const rankIndex = rankedValues.indexOf(option.value);
@@ -67,7 +66,7 @@ const RankingField = ({ element, form }: FieldRendererProps<"Ranking">) => (
               );
             })}
           </div>
-          {hasErrors && <p className="text-sm text-destructive">{errorMessage}</p>}
+          <f.FieldError />
         </>
       );
     }}

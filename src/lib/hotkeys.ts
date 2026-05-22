@@ -19,12 +19,15 @@ export const HOTKEYS = {
   DISMISS_SIDEBARS: "Mod+.",
   // Dashboard — scoped
   DASHBOARD_SELECT_ALL: "Mod+A",
-  DASHBOARD_DELETE: "Delete",
+  // Mac laptops emit Backspace for the labeled "Delete" key; full keyboards
+  // emit Delete for the forward-delete key. Call sites bind both via
+  // `useHotkeys`; this constant is the primary used in tooltips/labels.
+  DASHBOARD_DELETE: "Backspace",
   DASHBOARD_CLEAR_SELECTION: "Escape",
   // Submissions page — scoped
   SUBMISSIONS_SELECT_ALL: "Mod+A",
-  SUBMISSIONS_EXPORT: "Mod+Shift+X",
-  SUBMISSIONS_DELETE: "Delete",
+  SUBMISSIONS_EXPORT: "Mod+E",
+  SUBMISSIONS_DELETE: "Backspace",
   SUBMISSIONS_CLEAR_SELECTION: "Escape",
 } as const satisfies Record<string, Hotkey>;
 

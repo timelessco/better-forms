@@ -94,7 +94,7 @@ export const BillingContent = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <Loader2Icon aria-hidden="true" className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2Icon aria-hidden="true" className="size-8 animate-spin text-muted-foreground" />
       </div>
     );
   }

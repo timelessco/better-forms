@@ -55,7 +55,7 @@ export const EmojiPopover = ({
   setIsOpen: (open: boolean) => void;
 }) => (
   <Popover open={isOpen} onOpenChange={setIsOpen}>
-    <PopoverTrigger nativeButton={false} render={control} />
+    <PopoverTrigger render={control} />
     <PopoverContent className="z-100 p-2.5">{children}</PopoverContent>
   </Popover>
 );
@@ -87,7 +87,7 @@ export const EmojiPicker = ({
   <div
     className={cn(
       "flex flex-col rounded-xl bg-popover text-popover-foreground",
-      "h-[23rem] w-80 border shadow-md",
+      "h-[23rem] w-80 elevation-xl",
     )}
   >
     <EmojiPickerNavigation

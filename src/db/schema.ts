@@ -156,6 +156,8 @@ export const forms = pgTable(
   "forms",
   {
     id: text().primaryKey(), // UUID generated client-side
+    // Public form identifier; never exposes the internal UUID. See ADR-0001.
+    shortId: text().notNull().unique(),
     createdByUserId: text().references(() => user.id, { onDelete: "set null" }),
     workspaceId: text()
       .notNull()
@@ -251,6 +253,14 @@ export const formVersions = pgTable(
     icon: text(), // Visual asset snapshot
     cover: text(), // Visual asset snapshot
     publishedByUserId: text().references(() => user.id, { onDelete: "set null" }),
+    // Denormalized publisher snapshot — captured at publish time so the
+    // version history audit trail survives user deletion, name changes, and
+    // any Better Auth profile drift. Authoritative for "who published this
+    // version"; the FK above is only useful for "is this still the same
+    // active user". Both columns are nullable because legacy rows predate
+    // the snapshot.
+    publishedByName: text(),
+    publishedByImage: text(),
     publishedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -456,6 +466,9 @@ export const formQuestionProgress = pgTable(
     questionType: text(),
     questionIndex: integer().notNull(),
 
+    stepId: text(),
+    stepIndex: integer(),
+
     viewedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     startedAt: timestamp({ withTimezone: true }),
     completedAt: timestamp({ withTimezone: true }),
@@ -466,6 +479,7 @@ export const formQuestionProgress = pgTable(
   (t) => [
     index("idx_form_question_progress_form_id").on(t.formId),
     index("idx_form_question_progress_visit_id").on(t.visitId),
+    uniqueIndex("uq_form_question_progress_visit_question").on(t.visitId, t.questionId),
   ],
 );
 
@@ -516,7 +530,10 @@ export const formDropoffDaily = pgTable(
     formId: text()
       .notNull()
       .references(() => forms.id, { onDelete: "cascade" }),
-    date: text().notNull(), // 'YYYY-MM-DD'
+    date: text().notNull(),
+
+    stepId: text(),
+    stepIndex: integer(),
     questionId: text().notNull(),
     questionIndex: integer().notNull(),
 
@@ -524,7 +541,8 @@ export const formDropoffDaily = pgTable(
     startCount: integer().notNull().default(0),
     completeCount: integer().notNull().default(0),
     dropoffCount: integer().notNull().default(0),
-    dropoffRate: integer(), // Percentage * 100
+    terminalDropoffCount: integer().notNull().default(0),
+    dropoffRate: integer(),
     completionRate: integer(),
 
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

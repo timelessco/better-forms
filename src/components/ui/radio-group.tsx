@@ -24,7 +24,7 @@ export const RadioGroupItem = ({ className, ...props }: RadioPrimitive.Root.Prop
       data-slot="radio-group-indicator"
       className="flex size-4 items-center justify-center"
     >
-      <span className="absolute start-1/2 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-foreground rtl:translate-x-1/2" />
+      <span className="absolute inset-s-1/2 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-foreground rtl:translate-x-1/2" />
     </RadioPrimitive.Indicator>
   </RadioPrimitive.Root>
 );

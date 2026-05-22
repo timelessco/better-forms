@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { createPublicSubmission } from "@/lib/server-fn/public-submissions";
 
 const draftKey = (formId: string) => `bf-draft-${formId}`;
+const draftDataKey = (formId: string) => `bf-draft-data-${formId}`;
 
 /**
  * Read the persisted draftId for a form, or generate and persist a fresh one.
@@ -34,8 +35,41 @@ export const clearDraftId = (formId: string) => {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(draftKey(formId));
+    localStorage.removeItem(draftDataKey(formId));
   } catch {
     // localStorage unavailable
+  }
+};
+
+/**
+ * Local mirror of the in-progress draft. Read on every page load to decide
+ * whether to show the resume prompt without a server roundtrip. The server
+ * still has the canonical row (for the operator's submissions dashboard);
+ * this is just the read-path cache.
+ */
+export interface LocalDraft {
+  data: Record<string, unknown>;
+  lastStepReached: number | null;
+  savedAt: number;
+}
+
+export const readLocalDraft = (formId: string): LocalDraft | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(draftDataKey(formId));
+    if (!raw) return null;
+    return JSON.parse(raw) as LocalDraft;
+  } catch {
+    return null;
+  }
+};
+
+const writeLocalDraft = (formId: string, payload: LocalDraft): void => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(draftDataKey(formId), JSON.stringify(payload));
+  } catch {
+    // quota / private mode — server save still happened, just no local resume
   }
 };
 
@@ -73,6 +107,15 @@ export const useDraftAutoSave = (formId: string) => {
         return true;
       });
       if (!hasAnyValue) return;
+
+      // Mirror locally first so a tab closed mid-flight still leaves a
+      // resumable copy. The read-path uses this; the server row is only for
+      // the operator's submissions dashboard.
+      writeLocalDraft(formId, {
+        data: sanitized,
+        lastStepReached,
+        savedAt: Date.now(),
+      });
 
       const draftId = getOrCreateDraftId(formId);
       try {

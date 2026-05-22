@@ -7,7 +7,7 @@ export const TailwindIndicator = () => {
   return (
     <div
       aria-hidden
-      className="fixed bottom-1 left-1 z-50 flex size-6 items-center justify-center rounded-full bg-gray-800 pb-0.5 text-xs text-white"
+      className="fixed bottom-1 left-1 z-50 flex size-6 items-center justify-center rounded-full bg-neutral-800 pb-0.5 text-xs text-white"
     >
       <div className="block sm:hidden">xs</div>
       <div className="hidden sm:block md:hidden">sm</div>

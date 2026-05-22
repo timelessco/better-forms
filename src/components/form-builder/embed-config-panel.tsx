@@ -559,28 +559,30 @@ const ProSection = ({
   const [draftSlug, setDraftSlug] = useState<string>(formSlug ?? defaultSlug);
 
   // Re-sync draft with incoming props when the server-side value changes
-  // (e.g. another tab wrote, or the publish flow refetched).
-  const [lastDocBranding, setLastDocBranding] = useState(docBranding);
-  if (lastDocBranding !== docBranding) {
-    setLastDocBranding(docBranding);
-    setDraftBranding(docBranding ?? true);
-  }
-  const [lastDocAnalytics, setLastDocAnalytics] = useState(docAnalytics);
-  if (lastDocAnalytics !== docAnalytics) {
-    setLastDocAnalytics(docAnalytics);
-    setDraftAnalytics(docAnalytics ?? false);
-  }
-  const [lastCustomDomainId, setLastCustomDomainId] = useState(customDomainId);
-  if (lastCustomDomainId !== customDomainId) {
-    setLastCustomDomainId(customDomainId);
-    setDraftDomainId(customDomainId ?? null);
-  }
-  const [lastFormSlug, setLastFormSlug] = useState(formSlug);
-  const [lastDefaultSlug, setLastDefaultSlug] = useState(defaultSlug);
-  if (lastFormSlug !== formSlug || lastDefaultSlug !== defaultSlug) {
-    setLastFormSlug(formSlug);
-    setLastDefaultSlug(defaultSlug);
-    setDraftSlug(formSlug ?? defaultSlug);
+  // (e.g. another tab wrote, or the publish flow refetched). Tracking the
+  // previous prop snapshot in one tuple lets us run a single comparison per
+  // render — see https://react.dev/reference/react/useState#storing-information-from-previous-renders
+  const [previousInputs, setPreviousInputs] = useState({
+    docBranding,
+    docAnalytics,
+    customDomainId,
+    formSlug,
+    defaultSlug,
+  });
+  if (
+    previousInputs.docBranding !== docBranding ||
+    previousInputs.docAnalytics !== docAnalytics ||
+    previousInputs.customDomainId !== customDomainId ||
+    previousInputs.formSlug !== formSlug ||
+    previousInputs.defaultSlug !== defaultSlug
+  ) {
+    setPreviousInputs({ docBranding, docAnalytics, customDomainId, formSlug, defaultSlug });
+    if (previousInputs.docBranding !== docBranding) setDraftBranding(docBranding ?? true);
+    if (previousInputs.docAnalytics !== docAnalytics) setDraftAnalytics(docAnalytics ?? false);
+    if (previousInputs.customDomainId !== customDomainId) setDraftDomainId(customDomainId ?? null);
+    if (previousInputs.formSlug !== formSlug || previousInputs.defaultSlug !== defaultSlug) {
+      setDraftSlug(formSlug ?? defaultSlug);
+    }
   }
 
   const draftSelectedDomain = useMemo(

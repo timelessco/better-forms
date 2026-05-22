@@ -4,6 +4,7 @@
  * This utility creates a Zod schema object from the validation properties
  * stored in the Plate editor nodes, enabling runtime form validation in preview mode.
  */
+import { isValidPhoneNumber } from "react-phone-number-input";
 import { z } from "zod";
 import type { ZodType } from "zod";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
@@ -43,11 +44,42 @@ export const generateZodSchemaFromFields = (fields: PlateFormField[]): z.ZodObje
           : z.union([z.literal(""), z.string().regex(urlRegex, "Please enter a valid URL")]);
         break;
       }
-      case "Number":
+      case "Number": {
+        let numberSchema = z.coerce.number({ error: "Please enter a valid number" });
+        if (field.allowDecimals === false) {
+          numberSchema = numberSchema.int("Decimals are not allowed");
+        }
+        if (typeof field.min === "number") {
+          numberSchema = numberSchema.min(field.min, `Value must be at least ${field.min}`);
+        }
+        if (typeof field.max === "number") {
+          numberSchema = numberSchema.max(field.max, `Value must be at most ${field.max}`);
+        }
+        // `Number("")` is 0, so a required Number with an empty input would
+        // silently coerce to 0 and pass. Preprocess "" → undefined so the
+        // downstream number schema sees undefined and rejects it with the
+        // standard required-field error.
         fieldSchema = field.required
-          ? z.coerce.number({ error: "Please enter a valid number" })
-          : z.union([z.literal(""), z.coerce.number({ error: "Please enter a valid number" })]);
+          ? z.preprocess(
+              (val) => (val === "" || val === null || val === undefined ? undefined : val),
+              numberSchema,
+            )
+          : z.union([z.literal(""), numberSchema]);
         break;
+      }
+      case "Phone": {
+        // PhoneInput emits E.164 strings (e.g. "+919360992440"). Validate the
+        // phone-number format with libphonenumber, not character-count limits
+        // that may have been written onto the node before Phone was split out
+        // of the text-like settings UI.
+        const phoneSchema = z
+          .string()
+          .refine((v) => isValidPhoneNumber(v), "Please enter a valid phone number");
+        fieldSchema = field.required
+          ? z.string().min(1, "This field is required").pipe(phoneSchema)
+          : z.union([z.literal(""), phoneSchema]);
+        break;
+      }
       case "Date":
         fieldSchema = field.required
           ? z.string({ error: "This field is required" }).nonempty("Please select a date")

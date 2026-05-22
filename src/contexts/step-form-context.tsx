@@ -35,6 +35,56 @@ type StepFormContextValue = {
   tracking: PublicFormTracking | null;
 };
 
+type StepFormState = {
+  currentStep: number;
+  direction: number;
+  formData: Record<string, unknown>;
+  isSubmitting: boolean;
+  isSubmitted: boolean;
+};
+
+type StepFormAction =
+  | { type: "next-step"; formData: Record<string, unknown>; totalSteps: number }
+  | { type: "prev-step" }
+  | { type: "submit-start" }
+  | { type: "submit-success" }
+  | { type: "submit-end" }
+  | { type: "reset" };
+
+const stepFormReducer = (state: StepFormState, action: StepFormAction): StepFormState => {
+  switch (action.type) {
+    case "next-step":
+      return {
+        ...state,
+        formData: action.formData,
+        direction: 1,
+        currentStep: Math.min(state.currentStep + 1, action.totalSteps - 1),
+      };
+    case "prev-step":
+      return {
+        ...state,
+        direction: -1,
+        currentStep: Math.max(state.currentStep - 1, 0),
+      };
+    case "submit-start":
+      return { ...state, isSubmitting: true };
+    case "submit-success":
+      return { ...state, isSubmitted: true };
+    case "submit-end":
+      return { ...state, isSubmitting: false };
+    case "reset":
+      return {
+        currentStep: 0,
+        direction: 0,
+        formData: {},
+        isSubmitting: false,
+        isSubmitted: false,
+      };
+    default:
+      return state;
+  }
+};
+
 const StepFormContext = React.createContext<StepFormContextValue | null>(null);
 
 export const useStepForm = () => {
@@ -78,49 +128,43 @@ export const StepFormProvider = ({
     saveAnswersForLater,
   );
 
-  const [currentStep, setCurrentStep] = React.useState(initialCurrentStep ?? 0);
-  const [direction, setDirection] = React.useState(0);
-  const [formData, setFormData] = React.useState<Record<string, unknown>>(() => {
-    if (initialFormData) return initialFormData;
-    if (saveAnswersForLater) {
-      return loadSavedData() ?? {};
-    }
-    return {};
-  });
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [isSubmitted, setIsSubmitted] = React.useState(false);
+  const [state, dispatch] = React.useReducer(stepFormReducer, undefined, () => ({
+    currentStep: initialCurrentStep ?? 0,
+    direction: 0,
+    formData: initialFormData ?? (saveAnswersForLater ? (loadSavedData() ?? {}) : {}),
+    isSubmitting: false,
+    isSubmitted: false,
+  }));
+  const { currentStep, direction, formData, isSubmitting, isSubmitted } = state;
 
   const formDataRef = useAsRef(formData);
 
   const goToNextStep = React.useCallback(
     (stepData: Record<string, unknown>) => {
       const next = { ...formDataRef.current, ...stepData };
-      setFormData(next);
       if (Object.keys(next).length > 0) saveData(next);
-      setDirection(1);
-      setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
+      dispatch({ type: "next-step", formData: next, totalSteps });
     },
     // eslint-disable-next-line eslint-plugin-react-hooks/exhaustive-deps -- formDataRef is a stable ref
     [totalSteps, saveData],
   );
 
   const goToPrevStep = React.useCallback(() => {
-    setDirection(-1);
-    setCurrentStep((prev) => Math.max(prev - 1, 0));
+    dispatch({ type: "prev-step" });
   }, []);
 
   const submitForm = React.useCallback(
     async (finalStepData: Record<string, unknown>) => {
       const allData = { ...formDataRef.current, ...finalStepData };
-      setIsSubmitting(true);
+      dispatch({ type: "submit-start" });
       try {
         if (onSubmit) {
           await onSubmit(allData);
         }
         clearSavedData();
-        setIsSubmitted(true);
+        dispatch({ type: "submit-success" });
       } finally {
-        setIsSubmitting(false);
+        dispatch({ type: "submit-end" });
       }
     },
     // eslint-disable-next-line eslint-plugin-react-hooks/exhaustive-deps -- formDataRef is a stable ref
@@ -128,11 +172,7 @@ export const StepFormProvider = ({
   );
 
   const reset = React.useCallback(() => {
-    setCurrentStep(0);
-    setDirection(0);
-    setFormData({});
-    setIsSubmitting(false);
-    setIsSubmitted(false);
+    dispatch({ type: "reset" });
   }, []);
 
   const value = React.useMemo<StepFormContextValue>(

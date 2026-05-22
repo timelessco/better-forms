@@ -66,7 +66,7 @@ export default function AvatarUpload({
         <Button
           variant="ghost"
           className={cn(
-            "group/avatar relative h-24 w-24 cursor-pointer overflow-hidden rounded-full border border-dashed p-0",
+            "group/avatar relative size-24 cursor-pointer overflow-hidden rounded-full border border-dashed p-0",
             isDragging
               ? "border-primary bg-primary/5"
               : "border-muted-foreground/25 hover:border-muted-foreground/20 hover:bg-transparent",
@@ -86,10 +86,10 @@ export default function AvatarUpload({
               alt="Avatar"
               width={96}
               height={96}
-              className="h-full w-full object-cover"
+              className="size-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center">
+            <div className="flex size-full items-center justify-center">
               <UserIcon className="size-6 text-muted-foreground" />
             </div>
           )}
@@ -101,7 +101,7 @@ export default function AvatarUpload({
             size="icon"
             variant="outline"
             onClick={handleRemove}
-            className="absolute end-0 top-0 size-6 rounded-full"
+            className="absolute inset-e-0 top-0 size-6 rounded-full"
             aria-label="Remove avatar"
           >
             <XIcon className="size-3.5" />

@@ -21,10 +21,13 @@ const makeDaily = (
     date,
     questionId,
     questionIndex,
+    stepId: null,
+    stepIndex: null,
     viewCount: 0,
     startCount: 0,
     completeCount: 0,
     dropoffCount: 0,
+    terminalDropoffCount: 0,
     dropoffRate: null,
     completionRate: null,
     createdAt: baseTimestamp,
@@ -49,6 +52,8 @@ const makeProgress = (
     questionId,
     questionType: null,
     questionIndex,
+    stepId: null,
+    stepIndex: null,
     viewedAt: baseTimestamp,
     startedAt: null,
     completedAt: null,
@@ -247,6 +252,66 @@ describe("mergeDropoffMetrics", () => {
     expect(result.totalCompleted).toBe(30);
     // 30 / 80 = 0.375 → round → 38
     expect(result.overallCompletionRate).toBe(38);
+  });
+
+  it("reports cross-step drop-off when a visitor completes step N but never views step N+1", () => {
+    // Funnel: 3 visitors view+complete steps 1–3, only 2 of them ever reach
+    // steps 4–6. The visitor who completed step 3 and bailed should show up
+    // as a drop-off at step 4 (33%), not as 0% just because step 4's
+    // viewers→completers ratio is intact.
+    const dailyRows = [
+      makeDaily({
+        date: "2026-04-26",
+        questionId: "q1",
+        questionIndex: 0,
+        viewCount: 3,
+        startCount: 3,
+        completeCount: 3,
+      }),
+      makeDaily({
+        date: "2026-04-26",
+        questionId: "q2",
+        questionIndex: 1,
+        viewCount: 3,
+        startCount: 3,
+        completeCount: 3,
+      }),
+      makeDaily({
+        date: "2026-04-26",
+        questionId: "q3",
+        questionIndex: 2,
+        viewCount: 3,
+        startCount: 3,
+        completeCount: 3,
+      }),
+      makeDaily({
+        date: "2026-04-26",
+        questionId: "q4",
+        questionIndex: 3,
+        viewCount: 2,
+        startCount: 2,
+        completeCount: 2,
+      }),
+    ];
+
+    const result = mergeDropoffMetrics({
+      formId: "form-1",
+      startDate: "2026-04-26",
+      endDate: "2026-04-26",
+      dailyRows,
+      todayProgressRows: [],
+    });
+
+    const [q1, q2, q3, q4] = result.questions;
+    // Step 1 has no prior step — intra-step drop applies (and it's zero here).
+    expect(q1.dropoffRate).toBe(0);
+    expect(q1.dropoffCount).toBe(0);
+    // Steps 2 and 3 retain the full cohort.
+    expect(q2.dropoffRate).toBe(0);
+    expect(q3.dropoffRate).toBe(0);
+    // Step 4 is where the visitor dropped off — 1 of 3 = 33%.
+    expect(q4.dropoffCount).toBe(1);
+    expect(q4.dropoffRate).toBe(33);
   });
 
   it("computes dropoffRate and completionRate from view/complete counts", () => {

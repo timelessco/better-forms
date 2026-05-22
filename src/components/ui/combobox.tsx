@@ -58,7 +58,7 @@ export const ComboboxInput = ({
 }) => (
   <InputGroup
     className={cn(
-      "placeholder:text-gray-alpha-600 w-auto min-w-[80px] flex-1 rounded-xl bg-accent px-2.5 py-1.75 text-base outline-none",
+      "placeholder:text-gray-alpha-600 w-auto min-w-20 flex-1 rounded-xl bg-accent text-base outline-none",
       className,
     )}
   >
@@ -66,7 +66,7 @@ export const ComboboxInput = ({
       render={
         <InputGroupInput
           disabled={disabled}
-          className="placeholder:text-gray-alpha-600 min-w-[80px] outline-none"
+          className="placeholder:text-gray-alpha-600 min-w-20 px-0 outline-none"
         />
       }
       {...props}
@@ -114,7 +114,7 @@ export const ComboboxContent = ({
         data-slot="combobox-content"
         data-chips={!!anchor}
         className={cn(
-          "w-(--anchor-width) origin-(--transform-origin) rounded-2xl bg-popover text-popover-foreground shadow-[0_0_1px_0_rgba(0,0,0,0.19),0_1px_2px_0_rgba(0,0,0,0.07),0_6px_15px_-5px_rgba(0,0,0,0.11)] ring-1 ring-foreground/10 transition-[scale,opacity,shadow] data-starting-style:scale-98 data-starting-style:opacity-0",
+          "w-(--anchor-width) origin-(--transform-origin) rounded-2xl bg-popover text-popover-foreground elevation-xl transition-[scale,opacity] data-starting-style:scale-98 data-starting-style:opacity-0",
           className,
         )}
         {...props}
@@ -135,7 +135,7 @@ export const ComboboxItem = ({ className, children, ...props }: ComboboxPrimitiv
   <ComboboxPrimitive.Item
     data-slot="combobox-item"
     className={cn(
-      "group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-[5px] font-case text-[13px] text-foreground transition-colors select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+      "group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.25 font-case text-[13px] text-foreground transition-colors select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
       className,
     )}
     {...props}
@@ -147,7 +147,7 @@ export const ComboboxItem = ({ className, children, ...props }: ComboboxPrimitiv
         <span className="text-plain data-selected:text-plain ml-auto flex size-4 shrink-0 items-center justify-center opacity-0 data-selected:opacity-100" />
       }
     >
-      <CheckIcon className="pointer-events-none text-gray-800" />
+      <CheckIcon className="pointer-events-none text-neutral-800" />
     </ComboboxPrimitive.ItemIndicator>
   </ComboboxPrimitive.Item>
 );
@@ -172,7 +172,7 @@ export const ComboboxEmpty = ({ className, ...props }: ComboboxPrimitive.Empty.P
   <ComboboxPrimitive.Empty
     data-slot="combobox-empty"
     className={cn(
-      "text-13 hidden w-full justify-center px-2 py-[5px] text-gray-500 group-data-empty/combobox-content:flex",
+      "text-13 hidden w-full justify-center px-2 py-1.25 text-gray-500 group-data-empty/combobox-content:flex",
       className,
     )}
     {...props}
@@ -194,7 +194,7 @@ export const ComboboxChips = ({
   <ComboboxPrimitive.Chips
     data-slot="combobox-chips"
     className={cn(
-      "bg-gray-alpha-100 relative flex min-h-[30px] w-full flex-wrap items-center gap-1 rounded-lg px-[3px] py-[3px] focus-within:ring-2 focus-within:ring-gray-200",
+      "bg-gray-alpha-100 relative flex min-h-7.5 w-full flex-wrap items-center gap-1 rounded-lg px-0.75 py-0.75 focus-within:ring-2 focus-within:ring-gray-200",
       className,
     )}
     {...props}
@@ -212,7 +212,7 @@ export const ComboboxChip = ({
   <ComboboxPrimitive.Chip
     data-slot="combobox-chip"
     className={cn(
-      "font-450 flex cursor-pointer items-center gap-1.5 rounded-[6px] bg-gray-100 px-2 py-[4.5px] text-xs text-gray-800 transition-colors outline-none hover:bg-gray-200 focus-visible:ring-2 focus-visible:ring-gray-200 has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:opacity-50 has-data-[slot=combobox-chip-remove]:pe-0",
+      "font-450 flex cursor-pointer items-center gap-1.5 rounded-md bg-gray-100 px-2 py-[4.5px] text-xs text-gray-800 transition-colors outline-none hover:bg-gray-200 focus-visible:ring-2 focus-visible:ring-gray-200 has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:opacity-50 has-data-[slot=combobox-chip-remove]:pe-0",
       className,
     )}
     {...props}
@@ -234,7 +234,7 @@ export const ComboboxChipsInput = ({ className, ...props }: ComboboxPrimitive.In
   <ComboboxPrimitive.Input
     data-slot="combobox-chip-input"
     className={cn(
-      "text-13 placeholder:text-gray-alpha-600 min-w-[80px] flex-1 bg-transparent px-2.5 outline-none",
+      "text-13 placeholder:text-gray-alpha-600 min-w-20 flex-1 bg-transparent px-2.5 outline-none",
       className,
     )}
     {...props}

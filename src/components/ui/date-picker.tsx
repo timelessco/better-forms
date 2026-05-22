@@ -12,6 +12,11 @@ interface DatePickerProps {
   className?: string;
   /** Trigger label shown when no date is selected. Defaults to "Pick a date". */
   placeholder?: string;
+  /** id forwarded to the trigger button so `<label htmlFor>` resolves. */
+  id?: string;
+  name?: string;
+  "aria-labelledby"?: string;
+  "aria-invalid"?: boolean;
 }
 
 export const DatePicker = ({
@@ -19,6 +24,10 @@ export const DatePicker = ({
   onChange,
   className,
   placeholder = "Pick a date",
+  id,
+  name,
+  "aria-labelledby": ariaLabelledBy,
+  "aria-invalid": ariaInvalid,
 }: DatePickerProps) => {
   const [date, setDate] = React.useState<Date | undefined>(() => {
     if (value) {
@@ -52,14 +61,21 @@ export const DatePicker = ({
         render={
           <button
             type="button"
+            id={id}
+            name={name}
+            aria-labelledby={ariaLabelledBy}
+            aria-invalid={ariaInvalid}
             data-empty={!date}
             className={cn(
-              "inline-flex h-[30px] w-full items-center justify-start rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-1.5 pl-2.5 text-left text-sm font-normal shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)]",
-              !date && "text-muted-foreground",
+              "inline-flex h-[30px] w-full items-center justify-start rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-1.5 pl-2.5 text-left text-sm font-normal elevation-sm",
+              // Track foreground (not the themable muted token) so
+              // custom-themed forms can't drop placeholder contrast below
+              // WCAG AA. 70% of gray-950 ≈ gray-700, ~7:1 on gray-50 bg.
+              !date && "text-foreground/70",
               className,
             )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
+            <CalendarIcon className="mr-2 size-4" />
             {displayText}
           </button>
         }

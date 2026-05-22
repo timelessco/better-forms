@@ -59,6 +59,11 @@ export interface PopupInstance {
   loadingEl?: HTMLElement;
   /** True while pre-mounted on hover but not yet revealed to the user. */
   hidden?: boolean;
+  /** Highest content height the iframe has reported this session. Popup
+   *  height is monotonically non-decreasing — when the form transitions
+   *  from a tall step (e.g. all fields) to a short one (Thank You), the
+   *  popup keeps the larger size so the chrome doesn't jump/shrink. */
+  maxContentHeight?: number;
 }
 
 /** Events sent from iframe to parent */

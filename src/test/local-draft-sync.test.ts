@@ -12,27 +12,12 @@ import {
   createTestForm,
   cleanupTestUser,
   cleanupTestOrg,
+  toFormListing,
 } from "@/test/helpers";
 
 const fetchFormListings = async (formId: string): Promise<FormListing[]> => {
   const [f] = await db.select().from(forms).where(eq(forms.id, formId));
-  if (!f) return [];
-  return [
-    {
-      id: f.id,
-      title: f.title,
-      status: f.status,
-      workspaceId: f.workspaceId,
-      content: f.content as unknown[],
-      customization: (f.customization ?? {}) as Record<string, unknown>,
-      formName: f.formName,
-      schemaName: f.schemaName,
-      icon: f.icon,
-      createdAt: f.createdAt.toISOString(),
-      updatedAt: f.updatedAt.toISOString(),
-      submissionCount: 0,
-    },
-  ];
+  return f ? [toFormListing(f)] : [];
 };
 
 describe("local draft sync without Electric txids", () => {

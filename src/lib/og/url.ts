@@ -2,7 +2,7 @@ import { APP_WEBSITE_URL } from "@/lib/config/app-config";
 import { computeOgHash } from "@/lib/og/hash";
 
 export type BuildOgImageUrlInput = {
-  formId: string;
+  shortId: string;
   title: string;
   description: string;
 };
@@ -16,7 +16,7 @@ export type BuildOgImageUrlInput = {
  * so an unchanged republish keeps the URL (and the edge cache hit) and
  * a content-changed republish rotates to a fresh URL.
  */
-export const buildOgImageUrl = ({ formId, title, description }: BuildOgImageUrlInput): string => {
+export const buildOgImageUrl = ({ shortId, title, description }: BuildOgImageUrlInput): string => {
   const hash = computeOgHash({ title, description });
-  return `${APP_WEBSITE_URL}/api/og/${formId}/${hash}.png`;
+  return `${APP_WEBSITE_URL}/api/og/${shortId}/${hash}.png`;
 };

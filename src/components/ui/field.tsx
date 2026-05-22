@@ -152,6 +152,7 @@ export const FieldError = ({
 }: React.ComponentProps<"div"> & {
   errors?: Array<{ message?: string } | undefined>;
 }) => {
+  // eslint-disable-next-line react-doctor/rerender-memo-before-early-return -- the memo's null return IS the early-exit signal; result is required to know whether to render the alert
   const content = useMemo(() => {
     if (children) {
       return children;

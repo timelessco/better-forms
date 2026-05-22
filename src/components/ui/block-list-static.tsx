@@ -15,7 +15,7 @@ const TodoMarkerStatic = (props: SlateRenderElementProps) => {
       <Button
         variant="ghost"
         className={cn(
-          "peer pointer-events-none absolute top-1/2 -left-6 size-4 h-4 w-4 shrink-0 -translate-y-1/2 rounded-sm border border-primary bg-background p-0 ring-offset-background hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
+          "peer pointer-events-none absolute top-1/2 -left-6 size-4 shrink-0 -translate-y-1/2 rounded-sm border border-primary bg-background p-0 ring-offset-background hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
           props.className,
         )}
         data-state={checked ? "checked" : "unchecked"}

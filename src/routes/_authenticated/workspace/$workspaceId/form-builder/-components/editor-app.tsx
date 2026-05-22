@@ -65,14 +65,12 @@ const EditorApp = ({
   if (!versionContent && (!savedDocs?.length || !savedDocs[0]?.content)) {
     // Collection ready but form not found → genuinely doesn't exist
     if (isFormReady) {
-      return (
-        <div className="flex h-full w-full items-center justify-center">Loading editor...</div>
-      );
+      return <div className="flex size-full items-center justify-center">Loading editor…</div>;
     }
     // Still syncing → show spinner
     return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Loader2Icon className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="flex size-full items-center justify-center">
+        <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -114,7 +112,7 @@ const EditorAppInner = ({
   const customizationDoc = versionCustomization
     ? { customization: versionCustomization }
     : savedDocs?.[0];
-  const { customization, hasCustomization, themeVars } = useFormCustomization(
+  const { customization, hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
     customizationDoc,
     resolvedAppTheme,
   );
@@ -232,7 +230,7 @@ const EditorAppInner = ({
     { wait: 500 },
   );
 
-  const handleChange = useCallback(
+  const persistEditorValue = useCallback(
     ({ value }: { value: Value }) => {
       if (readOnly) return;
 
@@ -302,14 +300,14 @@ const EditorAppInner = ({
         className={cn(
           "min-h-full w-full overflow-x-hidden bg-background text-foreground",
           hasCustomization && "bf-themed",
-          resolvedAppTheme === "dark" && "dark",
+          effectiveTheme === "dark" && "dark",
         )}
         style={hasCustomization ? themeVars : undefined}
       >
         <PlateEditorTree
           editor={editor}
           readOnly={readOnly}
-          onChange={handleChange}
+          onChange={persistEditorValue}
           onKeyDown={handleEditorKeyDown}
         />
       </div>

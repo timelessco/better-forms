@@ -1,7 +1,11 @@
 -- Add visual asset columns to form version snapshots so icon/cover can be
 -- read from the version row (previously public endpoint read from live forms row).
-ALTER TABLE "form_versions" ADD COLUMN "icon" text;--> statement-breakpoint
-ALTER TABLE "form_versions" ADD COLUMN "cover" text;--> statement-breakpoint
+-- Idempotent: an earlier migration (20260416093601_aromatic_bedlam) also adds
+-- these columns. Keeping the duplicate ADD COLUMNs so the migration's intent
+-- stays self-documenting, but guarding with IF NOT EXISTS so replays don't
+-- fail when both migrations land on a fresh database.
+ALTER TABLE "form_versions" ADD COLUMN IF NOT EXISTS "icon" text;--> statement-breakpoint
+ALTER TABLE "form_versions" ADD COLUMN IF NOT EXISTS "cover" text;--> statement-breakpoint
 
 -- Backfill: for every form that has a published version, copy the current
 -- forms.icon/cover into that form's last published version snapshot so the

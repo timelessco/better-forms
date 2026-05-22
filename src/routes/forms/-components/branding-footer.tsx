@@ -10,7 +10,7 @@ export const BrandingFooter = () => (
       className="flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
     >
       <span>Made with</span>
-      <SparklesIcon className="h-3 w-3 fill-muted-foreground text-muted-foreground" />
+      <SparklesIcon className="size-3 fill-muted-foreground text-muted-foreground" />
       <span className="text-foreground">{APP_NAME}</span>
     </a>
   </div>

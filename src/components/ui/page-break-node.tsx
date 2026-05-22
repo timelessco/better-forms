@@ -1,5 +1,12 @@
 import type { PlateElementProps } from "platejs/react";
-import { PlateElement, useEditorRef, useFocused, useReadOnly, useSelected } from "platejs/react";
+import {
+  PlateElement,
+  useEditorRef,
+  useEditorVersion,
+  useFocused,
+  useReadOnly,
+  useSelected,
+} from "platejs/react";
 
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -29,6 +36,11 @@ export const PageBreakElement = (props: PlateElementProps) => {
 
   const isThankYouPage = (element.isThankYouPage as boolean) ?? false;
 
+  // Subscribe to every editor change so the displayed page number follows
+  // sibling reorders/deletes. findPath returns the live position, but Plate
+  // memoizes element components by identity — without this version dep, a
+  // pageBreak after a deleted sibling keeps rendering its stale page number.
+  useEditorVersion();
   const pageNumber = (() => {
     const path = editor.api.findPath(element);
     if (!path) return 2;
@@ -48,9 +60,10 @@ export const PageBreakElement = (props: PlateElementProps) => {
     const path = editor.api.findPath(element);
     if (!path) return;
 
-    // Wrap all operations to prevent normalization between steps
     editor.tf.withoutNormalizing(() => {
       if (checked) {
+        // Demote any other pageBreak that is currently flagged as thank-you so
+        // only this pageBreak ends up as the thank-you page.
         for (const [, nodePath] of editor.api.nodes({
           match: { type: "pageBreak" },
         })) {
@@ -58,27 +71,9 @@ export const PageBreakElement = (props: PlateElementProps) => {
             editor.tf.setNodes({ isThankYouPage: false }, { at: nodePath });
           }
         }
-
-        // FIRST set isThankYouPage so normalization knows this is a thank you section
         editor.tf.setNodes({ isThankYouPage: true }, { at: path });
-
-        // THEN remove buttons from the section after this pageBreak
-        const startIdx = path[0] + 1;
-        let endIdx = editor.children.length;
-        for (let i = startIdx; i < editor.children.length; i++) {
-          const node = editor.children[i] as { type?: string };
-          if (node.type === "pageBreak") {
-            endIdx = i;
-            break;
-          }
-        }
-        // Remove formButtons in range [startIdx, endIdx) in reverse order
-        for (let i = endIdx - 1; i >= startIdx; i--) {
-          const node = editor.children[i] as { type?: string };
-          if (node.type === "formButton") {
-            editor.tf.removeNodes({ at: [i] });
-          }
-        }
+        // The form-blocks-kit normalizer strips any pageBreaks, form fields,
+        // and form buttons that follow this thank-you pageBreak.
       } else {
         editor.tf.setNodes({ isThankYouPage: false }, { at: path });
       }
@@ -115,6 +110,10 @@ export const PageBreakElement = (props: PlateElementProps) => {
                 onCheckedChange={handleThankYouToggle}
                 disabled={readOnly}
                 onMouseDown={(e) => e.stopPropagation()}
+                // The editor canvas is white; the Switch's default `bg-input`
+                // unchecked color blends into it. Border gives it an outline
+                // matching the visibility level in the settings sidebar.
+                className="border-border data-unchecked:bg-muted"
               />
             </div>
           )}

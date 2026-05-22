@@ -7,6 +7,7 @@ import { nitro } from "nitro/vite";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
+import { analyzer } from "vite-bundle-analyzer";
 import viteTsConfigPaths from "vite-tsconfig-paths";
 
 // Custom Cache-Control headers for the public embed script so updates
@@ -32,17 +33,45 @@ const embedCacheHeadersPlugin = (): Plugin => ({
   },
 });
 
+// The framework's static-asset middleware (in both Vite dev and preview)
+// intercepts requests where the browser sends `Sec-Fetch-Dest: image` —
+// it tries to serve a public/ file, finds nothing for `/api/icons/...`,
+// and 404s before TanStack's `/api/icons/$name` route handler runs.
+// Strip the header for /api/icons/ requests so the asset middleware
+// skips them and TanStack gets a chance. Vercel routes /api/* directly
+// to functions in production, so this only matters locally.
+const stripImageSentinelForApiIcons = (
+  req: IncomingMessage,
+  _res: ServerResponse,
+  next: (err?: unknown) => void,
+) => {
+  if (req.url?.startsWith("/api/icons/")) {
+    delete req.headers["sec-fetch-dest"];
+  }
+  next();
+};
+
+const apiIconsDevBypass = (): Plugin => ({
+  name: "api-icons-dev-bypass",
+  configureServer(server) {
+    server.middlewares.use(stripImageSentinelForApiIcons);
+  },
+  configurePreviewServer(server) {
+    server.middlewares.use(stripImageSentinelForApiIcons);
+  },
+});
+
 const config = defineConfig({
   plugins: [
     embedCacheHeadersPlugin(),
+    apiIconsDevBypass(),
     devtools({
       editor: {
-        name: "Cursor",
+        name: "VSCode",
         open: async (path, lineNumber, columnNumber) => {
           const { exec } = await import("node:child_process");
           exec(
-            // or windsurf/cursor/webstorm/cursor/cursor
-            `cursor -g "${path.replaceAll("$", "\\$")}${lineNumber ? `:${lineNumber}` : ""}${columnNumber ? `:${columnNumber}` : ""}"`,
+            `code -g "${path.replaceAll("$", "\\$")}${lineNumber ? `:${lineNumber}` : ""}${columnNumber ? `:${columnNumber}` : ""}"`,
           );
         },
       },
@@ -83,6 +112,21 @@ const config = defineConfig({
       rsc: {
         enabled: true,
       },
+      // Inline CSS is now handled manually in `__root.tsx` via a
+      // `styles.css?inline` import — that path emits exactly one inline
+      // <style> and no <link>. The framework's `inlineCss: true` produced
+      // BOTH an inline style AND a manifest-driven `<link rel="stylesheet">`
+      // for the same content, so Lighthouse flagged the link as render-
+      // blocking (~70 ms est savings). It also regressed mobile Perf by
+      // bundling every CSS chunk in the manifest into one ~309 kB inline
+      // block that triggered ~3s of synchronous style-recalc on 4× CPU
+      // throttled mobile. The manual `?inline` path only emits styles.css
+      // (Tailwind output), small enough to parse without a long task.
+      server: {
+        build: {
+          inlineCss: false,
+        },
+      },
     }),
     rsc(),
     viteReact({
@@ -90,9 +134,19 @@ const config = defineConfig({
         plugins: [["babel-plugin-react-compiler", {}]],
       },
     }),
+    process.env.ANALYZE
+      ? {
+          ...analyzer({ analyzerMode: "static", openAnalyzer: true }),
+          applyToEnvironment: (env) => env.name === "client",
+        }
+      : null,
   ],
   resolve: {
-    dedupe: ["@platejs/core"],
+    // `jotai` added: @platejs/core pins ~2.8.4 while another tree pulls 2.20.0,
+    // so node_modules has two copies. The Vite RSC plugin's client-references
+    // grouping collides when both reach the bundler ("Identifier 'import_*'
+    // has already been declared"). Deduping picks one for the bundle.
+    dedupe: ["@platejs/core", "jotai"],
   },
   server: {
     sourcemapIgnoreList: (sourcePath) => sourcePath.includes("node_modules"),
@@ -132,9 +186,20 @@ const config = defineConfig({
           if (id.includes("@radix-ui/")) return "ui";
           // Pin Base UI primitives to their own chunk. Without this, modules
           // like `getDisabledMountTransitionStyles` / `useOpenInteractionType`
-          // end up grouped with `editor` by Rollup's auto-chunker, which forces
-          // every field chunk (InputField, TextareaField, …) that uses a Base
-          // UI primitive to pull the full 361 kB platejs chunk + KaTeX CSS.
+          // end up grouped with `editor` by Rollup's auto-chunker, which
+          // forces every field chunk (InputField, TextareaField, …) that
+          // uses a Base UI primitive to pull the full 361 kB platejs chunk
+          // + KaTeX CSS.
+          //
+          // A per-primitive split (`ui-base-<primitive>` from a regex) was
+          // tried in PR #86 and rolled back — it caused
+          // `Cannot access 'React$1' before initialization` (TDZ violation)
+          // in the SSR bundle on Vercel, crashing every request with 500.
+          // Rollup splits @base-ui's internal cross-primitive deps in a way
+          // that breaks ESM init order in the Nitro server bundle. Single-
+          // bucket "ui" keeps all base-ui modules together, sidestepping
+          // the cycle. Reintroducing per-primitive needs an actual Nitro
+          // SSR smoke test (vite preview alone doesn't catch it).
           if (id.includes("@base-ui/")) return "ui";
           if (id.includes("@sentry/")) return "sentry";
         },
@@ -161,7 +226,15 @@ const config = defineConfig({
   environments: {
     rsc: {
       resolve: {
-        external: ["postgres", "drizzle-orm", "drizzle-orm/postgres-js"],
+        external: [
+          "postgres",
+          "drizzle-orm",
+          "drizzle-orm/postgres-js",
+          // Same rationale as `ssr.external` above — also applied to the RSC
+          // env so the OG route's transitive imports stay un-bundled wherever
+          // the route tree happens to be analyzed.
+          "@vercel/og",
+        ],
         // Inline platejs + its slate/utils deps so the re-export chain is
         // resolved at bundle time. Leaving them external lets Rollup guess
         // which sibling package a re-exported name came from (e.g. bindFirst
@@ -187,8 +260,19 @@ const config = defineConfig({
     exclude: ["postgres", "drizzle-orm/postgres-js", "@base-ui/react"],
     // Force-include CJS-only `use-sync-external-store` so Vite extracts its
     // named exports correctly. The shim uses a `module.exports = require(...)`
-    // indirection that Vite's auto-scan misses after the lockfile churn.
-    include: ["use-sync-external-store/shim", "use-sync-external-store/shim/with-selector"],
+    // indirection that Vite's auto-scan misses.
+    //
+    // Recharts is pinned here for the same reason — its internals reach into
+    // React through a CJS shim that Vite 7's deps bundler otherwise wires up
+    // inconsistently (the dev server occasionally serves a `recharts.js` that
+    // imports a stale `react.js` chunk, surfacing as
+    // `TypeError: require_react is not a function`). Explicit inclusion makes
+    // the pre-bundle deterministic.
+    include: [
+      "use-sync-external-store/shim",
+      "use-sync-external-store/shim/with-selector",
+      "recharts",
+    ],
   },
 });
 

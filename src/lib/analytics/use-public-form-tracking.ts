@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { fireRecordVisit, fireUpdateVisitBeacon } from "./track-client";
+import {
+  fireRecordVisit,
+  fireUpdateVisitBeacon,
+  flushQuestionProgressBuffer,
+} from "./track-client";
 import { getOrCreateSessionId, getOrCreateVisitorHash } from "./visitor-id";
 
 interface PublicFormTracking {
@@ -57,6 +61,9 @@ export const usePublicFormTracking = ({ formId, enabled = true }: Args): PublicF
     });
 
     const onUnload = () => {
+      // Drain any buffered per-Question events first so the visit-end beacon
+      // doesn't race ahead of (and effectively cancel) their delivery.
+      flushQuestionProgressBuffer();
       const id = visitIdRef.current;
       if (!id) {
         return;

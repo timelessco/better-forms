@@ -98,6 +98,7 @@ export const SidebarProvider = ({
     localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clamped));
   }, []);
 
+  // eslint-disable-next-line react-doctor/no-derived-useState -- standard controlled/uncontrolled pattern; defaultOpen is the initial value, openProp takes over when provided
   const [_open, _setOpen] = useState(defaultOpen);
   const open = openProp ?? _open;
   const setOpen = useCallback(
@@ -154,7 +155,12 @@ export const SidebarProvider = ({
 
   return (
     <SidebarContext.Provider value={contextValue}>
-      <TooltipProvider delay={0}>
+      {/* Inherit the app-wide tooltip delay from __root.tsx's
+          TooltipProvider; do not re-anchor it here, otherwise every
+          tooltip rendered inside the sidebar wrapper (which includes
+          the SidebarInset / main content!) gets reset to a local
+          default and the global delay never takes effect. */}
+      <TooltipProvider>
         <div
           data-slot="sidebar-wrapper"
           data-resizing={isResizing ? "" : undefined}
@@ -332,7 +338,7 @@ export const SidebarTrigger = ({
 }: React.ComponentProps<typeof Button>) => {
   const { toggleSidebar } = useSidebar();
 
-  const handleClick = useCallback(
+  const toggleAndForward = useCallback(
     (event: Parameters<NonNullable<typeof onClick>>[0]) => {
       onClick?.(event);
       toggleSidebar();
@@ -347,7 +353,7 @@ export const SidebarTrigger = ({
       variant="ghost"
       size="icon-sm"
       className={cn(className)}
-      onClick={handleClick}
+      onClick={toggleAndForward}
       {...props}
     >
       <PanelLeftIcon className="rtl:rotate-180" />
@@ -368,12 +374,12 @@ export const SidebarRail = ({ className, ...props }: React.ComponentProps<"butto
       onClick={toggleSidebar}
       title="Toggle Sidebar"
       className={cn(
-        "absolute inset-y-0 z-20 hidden w-4 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:start-1/2 after:w-[2px] hover:after:bg-sidebar-border sm:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
+        "absolute inset-y-0 z-20 hidden w-4 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:inset-s-1/2 after:w-[2px] hover:after:bg-sidebar-border sm:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
         "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize rtl:in-data-[side=left]:cursor-e-resize rtl:in-data-[side=right]:cursor-w-resize",
         "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize rtl:[[data-side=left][data-state=collapsed]_&]:cursor-w-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize rtl:[[data-side=right][data-state=collapsed]_&]:cursor-e-resize",
-        "group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:start-full hover:group-data-[collapsible=offcanvas]:bg-sidebar rtl:group-data-[collapsible=offcanvas]:-translate-x-0",
-        "[[data-side=left][data-collapsible=offcanvas]_&]:-end-2",
-        "[[data-side=right][data-collapsible=offcanvas]_&]:-start-2",
+        "group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:inset-s-full hover:group-data-[collapsible=offcanvas]:bg-sidebar rtl:group-data-[collapsible=offcanvas]:-translate-x-0",
+        "[[data-side=left][data-collapsible=offcanvas]_&]:-inset-e-2",
+        "[[data-side=right][data-collapsible=offcanvas]_&]:-inset-s-2",
         className,
       )}
       {...props}
@@ -485,7 +491,7 @@ export const SidebarGroupAction = ({
     props: mergeProps<"button">(
       {
         className: cn(
-          "absolute end-3 top-3.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground ring-sidebar-ring outline-hidden transition-transform group-data-[collapsible=icon]:hidden after:absolute after:-inset-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 md:after:hidden [&>svg]:size-4 [&>svg]:shrink-0",
+          "absolute inset-e-3 top-3.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground ring-sidebar-ring outline-hidden transition-transform group-data-[collapsible=icon]:hidden after:absolute after:-inset-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 md:after:hidden [&>svg]:size-4 [&>svg]:shrink-0",
           className,
         ),
       },
@@ -616,7 +622,7 @@ export const SidebarMenuAction = ({
     props: mergeProps<"button">(
       {
         className: cn(
-          "absolute end-1 top-1.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground ring-sidebar-ring outline-hidden transition-transform group-data-[collapsible=icon]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 after:absolute after:-inset-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 md:after:hidden [&>svg]:size-4 [&>svg]:shrink-0",
+          "absolute inset-e-1 top-1.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground ring-sidebar-ring outline-hidden transition-transform group-data-[collapsible=icon]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 after:absolute after:-inset-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 md:after:hidden [&>svg]:size-4 [&>svg]:shrink-0",
           showOnHover &&
             "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 peer-data-active/menu-button:text-sidebar-accent-foreground aria-expanded:opacity-100 md:opacity-0",
           className,
@@ -636,7 +642,7 @@ export const SidebarMenuBadge = ({ className, ...props }: React.ComponentProps<"
     data-slot="sidebar-menu-badge"
     data-sidebar="menu-badge"
     className={cn(
-      "pointer-events-none absolute end-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs text-sidebar-foreground tabular-nums select-none group-data-[collapsible=icon]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 peer-data-active/menu-button:text-sidebar-accent-foreground",
+      "pointer-events-none absolute inset-e-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs text-sidebar-foreground tabular-nums select-none group-data-[collapsible=icon]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 peer-data-active/menu-button:text-sidebar-accent-foreground",
       className,
     )}
     {...props}

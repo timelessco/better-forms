@@ -1,34 +1,21 @@
 import { getLinkAttributes } from "@platejs/link";
-import { SuggestionPlugin } from "@platejs/suggestion/react";
-import type { TInlineSuggestionData, TLinkElement } from "platejs";
+import type { TLinkElement } from "platejs";
 import type { PlateElementProps } from "platejs/react";
 import { PlateElement } from "platejs/react";
 
-import { cn } from "@/lib/utils";
-
-export const LinkElement = (props: PlateElementProps<TLinkElement>) => {
-  const suggestionData = props.editor
-    .getApi(SuggestionPlugin)
-    .suggestion.suggestionData(props.element) as TInlineSuggestionData | undefined;
-
-  return (
-    <PlateElement
-      {...props}
-      as="a"
-      className={cn(
-        "text-blue-600 underline decoration-blue-600 underline-offset-4 dark:text-blue-400 dark:decoration-blue-400",
-        suggestionData?.type === "remove" && "bg-red-100 text-red-700",
-        suggestionData?.type === "insert" && "bg-emerald-100 text-emerald-700",
-      )}
-      attributes={{
-        ...props.attributes,
-        ...getLinkAttributes(props.editor, props.element),
-        onMouseOver: (e) => {
-          e.stopPropagation();
-        },
-      }}
-    >
-      {props.children}
-    </PlateElement>
-  );
-};
+export const LinkElement = (props: PlateElementProps<TLinkElement>) => (
+  <PlateElement
+    {...props}
+    as="a"
+    className="text-blue-600 underline decoration-blue-600 underline-offset-4 dark:text-blue-400 dark:decoration-blue-400"
+    attributes={{
+      ...props.attributes,
+      ...getLinkAttributes(props.editor, props.element),
+      onMouseOver: (e) => {
+        e.stopPropagation();
+      },
+    }}
+  >
+    {props.children}
+  </PlateElement>
+);

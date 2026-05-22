@@ -12,7 +12,6 @@ import {
 import type { UploadedFormFile } from "@/lib/server-fn/public-file-uploads";
 import { uploadFormFile } from "@/lib/server-fn/public-file-uploads";
 import { cn } from "@/lib/utils";
-import { extractErrorMessage } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
 const fileToBase64 = (file: File): Promise<string> =>
@@ -191,17 +190,16 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
     >
       {(f) => {
         const hasFieldErrors = f.state.meta.errors.length > 0 && f.state.meta.isTouched;
-        const fieldErrorMessage = hasFieldErrors ? extractErrorMessage(f.state.meta.errors[0]) : "";
         const showError = uploadState.status === "error" || hasFieldErrors;
-        const errorMessage =
-          uploadState.status === "error" ? uploadState.message : fieldErrorMessage;
 
         return (
           <>
             <button
               type="button"
+              id={element.name}
+              aria-invalid={showError}
               className={cn(
-                "relative flex min-h-20 w-full cursor-pointer flex-col items-center justify-center rounded-[8px] border border-dashed border-border/60 bg-[var(--form-input-bg,var(--color-gray-50))] p-4 shadow-[0_0_1px_rgba(0,0,0,0.54),0_1px_1px_rgba(0,0,0,0.06)] transition-colors hover:bg-accent/50",
+                "relative flex min-h-20 w-full cursor-pointer flex-col items-center justify-center rounded-[8px] border border-dashed border-border/60 bg-[var(--form-input-bg,var(--color-gray-50))] p-4 elevation-sm transition-colors hover:bg-accent/50",
                 showError && "border-destructive ring-1 ring-destructive",
               )}
               onClick={!hasFile ? openFileDialog : undefined}
@@ -256,7 +254,11 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
                 </div>
               )}
             </button>
-            {showError ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
+            {uploadState.status === "error" ? (
+              <p className="mt-1.5 text-sm text-destructive">{uploadState.message}</p>
+            ) : (
+              <f.FieldError />
+            )}
           </>
         );
       }}

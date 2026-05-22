@@ -8,13 +8,18 @@ import type { PublicFormTracking, TrackingBase } from "@/contexts/step-form-cont
 import { useTranslation } from "@/contexts/translation-context";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "@/lib/theme/customization-defaults";
 import { extractFormHeader } from "@/lib/editor/transform-plate-to-form";
-import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
+import {
+  chunkSegmentsForFieldByField,
+  transformPlateForPreview,
+} from "@/lib/editor/transform-plate-for-preview";
 import type { PreviewSegment } from "@/lib/editor/transform-plate-for-preview";
+import { extractQuestionsForStep } from "@/lib/forms/extract-questions";
+import type { QuestionRef } from "@/lib/forms/extract-questions";
 import { DEFAULT_ICON } from "@/lib/config/app-config";
-import { cn, DEFAULT_ICON_NAME, isValidUrl } from "@/lib/utils";
+import { cn, DEFAULT_ICON_NAME, isHexColor, isValidUrl } from "@/lib/utils";
 import type { PublicFormSettings } from "@/types/form-settings";
 import { IconPickerPreview } from "@/components/icon-picker";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
 import type { Value } from "platejs";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -76,8 +81,10 @@ interface FormPreviewFromPlateProps {
   layout?: "public" | "editor";
   /** Form settings for public forms */
   settings?: PublicFormSettings;
-  /** Form ID for localStorage persistence */
   formId?: string;
+  /** Form Short ID — only used for the thank-you-page share URL. Omit in
+   *  editor previews to suppress the share UI. */
+  shortId?: string;
   /** Form customization record for theming */
   customization?: Record<string, string> | null;
   /** Rehydrate step state from a server-side draft (resume-after-refresh). */
@@ -87,13 +94,16 @@ interface FormPreviewFromPlateProps {
    *  instead of using viewport units. Use for popup previews and real popup
    *  iframes — the parent already provides a definite bounded height. */
   isPopup?: boolean;
+  /** When true, field-by-field mode bounds height to its parent the same way
+   *  popups do, but without popup-specific styling (smaller title, hidden
+   *  icon, tighter padding). Use for the standard embed mockup, where the
+   *  outer iframe already provides a fixed height. */
+  boundToParent?: boolean;
   /** Analytics tracking base ({ visitId, visitorHash }). Only passed by the
    * public form route — builder previews leave this undefined to disable
    * tracking. */
   trackingBase?: TrackingBase;
 }
-
-export const isHexColor = (str: string): boolean => /^#([0-9A-Fa-f]{3}){1,2}$/.test(str);
 
 const PAGE_MAX_WIDTH = {
   editor: `var(--bf-page-width, ${CUSTOMIZATION_AUTO_DEFAULTS.pageWidth})`,
@@ -171,7 +181,7 @@ const PreviewFormHeader = ({
             width={1200}
             height={200}
             className={cn(
-              "h-full w-full object-cover",
+              "size-full object-cover",
               cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
             )}
             onError={handleImageError}
@@ -198,7 +208,6 @@ const PreviewFormHeader = ({
               useThemeColor
               iconSize="48"
               size={logoCircleSize}
-              standaloneIcon
             />
           </span>
         </div>
@@ -213,7 +222,7 @@ const PreviewFormHeader = ({
             alt="Form icon"
             width={120}
             height={120}
-            className="h-[100px] w-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
+            className="size-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
             data-bf-logo
             onError={handleIconError}
           />
@@ -226,11 +235,18 @@ const PreviewFormHeader = ({
         <span data-bf-logo-icon={isLogoMinimal ? "minimal" : ""}>
           <IconPickerPreview
             icon={icon}
-            iconColor={iconColor || undefined}
-            useThemeColor={!iconColor}
+            // Mirror form-header-node.tsx exactly: theme color when the
+            // form has any customization OR no explicit iconColor was
+            // set; explicit iconColor wins only on unthemed forms.
+            // Also drop `standaloneIcon` — the editor doesn't use it
+            // and it routes through a different SVG renderer where
+            // currentColor doesn't inherit cleanly through `<use href>`,
+            // which is why the silhouette was painting black instead of
+            // tracking text-primary-foreground.
+            iconColor={hasCustomization ? undefined : iconColor || undefined}
+            useThemeColor={hasCustomization || !iconColor}
             iconSize="48"
             size={logoCircleSize}
-            standaloneIcon
           />
         </span>
       </div>
@@ -360,10 +376,10 @@ const DefaultThankYou = ({ onReset, shareUrl }: { onReset?: () => void; shareUrl
   const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+      <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-green-100">
         {SuccessCheckmarkIcon}
       </div>
-      <h2 className="mb-2 text-2xl font-bold">{t("thankYou")}</h2>
+      <h2 className="mb-2 text-2xl font-semibold">{t("thankYou")}</h2>
       <p className="mb-6 text-muted-foreground">{t("responseSubmitted")}</p>
       {onReset && (
         <Button type="button" onClick={onReset} variant="outline" size="sm" className="rounded-lg">
@@ -394,10 +410,12 @@ export const FormPreviewFromPlate = ({
   layout = "public",
   settings,
   formId,
+  shortId,
   customization,
   initialFormData,
   initialCurrentStep,
   isPopup = false,
+  boundToParent = false,
   trackingBase,
 }: FormPreviewFromPlateProps) => {
   const headerFromContent = useMemo(() => extractFormHeader(content), [content]);
@@ -413,28 +431,21 @@ export const FormPreviewFromPlate = ({
     [content],
   );
 
-  // Field-by-field mode: re-chunk so each field becomes its own step, with
-  // preceding static content carried into the same step as the next field.
-  // Skip authored Button fields entirely — page boundaries are invisible here,
-  // so a standalone Next/Previous button step would just be noise. The
-  // auto-rendered submit/next button on each input step handles navigation.
-  const steps = useMemo(() => {
-    if (settings?.presentationMode !== "field-by-field") return rawSteps;
-    const flattened: PreviewSegment[][] = [];
-    let pending: PreviewSegment[] = [];
-    for (const step of rawSteps) {
-      for (const seg of step) {
-        if (seg.type === "field" && seg.field.fieldType === "Button") continue;
-        pending.push(seg);
-        if (seg.type === "field") {
-          flattened.push(pending);
-          pending = [];
-        }
-      }
-    }
-    if (pending.length > 0) flattened.push(pending);
-    return flattened.length > 0 ? flattened : rawSteps;
-  }, [rawSteps, settings?.presentationMode]);
+  const steps = useMemo(
+    () =>
+      settings?.presentationMode === "field-by-field"
+        ? chunkSegmentsForFieldByField(rawSteps)
+        : rawSteps,
+    [rawSteps, settings?.presentationMode],
+  );
+
+  // Pre-compute per-Step Question lists once so analytics emitters in
+  // `StepForm` / `useStepPreviewForm` don't re-walk the Plate tree on every
+  // render. Global `questionIndex` accumulates across all Steps.
+  const stepQuestions: QuestionRef[][] = useMemo(
+    () => steps.map((_, idx) => extractQuestionsForStep(steps, idx)),
+    [steps],
+  );
 
   if (steps.length === 0 || steps.flat().length === 0) {
     return (
@@ -448,14 +459,12 @@ export const FormPreviewFromPlate = ({
     );
   }
 
-  // Determine analytics mode from presentation settings + step count.
-  // `null` disables question-progress tracking on single-page forms.
+  // Determine analytics mode from presentation settings. Per ADR-0002,
+  // tracking is always on — single-page `card` forms still emit per-Question
+  // view/start/complete events (the single Step mounts once at load, focus
+  // events fire per Question, complete fires for every Question on Submit).
   const isFieldByField = settings?.presentationMode === "field-by-field";
-  const trackingMode: PublicFormTracking["mode"] = isFieldByField
-    ? "field-by-field"
-    : steps.length > 1
-      ? "card"
-      : null;
+  const trackingMode: PublicFormTracking["mode"] = isFieldByField ? "field-by-field" : "card";
   const tracking: PublicFormTracking | null =
     trackingBase && formId
       ? {
@@ -477,8 +486,9 @@ export const FormPreviewFromPlate = ({
       tracking={tracking}
     >
       <FormPreviewContent
-        formId={formId}
+        shortId={shortId}
         steps={steps}
+        stepQuestions={stepQuestions}
         thankYouNodes={thankYouNodes}
         title={title}
         icon={icon}
@@ -489,6 +499,7 @@ export const FormPreviewFromPlate = ({
         settings={settings}
         customization={customization}
         isPopup={isPopup}
+        boundToParent={boundToParent}
       />
     </StepFormProvider>
   );
@@ -511,37 +522,10 @@ const stepVariants = {
   }),
 };
 
-const FormPreviewContent = ({
-  steps,
-  thankYouNodes,
-  title,
-  icon,
-  iconColor,
-  cover,
-  hideTitle,
-  layout,
-  settings,
-  customization,
-  isPopup,
-  formId,
-}: {
-  steps: PreviewSegment[][];
-  thankYouNodes: Value | null;
-  title?: string;
-  icon?: string;
-  iconColor?: string | null;
-  cover?: string;
-  hideTitle?: boolean;
-  layout: "public" | "editor";
-  settings?: PublicFormSettings;
-  customization?: Record<string, string> | null;
-  isPopup?: boolean;
-  formId?: string;
-}) => {
-  const { currentStep, totalSteps, isSubmitted, direction, reset } = useStepForm();
-  const { t } = useTranslation();
+const useRedirectCountdown = (isSubmitted: boolean, settings?: PublicFormSettings) => {
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
 
+  // eslint-disable-next-line react-doctor/no-cascading-set-state -- single state (redirectCountdown) updated via initial set + interval functional updater; not cascading independent state
   useEffect(() => {
     if (!isSubmitted) return;
     if (!settings?.redirectOnCompletion || !settings?.redirectUrl) return;
@@ -571,184 +555,240 @@ const FormPreviewContent = ({
     return () => clearInterval(interval);
   }, [isSubmitted, settings?.redirectOnCompletion, settings?.redirectUrl, settings?.redirectDelay]);
 
-  const isLastStep = currentStep === steps.length - 1;
-  const currentStepSegments = steps[currentStep] || [];
-  const isFieldByField = settings?.presentationMode === "field-by-field";
-  const coverIsImage = cover && isValidUrl(cover);
-  const coverIsColor = cover && isHexColor(cover);
+  return redirectCountdown;
+};
 
-  // Public-form share URL — used on the thank-you page so respondents can pass
-  // the form along. Built from the formId since `window.location.href` in the
-  // editor preview is the editor route, not the public form URL.
-  const shareUrl = useMemo(() => {
-    if (!formId || typeof window === "undefined") return undefined;
-    return `${window.location.origin}/forms/${formId}`;
-  }, [formId]);
+interface ThankYouViewProps {
+  thankYouNodes: Value | null;
+  onReset?: () => void;
+  shareUrl?: string;
+  redirectCountdown: number | null;
+}
 
-  const thankYouContent = (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      {thankYouNodes && thankYouNodes.length > 0 ? (
-        <RenderThankYouContent nodes={thankYouNodes} onReset={reset} shareUrl={shareUrl} />
-      ) : (
-        <DefaultThankYou onReset={reset} shareUrl={shareUrl} />
-      )}
-      {redirectCountdown !== null && (
-        <p className="mt-4 text-center text-muted-foreground">
-          {t("redirecting", {
-            n: redirectCountdown,
-            s: redirectCountdown !== 1 ? "s" : "",
-          })}
-        </p>
-      )}
-    </motion.div>
+const ThankYouView = ({
+  thankYouNodes,
+  onReset,
+  shareUrl,
+  redirectCountdown,
+}: ThankYouViewProps) => {
+  const { t } = useTranslation();
+  return (
+    <LazyMotion features={domAnimation} strict>
+      <m.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        {thankYouNodes && thankYouNodes.length > 0 ? (
+          <RenderThankYouContent nodes={thankYouNodes} onReset={onReset} shareUrl={shareUrl} />
+        ) : (
+          <DefaultThankYou onReset={onReset} shareUrl={shareUrl} />
+        )}
+        {redirectCountdown !== null && (
+          <p className="mt-4 text-center text-muted-foreground">
+            {t("redirecting", {
+              n: redirectCountdown,
+              s: redirectCountdown !== 1 ? "s" : "",
+            })}
+          </p>
+        )}
+      </m.div>
+    </LazyMotion>
   );
+};
 
-  // Show thank you content after submission (non-field-by-field layout).
-  // Field-by-field renders its own thank-you inside the shared shell below.
-  if (isSubmitted && !isFieldByField) {
+interface LayoutProps {
+  steps: PreviewSegment[][];
+  /** Per-step list of Questions (non-Button fields) with global indices, used
+   * by the analytics emitters in `StepForm` / `useStepPreviewForm`. */
+  stepQuestions: QuestionRef[][];
+  thankYouNodes: Value | null;
+  title?: string;
+  icon?: string;
+  iconColor?: string | null;
+  cover?: string;
+  hideTitle?: boolean;
+  layout: "public" | "editor";
+  settings?: PublicFormSettings;
+  customization?: Record<string, string> | null;
+  isPopup?: boolean;
+  boundToParent?: boolean;
+  shareUrl?: string;
+  redirectCountdown: number | null;
+}
+
+const FieldByFieldHeaderIcon = ({
+  icon,
+  iconColor,
+  hasCustomization,
+}: {
+  icon: string;
+  iconColor?: string | null;
+  hasCustomization?: boolean;
+}) => {
+  if (icon === DEFAULT_ICON) {
     return (
-      <div className="w-full">
-        <PreviewFormHeader
-          title={title}
-          icon={icon}
-          iconColor={iconColor}
-          cover={cover}
-          hideTitle={hideTitle}
-          layout={layout}
-          customization={customization}
-          isPopup={isPopup}
+      <span className="flex-shrink-0" data-bf-logo-icon>
+        <IconPickerPreview
+          icon={DEFAULT_ICON_NAME}
+          iconColor={undefined}
+          useThemeColor
+          iconSize="40"
+          size="80"
         />
-        <div
-          className={cn("mx-auto w-full", layout === "editor" ? "px-8 md:px-0" : "px-4")}
-          style={{ maxWidth: PAGE_MAX_WIDTH[layout] }}
-          data-bf-form-container
-        >
-          {thankYouContent}
-        </div>
-      </div>
+      </span>
     );
   }
 
-  if (isFieldByField) {
-    // In popup mode the avatar/icon is already used as the popup bubble, so
-    // hide it inside the popup to save space and avoid duplication.
-    const hasIcon = !!icon && !isPopup;
-    const showHeader = !hideTitle && (title || hasIcon);
-    const isPublic = layout === "public";
-    const hasTint = isPublic && coverIsImage && cover.includes("tint=true");
+  if (isValidUrl(icon)) {
     return (
-      <div
-        className={cn(
-          "relative flex h-full w-full flex-col overflow-hidden",
-          layout === "public"
-            ? isPopup
-              ? "max-h-full min-h-full"
-              : "min-h-screen"
-            : "min-h-[600px]",
-        )}
-        style={
-          isPublic
-            ? {
-                backgroundImage: coverIsImage ? `url("${cover}")` : undefined,
-                backgroundColor: coverIsColor ? cover : undefined,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundRepeat: "no-repeat",
-              }
-            : undefined
-        }
-        data-bf-cover
-      >
-        {hasTint && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 z-0 bg-primary opacity-50 mix-blend-color"
-          />
-        )}
+      <img
+        src={icon}
+        alt=""
+        width={80}
+        height={80}
+        className="size-20 flex-shrink-0 rounded-md object-cover"
+        data-bf-logo
+      />
+    );
+  }
 
-        {showHeader && (
-          <div
-            className={cn(
-              "relative z-10 flex items-center gap-4",
-              isPopup ? "px-4.5 pt-3" : "mx-auto w-full px-4 pt-6 sm:px-6 sm:pt-8",
-            )}
-            style={isPopup ? undefined : { maxWidth: PAGE_MAX_WIDTH[layout] }}
-          >
-            {hasIcon &&
-              icon &&
-              (icon === DEFAULT_ICON ? (
-                <span className="flex-shrink-0" data-bf-logo-icon>
-                  <IconPickerPreview
-                    icon={DEFAULT_ICON_NAME}
-                    iconColor={undefined}
-                    useThemeColor
-                    iconSize="40"
-                    size="80"
-                    standaloneIcon
-                  />
-                </span>
-              ) : isValidUrl(icon) ? (
-                <img
-                  src={icon}
-                  alt=""
-                  width={80}
-                  height={80}
-                  className="h-20 w-20 flex-shrink-0 rounded-md object-cover"
-                  data-bf-logo
-                />
-              ) : (
-                <span className="flex-shrink-0" data-bf-logo-icon>
-                  <IconPickerPreview
-                    icon={icon}
-                    iconColor={iconColor || undefined}
-                    useThemeColor={!iconColor}
-                    iconSize="40"
-                    size="80"
-                    standaloneIcon
-                  />
-                </span>
-              ))}
-            {title && (
-              <h1
-                data-bf-title
-                style={{ textWrap: "pretty" }}
-                className={cn(
-                  "font-serif leading-none font-light -tracking-[0.03em] text-foreground",
-                  isPopup ? "text-2xl sm:text-3xl" : "text-6xl sm:text-[48px]",
-                )}
-              >
-                {title}
-              </h1>
-            )}
+  return (
+    <span className="flex-shrink-0" data-bf-logo-icon>
+      <IconPickerPreview
+        icon={icon}
+        // Mirror editor: theme color on themed forms; explicit iconColor
+        // wins only on unthemed forms. No `standaloneIcon` for the same
+        // currentColor-through-<use> reason as the card-mode header.
+        iconColor={hasCustomization ? undefined : iconColor || undefined}
+        useThemeColor={hasCustomization || !iconColor}
+        iconSize="40"
+        size="80"
+      />
+    </span>
+  );
+};
+
+const FieldByFieldLayout = ({
+  steps,
+  stepQuestions,
+  thankYouNodes,
+  title,
+  icon,
+  iconColor,
+  cover,
+  hideTitle,
+  layout,
+  settings,
+  customization,
+  isPopup,
+  boundToParent,
+  shareUrl,
+  redirectCountdown,
+}: LayoutProps) => {
+  const { currentStep, totalSteps, isSubmitted, direction, reset } = useStepForm();
+  const hasCustomization = !!(customization && Object.keys(customization).length > 0);
+  const coverIsImage = cover && isValidUrl(cover);
+  const coverIsColor = cover && isHexColor(cover);
+  const isLastStep = currentStep === steps.length - 1;
+  const currentStepSegments = steps[currentStep] || [];
+  const currentStepQuestions = stepQuestions[currentStep] || [];
+
+  // In popup mode the avatar/icon is already used as the popup bubble, so
+  // hide it inside the popup to save space and avoid duplication.
+  const hasIcon = !!icon && !isPopup;
+  const showHeader = !hideTitle && (title || hasIcon);
+  const isPublic = layout === "public";
+  const hasTint = isPublic && coverIsImage && cover.includes("tint=true");
+
+  return (
+    <div
+      className={cn(
+        "relative flex size-full flex-col overflow-hidden",
+        layout === "public"
+          ? isPopup || boundToParent
+            ? "max-h-full min-h-full"
+            : "min-h-screen"
+          : "min-h-[600px]",
+      )}
+      style={
+        isPublic
+          ? {
+              backgroundImage: coverIsImage ? `url("${cover}")` : undefined,
+              backgroundColor: coverIsColor ? cover : undefined,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }
+          : undefined
+      }
+      data-bf-cover
+    >
+      {hasTint && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0 bg-primary opacity-50 mix-blend-color"
+        />
+      )}
+
+      {showHeader && (
+        <div
+          className={cn(
+            "relative z-10 flex items-center gap-4",
+            isPopup ? "px-4.5 pt-3" : "mx-auto w-full px-4 pt-6 sm:px-6 sm:pt-8",
+          )}
+          style={isPopup ? undefined : { maxWidth: PAGE_MAX_WIDTH[layout] }}
+        >
+          {hasIcon && icon && (
+            <FieldByFieldHeaderIcon
+              icon={icon}
+              iconColor={iconColor}
+              hasCustomization={hasCustomization}
+            />
+          )}
+          {title && (
+            <h1
+              data-bf-title
+              style={{ textWrap: "pretty" }}
+              className={cn(
+                "font-serif leading-none font-light -tracking-[0.03em] text-foreground",
+                isPopup ? "text-2xl sm:text-3xl" : "text-6xl sm:text-[48px]",
+              )}
+            >
+              {title}
+            </h1>
+          )}
+        </div>
+      )}
+
+      <div
+        className="relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col justify-center overflow-hidden px-4 pb-12 sm:px-6"
+        style={{
+          maxWidth: PAGE_MAX_WIDTH[layout],
+          ...(layout === "editor"
+            ? ({ "--bf-spacing": "0.5rem" } as React.CSSProperties)
+            : undefined),
+        }}
+        data-bf-form-container
+      >
+        {!isSubmitted && settings?.progressBar && totalSteps > 1 && (
+          <div className="mb-4 w-full">
+            <ProgressBar currentStep={currentStep} totalSteps={totalSteps} />
           </div>
         )}
 
-        <div
-          className="relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col justify-center overflow-hidden px-4 pb-12 sm:px-6"
-          style={{
-            maxWidth: PAGE_MAX_WIDTH[layout],
-            ...(layout === "editor"
-              ? ({ "--bf-spacing": "0.5rem" } as React.CSSProperties)
-              : undefined),
-          }}
-          data-bf-form-container
-        >
-          {!isSubmitted && settings?.progressBar && totalSteps > 1 && (
-            <div className="mb-4 w-full">
-              <ProgressBar currentStep={currentStep} totalSteps={totalSteps} />
-            </div>
-          )}
-
-          <div className="w-full">
-            {isSubmitted ? (
-              thankYouContent
-            ) : (
+        <div className="w-full">
+          {isSubmitted ? (
+            <ThankYouView
+              thankYouNodes={thankYouNodes}
+              onReset={reset}
+              shareUrl={shareUrl}
+              redirectCountdown={redirectCountdown}
+            />
+          ) : (
+            <LazyMotion features={domAnimation} strict>
               <AnimatePresence mode="wait" custom={direction}>
-                <motion.div
+                <m.div
                   key={currentStep}
                   custom={direction}
                   variants={stepVariants}
@@ -765,17 +805,36 @@ const FormPreviewContent = ({
                     key={currentStep}
                     stepIndex={currentStep}
                     segments={currentStepSegments}
+                    questions={currentStepQuestions}
                     isLastStep={isLastStep}
                     autoActionButton
                   />
-                </motion.div>
+                </m.div>
               </AnimatePresence>
-            )}
-          </div>
+            </LazyMotion>
+          )}
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+};
+
+const LinearLayout = ({
+  steps,
+  stepQuestions,
+  title,
+  icon,
+  cover,
+  hideTitle,
+  layout,
+  settings,
+  customization,
+  isPopup,
+}: LayoutProps) => {
+  const { currentStep, totalSteps, direction } = useStepForm();
+  const isLastStep = currentStep === steps.length - 1;
+  const currentStepSegments = steps[currentStep] || [];
+  const currentStepQuestions = stepQuestions[currentStep] || [];
 
   return (
     <div className="w-full">
@@ -809,29 +868,109 @@ const FormPreviewContent = ({
         }}
         data-bf-form-container
       >
-        <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
-            key={currentStep}
-            custom={direction}
-            variants={stepVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{
-              x: { type: "spring", stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 },
-            }}
-            className="w-full"
-          >
-            <StepForm
+        <LazyMotion features={domAnimation} strict>
+          <AnimatePresence mode="wait" custom={direction}>
+            <m.div
               key={currentStep}
-              stepIndex={currentStep}
-              segments={currentStepSegments}
-              isLastStep={isLastStep}
-            />
-          </motion.div>
-        </AnimatePresence>
+              custom={direction}
+              variants={stepVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{
+                x: { type: "spring", stiffness: 300, damping: 30 },
+                opacity: { duration: 0.2 },
+              }}
+              className="w-full"
+            >
+              <StepForm
+                key={currentStep}
+                stepIndex={currentStep}
+                segments={currentStepSegments}
+                questions={currentStepQuestions}
+                isLastStep={isLastStep}
+              />
+            </m.div>
+          </AnimatePresence>
+        </LazyMotion>
       </div>
     </div>
+  );
+};
+
+const FormPreviewContent = (props: {
+  steps: PreviewSegment[][];
+  stepQuestions: QuestionRef[][];
+  thankYouNodes: Value | null;
+  title?: string;
+  icon?: string;
+  iconColor?: string | null;
+  cover?: string;
+  hideTitle?: boolean;
+  layout: "public" | "editor";
+  settings?: PublicFormSettings;
+  customization?: Record<string, string> | null;
+  isPopup?: boolean;
+  boundToParent?: boolean;
+  shortId?: string;
+}) => {
+  const { isSubmitted, reset } = useStepForm();
+  const { shortId, settings, layout, isFieldByField, ...rest } = {
+    ...props,
+    isFieldByField: props.settings?.presentationMode === "field-by-field",
+  };
+  const redirectCountdown = useRedirectCountdown(isSubmitted, settings);
+
+  // Public-form share URL — used on the thank-you page so respondents can pass
+  // the form along. Built from the shortId since `window.location.href` in the
+  // editor preview is the editor route, not the public form URL.
+  const shareUrl = useMemo(() => {
+    if (!shortId || typeof window === "undefined") return undefined;
+    return `${window.location.origin}/forms/${shortId}`;
+  }, [shortId]);
+
+  // Show thank you content after submission (non-field-by-field layout).
+  // Field-by-field renders its own thank-you inside the shared shell below.
+  if (isSubmitted && !isFieldByField) {
+    return (
+      <div className="w-full">
+        <PreviewFormHeader
+          title={rest.title}
+          icon={rest.icon}
+          iconColor={rest.iconColor}
+          cover={rest.cover}
+          hideTitle={rest.hideTitle}
+          layout={layout}
+          customization={rest.customization}
+          isPopup={rest.isPopup}
+        />
+        <div
+          className={cn("mx-auto w-full", layout === "editor" ? "px-8 md:px-0" : "px-4")}
+          style={{ maxWidth: PAGE_MAX_WIDTH[layout] }}
+          data-bf-form-container
+        >
+          <ThankYouView
+            thankYouNodes={rest.thankYouNodes}
+            onReset={reset}
+            shareUrl={shareUrl}
+            redirectCountdown={redirectCountdown}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const layoutProps: LayoutProps = {
+    ...rest,
+    settings,
+    layout,
+    shareUrl,
+    redirectCountdown,
+  };
+
+  return isFieldByField ? (
+    <FieldByFieldLayout {...layoutProps} />
+  ) : (
+    <LinearLayout {...layoutProps} />
   );
 };

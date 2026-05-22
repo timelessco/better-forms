@@ -1,5 +1,5 @@
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { and, eq, gte, inArray, lt, lte } from "drizzle-orm";
+import { and, count, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   formAnalyticsDaily,
@@ -9,17 +9,22 @@ import {
   formSettings,
   formVisits,
   organization,
+  submissions,
   workspaces,
 } from "@/db/schema";
 import { buildDailyAnalyticsRows, buildDailyDropoffRows } from "@/lib/analytics/aggregate-utils";
+import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
+import type { Value } from "platejs";
 import { isBotUserAgent } from "@/lib/analytics/bot-filter";
-import { mergeDropoffMetrics } from "@/lib/analytics/merge-dropoff";
+import { PER_QUESTION_ANALYTICS_CUT_TS } from "@/lib/analytics/cut-date";
+import { filterByCutDate, mergeDropoffMetrics } from "@/lib/analytics/merge-dropoff";
 import { mergeInsightsMetrics } from "@/lib/analytics/merge-metrics";
 import { parseUserAgent } from "@/lib/analytics/parse-user-agent";
 import { resolveTimeRange, splitTodayVsPast, toDateKey } from "@/lib/analytics/time-range";
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { authForm } from "@/lib/server-fn/auth-helpers.server";
 import { isServerPlan } from "@/lib/server-fn/plan-helpers";
+import { getOrgPlanWithPolarSync } from "@/lib/server-fn/plan-helpers.server";
 import type { FormInsightsMetrics, QuestionDropoffMetrics } from "@/types/analytics";
 
 export type RecordFormVisitInput = {
@@ -48,8 +53,14 @@ export type RecordQuestionProgressInput = {
   questionId: string;
   questionType?: string | null;
   questionIndex: number;
+  stepId?: string | null;
+  stepIndex?: number | null;
   event: "view" | "start" | "complete";
   wasLastQuestion?: boolean;
+};
+
+export type RecordQuestionProgressBatchInput = {
+  items: RecordQuestionProgressInput[];
 };
 
 export type InsightsFilterInput = {
@@ -59,12 +70,31 @@ export type InsightsFilterInput = {
   endDate?: string;
 };
 
-// Defense in depth — direct callers can bypass the client hook, and the
-// org-plan check covers the window where a Polar downgrade webhook hasn't
-// yet flipped `forms.analytics`.
+// Display-only gate for insights/dropoff readers. Recorders write data
+// unconditionally — the toggle controls what's *shown*, not what's *kept*,
+// so enabling analytics later (or upgrading to Pro) surfaces historical
+// data instead of starting from zero. The org-plan check covers the
+// window where a Polar downgrade webhook hasn't yet flipped any cached
+// state.
 export const isAnalyticsEnabled = async (formId: string): Promise<boolean> => {
+  const { display } = await getAnalyticsState(formId);
+  return display;
+};
+
+/**
+ * Returns the two booleans that drive every analytics-availability decision:
+ *   - `toggle`: raw `formSettings.settings.analytics` (what the user can flip)
+ *   - `display`: whether visits/dropoff should render — toggle AND plan unlock
+ *
+ * `display` consults the cached `organization.plan` column. UI surfaces that
+ * need Polar-confirmed state should ignore `display` and re-derive it against
+ * `getOrgPlanWithPolarSync` themselves; recorders are fine with the column.
+ */
+export const getAnalyticsState = async (
+  formId: string,
+): Promise<{ toggle: boolean; display: boolean }> => {
   // Read the LIVE settings (form_settings table), not the working draft —
-  // analytics tracking should reflect what's published, not pending edits.
+  // analytics display should reflect what's published, not pending edits.
   const [row] = await db
     .select({ settings: formSettings.settings, plan: organization.plan })
     .from(forms)
@@ -72,17 +102,14 @@ export const isAnalyticsEnabled = async (formId: string): Promise<boolean> => {
     .innerJoin(organization, eq(organization.id, workspaces.organizationId))
     .leftJoin(formSettings, eq(formSettings.formId, forms.id))
     .where(eq(forms.id, formId));
-  if (row?.settings?.analytics !== true) return false;
-  return isServerPlan(row.plan) && planUnlocks(row.plan, "analytics");
+  const toggle = row?.settings?.analytics === true;
+  const display = toggle && isServerPlan(row?.plan) && planUnlocks(row.plan, "analytics");
+  return { toggle, display };
 };
 
 export const recordFormVisitImpl = async (
   data: RecordFormVisitInput,
 ): Promise<{ visitId: string | null }> => {
-  if (!(await isAnalyticsEnabled(data.formId))) {
-    return { visitId: null };
-  }
-
   const headers = getRequestHeaders();
   const ua = headers.get("user-agent");
 
@@ -143,29 +170,13 @@ export const updateFormVisitImpl = async (data: UpdateFormVisitInput): Promise<{
 export const recordQuestionProgressImpl = async (
   data: RecordQuestionProgressInput,
 ): Promise<{ ok: true }> => {
-  if (!(await isAnalyticsEnabled(data.formId))) {
-    return { ok: true };
-  }
-  // NOTE: race-prone if a single visitor fires multiple events simultaneously.
-  // V1 acceptable: duplicates inflate progress rows but aggregation in Task 12
-  // dedupes by max(viewedAt) per (visitorHash, questionId). A unique constraint
-  // on (visitId, questionId) would be the right v2 fix.
-  const [existing] = await db
-    .select()
-    .from(formQuestionProgress)
-    .where(
-      and(
-        eq(formQuestionProgress.visitId, data.visitId),
-        eq(formQuestionProgress.questionId, data.questionId),
-      ),
-    )
-    .limit(1);
-
   const now = new Date();
+  const isStart = data.event === "start" || data.event === "complete";
+  const isComplete = data.event === "complete";
 
-  if (!existing) {
-    const isStartOrComplete = data.event === "start" || data.event === "complete";
-    await db.insert(formQuestionProgress).values({
+  await db
+    .insert(formQuestionProgress)
+    .values({
       id: crypto.randomUUID(),
       visitId: data.visitId,
       formId: data.formId,
@@ -173,35 +184,38 @@ export const recordQuestionProgressImpl = async (
       questionId: data.questionId,
       questionType: data.questionType ?? null,
       questionIndex: data.questionIndex,
+      stepId: data.stepId ?? null,
+      stepIndex: data.stepIndex ?? null,
       viewedAt: now,
-      startedAt: isStartOrComplete ? now : null,
-      completedAt: data.event === "complete" ? now : null,
+      startedAt: isStart ? now : null,
+      completedAt: isComplete ? now : null,
       wasLastQuestion: data.wasLastQuestion ?? false,
+    })
+    .onConflictDoUpdate({
+      target: [formQuestionProgress.visitId, formQuestionProgress.questionId],
+      // Reference excluded.* (the would-be-inserted row) instead of interpolating
+      // raw Date values into sql templates — postgres-js's parameter binder
+      // refuses a JS Date for a coalesce arg when the column type isn't
+      // explicit on its branch (issue triggered analytics-option-b.test.ts).
+      set: {
+        startedAt: sql`coalesce(${formQuestionProgress.startedAt}, excluded."startedAt")`,
+        completedAt: sql`coalesce(${formQuestionProgress.completedAt}, excluded."completedAt")`,
+        wasLastQuestion: sql`${formQuestionProgress.wasLastQuestion} or excluded."wasLastQuestion"`,
+        stepId: sql`coalesce(${formQuestionProgress.stepId}, excluded."stepId")`,
+        stepIndex: sql`coalesce(${formQuestionProgress.stepIndex}, excluded."stepIndex")`,
+      },
     });
-    return { ok: true };
-  }
 
-  const updates: Partial<typeof formQuestionProgress.$inferInsert> = {};
-  if (data.event === "start" && !existing.startedAt) {
-    updates.startedAt = now;
-  }
-  if (data.event === "complete") {
-    updates.completedAt = now;
-    if (!existing.startedAt) {
-      updates.startedAt = now;
-    }
-  }
-  if (data.wasLastQuestion !== undefined) {
-    updates.wasLastQuestion = data.wasLastQuestion;
-  }
-
-  if (Object.keys(updates).length > 0) {
-    await db
-      .update(formQuestionProgress)
-      .set(updates)
-      .where(eq(formQuestionProgress.id, existing.id));
-  }
   return { ok: true };
+};
+
+export const recordQuestionProgressBatchImpl = async (
+  data: RecordQuestionProgressBatchInput,
+): Promise<{ ok: true; processed: number }> => {
+  for (const item of data.items) {
+    await recordQuestionProgressImpl(item);
+  }
+  return { ok: true, processed: data.items.length };
 };
 
 export const getFormInsightsImpl = async (
@@ -271,7 +285,9 @@ export const getFormDropoffImpl = async (
   const split = splitTodayVsPast(range, now);
 
   const enabled = await isAnalyticsEnabled(data.formId);
-  const dailyRows =
+  const cutDateKey = PER_QUESTION_ANALYTICS_CUT_TS.slice(0, 10);
+  const cutDate = new Date(PER_QUESTION_ANALYTICS_CUT_TS);
+  const rawDailyRows =
     enabled && split.pastDays.length > 0
       ? await db
           .select()
@@ -280,11 +296,12 @@ export const getFormDropoffImpl = async (
             and(
               eq(formDropoffDaily.formId, data.formId),
               inArray(formDropoffDaily.date, split.pastDays),
+              gte(formDropoffDaily.date, cutDateKey),
             ),
           )
       : [];
 
-  const todayProgressRows =
+  const rawTodayProgressRows =
     enabled && split.rawStart
       ? await db
           .select()
@@ -294,9 +311,34 @@ export const getFormDropoffImpl = async (
               eq(formQuestionProgress.formId, data.formId),
               gte(formQuestionProgress.viewedAt, split.rawStart),
               lte(formQuestionProgress.viewedAt, range.end),
+              gte(formQuestionProgress.viewedAt, cutDate),
             ),
           )
       : [];
+
+  const { dailyRows, todayProgressRows } = filterByCutDate({
+    dailyRows: rawDailyRows,
+    todayProgressRows: rawTodayProgressRows,
+    cutTs: PER_QUESTION_ANALYTICS_CUT_TS,
+  });
+
+  // Build a Question-id → label map from the Form's current draft content so
+  // the funnel renders human-readable labels instead of raw Plate Block ids.
+  const labelMap = new Map<string, string>();
+  const [formRow] = await db
+    .select({ content: forms.content })
+    .from(forms)
+    .where(eq(forms.id, data.formId));
+  if (formRow?.content) {
+    const { steps } = transformPlateForPreview(formRow.content as Value);
+    for (const step of steps) {
+      for (const seg of step) {
+        if (seg.type === "field" && seg.field.fieldType !== "Button" && seg.field.label) {
+          labelMap.set(seg.field.id, seg.field.label);
+        }
+      }
+    }
+  }
 
   return mergeDropoffMetrics({
     formId: data.formId,
@@ -304,7 +346,59 @@ export const getFormDropoffImpl = async (
     endDate: data.endDate ?? toDateKey(range.end),
     dailyRows,
     todayProgressRows,
+    labelMap,
   });
+};
+
+export interface InsightsAvailability {
+  /** Form's lifecycle state — drives the "publish first" prompt. */
+  formStatus: string;
+  /** Total submissions for the form (lifetime, all-time). */
+  submissionCount: number;
+  /** Whether ANY raw visit has been recorded for this form. Recorders write
+   *  unconditionally now, so this is true once anyone has loaded the public
+   *  form even if the analytics toggle has never been flipped on. */
+  hasAnyVisits: boolean;
+  /** Raw `formSettings.settings.analytics` value — whether the per-form
+   *  toggle is flipped on, regardless of whether the org plan allows it.
+   *  Lets the empty state tell "off" apart from "on-but-plan-locked". */
+  analyticsToggle: boolean;
+  /** Live toggle AND plan-unlock both true — drives the actual dashboard
+   *  render. False when the toggle is off OR the plan doesn't include
+   *  analytics. */
+  analyticsEnabled: boolean;
+}
+
+export const getInsightsAvailabilityImpl = async (
+  data: { formId: string },
+  context: { session: { user: { id: string; email?: string | null } } },
+  orgId: string,
+): Promise<InsightsAvailability> => {
+  await authForm(data.formId, context.session.user.id, orgId);
+
+  // Plan resolves via Polar-sync (the `organization.plan` column drifts if a
+  // webhook missed) but the count queries don't depend on it — run them in
+  // parallel with the Polar roundtrip rather than serializing.
+  const [plan, [form], [{ value: submissionCount }], [{ value: visitCount }], analyticsState] =
+    await Promise.all([
+      getOrgPlanWithPolarSync(orgId, context.session.user.email ?? null),
+      db.select({ status: forms.status }).from(forms).where(eq(forms.id, data.formId)).limit(1),
+      db.select({ value: count() }).from(submissions).where(eq(submissions.formId, data.formId)),
+      db.select({ value: count() }).from(formVisits).where(eq(formVisits.formId, data.formId)),
+      getAnalyticsState(data.formId),
+    ]);
+
+  // `getAnalyticsState` ran without the override (so it could parallelize with
+  // the Polar fetch); re-derive `display` against the Polar-confirmed plan.
+  const analyticsEnabled = analyticsState.toggle && planUnlocks(plan, "analytics");
+
+  return {
+    formStatus: form?.status ?? "draft",
+    submissionCount,
+    hasAnyVisits: visitCount > 0,
+    analyticsToggle: analyticsState.toggle,
+    analyticsEnabled,
+  };
 };
 
 const DAYS_TO_RETAIN = 90;
@@ -358,7 +452,12 @@ export const aggregateAnalyticsDailyImpl = async (data: {
       );
 
     const analyticsRows = buildDailyAnalyticsRows(visits, date, now);
-    const dropoffRows = buildDailyDropoffRows(progress, date, now);
+    const dropoffRows = buildDailyDropoffRows({
+      rows: progress,
+      visits,
+      dateKey: date,
+      now,
+    });
 
     await tx.delete(formAnalyticsDaily).where(eq(formAnalyticsDaily.date, date));
     if (analyticsRows.length > 0) {

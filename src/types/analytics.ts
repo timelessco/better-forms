@@ -126,22 +126,27 @@ export interface FormInsightsMetrics {
   }[];
 }
 
+export interface QuestionDropoffRow {
+  questionId: string;
+  questionIndex: number;
+  questionLabel?: string;
+  stepId: string | null;
+  stepIndex: number | null;
+  viewCount: number;
+  startCount: number;
+  completeCount: number;
+  dropoffCount: number;
+  terminalDropoffCount: number;
+  dropoffRate: number; // 0-100
+  completionRate: number; // 0-100
+}
+
 export interface QuestionDropoffMetrics {
   formId: string;
   startDate: string;
   endDate: string;
 
-  questions: {
-    questionId: string;
-    questionIndex: number;
-    questionLabel?: string;
-    viewCount: number;
-    startCount: number;
-    completeCount: number;
-    dropoffCount: number;
-    dropoffRate: number; // 0-100
-    completionRate: number; // 0-100
-  }[];
+  questions: QuestionDropoffRow[];
 
   totalStarted: number;
   totalCompleted: number;

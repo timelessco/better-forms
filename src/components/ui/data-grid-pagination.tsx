@@ -12,6 +12,66 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
+type PageButtonsProps = {
+  btnBaseClasses: string;
+  currentGroupEnd: number;
+  currentGroupStart: number;
+  pageIndex: number;
+  setPageIndex: (i: number) => void;
+};
+
+const PageButtons = ({
+  btnBaseClasses,
+  currentGroupEnd,
+  currentGroupStart,
+  pageIndex,
+  setPageIndex,
+}: PageButtonsProps) => {
+  const buttons: ReactNode[] = [];
+  for (let i = currentGroupStart; i < currentGroupEnd; i++) {
+    buttons.push(
+      <Button
+        // eslint-disable-next-line react-doctor/no-array-index-as-key -- page index IS the stable identity here
+        key={i}
+        size="sm"
+        variant="ghost"
+        className={cn(btnBaseClasses, "text-muted-foreground", {
+          "bg-accent text-accent-foreground": pageIndex === i,
+        })}
+        onClick={() => {
+          if (pageIndex !== i) {
+            setPageIndex(i);
+          }
+        }}
+      >
+        {i + 1}
+      </Button>,
+    );
+  }
+  return <>{buttons}</>;
+};
+
+type EllipsisButtonProps = {
+  btnBaseClasses: string;
+  ellipsisText: string | undefined;
+  onClick: () => void;
+  visible: boolean;
+};
+
+const EllipsisButton = ({
+  btnBaseClasses,
+  ellipsisText,
+  onClick,
+  visible,
+}: EllipsisButtonProps) => {
+  if (!visible) return null;
+  return (
+    <Button size="sm" className={btnBaseClasses} variant="ghost" onClick={onClick}>
+      {ellipsisText}
+    </Button>
+  );
+};
+
 interface DataGridPaginationProps {
   sizes?: number[];
   sizesInfo?: string;
@@ -51,8 +111,8 @@ export const DataGridPagination = (props: DataGridPaginationProps) => {
 
   const btnBaseClasses = "size-7 p-0 text-sm";
   const btnArrowClasses = btnBaseClasses + " rtl:transform rtl:rotate-180";
-  const pageIndex = table.getState().pagination.pageIndex;
-  const pageSize = table.getState().pagination.pageSize;
+  const pageIndex = table.state.pagination.pageIndex;
+  const pageSize = table.state.pagination.pageSize;
   const from = pageIndex * pageSize + 1;
   const to = Math.min((pageIndex + 1) * pageSize, recordCount);
   const pageCount = table.getPageCount();
@@ -80,29 +140,7 @@ export const DataGridPagination = (props: DataGridPaginationProps) => {
   const handlePreviousPage = useCallback(() => table.previousPage(), [table]);
   const handleNextPage = useCallback(() => table.nextPage(), [table]);
 
-  const renderPageButtons = () => {
-    const buttons = [];
-    for (let i = currentGroupStart; i < currentGroupEnd; i++) {
-      buttons.push(
-        <Button
-          key={i}
-          size="sm"
-          variant="ghost"
-          className={cn(btnBaseClasses, "text-muted-foreground", {
-            "bg-accent text-accent-foreground": pageIndex === i,
-          })}
-          onClick={() => {
-            if (pageIndex !== i) {
-              table.setPageIndex(i);
-            }
-          }}
-        >
-          {i + 1}
-        </Button>,
-      );
-    }
-    return buttons;
-  };
+  const setPageIndex = useCallback((i: number) => table.setPageIndex(i), [table]);
 
   const handleEllipsisPrev = useCallback(
     () => table.setPageIndex(currentGroupStart - 1),
@@ -114,28 +152,6 @@ export const DataGridPagination = (props: DataGridPaginationProps) => {
     [table, currentGroupEnd],
   );
 
-  const renderEllipsisPrevButton = () => {
-    if (currentGroupStart > 0) {
-      return (
-        <Button size="sm" className={btnBaseClasses} variant="ghost" onClick={handleEllipsisPrev}>
-          {mergedProps.ellipsisText}
-        </Button>
-      );
-    }
-    return null;
-  };
-
-  const renderEllipsisNextButton = () => {
-    if (currentGroupEnd < pageCount) {
-      return (
-        <Button className={btnBaseClasses} variant="ghost" size="sm" onClick={handleEllipsisNext}>
-          {mergedProps.ellipsisText}
-        </Button>
-      );
-    }
-    return null;
-  };
-
   return (
     <div
       data-slot="data-grid-pagination"
@@ -144,7 +160,7 @@ export const DataGridPagination = (props: DataGridPaginationProps) => {
         mergedProps?.className,
       )}
     >
-      <div className="order-2 flex flex-wrap items-center space-x-2.5 pb-2.5 sm:order-1 sm:pb-0">
+      <div className="order-2 flex flex-wrap items-center gap-x-2.5 pb-2.5 sm:order-1 sm:pb-0">
         {isLoading ? (
           mergedProps?.sizesSkeleton
         ) : (
@@ -174,7 +190,7 @@ export const DataGridPagination = (props: DataGridPaginationProps) => {
               {paginationInfo}
             </div>
             {pageCount > 1 && (
-              <div className="order-1 flex items-center space-x-1 sm:order-2">
+              <div className="order-1 flex items-center gap-x-1 sm:order-2">
                 <Button
                   size="sm"
                   variant="ghost"
@@ -186,11 +202,25 @@ export const DataGridPagination = (props: DataGridPaginationProps) => {
                   <ChevronLeftIcon className="size-4" />
                 </Button>
 
-                {renderEllipsisPrevButton()}
-
-                {renderPageButtons()}
-
-                {renderEllipsisNextButton()}
+                <EllipsisButton
+                  btnBaseClasses={btnBaseClasses}
+                  ellipsisText={mergedProps.ellipsisText}
+                  onClick={handleEllipsisPrev}
+                  visible={currentGroupStart > 0}
+                />
+                <PageButtons
+                  btnBaseClasses={btnBaseClasses}
+                  currentGroupEnd={currentGroupEnd}
+                  currentGroupStart={currentGroupStart}
+                  pageIndex={pageIndex}
+                  setPageIndex={setPageIndex}
+                />
+                <EllipsisButton
+                  btnBaseClasses={btnBaseClasses}
+                  ellipsisText={mergedProps.ellipsisText}
+                  onClick={handleEllipsisNext}
+                  visible={currentGroupEnd < pageCount}
+                />
 
                 <Button
                   size="sm"

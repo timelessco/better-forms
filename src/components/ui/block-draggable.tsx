@@ -23,7 +23,7 @@ import {
   findNextNonButtonPath,
   findPrevNonButtonPath,
   moveToPath,
-} from "@/components/editor/plugins/form-blocks-kit";
+} from "@/components/editor/plugins/form-blocks-utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { FORM_INPUT_NODE_TYPES } from "@/lib/form-schema/form-field-constants";
 import { cn } from "@/lib/utils";
@@ -101,14 +101,6 @@ export const BlockDraggable: RenderNodeWrapper = (props) => {
         },
       });
       if (block) isEnabled = true;
-    } else if (path.length === 4 && !isType(editor, element, UNDRAGGABLE_KEYS)) {
-      const block = editor.api.some({
-        at: path,
-        match: {
-          type: editor.getType(KEYS.table),
-        },
-      });
-      if (block) isEnabled = true;
     }
 
     if (isAfterButton && !blockIsHidden) {
@@ -142,23 +134,6 @@ const Draggable = (props: PlateElementProps) => {
   const isFormButton = element.type === "formButton";
   const isFormHeader = element.type === "formHeader";
   const isPageBreak = element.type === "pageBreak";
-
-  const gutterPosition = React.useMemo(() => {
-    if (element.gutterPosition) return element.gutterPosition as "center" | "top";
-
-    const plugin = getPluginByType(editor, element.type);
-    if (plugin?.options?.gutterPosition) return plugin.options.gutterPosition as "center" | "top";
-
-    if (
-      ["formTextarea", "formFileUpload", KEYS.codeBlock, KEYS.blockquote, KEYS.table].includes(
-        element.type,
-      )
-    ) {
-      return "top";
-    }
-
-    return "center";
-  }, [editor, element]);
 
   const buttonLayoutClass = React.useMemo(() => {
     if (isFormButton) {
@@ -244,6 +219,7 @@ const Draggable = (props: PlateElementProps) => {
   }, [isDragging]);
 
   // Make preview visible just before drag starts so HTML5 backend can capture it
+  // eslint-disable-next-line react-doctor/no-effect-event-handler -- reacts to react-dnd async state transitions; not a discrete user event
   React.useEffect(() => {
     if (isAboutToDrag) {
       previewRef.current?.classList.remove("opacity-0");
@@ -255,6 +231,7 @@ const Draggable = (props: PlateElementProps) => {
   // doesn't double up with the cursor-following HTML5 drag image. The HTML5
   // backend publishes isDragging via setTimeout(0) AFTER the screenshot is
   // captured, so hiding here can't blank the drag image.
+  // eslint-disable-next-line react-doctor/no-effect-event-handler -- reacts to react-dnd async state transitions; not a discrete user event
   React.useEffect(() => {
     if (isDragging) {
       previewRef.current?.classList.add("opacity-0");
@@ -334,7 +311,7 @@ const Draggable = (props: PlateElementProps) => {
       {...wrapperInputAttrs}
     >
       {!isInTable && !isFormButton && !isFormHeader && !isPageBreak && (
-        <Gutter gutterPosition={gutterPosition} className="mr-1">
+        <Gutter gutterPosition="top" className="mr-1">
           <div
             className={cn(
               "slate-blockToolbarWrapper",
@@ -364,7 +341,7 @@ const Draggable = (props: PlateElementProps) => {
                       variant="ghost"
                       size="icon"
                       tabIndex={-1}
-                      className="h-auto w-auto rounded-lg border border-transparent has-[>svg]:px-1 has-[>svg]:py-1.5"
+                      className="size-auto rounded-lg border border-transparent has-[>svg]:px-1 has-[>svg]:py-1.5"
                       onClick={handleAddBlock}
                       data-plate-prevent-deselect
                     />
@@ -379,7 +356,7 @@ const Draggable = (props: PlateElementProps) => {
             {/* Drag Handle or Settings Gear - div to avoid nested button (Tooltip+Button inside) */}
             <div
               ref={isFormButton ? undefined : handleRef}
-              className="h-auto w-auto cursor-grab"
+              className="size-auto cursor-grab"
               data-plate-prevent-deselect
             >
               <DragHandle
@@ -456,7 +433,7 @@ const DragHandle = React.memo(function DragHandle({
   const editor = useEditorRef();
   const element = useElement();
 
-  const handleClick = React.useCallback(
+  const openBlockMenu = React.useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
@@ -571,8 +548,8 @@ const DragHandle = React.memo(function DragHandle({
           <button
             type="button"
             tabIndex={-1}
-            className="flex h-auto w-auto items-center justify-center overflow-hidden rounded-lg hover:bg-accent has-[>svg]:px-1 has-[>svg]:py-1.5"
-            onClick={handleClick}
+            className="flex size-auto items-center justify-center overflow-hidden rounded-lg hover:bg-accent has-[>svg]:px-1 has-[>svg]:py-1.5"
+            onClick={openBlockMenu}
             onMouseDown={handleMouseDown}
             onMouseEnter={handleMouseEnter}
             onMouseUp={handleMouseUp}
@@ -712,8 +689,10 @@ const applyScrollCompensation = (original: Element, cloned: HTMLElement) => {
     }
 
     const originalStyles = window.getComputedStyle(original);
-    cloned.style.padding = "0";
-    innerContainer.style.padding = originalStyles.padding;
+    // Writes target two distinct elements (cloned vs innerContainer) so
+    // cssText/Object.assign don't help — keep one style write per element.
+    cloned.style.setProperty("padding", "0");
+    innerContainer.style.setProperty("padding", originalStyles.padding);
 
     scrollWrapper.append(innerContainer);
     cloned.append(scrollWrapper);

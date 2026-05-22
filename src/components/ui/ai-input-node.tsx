@@ -3,11 +3,11 @@ import { BlockSelectionPlugin } from "@platejs/selection/react";
 import { ArrowUpIcon, CornerUpLeftIcon } from "lucide-react";
 import { isHotkey } from "platejs";
 import { useEditorRef, usePluginOption } from "platejs/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 
 import { useFormGenStream } from "@/components/editor/hooks/use-form-gen-stream";
-import { AIInputPlugin, hideAIInput } from "@/components/editor/plugins/ai-input-kit";
-import type { AIInputState } from "@/components/editor/plugins/ai-input-kit";
+import { AIInputPlugin, hideAIInput } from "@/components/editor/plugins/ai-input-base";
+import type { AIInputState } from "@/components/editor/plugins/ai-input-base";
 import { Button } from "@/components/ui/button";
 import { CheckIcon, ImageIcon, Loader2Icon, SparklesIcon, XIcon } from "@/components/ui/icons";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -170,6 +170,10 @@ const AIInputPopoverBody = ({ state }: { state: AIInputState }) => {
     discardPreview();
   }, [discardPreview, stop]);
 
+  const onAcceptEvent = useEffectEvent(() => handleAccept());
+  const onRejectEvent = useEffectEvent(() => handleReject());
+  const onTryAgainEvent = useEffectEvent(() => handleTryAgain());
+
   // Mirror the previous window-level keybinds so Enter/Cmd+Z/Cmd+R work during a pending preview.
   useEffect(() => {
     if (!hasPendingPreview) return;
@@ -178,20 +182,20 @@ const AIInputPopoverBody = ({ state }: { state: AIInputState }) => {
       if (e.key === "Enter" && !e.shiftKey && !isMod) {
         e.preventDefault();
         e.stopPropagation();
-        handleAccept();
+        onAcceptEvent();
       } else if (isMod && e.key.toLowerCase() === "z" && !e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
-        handleReject();
+        onRejectEvent();
       } else if (isMod && e.key.toLowerCase() === "r") {
         e.preventDefault();
         e.stopPropagation();
-        handleTryAgain();
+        onTryAgainEvent();
       }
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [hasPendingPreview, handleAccept, handleReject, handleTryAgain]);
+  }, [hasPendingPreview]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -261,137 +265,41 @@ const AIInputPopoverBody = ({ state }: { state: AIInputState }) => {
       >
         <div
           className={cn(
-            "animate-in rounded-xl bg-background shadow-[0_0_1px_0_rgba(0,0,0,0.19),0_1px_2px_0_rgba(0,0,0,0.07),0_6px_15px_-5px_rgba(0,0,0,0.11)] ring-1 ring-foreground/10 transition-colors duration-150 fade-in-0 zoom-in-95",
+            "animate-in rounded-xl bg-background elevation-lg transition-colors duration-150 fade-in-0 zoom-in-95",
             error && "ring-destructive",
           )}
         >
           {error && <p className="px-3 pt-2 text-xs text-destructive">{error}</p>}
 
           {state.selectionContext && !hasPendingPreview && (
-            <div className="flex items-center gap-1.5 border-b px-3 py-1.5 text-xs text-muted-foreground">
-              <SparklesIcon className="size-3.5 shrink-0" />
-              <span className="max-w-[400px] truncate">
-                {state.selectedPaths.length > 0
-                  ? `${state.selectedPaths.length} block${state.selectedPaths.length > 1 ? "s" : ""} selected`
-                  : state.selectionContext.length > 80
-                    ? `${state.selectionContext.slice(0, 80)}…`
-                    : state.selectionContext}
-              </span>
-            </div>
+            <SelectionContextRow
+              selectionContext={state.selectionContext}
+              selectedPathsCount={state.selectedPaths.length}
+            />
           )}
 
           {attachedImages.length > 0 && !hasPendingPreview && (
-            <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2 pb-0.5">
-              {attachedImages.map((img, i) => (
-                <div
-                  key={img.url}
-                  className="group relative inline-flex items-center gap-1.5 rounded-full border bg-muted/40 py-0.5 pr-2 pl-0.5 text-xs text-foreground"
-                  title={img.name}
-                >
-                  <img src={img.url} alt="" className="size-5 shrink-0 rounded-full object-cover" />
-                  <span className="max-w-[140px] truncate">{img.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeImage(i)}
-                    className="ml-0.5 flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-                    aria-label={`Remove ${img.name}`}
-                  >
-                    <XIcon className="size-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
+            <AttachedImagesRow attachedImages={attachedImages} removeImage={removeImage} />
           )}
 
           {hasPendingPreview ? (
-            <div className="flex items-center gap-1 px-2 py-1.5">
-              <button
-                type="button"
-                onClick={handleAccept}
-                className="group flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-muted"
-              >
-                <CheckIcon className="size-4 text-emerald-600" />
-                Accept
-                <kbd className="ml-1 rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground group-hover:bg-background">
-                  ↵
-                </kbd>
-              </button>
-              <button
-                type="button"
-                onClick={handleReject}
-                className="group flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-muted"
-              >
-                <XIcon className="size-4 text-destructive" />
-                Discard
-                <kbd className="ml-1 rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground group-hover:bg-background">
-                  ⌘Z
-                </kbd>
-              </button>
-              <button
-                type="button"
-                onClick={handleTryAgain}
-                className="group flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-muted"
-              >
-                <CornerUpLeftIcon className="size-4 text-muted-foreground" />
-                Try again
-                <kbd className="ml-1 rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground group-hover:bg-background">
-                  ⌘R
-                </kbd>
-              </button>
-            </div>
+            <PendingPreviewActions
+              handleAccept={handleAccept}
+              handleReject={handleReject}
+              handleTryAgain={handleTryAgain}
+            />
           ) : (
-            <div className="flex items-center gap-2 pr-1.5 pl-4">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={isLoading}
-                rows={1}
-                placeholder={isLoading ? "Generating..." : "Ask AI anything..."}
-                className={cn(
-                  "flex field-sizing-content w-full resize-none bg-transparent py-1.5 text-sm outline-none",
-                  "max-h-40 overflow-y-auto leading-5",
-                  "placeholder:text-muted-foreground/60",
-                  "disabled:cursor-not-allowed disabled:opacity-50",
-                )}
-                aria-label="AI prompt"
-              />
-
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading}
-                className="rounded-full text-muted-foreground"
-                aria-label="Attach image for theme"
-                title="Attach image for theme"
-              >
-                <ImageIcon />
-              </Button>
-
-              {isLoading ? (
-                <Button
-                  variant="secondary"
-                  size="icon-xs"
-                  onClick={handleStop}
-                  className="rounded-full"
-                  aria-label="Stop generation"
-                >
-                  <Loader2Icon className="animate-spin" />
-                </Button>
-              ) : (
-                <Button
-                  size="icon-xs"
-                  onClick={handleSubmit}
-                  disabled={!input.trim() && attachedImages.length === 0}
-                  className="rounded-full"
-                  aria-label="Submit prompt"
-                >
-                  <ArrowUpIcon strokeWidth={2.5} />
-                </Button>
-              )}
-            </div>
+            <PromptInputRow
+              inputRef={inputRef}
+              input={input}
+              setInput={setInput}
+              handleKeyDown={handleKeyDown}
+              isLoading={isLoading}
+              fileInputRef={fileInputRef}
+              attachedImagesCount={attachedImages.length}
+              handleSubmit={handleSubmit}
+              handleStop={handleStop}
+            />
           )}
 
           <input
@@ -407,3 +315,177 @@ const AIInputPopoverBody = ({ state }: { state: AIInputState }) => {
     </Popover>
   );
 };
+
+interface SelectionContextRowProps {
+  selectionContext: string;
+  selectedPathsCount: number;
+}
+
+const SelectionContextRow = ({
+  selectionContext,
+  selectedPathsCount,
+}: SelectionContextRowProps) => (
+  <div className="flex items-center gap-1.5 border-b px-3 py-1.5 text-xs text-muted-foreground">
+    <SparklesIcon className="size-3.5 shrink-0" />
+    <span className="max-w-[400px] truncate">
+      {selectedPathsCount > 0
+        ? `${selectedPathsCount} block${selectedPathsCount > 1 ? "s" : ""} selected`
+        : selectionContext.length > 80
+          ? `${selectionContext.slice(0, 80)}…`
+          : selectionContext}
+    </span>
+  </div>
+);
+
+interface AttachedImagesRowProps {
+  attachedImages: AttachedImage[];
+  removeImage: (index: number) => void;
+}
+
+const AttachedImagesRow = ({ attachedImages, removeImage }: AttachedImagesRowProps) => (
+  <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2 pb-0.5">
+    {attachedImages.map((img, i) => (
+      <div
+        key={img.url}
+        className="group relative inline-flex items-center gap-1.5 rounded-full border bg-muted/40 py-0.5 pr-2 pl-0.5 text-xs text-foreground"
+        title={img.name}
+      >
+        <img src={img.url} alt="" className="size-5 shrink-0 rounded-full object-cover" />
+        <span className="max-w-[140px] truncate">{img.name}</span>
+        <button
+          type="button"
+          onClick={() => removeImage(i)}
+          className="ml-0.5 flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label={`Remove ${img.name}`}
+        >
+          <XIcon className="size-3" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+interface PendingPreviewActionsProps {
+  handleAccept: () => void;
+  handleReject: () => void;
+  handleTryAgain: () => void;
+}
+
+const PendingPreviewActions = ({
+  handleAccept,
+  handleReject,
+  handleTryAgain,
+}: PendingPreviewActionsProps) => (
+  <div className="flex items-center gap-1 px-2 py-1.5">
+    <button
+      type="button"
+      onClick={handleAccept}
+      className="group flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-muted"
+    >
+      <CheckIcon className="size-4 text-emerald-600" />
+      Accept
+      <kbd className="ml-1 rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground group-hover:bg-background">
+        ↵
+      </kbd>
+    </button>
+    <button
+      type="button"
+      onClick={handleReject}
+      className="group flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-muted"
+    >
+      <XIcon className="size-4 text-destructive" />
+      Discard
+      <kbd className="ml-1 rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground group-hover:bg-background">
+        ⌘Z
+      </kbd>
+    </button>
+    <button
+      type="button"
+      onClick={handleTryAgain}
+      className="group flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-muted"
+    >
+      <CornerUpLeftIcon className="size-4 text-muted-foreground" />
+      Try again
+      <kbd className="ml-1 rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-muted-foreground group-hover:bg-background">
+        ⌘R
+      </kbd>
+    </button>
+  </div>
+);
+
+interface PromptInputRowProps {
+  inputRef: React.RefObject<HTMLTextAreaElement | null>;
+  input: string;
+  setInput: (value: string) => void;
+  handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  isLoading: boolean;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  attachedImagesCount: number;
+  handleSubmit: () => void;
+  handleStop: () => void;
+}
+
+const PromptInputRow = ({
+  inputRef,
+  input,
+  setInput,
+  handleKeyDown,
+  isLoading,
+  fileInputRef,
+  attachedImagesCount,
+  handleSubmit,
+  handleStop,
+}: PromptInputRowProps) => (
+  <div className="flex items-center gap-2 pr-1.5 pl-4">
+    <textarea
+      ref={inputRef}
+      value={input}
+      onChange={(e) => setInput(e.target.value)}
+      onKeyDown={handleKeyDown}
+      disabled={isLoading}
+      rows={1}
+      placeholder={isLoading ? "Generating..." : "Ask AI anything..."}
+      className={cn(
+        "flex field-sizing-content w-full resize-none bg-transparent py-1.5 text-sm outline-none",
+        "max-h-40 overflow-y-auto leading-5",
+        "placeholder:text-muted-foreground/60",
+        "disabled:cursor-not-allowed disabled:opacity-50",
+      )}
+      aria-label="AI prompt"
+    />
+
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      onClick={() => fileInputRef.current?.click()}
+      disabled={isLoading}
+      className="rounded-full text-muted-foreground"
+      aria-label="Attach image for theme"
+      title="Attach image for theme"
+    >
+      <ImageIcon />
+    </Button>
+
+    {isLoading ? (
+      <Button
+        variant="secondary"
+        size="icon-xs"
+        onClick={handleStop}
+        className="rounded-full"
+        aria-label="Stop generation"
+      >
+        <Loader2Icon className="animate-spin" />
+      </Button>
+    ) : (
+      <Button
+        size="icon-xs"
+        onClick={handleSubmit}
+        disabled={!input.trim() && attachedImagesCount === 0}
+        className="rounded-full"
+        aria-label="Submit prompt"
+      >
+        <ArrowUpIcon strokeWidth={2.5} />
+      </Button>
+    )}
+  </div>
+);

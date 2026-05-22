@@ -104,7 +104,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
   return (
     <Sidebar
       collapsible="none"
-      className="h-full w-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
+      className="size-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
     >
       <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
         <div className="flex items-center justify-between">
@@ -112,28 +112,34 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
           <Button
             variant="ghost"
             size="icon-xs"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            className="size-7 text-muted-foreground hover:text-foreground"
             onClick={closeSidebar}
             aria-label="Close"
           >
-            <XIcon className="h-4 w-4" />
+            <XIcon className="size-4" />
           </Button>
         </div>
       </SidebarHeader>
 
       <SidebarContent className="relative px-2 pt-[10px]">
-        {/* Vertical timeline line */}
-        {versionList.length > 1 && (
-          <div
-            className="absolute left-[26px] w-px bg-border/60"
-            style={{
-              top: `${10 + 8 + 10}px`,
-              height: `${(versionList.length - 1) * 55}px`,
-            }}
-          />
-        )}
+        <div className="relative flex flex-col gap-1">
+          {versionList.length > 1 && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute left-[18px] w-px overflow-hidden"
+              style={{ top: 18, bottom: 33 }}
+            >
+              <div className="absolute inset-0 bg-border/60" />
+              <div
+                className="absolute inset-x-0 h-32 animate-[timeline-glow-up_3s_linear_infinite]"
+                style={{
+                  background:
+                    "linear-gradient(to top, transparent 0%, color-mix(in oklab, var(--color-primary) 70%, transparent) 50%, transparent 100%)",
+                }}
+              />
+            </div>
+          )}
 
-        <div className="flex flex-col gap-1">
           {versionList.map((version, index) => {
             const publisher = getPublisherInfo(version.publishedBy);
             const isSelected = effectiveVersionId === version.id;
@@ -146,11 +152,11 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                 onClick={() => selectVersion(version.id)}
                 className={cn(
                   "relative flex h-auto w-full cursor-pointer items-start gap-1.5 rounded-lg py-2 pl-2 text-left",
-                  isSelected ? "bg-accent" : "hover:bg-accent/50",
+                  isSelected ? "bg-muted" : "hover:bg-muted/50",
                 )}
               >
                 {/* Avatar */}
-                <div className="shrink-0">
+                <div className="relative z-10 shrink-0">
                   <Avatar className="size-5 rounded-full">
                     <AvatarImage src={publisher.image} alt={publisher.name} />
                     <AvatarFallback className="rounded-full bg-muted text-[13px] text-muted-foreground">
@@ -159,33 +165,37 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                   </Avatar>
                 </div>
 
-                {/* Content */}
+                {/* Content — sizes match Figma (system-flat / cell): 14px
+                    medium title, 13px regular subtitle, both at leading-[1.15] */}
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <p className="truncate text-base leading-[16px] font-medium text-foreground">
+                  <p className="truncate text-sm leading-[1.15] font-medium text-foreground">
                     {publisher.name}
                   </p>
-                  <p className="text-sm leading-[15px] font-normal tracking-[0.13px] text-muted-foreground">
+                  <p className="text-[13px] leading-[1.15] font-normal tracking-[0.13px] text-muted-foreground">
                     {version.version} change{version.version !== 1 ? "s" : ""} ·{" "}
                     {isCurrent ? "Current" : "Published"}
                   </p>
                 </div>
 
-                {/* Suffix: timestamp or menu */}
-                {isSelected ? (
-                  <div className="shrink-0 self-center px-2">
+                {/* Suffix: timestamp or menu. Both states share the same
+                    pt-[2px] items-start outer wrapper (per Figma) and a
+                    16px-tall inner box, so flipping selection never
+                    changes the row's height (51px) or visual rhythm. */}
+                <div className="inline-flex shrink-0 items-start pt-[2px]">
+                  {isSelected ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         render={
                           <button
                             type="button"
-                            className="inline-flex size-[26px] cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent p-0 hover:bg-accent"
+                            className="inline-flex h-4 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-0 bg-transparent px-2 py-[5.5px] hover:bg-accent"
                             onClick={stopPropagation}
                             onKeyDown={(e) => e.stopPropagation()}
                             aria-label="Version actions"
                           />
                         }
                       >
-                        <MoreHorizontalIcon className="size-4" />
+                        <MoreHorizontalIcon className="size-3 text-muted-foreground" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         side="bottom"
@@ -211,14 +221,12 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </div>
-                ) : (
-                  <div className="shrink-0 pt-0.5">
-                    <span className="px-2 text-[13px] text-muted-foreground">
+                  ) : (
+                    <span className="inline-flex h-4 items-center px-2 text-[13px] leading-[1.15] font-medium tracking-[0.13px] text-muted-foreground">
                       {formatRelativeTime(version.publishedAt)}
                     </span>
-                  </div>
-                )}
+                  )}
+                </div>
               </button>
             );
           })}

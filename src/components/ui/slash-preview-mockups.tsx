@@ -105,36 +105,6 @@ export const TogglePreview = () => (
   </div>
 );
 
-export const CodeBlockPreview = () => (
-  <div className="flex h-[130px] flex-col justify-center px-3">
-    <div className="flex flex-col gap-2 rounded-md bg-muted/50 p-3">
-      <SkeletonBar width="w-[60%]" className="h-[4px] bg-muted-foreground/15" />
-      <SkeletonBar width="w-[80%]" className="h-[4px] bg-muted-foreground/15" />
-      <SkeletonBar width="w-[45%]" className="h-[4px] bg-muted-foreground/15" />
-      <SkeletonBar width="w-[70%]" className="h-[4px] bg-muted-foreground/15" />
-    </div>
-  </div>
-);
-
-export const TablePreview = () => (
-  <div className="flex h-[130px] flex-col justify-center px-3">
-    <div className="overflow-hidden rounded-sm border">
-      {[0, 1, 2].map((row) => (
-        <div key={row} className={`flex ${row > 0 ? "border-t" : ""}`}>
-          {[0, 1, 2].map((col) => (
-            <div key={col} className={`flex-1 px-2 py-1.5 ${col > 0 ? "border-l" : ""}`}>
-              <SkeletonBar
-                width={row === 0 ? "w-[70%]" : "w-[50%]"}
-                className={`h-[4px] ${row === 0 ? "bg-muted-foreground/30" : ""}`}
-              />
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
 export const BlockquotePreview = () => (
   <div className="flex h-[130px] flex-col justify-center px-3">
     <div className="border-l-2 border-foreground/30 pl-4">
@@ -233,7 +203,7 @@ export const FormTextAreaPreview = () => (
   <div className="flex h-[130px] flex-col justify-center px-3">
     <FormFieldLabel />
     <div className="flex h-16 items-start rounded-md border border-input px-2 pt-2">
-      <span className="text-xs text-muted-foreground/60">Tell us more...</span>
+      <span className="text-xs text-muted-foreground/60">Tell us more…</span>
     </div>
   </div>
 );

@@ -4,6 +4,7 @@ import {
   ALLOWED_LABEL_TYPES,
   INPUT_TYPE_TO_FIELD_TYPE,
   VARIANT_TO_FIELD_TYPE,
+  extractNumberFields,
   resolveRequired,
 } from "@/lib/form-schema/form-field-constants";
 import { extractTextContent, slugify } from "./transform-plate-to-form";
@@ -147,6 +148,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
       const name = stableId || `${baseName}_${fieldIndex}`;
 
       const fileUploadFields = nodeType === "formFileUpload" ? extractFileUploadFields(node) : {};
+      const numberFields = nodeType === "formNumber" ? extractNumberFields(node) : {};
 
       segments.push({
         type: "field",
@@ -162,6 +164,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
           maxLength,
           defaultValue,
           ...fileUploadFields,
+          ...numberFields,
         } as PlateFormField,
       });
       fieldIndex++;
@@ -231,13 +234,19 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
       const baseName = slugify(labelText);
       const name = stableId || `${baseName}_${fieldIndex}`;
 
+      // Single-option checkboxes ("I agree to terms") and switches typically
+      // have no preceding label — the user-facing text lives on the option
+      // item itself. Fall back to the option's own text so the field has a
+      // readable label for downstream consumers (analytics, exports, etc.).
+      const fieldLabel = labelText || options[0]?.label;
+
       segments.push({
         type: "field",
         field: {
           id: name,
           name,
           fieldType: VARIANT_TO_FIELD_TYPE[variant] || "Checkbox",
-          label: labelText || undefined,
+          label: fieldLabel || undefined,
           labelType: label?.labelNode.type as string | undefined,
           required: isRequired,
           options,
@@ -283,6 +292,30 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
 
   flushStatic();
   return segments;
+};
+
+/**
+ * Re-chunk preview segments for field-by-field presentation: each non-Button
+ * field becomes its own step, with preceding static content carried into the
+ * same step. Authored Button fields are dropped — the runtime auto-renders a
+ * submit/next button per step. If the result is empty (form has no fields),
+ * falls back to the original chunking so static-only previews still render.
+ */
+export const chunkSegmentsForFieldByField = (steps: PreviewSegment[][]): PreviewSegment[][] => {
+  const flattened: PreviewSegment[][] = [];
+  let pending: PreviewSegment[] = [];
+  for (const step of steps) {
+    for (const seg of step) {
+      if (seg.type === "field" && seg.field.fieldType === "Button") continue;
+      pending.push(seg);
+      if (seg.type === "field") {
+        flattened.push(pending);
+        pending = [];
+      }
+    }
+  }
+  if (pending.length > 0) flattened.push(pending);
+  return flattened.length > 0 ? flattened : steps;
 };
 
 export const getFieldsFromSegments = (segments: PreviewSegment[]): PlateFormField[] =>

@@ -8,6 +8,7 @@ interface ClientOnlyProps {
 }
 
 export const ClientOnly = ({ children, fallback = null }: ClientOnlyProps) => {
+  // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value gates the early-return fallback render below
   const [mounted, setMounted] = useState(false);
 
   useMountEffect(() => {

@@ -1,16 +1,18 @@
+import { sql } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import {
-  pgTable,
-  text,
-  serial,
-  timestamp,
+  boolean,
+  check,
+  index,
   integer,
   jsonb,
-  boolean,
-  index,
-  uniqueIndex,
+  pgTable,
+  serial,
+  text,
+  timestamp,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
 
 export const account = pgTable("account", {
   id: text().primaryKey(),
@@ -32,36 +34,92 @@ export const account = pgTable("account", {
     .notNull(),
 });
 
-export const apikey = pgTable("apikey", {
-  id: text().primaryKey(),
-  name: text(),
-  start: text(),
-  prefix: text(),
-  key: text().notNull(),
-  userId: text().notNull(),
-  refillInterval: integer(),
-  refillAmount: integer(),
-  lastRefillAt: timestamp({ withTimezone: true }),
-  enabled: boolean().default(true),
-  rateLimitEnabled: boolean().default(true),
-  rateLimitTimeWindow: integer().default(86400000),
-  rateLimitMax: integer().default(10),
-  requestCount: integer().default(0),
-  remaining: integer(),
-  lastRequest: timestamp({ withTimezone: true }),
-  expiresAt: timestamp({ withTimezone: true }),
-  createdAt: timestamp({ withTimezone: true }).notNull(),
-  updatedAt: timestamp({ withTimezone: true }).notNull(),
-  permissions: text(),
-  metadata: text(),
-  referenceId: text(),
+export const aiChatPreviewCounts = pgTable(
+  "ai_chat_preview_counts",
+  {
+    id: text().primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    periodDay: text("period_day").notNull(),
+    count: integer().default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`now()`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .default(sql`now()`)
+      .notNull(),
+  },
+  (table) => [
+    index("idx_ai_chat_preview_counts_org_day").using(
+      "btree",
+      table.organizationId.asc().nullsLast(),
+      table.periodDay.asc().nullsLast(),
+    ),
+  ],
+);
+
+export const aiChatRateLimits = pgTable("ai_chat_rate_limits", {
+  ip: text().primaryKey(),
+  windowStart: timestamp("window_start", { withTimezone: true })
+    .default(sql`now()`)
+    .notNull(),
+  count: integer().default(0).notNull(),
 });
+
+export const aiChatSessions = pgTable(
+  "ai_chat_sessions",
+  {
+    submissionId: text("submission_id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    periodMonth: text("period_month").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`now()`)
+      .notNull(),
+  },
+  (table) => [
+    index("idx_ai_chat_sessions_org_month").using(
+      "btree",
+      table.organizationId.asc().nullsLast(),
+      table.periodMonth.asc().nullsLast(),
+    ),
+  ],
+);
+
+export const aiGenerationCounts = pgTable(
+  "ai_generation_counts",
+  {
+    id: text().primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    periodDay: text("period_day").notNull(),
+    count: integer().default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`now()`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .default(sql`now()`)
+      .notNull(),
+  },
+  (table) => [
+    index("idx_ai_generation_counts_org_day").using(
+      "btree",
+      table.organizationId.asc().nullsLast(),
+      table.periodDay.asc().nullsLast(),
+    ),
+  ],
+);
 
 export const customDomains = pgTable(
   "custom_domains",
   {
     id: text().primaryKey(),
-    organizationId: text().notNull(),
+    organizationId: text()
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
     domain: text().notNull(),
     status: text().default("pending").notNull(),
     vercelDomainId: text(),
@@ -80,6 +138,14 @@ export const customDomains = pgTable(
     index("custom_domains_domain_idx").using("btree", table.domain.asc().nullsLast()),
     index("custom_domains_org_idx").using("btree", table.organizationId.asc().nullsLast()),
     unique("custom_domains_domain_key").on(table.domain),
+    check(
+      "custom_domains_previous_status_check",
+      sql`(("previousStatus" IS NULL) OR ("previousStatus" = ANY (ARRAY['pending'::text, 'verified'::text, 'failed'::text, 'suspended'::text])))`,
+    ),
+    check(
+      "custom_domains_status_check",
+      sql`(status = ANY (ARRAY['pending'::text, 'verified'::text, 'failed'::text, 'suspended'::text]))`,
+    ),
   ],
 );
 
@@ -87,7 +153,9 @@ export const formAnalyticsDaily = pgTable(
   "form_analytics_daily",
   {
     id: text().primaryKey(),
-    formId: text().notNull(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
     date: text().notNull(),
     totalVisits: integer().default(0).notNull(),
     uniqueVisitors: integer().default(0).notNull(),
@@ -95,20 +163,6 @@ export const formAnalyticsDaily = pgTable(
     uniqueSubmitters: integer().default(0).notNull(),
     avgDurationMs: integer(),
     medianDurationMs: integer(),
-    deviceDesktop: integer().default(0),
-    deviceMobile: integer().default(0),
-    deviceTablet: integer().default(0),
-    browserChrome: integer().default(0),
-    browserFirefox: integer().default(0),
-    browserSafari: integer().default(0),
-    browserEdge: integer().default(0),
-    browserOther: integer().default(0),
-    osWindows: integer().default(0),
-    osMacos: integer().default(0),
-    osIos: integer().default(0),
-    osAndroid: integer().default(0),
-    osLinux: integer().default(0),
-    osOther: integer().default(0),
     countryBreakdown: jsonb().default({}).notNull(),
     cityBreakdown: jsonb().default({}).notNull(),
     sourceBreakdown: jsonb().default({}).notNull(),
@@ -118,9 +172,12 @@ export const formAnalyticsDaily = pgTable(
     updatedAt: timestamp({ withTimezone: true })
       .default(sql`now()`)
       .notNull(),
+    browserBreakdown: jsonb("browser_breakdown").default({}).notNull(),
+    osBreakdown: jsonb("os_breakdown").default({}).notNull(),
+    deviceBreakdown: jsonb("device_breakdown").default({}).notNull(),
   },
   (table) => [
-    index("idx_form_analytics_daily_form_id_date").using(
+    uniqueIndex("uniq_form_analytics_daily_form_id_date").using(
       "btree",
       table.formId.asc().nullsLast(),
       table.date.asc().nullsLast(),
@@ -132,7 +189,9 @@ export const formDropoffDaily = pgTable(
   "form_dropoff_daily",
   {
     id: text().primaryKey(),
-    formId: text().notNull(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
     date: text().notNull(),
     questionId: text().notNull(),
     questionIndex: integer().notNull(),
@@ -162,7 +221,9 @@ export const formFavorites = pgTable(
   "form_favorites",
   {
     id: text().primaryKey(),
-    userId: text().notNull(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     formId: text()
       .notNull()
       .references(() => forms.id, { onDelete: "cascade" }),
@@ -185,7 +246,9 @@ export const formNotificationPreferences = pgTable(
   "form_notification_preferences",
   {
     id: text().primaryKey(),
-    userId: text().notNull(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     formId: text()
       .notNull()
       .references(() => forms.id, { onDelete: "cascade" }),
@@ -210,21 +273,72 @@ export const formNotificationPreferences = pgTable(
   ],
 );
 
-export const formQuestionProgress = pgTable("form_question_progress", {
-  id: text().primaryKey(),
-  formId: text().notNull(),
-  visitId: text().notNull(),
-  visitorHash: text().notNull(),
-  questionId: text().notNull(),
-  questionType: text(),
-  questionIndex: integer().notNull(),
-  viewedAt: timestamp({ withTimezone: true })
-    .default(sql`now()`)
+export const formQuestionProgress = pgTable(
+  "form_question_progress",
+  {
+    id: text().primaryKey(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    visitId: text()
+      .notNull()
+      .references(() => formVisits.id, { onDelete: "cascade" }),
+    visitorHash: text().notNull(),
+    questionId: text().notNull(),
+    questionType: text(),
+    questionIndex: integer().notNull(),
+    viewedAt: timestamp({ withTimezone: true })
+      .default(sql`now()`)
+      .notNull(),
+    startedAt: timestamp({ withTimezone: true }),
+    completedAt: timestamp({ withTimezone: true }),
+    wasLastQuestion: boolean().default(false).notNull(),
+    createdAt: timestamp({ withTimezone: true })
+      .default(sql`now()`)
+      .notNull(),
+  },
+  (table) => [
+    index("idx_form_question_progress_form_id").using("btree", table.formId.asc().nullsLast()),
+    index("idx_form_question_progress_visit_id").using("btree", table.visitId.asc().nullsLast()),
+  ],
+);
+
+export const formSettings = pgTable("form_settings", {
+  formId: text()
+    .primaryKey()
+    .references(() => forms.id, { onDelete: "cascade" }),
+  settings: jsonb()
+    .default({
+      branding: true,
+      language: "English",
+      password: null,
+      analytics: false,
+      closeDate: null,
+      closeForm: false,
+      aiChatTone: "friendly",
+      closeOnDate: false,
+      progressBar: false,
+      redirectUrl: null,
+      dataRetention: false,
+      redirectDelay: 0,
+      aiChatGreeting: null,
+      maxSubmissions: null,
+      passwordProtect: false,
+      limitSubmissions: false,
+      presentationMode: "card",
+      closedFormMessage: null,
+      dataRetentionDays: null,
+      notificationEmail: null,
+      respondentEmailBody: null,
+      saveAnswersForLater: true,
+      redirectOnCompletion: false,
+      respondentEmailSubject: null,
+      selfEmailNotifications: false,
+      preventDuplicateSubmissions: false,
+      respondentEmailNotifications: false,
+    })
     .notNull(),
-  startedAt: timestamp({ withTimezone: true }),
-  completedAt: timestamp({ withTimezone: true }),
-  wasLastQuestion: boolean().default(false).notNull(),
-  createdAt: timestamp({ withTimezone: true })
+  updatedAt: timestamp({ withTimezone: true })
     .default(sql`now()`)
     .notNull(),
 });
@@ -233,7 +347,9 @@ export const formSubmissionNotifications = pgTable(
   "form_submission_notifications",
   {
     id: text().primaryKey(),
-    userId: text().notNull(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     formId: text()
       .notNull()
       .references(() => forms.id, { onDelete: "cascade" }),
@@ -273,13 +389,15 @@ export const formVersions = pgTable(
   "form_versions",
   {
     id: text().primaryKey(),
-    formId: text().notNull(),
+    formId: text()
+      .notNull()
+      .references((): AnyPgColumn => forms.id, { onDelete: "cascade" }),
     version: integer().notNull(),
     content: jsonb().notNull(),
-    settings: jsonb().notNull(),
+    settings: jsonb(),
     customization: jsonb().default({}),
     title: text().notNull(),
-    publishedByUserId: text().notNull(),
+    publishedByUserId: text().references(() => user.id, { onDelete: "set null" }),
     publishedAt: timestamp({ withTimezone: true })
       .default(sql`now()`)
       .notNull(),
@@ -303,7 +421,9 @@ export const formVisits = pgTable(
   "form_visits",
   {
     id: text().primaryKey(),
-    formId: text().notNull(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
     visitorHash: text().notNull(),
     sessionId: text().notNull(),
     referrer: text(),
@@ -316,7 +436,6 @@ export const formVisits = pgTable(
     os: text(),
     osVersion: text(),
     country: text(),
-    countryName: text(),
     city: text(),
     region: text(),
     visitStartedAt: timestamp({ withTimezone: true })
@@ -326,7 +445,7 @@ export const formVisits = pgTable(
     durationMs: integer(),
     didStartForm: boolean().default(false).notNull(),
     didSubmit: boolean().default(false).notNull(),
-    submissionId: text(),
+    submissionId: text().references(() => submissions.id, { onDelete: "set null" }),
     createdAt: timestamp({ withTimezone: true })
       .default(sql`now()`)
       .notNull(),
@@ -334,49 +453,71 @@ export const formVisits = pgTable(
       .default(sql`now()`)
       .notNull(),
   },
-  (table) => [index("idx_form_visits_form_id").using("btree", table.formId.asc().nullsLast())],
+  (table) => [
+    index("idx_form_visits_form_id").using("btree", table.formId.asc().nullsLast()),
+    index("idx_form_visits_form_id_visit_started_at").using(
+      "btree",
+      table.formId.asc().nullsLast(),
+      table.visitStartedAt.asc().nullsLast(),
+    ),
+    index("idx_form_visits_visitor_hash").using("btree", table.visitorHash.asc().nullsLast()),
+    check(
+      "form_visits_device_type_check",
+      sql`(("deviceType" IS NULL) OR ("deviceType" = ANY (ARRAY['desktop'::text, 'mobile'::text, 'tablet'::text])))`,
+    ),
+  ],
 );
 
 export const forms = pgTable(
   "forms",
   {
     id: text().primaryKey(),
-    createdByUserId: text().notNull(),
-    workspaceId: text().notNull(),
+    createdByUserId: text().references(() => user.id, { onDelete: "set null" }),
+    workspaceId: text()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
     title: text().default("Untitled").notNull(),
     formName: text().default("draft").notNull(),
     schemaName: text().default("draftFormSchema").notNull(),
     content: jsonb().default([]).notNull(),
-    settings: jsonb().default({}).notNull(),
+    draftSettings: jsonb()
+      .default({
+        branding: true,
+        language: "English",
+        password: null,
+        analytics: false,
+        closeDate: null,
+        closeForm: false,
+        aiChatTone: "friendly",
+        closeOnDate: false,
+        progressBar: false,
+        redirectUrl: null,
+        dataRetention: false,
+        redirectDelay: 0,
+        aiChatGreeting: null,
+        maxSubmissions: null,
+        passwordProtect: false,
+        limitSubmissions: false,
+        presentationMode: "card",
+        closedFormMessage: null,
+        dataRetentionDays: null,
+        notificationEmail: null,
+        respondentEmailBody: null,
+        saveAnswersForLater: true,
+        redirectOnCompletion: false,
+        respondentEmailSubject: null,
+        selfEmailNotifications: false,
+        preventDuplicateSubmissions: false,
+        respondentEmailNotifications: false,
+      })
+      .notNull(),
     icon: text(),
     cover: text(),
-    isMultiStep: boolean().default(false).notNull(),
     status: text().default("draft").notNull(),
-    lastPublishedVersionId: text(),
+    lastPublishedVersionId: text().references((): AnyPgColumn => formVersions.id, {
+      onDelete: "set null",
+    }),
     publishedContentHash: text(),
-    language: text().default("English").notNull(),
-    redirectOnCompletion: boolean().default(false).notNull(),
-    redirectUrl: text(),
-    redirectDelay: integer().default(0).notNull(),
-    progressBar: boolean().default(false).notNull(),
-    branding: boolean().default(true).notNull(),
-    saveAnswersForLater: boolean().default(true).notNull(),
-    selfEmailNotifications: boolean().default(false).notNull(),
-    notificationEmail: text(),
-    respondentEmailNotifications: boolean().default(false).notNull(),
-    respondentEmailSubject: text(),
-    respondentEmailBody: text(),
-    passwordProtect: boolean().default(false).notNull(),
-    password: text(),
-    closeForm: boolean().default(false).notNull(),
-    closedFormMessage: text().default("This form is now closed."),
-    closeOnDate: boolean().default(false).notNull(),
-    closeDate: text(),
-    limitSubmissions: boolean().default(false).notNull(),
-    maxSubmissions: integer(),
-    preventDuplicateSubmissions: boolean().default(false).notNull(),
-    dataRetention: boolean().default(false).notNull(),
-    dataRetentionDays: integer(),
     customization: jsonb().default({}),
     createdAt: timestamp({ withTimezone: true })
       .default(sql`now()`)
@@ -385,21 +526,14 @@ export const forms = pgTable(
       .default(sql`now()`)
       .notNull(),
     slug: text(),
-    customDomainId: text(),
+    customDomainId: text().references(() => customDomains.id, { onDelete: "set null" }),
     sortIndex: text(),
-    presentationMode: text().default("card").notNull(),
-    analytics: boolean().default(false).notNull(),
   },
   (table) => [
     index("idx_forms_id_created_by").using(
       "btree",
       table.id.asc().nullsLast(),
       table.createdByUserId.asc().nullsLast(),
-    ),
-    index("idx_forms_slug_custom_domain").using(
-      "btree",
-      table.slug.asc().nullsLast(),
-      table.customDomainId.asc().nullsLast(),
     ),
     index("idx_forms_workspace_id").using("btree", table.workspaceId.asc().nullsLast()),
     index("idx_forms_workspace_id_sort_index").using(
@@ -411,6 +545,13 @@ export const forms = pgTable(
       "btree",
       table.workspaceId.asc().nullsLast(),
       table.status.asc().nullsLast(),
+    ),
+    uniqueIndex("uniq_forms_slug_custom_domain")
+      .using("btree", table.slug.asc().nullsLast(), table.customDomainId.asc().nullsLast())
+      .where(sql`(slug IS NOT NULL)`),
+    check(
+      "forms_status_check",
+      sql`(status = ANY (ARRAY['draft'::text, 'published'::text, 'archived'::text]))`,
     ),
   ],
 );
@@ -488,8 +629,10 @@ export const submissions = pgTable(
   "submissions",
   {
     id: text().primaryKey(),
-    formId: text().notNull(),
-    formVersionId: text(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    formVersionId: text().references(() => formVersions.id, { onDelete: "set null" }),
     data: jsonb().default({}).notNull(),
     isCompleted: boolean().default(true).notNull(),
     createdAt: timestamp({ withTimezone: true })
@@ -509,6 +652,7 @@ export const submissions = pgTable(
       table.createdAt.asc().nullsLast(),
       table.id.asc().nullsLast(),
     ),
+    index("idx_submissions_form_version_id").using("btree", table.formVersionId.asc().nullsLast()),
     uniqueIndex("uniq_submissions_form_id_draft_id")
       .using("btree", table.formId.asc().nullsLast(), table.draftId.asc().nullsLast())
       .where(sql`("draftId" IS NOT NULL)`),
@@ -564,8 +708,12 @@ export const userWorkspaceOrder = pgTable(
   "user_workspace_order",
   {
     id: text().primaryKey(),
-    userId: text().notNull(),
-    workspaceId: text().notNull(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    workspaceId: text()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
     sortIndex: text().notNull(),
     createdAt: timestamp({ withTimezone: true })
       .default(sql`now()`)
@@ -596,9 +744,11 @@ export const workspaces = pgTable(
   "workspaces",
   {
     id: text().primaryKey(),
-    organizationId: text().notNull(),
-    createdByUserId: text().notNull(),
-    name: text().default("Collection").notNull(),
+    organizationId: text()
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    createdByUserId: text().references(() => user.id, { onDelete: "set null" }),
+    name: text().default("Workspace").notNull(),
     createdAt: timestamp({ withTimezone: true })
       .default(sql`now()`)
       .notNull(),

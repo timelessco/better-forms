@@ -1,9 +1,32 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import { db } from "@/db";
 import { auth } from "@/lib/auth/auth";
+import type { FormListing } from "@/collections/query/form-listing";
 import type { ServerPlan } from "@/lib/server-fn/plan-helpers";
+import { generateShortId } from "@/lib/short-id";
 import { defaultFormSettings } from "@/types/form-settings";
+
+/** Map a `forms` row → the `FormListing` shape used by the client collection.
+ *  Used by tests that fabricate listings from raw DB rows. */
+export const toFormListing = (
+  form: typeof schema.forms.$inferSelect,
+  opts: { submissionCount?: number } = {},
+): FormListing => ({
+  id: form.id,
+  shortId: form.shortId,
+  title: form.title,
+  status: form.status,
+  workspaceId: form.workspaceId,
+  content: form.content as unknown[],
+  customization: (form.customization ?? {}) as Record<string, unknown>,
+  formName: form.formName,
+  schemaName: form.schemaName,
+  icon: form.icon,
+  createdAt: form.createdAt.toISOString(),
+  updatedAt: form.updatedAt.toISOString(),
+  submissionCount: opts.submissionCount ?? 0,
+});
 
 interface TestHelpers {
   createUser: (overrides?: Record<string, unknown>) => { id: string; [key: string]: unknown };
@@ -75,6 +98,7 @@ export const createTestForm = async (workspaceId: string, creatorId: string) => 
     .insert(schema.forms)
     .values({
       id,
+      shortId: generateShortId(),
       createdByUserId: creatorId,
       workspaceId,
       title: "Test Form",
@@ -90,12 +114,37 @@ export const createTestForm = async (workspaceId: string, creatorId: string) => 
   return form;
 };
 
+// better-auth's deleteUser only removes the `user` row. The `member` table
+// has no FK to user/org (src/db/schema.ts:32-42), so member rows linger and
+// the auto-provisioned org (databaseHooks.user.create.after in
+// src/lib/auth/auth.ts:72-104) is never torn down. Walking the graph by
+// userId catches every tenant the user owns or belongs to: cascading from
+// the organization sweeps workspaces, forms, submissions, etc. via the
+// existing FK chain, and explicit member/order deletes mop up the FK-less
+// rows.
 export const cleanupTestUser = async (userId: string) => {
+  const orgRows = await db
+    .select({ organizationId: schema.member.organizationId })
+    .from(schema.member)
+    .where(eq(schema.member.userId, userId));
+  const orgIds = orgRows.map((r) => r.organizationId);
+
+  if (orgIds.length > 0) {
+    await db.delete(schema.organization).where(inArray(schema.organization.id, orgIds));
+  }
+  // Member + user_workspace_order rows have no FK cascade — clear them
+  // explicitly so deleteUser leaves a clean trail.
+  await db.delete(schema.member).where(eq(schema.member.userId, userId));
+  await db.delete(schema.userWorkspaceOrder).where(eq(schema.userWorkspaceOrder.userId, userId));
+
   const t = await getTestUtils();
   await t.deleteUser(userId);
 };
 
 export const cleanupTestOrg = async (orgId: string) => {
+  // Same shape as cleanupTestUser: drop members first (no FK cascade), then
+  // the org itself which cascades workspaces/forms/etc.
+  await db.delete(schema.member).where(eq(schema.member.organizationId, orgId));
   const t = await getTestUtils();
   await t.deleteOrganization(orgId);
 };

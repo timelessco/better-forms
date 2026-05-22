@@ -193,8 +193,10 @@ const handleMessage = (event: MessageEvent): void => {
 
     case "Reform.Resize":
       if (typeof data.height === "number") {
-        updateIframeHeight(instance.iframe, data.height);
-        updatePopupHeight(instance.container, data.height);
+        const next = Math.max(instance.maxContentHeight ?? 0, data.height);
+        instance.maxContentHeight = next;
+        updateIframeHeight(instance.iframe, next);
+        updatePopupHeight(instance.container, next);
       }
       break;
 

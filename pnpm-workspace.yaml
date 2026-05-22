@@ -1,0 +1,49 @@
+allowBuilds:
+  "@sentry/cli": true
+  esbuild: true
+  lefthook: true
+  msw: true
+  sharp: true
+
+# Strict peer-dep resolution off; the dep graph has known mismatches that don't
+# affect runtime.
+strictPeerDependencies: false
+
+# Quarantine bypass:
+#  - @tanstack/react-table & table-core: alpha.42 has a broken-on-arrival
+#    infinite render loop (setOptions inside useEffect with an inline-object
+#    dep). alpha.45 fixes it by calling setOptions during render instead. Once
+#    v9 ships a stable release we can remove these entries.
+#  - @tanstack/react-start: bumped to 1.168.x for the Hydrate + interaction/
+#    never selective-hydration API used by `public-form-page.tsx` (deferred
+#    branding footer + theme toggle). Removable once the version ages past
+#    the 7-day window.
+minimumReleaseAgeExclude:
+  - "@tanstack/react-table"
+  - "@tanstack/table-core"
+  - "@tanstack/react-start"
+  - "@tanstack/react-router"
+
+# Hoist these transitive deps to the node_modules root so direct imports keep
+# resolving:
+#  - @tanstack/*: the codebase imports `@tanstack/query-core` through
+#    transitive resolution.
+#  - use-sync-external-store: Vite's optimizeDeps.include needs the bare
+#    specifier to resolve from the root (it's only a transitive dep via
+#    zustand-x / @platejs/core).
+publicHoistPattern:
+  - "@tanstack/*"
+  - "use-sync-external-store"
+  # @platejs/core: Vite's `resolve.dedupe` (vite.config.ts) looks at the
+  # project root, so the package needs to be hoisted out of pnpm's per-pkg
+  # scoped node_modules. Without this, the RSC server's vite-node module
+  # graph fails to resolve "platejs"'s internal `require('@platejs/core')`
+  # and the whole `public-form-view-rsc.impl.tsx` module evaluates with
+  # `undefined` exports, surfacing as
+  #   "runPublicFormViewRSC is not a function".
+  - "@platejs/core"
+  # jotai: deduped from the project root by vite.config.ts. Without root
+  # hoisting, Rollup's production build can't resolve `jotai` from
+  # @platejs/core's nested node_modules and fails with
+  #   [vite]: Rollup failed to resolve import "jotai" from "@platejs/core".
+  - "jotai"
