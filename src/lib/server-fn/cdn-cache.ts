@@ -1,14 +1,17 @@
 import { setResponseHeader } from "@tanstack/react-start/server";
-import { addCacheTag } from "@vercel/functions";
 import { vercel, vercelProjectId, vercelTeamId } from "@/integrations/vercel";
 // Feature flag for the public-form edge cache. Previously OFF because
 // purges appeared to succeed via the Vercel API but cached responses kept
 // serving stale content. Root cause was emitting `Cache-Tag` (Fastly/
 // Akamai convention) instead of Vercel's `Vercel-Cache-Tag` — the edge
 // stored responses untagged, so `invalidateByTags` matched nothing.
-// Switched to `addCacheTag()` from `@vercel/functions` (the documented
-// runtime helper) and `Vercel-CDN-Cache-Control` for the Cache-Control
-// header (edge-only, not sent to clients).
+// Now emits `Vercel-Cache-Tag` (the documented Vercel header) and
+// `Vercel-CDN-Cache-Control` for the Cache-Control header (edge-only,
+// not sent to clients). `addCacheTag()` from `@vercel/functions` would
+// also work in production, but its `cache` subpath has a CJS interop
+// bug with Vite 7's module runner that crashes dev (`Cannot read
+// properties of undefined (reading '__cjs_module_runner_transform')`).
+// Direct header is identical at the edge and dev-safe.
 const isCdnCacheEnabled = (): boolean =>
   process.env.ENABLE_FORM_CDN_CACHE === "1" || process.env.ENABLE_FORM_CDN_CACHE === "true";
 
@@ -53,11 +56,7 @@ export const applyFormCacheHeaders = (formId: string, { gated }: { gated: boolea
     return;
   }
   setResponseHeader("Vercel-CDN-Cache-Control", PUBLIC_CACHE_CONTROL_ENABLED);
-  // Use the runtime helper rather than setting `Vercel-Cache-Tag` directly
-  // — it's the documented and supported tagging path on Vercel. The
-  // helper returns a promise but is a fire-and-forget response-tag side
-  // effect; the response itself doesn't depend on awaiting it.
-  void addCacheTag(formCacheTag(formId));
+  setResponseHeader("Vercel-Cache-Tag", formCacheTag(formId));
 };
 
 // DEBUG: awaited (not waitUntil) and verbose-logged so we can read Vercel
