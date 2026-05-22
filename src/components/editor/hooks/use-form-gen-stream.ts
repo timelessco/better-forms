@@ -15,7 +15,7 @@ import { mergeThemeIntoCustomization } from "@/lib/editor/merge-theme";
 import { settingsDialogStore } from "@/hooks/use-settings-dialog";
 import { FREE_CUSTOMIZATION_KEYS } from "@/lib/server-fn/plan-helpers";
 import { AI_DAILY_LIMIT_ERROR } from "@/lib/server-fn/ai-quota-constants";
-import { parseError } from "evlog";
+import { parseError } from "@/lib/errors/parse";
 import { formGenSchema, isOpReady } from "@/lib/ai/ops-schema";
 import type { FormGenResult, Op, PartialOp, SetThemeOp } from "@/lib/ai/ops-schema";
 

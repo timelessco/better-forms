@@ -7,7 +7,7 @@ import {
 import type { SerializedSubmissionNotification } from "@/lib/server-fn/notifications";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { parseError } from "evlog";
+import { parseError } from "@/lib/errors/parse";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 

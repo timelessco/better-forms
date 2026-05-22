@@ -1,6 +1,6 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { useRouter } from "@tanstack/react-router";
-import { parseError } from "evlog";
+import { parseError } from "@/lib/errors/parse";
 import { RefreshCwIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { useCallback } from "react";

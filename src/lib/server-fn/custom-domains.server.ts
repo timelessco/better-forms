@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { createError } from "evlog";
+import { createError } from "@/lib/errors/create";
 import { customDomains } from "@/db/schema";
 import { db } from "@/db";
 import type { ErrorCode } from "@/lib/errors/codes";

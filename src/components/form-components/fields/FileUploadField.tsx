@@ -1,4 +1,4 @@
-import { parseError } from "evlog";
+import { parseError } from "@/lib/errors/parse";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Trash2Icon, UploadIcon } from "@/components/ui/icons";

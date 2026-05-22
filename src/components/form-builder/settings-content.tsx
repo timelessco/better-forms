@@ -22,7 +22,7 @@ import {
 import { defaultFormSettings } from "@/types/form-settings";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { parseError } from "evlog";
+import { parseError } from "@/lib/errors/parse";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { SidebarSection } from "@/components/ui/sidebar-section";

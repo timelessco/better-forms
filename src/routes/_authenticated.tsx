@@ -151,7 +151,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Outlet, useLocation, useParams, useRouter } from "@tanstack/react-router";
 import { createClientOnlyFn } from "@tanstack/react-start";
-import { parseError } from "evlog";
+import { parseError } from "@/lib/errors/parse";
 import { generateKeyBetween } from "fractional-indexing";
 import {
   closestCenter,

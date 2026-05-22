@@ -1,5 +1,5 @@
 import * as React from "react";
-import { parseError } from "evlog";
+import { parseError } from "@/lib/errors/parse";
 import { toast } from "sonner";
 import { uploadEditorMedia } from "@/lib/server-fn/uploads";
 

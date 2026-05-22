@@ -1,7 +1,7 @@
 import { redirect } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
 import { getCookie, getRequestHeaders, getRequestUrl } from "@tanstack/react-start/server";
-import { createError } from "evlog";
+import { createError } from "@/lib/errors/create";
 import type { RequestLogger } from "evlog";
 import { identifyUser } from "evlog/better-auth";
 import type { ErrorCode } from "@/lib/errors/codes";
@@ -16,11 +16,15 @@ import type { FormProSettingsInput } from "@/lib/server-fn/plan-helpers";
 import { getOrgPlan } from "@/lib/server-fn/plan-helpers.server";
 
 // Tag the active request's evlog wide event with the resolved Better Auth
-// user/session, plus the active org's id/role and the org's plan. Plan is
-// resolved via one cached-column read (`organization.plan` — synced by Polar
-// webhooks), kept best-effort: on any failure we still emit user fields.
+// user/session and the active org's id/role. SYNCHRONOUS by design — any
+// `await` here loses the tag because TanStack Start streams responses and
+// evlog emits the wide event when the stream opens; tags arriving after
+// that emit are dropped with the "log.set() called after the wide event
+// was emitted" warning. Org `plan` is intentionally not tagged here for
+// the same reason (would require an async DB read); slice by `activeOrganizationId`
+// in observability and join with the plan column out-of-band if needed.
 // No-op when evlog isn't installed for the request or session is null.
-const tagLoggerWithSession = async (
+const tagLoggerWithSession = (
   session: { user: Record<string, unknown>; session: Record<string, unknown> } | null,
 ) => {
   if (!session) return;
@@ -34,8 +38,6 @@ const tagLoggerWithSession = async (
   const role = typeof roleRaw === "string" ? roleRaw : null;
   const ipAddress = typeof sessionData.ipAddress === "string" ? sessionData.ipAddress : null;
   const userAgent = typeof sessionData.userAgent === "string" ? sessionData.userAgent : null;
-
-  const plan = activeOrgId ? await getOrgPlan(activeOrgId).catch(() => null) : null;
 
   identifyUser(log, session, {
     // Trim the wide event: only keep the user fields we actually filter logs
@@ -53,7 +55,6 @@ const tagLoggerWithSession = async (
       }),
       ...(activeOrgId && { activeOrganizationId: activeOrgId }),
       ...(role && { role }),
-      ...(plan && { plan }),
     }),
   });
 };
@@ -92,7 +93,7 @@ export const authMiddleware = createMiddleware().server(async ({ next }) => {
     });
   }
 
-  await tagLoggerWithSession(session);
+  tagLoggerWithSession(session);
 
   return next({
     context: {
@@ -137,7 +138,7 @@ export const apiAuthMiddleware = createMiddleware().server(async ({ next }) => {
     });
   }
 
-  await tagLoggerWithSession(session);
+  tagLoggerWithSession(session);
 
   return next({ context: { session } });
 });

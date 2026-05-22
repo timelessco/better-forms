@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { parseError } from "evlog";
+import { parseError } from "@/lib/errors/parse";
 import { ClockIcon, MailIcon, PlusIcon, Trash2Icon, XIcon } from "@/components/ui/icons";
 import { useId } from "react";
 import { toast } from "sonner";

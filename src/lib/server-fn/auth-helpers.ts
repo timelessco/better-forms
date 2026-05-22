@@ -1,4 +1,4 @@
-import { createError } from "evlog";
+import { createError } from "@/lib/errors/create";
 import type { ErrorCode } from "@/lib/errors/codes";
 
 export const getActiveOrgId = (session: { session: Record<string, unknown> }): string => {
