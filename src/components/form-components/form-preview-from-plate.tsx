@@ -208,7 +208,6 @@ const PreviewFormHeader = ({
               useThemeColor
               iconSize="48"
               size={logoCircleSize}
-              standaloneIcon
             />
           </span>
         </div>
@@ -236,17 +235,18 @@ const PreviewFormHeader = ({
         <span data-bf-logo-icon={isLogoMinimal ? "minimal" : ""}>
           <IconPickerPreview
             icon={icon}
-            // Mirror form-header-node.tsx: when a custom theme is in
-            // play, force theme colors (bg-primary text-primary-foreground)
-            // so the icon contrast tracks the theme. Without this, the
-            // picker fell back to a default dark fill on themed forms
-            // because iconColor wasn't set, which mismatched the editor's
-            // white-on-primary rendering.
+            // Mirror form-header-node.tsx exactly: theme color when the
+            // form has any customization OR no explicit iconColor was
+            // set; explicit iconColor wins only on unthemed forms.
+            // Also drop `standaloneIcon` — the editor doesn't use it
+            // and it routes through a different SVG renderer where
+            // currentColor doesn't inherit cleanly through `<use href>`,
+            // which is why the silhouette was painting black instead of
+            // tracking text-primary-foreground.
             iconColor={hasCustomization ? undefined : iconColor || undefined}
             useThemeColor={hasCustomization || !iconColor}
             iconSize="48"
             size={logoCircleSize}
-            standaloneIcon
           />
         </span>
       </div>
@@ -635,7 +635,6 @@ const FieldByFieldHeaderIcon = ({
           useThemeColor
           iconSize="40"
           size="80"
-          standaloneIcon
         />
       </span>
     );
@@ -658,13 +657,13 @@ const FieldByFieldHeaderIcon = ({
     <span className="flex-shrink-0" data-bf-logo-icon>
       <IconPickerPreview
         icon={icon}
-        // Match the card-mode + editor logic: themed forms force
-        // theme colors so the icon contrast tracks the theme.
+        // Mirror editor: theme color on themed forms; explicit iconColor
+        // wins only on unthemed forms. No `standaloneIcon` for the same
+        // currentColor-through-<use> reason as the card-mode header.
         iconColor={hasCustomization ? undefined : iconColor || undefined}
         useThemeColor={hasCustomization || !iconColor}
         iconSize="40"
         size="80"
-        standaloneIcon
       />
     </span>
   );
