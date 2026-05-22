@@ -1039,7 +1039,12 @@ const FormListItem = ({
         </div>
 
         <div
-          className={`flex items-center gap-1 transition-opacity ${duplicatingFormId === form.id || isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+          className={cn(
+            "flex items-center gap-1 transition-opacity",
+            duplicatingFormId === form.id || isSelected
+              ? "opacity-100"
+              : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100",
+          )}
         >
           <TooltipProvider>
             <Tooltip>

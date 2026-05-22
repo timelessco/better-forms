@@ -1,12 +1,59 @@
 import { redirect } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
 import { getCookie, getRequestHeaders, getRequestUrl } from "@tanstack/react-start/server";
+import type { RequestLogger } from "evlog";
+import { identifyUser } from "evlog/better-auth";
+// Aliased — `useRequest` is a Nitro AsyncLocalStorage accessor, not a React hook,
+// but oxlint's react-hooks/rules-of-hooks flags it by name.
+import { useRequest as getNitroRequest } from "nitro/context";
 import { auth } from "@/lib/auth/auth";
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { getActiveOrgId } from "@/lib/server-fn/auth-helpers";
 import { formSettingsFeatureGates } from "@/lib/server-fn/plan-helpers";
 import type { FormProSettingsInput } from "@/lib/server-fn/plan-helpers";
 import { getOrgPlan } from "@/lib/server-fn/plan-helpers.server";
+
+// Tag the active request's evlog wide event with the resolved Better Auth
+// user/session, plus the active org's id/role and the org's plan. Plan is
+// resolved via one cached-column read (`organization.plan` — synced by Polar
+// webhooks), kept best-effort: on any failure we still emit user fields.
+// No-op when evlog isn't installed for the request or session is null.
+const tagLoggerWithSession = async (
+  session: { user: Record<string, unknown>; session: Record<string, unknown> } | null,
+) => {
+  if (!session) return;
+  const log = getNitroRequest().context?.log as RequestLogger | undefined;
+  if (!log) return;
+
+  const sessionData = session.session;
+  const activeOrgIdRaw = sessionData.activeOrganizationId;
+  const activeOrgId = typeof activeOrgIdRaw === "string" ? activeOrgIdRaw : null;
+  const roleRaw = sessionData.activeOrganizationRole;
+  const role = typeof roleRaw === "string" ? roleRaw : null;
+  const ipAddress = typeof sessionData.ipAddress === "string" ? sessionData.ipAddress : null;
+  const userAgent = typeof sessionData.userAgent === "string" ? sessionData.userAgent : null;
+
+  const plan = activeOrgId ? await getOrgPlan(activeOrgId).catch(() => null) : null;
+
+  identifyUser(log, session, {
+    // Trim the wide event: only keep the user fields we actually filter logs
+    // by. `userId` is still emitted as a top-level field by identifyUser.
+    fields: ["name", "emailVerified"],
+    // Suppress the full session block; we re-add just ip + userAgent via extend.
+    session: false,
+    extend: () => ({
+      ...((ipAddress || userAgent) && {
+        session: {
+          ...(ipAddress && { ipAddress }),
+          ...(userAgent && { userAgent }),
+        },
+      }),
+      ...(activeOrgId && { activeOrganizationId: activeOrgId }),
+      ...(role && { role }),
+      ...(plan && { plan }),
+    }),
+  });
+};
 
 // Paths that are valid serverFn / API endpoints but not user-navigable. If the
 // auth middleware fires for a request to one of these (e.g. a serverFn invoked
@@ -41,6 +88,8 @@ export const authMiddleware = createMiddleware().server(async ({ next }) => {
       search: { redirect: pickPostLoginRedirect(pathname, headers) },
     });
   }
+
+  await tagLoggerWithSession(session);
 
   return next({
     context: {
@@ -77,6 +126,8 @@ export const apiAuthMiddleware = createMiddleware().server(async ({ next }) => {
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  await tagLoggerWithSession(session);
 
   return next({ context: { session } });
 });

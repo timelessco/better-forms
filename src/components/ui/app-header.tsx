@@ -357,7 +357,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               savedDocs={savedDocs}
               menuItems={menuItems}
               onTogglePreview={togglePreview}
-              onEdit={handleEditForm}
               onToggleShareSidebar={toggleShareSidebar}
               onToggleSettingsSidebar={toggleSettingsSidebar}
               onPublish={handlePublish}
@@ -801,7 +800,6 @@ interface FormBuilderHeaderActionsProps {
   savedDocs: ReturnType<typeof useForm>["data"];
   menuItems: MenuItem[];
   onTogglePreview: () => void;
-  onEdit: () => void;
   onToggleShareSidebar: () => void;
   onToggleSettingsSidebar: () => void;
   onPublish: () => Promise<void> | void;
@@ -817,7 +815,6 @@ const FormBuilderHeaderActions = ({
   savedDocs,
   menuItems,
   onTogglePreview,
-  onEdit,
   onToggleShareSidebar,
   onToggleSettingsSidebar,
   onPublish,
@@ -919,27 +916,34 @@ const FormBuilderHeaderActions = ({
                 </TooltipContent>
               </Tooltip>
             ) : (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-gray-700 hover:text-foreground"
-                      onClick={onEdit}
-                      aria-label="Edit form"
-                    />
-                  }
-                >
-                  <PencilIcon className="text-gray-700" />
-                </TooltipTrigger>
-                <TooltipContent side="bottom" align="end">
-                  <p>Edit Form</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatForDisplay(HOTKEYS.EDIT_FORM)}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
+              workspaceId &&
+              formId && (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Link
+                        to="/workspace/$workspaceId/form-builder/$formId/edit"
+                        params={{ workspaceId, formId }}
+                        search={(prev: Record<string, unknown>) => ({ ...prev, force: true })}
+                        preload="intent"
+                        aria-label="Edit form"
+                        className={cn(
+                          buttonVariants({ variant: "ghost", size: "icon" }),
+                          "text-gray-700 hover:text-foreground",
+                        )}
+                      />
+                    }
+                  >
+                    <PencilIcon className="text-gray-700" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" align="end">
+                    <p>Edit Form</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatForDisplay(HOTKEYS.EDIT_FORM)}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              )
             )}
             <DropdownMenu
               open={activeMenu === "main"}

@@ -3,6 +3,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, generateText, streamObject, tool } from "ai";
 import type { UIMessage } from "ai";
 import { getRequestHeaders } from "@tanstack/react-start/server";
+import type { RequestLogger } from "evlog";
+import { createAILogger } from "evlog/ai";
+import { identifyUser } from "evlog/better-auth";
+import { useRequest as getNitroRequest } from "nitro/context";
 import { z } from "zod";
 import { apiAuthMiddleware } from "@/lib/auth/middleware";
 import {
@@ -50,6 +54,15 @@ const getModel = async () => {
   return openai(modelId);
 };
 
+// Public pricing per 1M tokens (USD). Add models as we adopt them.
+const AI_COST_MAP = {
+  "gpt-4o-mini": { input: 0.15, output: 0.6 },
+  "gpt-4o": { input: 2.5, output: 10 },
+  "gpt-4.1-mini": { input: 0.4, output: 1.6 },
+  "gemini-2.0-flash": { input: 0.075, output: 0.3 },
+  "gemini-2.5-flash": { input: 0.3, output: 2.5 },
+} as const;
+
 export const Route = createFileRoute("/api/ai/form-generate")({
   server: {
     middleware: [apiAuthMiddleware],
@@ -70,9 +83,17 @@ export const Route = createFileRoute("/api/ai/form-generate")({
           });
         }
 
-        const model = await getModel();
+        const baseModel = await getModel();
+
+        // Wrap the model so every AI SDK call on this request adds token usage,
+        // tool calls, streaming metrics, and estimated cost onto the wide event.
+        const req = getNitroRequest() as { context?: { log?: RequestLogger } };
+        const log = req.context?.log as RequestLogger;
+        const ai = createAILogger(log, { cost: AI_COST_MAP });
+        const model = ai.wrap(baseModel);
 
         const mode = body.mode ?? "create";
+        log?.set({ formGen: { mode } });
 
         // Resolve plan + active org up front for every mode. Used by:
         // 1. Theme mode → pickThemePromptForPlan (full vs limited tool).
@@ -98,6 +119,30 @@ export const Route = createFileRoute("/api/ai/form-generate")({
             // rewritten to the real plan. Fast path (column already paid)
             // skips the Polar round-trip.
             resolvedPlan = await getOrgPlanWithPolarSync(resolvedOrgId, userEmail);
+            if (log) {
+              const sessionData = (session as { session: Record<string, unknown> }).session;
+              const roleRaw = sessionData.activeOrganizationRole;
+              const role = typeof roleRaw === "string" ? roleRaw : null;
+              const ipAddress =
+                typeof sessionData.ipAddress === "string" ? sessionData.ipAddress : null;
+              const userAgent =
+                typeof sessionData.userAgent === "string" ? sessionData.userAgent : null;
+              identifyUser(log, session, {
+                fields: ["name", "emailVerified"],
+                session: false,
+                extend: () => ({
+                  ...((ipAddress || userAgent) && {
+                    session: {
+                      ...(ipAddress && { ipAddress }),
+                      ...(userAgent && { userAgent }),
+                    },
+                  }),
+                  activeOrganizationId: resolvedOrgId,
+                  plan: resolvedPlan,
+                  ...(role && { role }),
+                }),
+              });
+            }
             logger("[ai-plan] resolved", {
               mode,
               orgId: resolvedOrgId,
@@ -137,6 +182,8 @@ export const Route = createFileRoute("/api/ai/form-generate")({
             );
           }
         }
+
+        log?.set({ formGen: { plan: resolvedPlan, orgId: resolvedOrgId } });
 
         const themePick = pickThemePromptForPlan(resolvedPlan);
         logger("[ai-plan] tool pick", {

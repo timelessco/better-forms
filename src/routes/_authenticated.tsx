@@ -178,30 +178,28 @@ import { Activity, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useS
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
 import { toast } from "sonner";
 
+import {
+  importCustomizeSidebar,
+  importFormSettingsSidebar,
+  importSettingsDialog,
+  importShareSummarySidebar,
+  importVersionHistorySidebar,
+} from "./_authenticated/-components/lazy-modules";
+
 const LazySettingsDialog = lazy(() =>
-  import("./_authenticated/-components/settings/settings-dialog").then((m) => ({
-    default: m.SettingsDialog,
-  })),
+  importSettingsDialog().then((m) => ({ default: m.SettingsDialog })),
 );
 const LazyFormSettingsSidebar = lazy(() =>
-  import("@/components/form-builder/form-settings-sidebar").then((m) => ({
-    default: m.FormSettingsSidebar,
-  })),
+  importFormSettingsSidebar().then((m) => ({ default: m.FormSettingsSidebar })),
 );
 const LazyShareSummarySidebar = lazy(() =>
-  import("@/components/form-builder/share-summary-sidebar").then((m) => ({
-    default: m.ShareSummarySidebar,
-  })),
+  importShareSummarySidebar().then((m) => ({ default: m.ShareSummarySidebar })),
 );
 const LazyVersionHistorySidebar = lazy(() =>
-  import("@/components/form-builder/version-history-sidebar").then((m) => ({
-    default: m.VersionHistorySidebar,
-  })),
+  importVersionHistorySidebar().then((m) => ({ default: m.VersionHistorySidebar })),
 );
 const LazyCustomizeSidebar = lazy(() =>
-  import("@/components/ui/customize-sidebar").then((m) => ({
-    default: m.CustomizeSidebar,
-  })),
+  importCustomizeSidebar().then((m) => ({ default: m.CustomizeSidebar })),
 );
 
 /**
@@ -391,6 +389,12 @@ const AuthLayoutContent = () => {
   const pathname = useLocation({ select: (s) => s.pathname });
   const isEditRoute = pathname.includes("/form-builder/") && pathname.endsWith("/edit");
   const { visible: isHeaderVisible, reportPointerActivity } = useEditorHeaderVisibility();
+
+  // Warm the user-settings dialog chunk in the background so the first open
+  // doesn't pay for a round-trip behind <Suspense fallback={null}>.
+  useEffect(() => {
+    void importSettingsDialog();
+  }, []);
 
   const { formId } = useParams({ strict: false });
 

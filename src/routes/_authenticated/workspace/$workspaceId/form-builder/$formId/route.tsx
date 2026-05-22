@@ -5,7 +5,13 @@ import { getFormListings, isInitialized } from "@/collections";
 import { getFormVersions } from "@/lib/server-fn/form-versions";
 import { getFormbyIdQueryOption, getFormStatus } from "@/lib/server-fn/forms";
 import type { FormStatus } from "@/lib/server-fn/forms";
+import {
+  importCustomizeSidebar,
+  importFormSettingsSidebar,
+  importShareSummarySidebar,
+} from "@/routes/_authenticated/-components/lazy-modules";
 import { createFileRoute, isRedirect, Outlet, redirect, useLocation } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 const FormLayout = () => {
   const pathname = useLocation({ select: (s) => s.pathname });
@@ -13,6 +19,16 @@ const FormLayout = () => {
   const formIdFromPath = pathname.split("/form-builder/")[1]?.split("/")[0] || "";
   const params = Route.useParams();
   const formId = formIdFromPath || params.formId;
+
+  // Warm the right-sidebar chunks in the background so the first open of
+  // Settings / Share / Customize doesn't flash an empty panel behind
+  // <Suspense fallback={null}>. Version History is intentionally skipped — it's
+  // opened rarely, so lazy-on-click is fine.
+  useEffect(() => {
+    void importFormSettingsSidebar();
+    void importShareSummarySidebar();
+    void importCustomizeSidebar();
+  }, []);
 
   // Hide header on edit route (editor has its own full-screen layout)
   const isEditRoute = pathname.includes("/form-builder/") && pathname.includes("/edit");

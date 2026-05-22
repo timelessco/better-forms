@@ -103,6 +103,7 @@
     "drizzle-orm": "1.0.0-rc.1",
     "drizzle-zod": "^0.8.3",
     "embla-carousel-react": "^8.6.0",
+    "evlog": "^2.17.0",
     "fractional-indexing": "^3.2.0",
     "hast-util-to-html": "^9.0.5",
     "input-otp": "^1.4.2",
@@ -173,5 +174,5 @@
     "vitest": "^3.2.4",
     "web-vitals": "^5.2.0"
   },
-  "packageManager": "pnpm@11.1.0"
+  "packageManager": "pnpm@11.2.2"
 }
