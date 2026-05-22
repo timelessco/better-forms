@@ -23,6 +23,14 @@ minimumReleaseAgeExclude:
   - "@tanstack/table-core"
   - "@tanstack/react-start"
   - "@tanstack/react-router"
+  # AI SDK 6 migration (2026-05-22) off v5.0.28 — evlog 2.17 imports
+  # `gateway` from `ai`, which only exists in newer releases. Removable
+  # once the published versions age past the 7-day window.
+  - "ai"
+  - "@ai-sdk/react"
+  - "@ai-sdk/openai"
+  - "@ai-sdk/google"
+  - '@ai-sdk/gateway@3.0.119'
 
 # Hoist these transitive deps to the node_modules root so direct imports keep
 # resolving:
@@ -47,3 +55,9 @@ publicHoistPattern:
   # @platejs/core's nested node_modules and fails with
   #   [vite]: Rollup failed to resolve import "jotai" from "@platejs/core".
   - "jotai"
+  # @vercel/oidc: externalised in vite.config.ts `ssr.external` because Vite
+  # 7's module runner can't evaluate its CJS files in dev. Externalising a
+  # transitive dep only works if it's resolvable from the project root —
+  # which pnpm normally hides under `.pnpm/`. Hoist it so Rollup's prod
+  # build can find it as `import "@vercel/oidc"`.
+  - "@vercel/oidc"

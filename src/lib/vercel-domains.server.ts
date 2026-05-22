@@ -1,3 +1,5 @@
+import { createError } from "evlog";
+import type { ErrorCode } from "@/lib/errors/codes";
 import { requireVercelProjectId, vercel, vercelTeamId } from "@/integrations/vercel";
 
 export interface VercelDomainVerification {
@@ -63,7 +65,15 @@ export const vercelDomains = {
       if (verification?.length) {
         return { domain, verified: false, verification };
       }
-      throw new Error(errorMessage(error, "Failed to add domain to Vercel"), { cause: error });
+      throw createError({
+        code: "vercel/domain-add-failed" satisfies ErrorCode,
+        status: 502,
+        message: errorMessage(error, "Failed to add domain to Vercel"),
+        why: "Upstream Vercel API rejected the addProjectDomain call",
+        fix: "Retry shortly; if it persists, check Vercel project state",
+        cause: error instanceof Error ? error : undefined,
+        internal: { domain },
+      });
     }
   },
 
@@ -79,7 +89,15 @@ export const vercelDomains = {
         verification: value.verification,
       };
     } catch (error) {
-      throw new Error(errorMessage(error, "Failed to check domain status"), { cause: error });
+      throw createError({
+        code: "vercel/domain-check-failed" satisfies ErrorCode,
+        status: 502,
+        message: errorMessage(error, "Failed to check domain status"),
+        why: "Upstream Vercel API rejected the getProjectDomain call",
+        fix: "Retry shortly; if it persists, check Vercel project state",
+        cause: error instanceof Error ? error : undefined,
+        internal: { domain },
+      });
     }
   },
 
@@ -94,7 +112,15 @@ export const vercelDomains = {
       // challenge should fall back to check().
       return { verified: value.verified ?? false };
     } catch (error) {
-      throw new Error(errorMessage(error, "Failed to verify domain"), { cause: error });
+      throw createError({
+        code: "vercel/domain-verify-failed" satisfies ErrorCode,
+        status: 502,
+        message: errorMessage(error, "Failed to verify domain"),
+        why: "Upstream Vercel API rejected the verifyProjectDomain call",
+        fix: "Retry shortly; if it persists, check DNS records",
+        cause: error instanceof Error ? error : undefined,
+        internal: { domain },
+      });
     }
   },
 
@@ -115,7 +141,15 @@ export const vercelDomains = {
       // "not found" by message inspection.
       const message = errorMessage(error, "Failed to detach domain from project");
       if (NOT_FOUND_RE.test(message)) return;
-      throw new Error(message, { cause: error });
+      throw createError({
+        code: "vercel/domain-detach-failed" satisfies ErrorCode,
+        status: 502,
+        message,
+        why: "Upstream Vercel API rejected the removeProjectDomain call",
+        fix: "Retry shortly; verify the domain still exists on the project",
+        cause: error instanceof Error ? error : undefined,
+        internal: { domain },
+      });
     }
   },
 
@@ -133,7 +167,15 @@ export const vercelDomains = {
     } catch (error) {
       const message = errorMessage(error, "Failed to delete domain from account");
       if (NOT_FOUND_RE.test(message)) return;
-      throw new Error(message, { cause: error });
+      throw createError({
+        code: "vercel/domain-delete-failed" satisfies ErrorCode,
+        status: 502,
+        message,
+        why: "Upstream Vercel API rejected the deleteDomain call",
+        fix: "Retry shortly; verify the domain still exists in the team",
+        cause: error instanceof Error ? error : undefined,
+        internal: { domain },
+      });
     }
   },
 };

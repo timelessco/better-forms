@@ -22,6 +22,7 @@ import {
 import { defaultFormSettings } from "@/types/form-settings";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { parseError } from "evlog";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { SidebarSection } from "@/components/ui/sidebar-section";
@@ -107,8 +108,7 @@ export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?:
       void queryClient.invalidateQueries({ queryKey: ["submission-notifications"] });
     },
     onError: (error) => {
-      const message =
-        error instanceof Error ? error.message : "Failed to update in-app notifications";
+      const message = parseError(error).message || "Failed to update in-app notifications";
       toast.error(message);
     },
   });

@@ -52,9 +52,12 @@ export const auth = betterAuth({
     changeEmail: {
       enabled: true,
       sendChangeEmailConfirmation: async (data) => {
-        logger(`[Auth] Sending change email confirmation to ${data.user.email} → ${data.newEmail}`);
+        logger("[Auth] Sending change email confirmation", { userId: data.user.id });
         if (import.meta.env.DEV) {
-          logger(`[Auth] Change email URL: ${data.url}`);
+          // Dev-only: print the URL so devs can click it (no mail server).
+          // logger() routes through evlog `log.debug` which is stripped from
+          // prod builds, so this never reaches prod logs.
+          logger("[Auth] Change email URL", { url: data.url });
         } else {
           void sendChangeEmailConfirmationEmail(data.user.email, data.newEmail, data.url);
         }
@@ -103,11 +106,12 @@ export const auth = betterAuth({
               }),
             ]);
 
-            logger(
-              `[Auth] Created organization "${user.name}" with default workspace for user ${user.email}`,
-            );
+            logger("[Auth] Created organization with default workspace", {
+              userId: user.id,
+              orgId: org.id,
+            });
           } catch (error) {
-            logger(`[Auth] Failed to create organization for user ${user.email}:`, error);
+            logger("[Auth] Failed to create organization", { userId: user.id, error });
           }
         },
       },
@@ -150,7 +154,9 @@ export const auth = betterAuth({
     magicLink({
       async sendMagicLink({ email, url }) {
         if (import.meta.env.DEV) {
-          logger(`[Auth] Magic link for ${email}: ${url}`);
+          // Dev-only: print the magic-link URL so devs can click it (no
+          // mail server). logger() is stripped from prod by evlog/vite.
+          logger("[Auth] Magic link", { url });
         } else {
           await sendMagicLinkEmail(email, url);
         }
@@ -158,18 +164,19 @@ export const auth = betterAuth({
     }),
     organization({
       async sendInvitationEmail(data) {
-        logger(
-          `[Org] sendInvitationEmail callback START - email: ${data.email}, org: ${data.organization.name}, inviter: ${data.inviter.user.name}, invitationId: ${data.id}`,
-        );
+        logger("[Org] sendInvitationEmail callback START", {
+          orgId: data.organization.id,
+          invitationId: data.id,
+        });
         const inviteLink = `${process.env.APP_URL || "http://localhost:3000"}/accept-invite?invitationId=${data.id}`;
-        logger(`[Org] Generated invite link: ${inviteLink}`);
+        logger("[Org] Generated invite link", { invitationId: data.id });
         void sendOrgInvitationEmail(
           data.email,
           data.organization.name,
           data.inviter.user.name,
           inviteLink,
         );
-        logger(`[Org] sendInvitationEmail callback END`);
+        logger("[Org] sendInvitationEmail callback END");
       },
     }),
     polar({

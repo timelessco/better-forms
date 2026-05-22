@@ -1,8 +1,10 @@
 import { redirect } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
 import { getCookie, getRequestHeaders, getRequestUrl } from "@tanstack/react-start/server";
+import { createError } from "evlog";
 import type { RequestLogger } from "evlog";
 import { identifyUser } from "evlog/better-auth";
+import type { ErrorCode } from "@/lib/errors/codes";
 // Aliased — `useRequest` is a Nitro AsyncLocalStorage accessor, not a React hook,
 // but oxlint's react-hooks/rules-of-hooks flags it by name.
 import { useRequest as getNitroRequest } from "nitro/context";
@@ -38,7 +40,8 @@ const tagLoggerWithSession = async (
   identifyUser(log, session, {
     // Trim the wide event: only keep the user fields we actually filter logs
     // by. `userId` is still emitted as a top-level field by identifyUser.
-    fields: ["name", "emailVerified"],
+    // `name` deliberately omitted — PII without observability value.
+    fields: ["emailVerified"],
     // Suppress the full session block; we re-add just ip + userAgent via extend.
     session: false,
     extend: () => ({
@@ -108,7 +111,14 @@ export const formProSettingsMiddleware = createMiddleware({ type: "function" })
     const plan = await getOrgPlan(getActiveOrgId(context.session));
     const blocked = gates.find((gate) => !planUnlocks(plan, gate));
     if (blocked) {
-      throw new Error("This feature requires a Pro subscription. Please upgrade to continue.");
+      throw createError({
+        code: "plan/pro-required" satisfies ErrorCode,
+        status: 402,
+        message: "This feature requires a Pro subscription. Please upgrade to continue.",
+        why: `Org plan doesn't unlock the ${blocked} feature gate`,
+        fix: "Upgrade to Pro from the billing settings",
+        internal: { feature: blocked, plan, gates },
+      });
     }
     return next();
   });

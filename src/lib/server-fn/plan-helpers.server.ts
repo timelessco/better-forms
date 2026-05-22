@@ -50,7 +50,7 @@ export const getOrgPlanWithPolarSync = async (
     const customerList = await polarClient.customers.list({ email: userEmail, limit: 5 });
     const customers = customerList.result.items;
     if (customers.length === 0) {
-      logger("[getOrgPlanWithPolarSync] no Polar customer for email", { orgId, userEmail });
+      logger("[getOrgPlanWithPolarSync] no Polar customer for email", { orgId });
       return cached;
     }
 

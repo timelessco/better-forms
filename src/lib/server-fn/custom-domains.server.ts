@@ -1,6 +1,8 @@
 import { eq } from "drizzle-orm";
+import { createError } from "evlog";
 import { customDomains } from "@/db/schema";
 import { db } from "@/db";
+import type { ErrorCode } from "@/lib/errors/codes";
 import { vercelDomains } from "@/lib/vercel-domains.server";
 import type { VercelDomainStatus } from "@/lib/vercel-domains.server";
 
@@ -13,7 +15,14 @@ const serializeDomain = (domain: typeof customDomains.$inferSelect) => ({
 const loadDomain = async (domainId: string) => {
   const [domain] = await db.select().from(customDomains).where(eq(customDomains.id, domainId));
   if (!domain) {
-    throw new Error("Domain not found");
+    throw createError({
+      code: "domains/not-found" satisfies ErrorCode,
+      status: 404,
+      message: "Domain not found",
+      why: "No custom_domain row exists with this ID",
+      fix: "Check the domain ID — it may have been removed",
+      internal: { domainId },
+    });
   }
   return domain;
 };

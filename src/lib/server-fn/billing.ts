@@ -1,9 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
+import { createError } from "evlog";
 import { z } from "zod";
 import { db } from "@/db";
 import { member } from "@/db/schema";
 import { authMiddleware } from "@/lib/auth/middleware";
+import type { ErrorCode } from "@/lib/errors/codes";
 
 /**
  * Opens Polar's hosted customer portal for an organization-scoped customer.
@@ -25,7 +27,14 @@ export const openOrgBillingPortal = createServerFn({ method: "POST" })
       );
 
     if (!membership) {
-      throw new Error("Not authorized to manage billing for this organization");
+      throw createError({
+        code: "billing/forbidden" satisfies ErrorCode,
+        status: 403,
+        message: "Not authorized to manage billing for this organization",
+        why: "User isn't a member of the requested org",
+        fix: "Switch to an org you're a member of",
+        internal: { orgId: data.orgId, userId: context.session.user.id },
+      });
     }
 
     const { polarClient } = await import("@/lib/auth/auth");
@@ -38,7 +47,14 @@ export const openOrgBillingPortal = createServerFn({ method: "POST" })
     const list = await polarClient.customers.list({ email, limit: 1 });
     const customer = list.result.items[0];
     if (!customer) {
-      throw new Error("No Polar customer found for this account");
+      throw createError({
+        code: "billing/no-customer" satisfies ErrorCode,
+        status: 404,
+        message: "No Polar customer found for this account",
+        why: "Polar customer lookup by email returned no results — no checkout has been completed yet",
+        fix: "Subscribe to a paid plan first, then return to the billing portal",
+        internal: { orgId: data.orgId, email },
+      });
     }
 
     const session = await polarClient.customerSessions.create({

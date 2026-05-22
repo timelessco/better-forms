@@ -2,10 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { putBlob } from "@/integrations/blob";
 import { getRequestIP } from "@tanstack/react-start/server";
 import { and, eq, sql } from "drizzle-orm";
+import { createError } from "evlog";
 import type { Value } from "platejs";
 import { z } from "zod";
 import { forms, formVersions, uploadRateLimits } from "@/db/schema";
 import { db } from "@/db";
+import type { ErrorCode } from "@/lib/errors/codes";
 import {
   getEditableFields,
   transformPlateStateToFormElements,
@@ -71,7 +73,14 @@ const checkUploadRateLimit = async (ip: string): Promise<void> => {
 
   const newCount = result[0]?.count ?? 0;
   if (newCount > MAX_PER_WINDOW) {
-    throw new Error("rate_limited");
+    throw createError({
+      code: "uploads/rate-limited" satisfies ErrorCode,
+      status: 429,
+      message: "Too many uploads. Please try again later.",
+      why: `Upload count exceeded ${MAX_PER_WINDOW} per ${WINDOW_MINUTES}-minute window for this IP`,
+      fix: `Wait a few minutes before uploading again`,
+      internal: { ip, count: newCount, windowMinutes: WINDOW_MINUTES },
+    });
   }
 };
 
@@ -109,7 +118,14 @@ const assertFormFileField = async (
     .where(and(eq(forms.id, formId), eq(forms.status, "published")));
 
   if (!form) {
-    throw new Error("form_not_found");
+    throw createError({
+      code: "forms/not-found" satisfies ErrorCode,
+      status: 404,
+      message: "Form not found",
+      why: "No published form exists with this ID",
+      fix: "Check the form URL — it may have been unpublished or deleted",
+      internal: { formId },
+    });
   }
 
   let content: Value | null = null;
@@ -124,14 +140,28 @@ const assertFormFileField = async (
   }
 
   if (!content) {
-    throw new Error("form_has_no_content");
+    throw createError({
+      code: "uploads/form-no-content" satisfies ErrorCode,
+      status: 422,
+      message: "This form has no content",
+      why: "Published version or draft content is empty — nothing to upload against",
+      fix: "Publish the form with content before accepting uploads",
+      internal: { formId },
+    });
   }
 
   const elements = transformPlateStateToFormElements(content);
   const editable = getEditableFields(elements);
   const field = editable.find((f) => f.fieldType === "FileUpload" && f.name === fieldName);
   if (!field) {
-    throw new Error("file_field_not_found");
+    throw createError({
+      code: "uploads/field-not-found" satisfies ErrorCode,
+      status: 422,
+      message: "No file upload field matches the provided name",
+      why: "fieldName doesn't correspond to a FileUpload field on the published form",
+      fix: "Verify the field name from the rendered form",
+      internal: { formId, fieldName },
+    });
   }
   // Prefer the granular allowedFileTypes/allowedFileExtensions set by the
   // block menu. Fall back to a legacy `accept` string if present, then to the
@@ -180,15 +210,35 @@ export const uploadFormFile = createServerFn({ method: "POST" })
     const { accept, maxFileBytes } = await assertFormFileField(data.formId, data.fieldName);
 
     if (!isMimeAllowed(data.contentType, accept)) {
-      throw new Error("mime_not_allowed");
+      throw createError({
+        code: "uploads/mime-not-allowed" satisfies ErrorCode,
+        status: 400,
+        message: "This file type isn't allowed for this field",
+        why: "Provided content-type doesn't match the field's accept list",
+        fix: "Upload a file with one of the allowed types",
+        internal: { contentType: data.contentType, accept },
+      });
     }
 
     const buffer = decodeBase64(data.base64);
     if (buffer.length === 0) {
-      throw new Error("empty_file");
+      throw createError({
+        code: "uploads/empty-file" satisfies ErrorCode,
+        status: 400,
+        message: "The uploaded file is empty",
+        why: "Decoded base64 buffer is zero bytes",
+        fix: "Choose a non-empty file and try again",
+      });
     }
     if (buffer.length > maxFileBytes) {
-      throw new Error("file_too_large");
+      throw createError({
+        code: "uploads/too-large" satisfies ErrorCode,
+        status: 400,
+        message: "This file is larger than allowed for this field",
+        why: "Buffer length exceeds the field's maxFileBytes limit",
+        fix: "Compress the file or pick a smaller one",
+        internal: { byteSize: buffer.length, maxFileBytes },
+      });
     }
 
     const ext = getExtensionForMime(data.contentType) ?? "bin";

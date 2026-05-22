@@ -1,3 +1,4 @@
+import { parseError } from "evlog";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Trash2Icon, UploadIcon } from "@/components/ui/icons";
@@ -40,6 +41,15 @@ type FileUploadState =
   | { status: "error"; message: string };
 
 const UPLOAD_ERROR_MESSAGES: Record<string, string> = {
+  // Stable evlog codes — set by the server via createError({ code }).
+  "uploads/rate-limited": "Too many uploads. Please wait a moment and try again.",
+  "uploads/form-no-content": "This form is no longer accepting uploads.",
+  "uploads/field-not-found": "Upload field is not configured.",
+  "uploads/mime-not-allowed": "This file type isn't allowed.",
+  "uploads/too-large": "File is larger than 10 MB.",
+  "uploads/empty-file": "File is empty.",
+  // Legacy string codes — server endpoints not yet migrated still emit these
+  // in `message`. Keep for back-compat until the server migration finishes.
   rate_limited: "Too many uploads. Please wait a moment and try again.",
   form_not_found: "This form is no longer accepting uploads.",
   file_field_not_found: "Upload field is not configured.",
@@ -121,10 +131,15 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
       setUploadState({ status: "done", value: uploaded, localPreview });
       setValue(uploaded);
     } catch (err) {
-      const code = err instanceof Error ? err.message : "upload_failed";
+      // Prefer the structured `code` from the server. Fall back to the
+      // visible `message` (which is the legacy code on un-migrated endpoints),
+      // then to a generic message.
+      const parsed = parseError(err);
+      const lookupKey = parsed.code ?? parsed.message ?? "";
+      const friendly = UPLOAD_ERROR_MESSAGES[lookupKey];
       setUploadState({
         status: "error",
-        message: UPLOAD_ERROR_MESSAGES[code] ?? "Upload failed. Please try again.",
+        message: friendly ?? parsed.message ?? "Upload failed. Please try again.",
       });
       if (localPreview) URL.revokeObjectURL(localPreview);
       activePreviewRef.current = null;

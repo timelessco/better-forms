@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
+import { createError } from "evlog";
 import { z } from "zod";
 import { putBlob } from "@/integrations/blob";
 import { authMiddleware } from "@/lib/auth/middleware";
+import type { ErrorCode } from "@/lib/errors/codes";
 
 /**
  * Upload avatar image to Vercel Blob storage.
@@ -52,7 +54,13 @@ export const uploadEditorMedia = createServerFn({ method: "POST" })
     const buffer = Buffer.from(base64Data, "base64");
 
     if (buffer.length === 0) {
-      throw new Error("empty_file");
+      throw createError({
+        code: "uploads/empty-file" satisfies ErrorCode,
+        status: 400,
+        message: "The uploaded file is empty",
+        why: "Decoded base64 buffer is zero bytes",
+        fix: "Choose a non-empty file and try again",
+      });
     }
 
     const key = `editor/${userId}/${crypto.randomUUID()}-${data.filename}`;

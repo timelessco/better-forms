@@ -151,6 +151,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Outlet, useLocation, useParams, useRouter } from "@tanstack/react-router";
 import { createClientOnlyFn } from "@tanstack/react-start";
+import { parseError } from "evlog";
 import { generateKeyBetween } from "fractional-indexing";
 import {
   closestCenter,
@@ -907,7 +908,7 @@ const TrashDialog = ({
         removeFromSelection(formId);
         toast.success("Form restored");
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to restore form";
+        const message = parseError(error).message || "Failed to restore form";
         toast.error(message);
       } finally {
         setRestoringIds((prev) => {
@@ -929,7 +930,7 @@ const TrashDialog = ({
         removeFromSelection(formId);
         toast.success("Form deleted");
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to delete form";
+        const message = parseError(error).message || "Failed to delete form";
         toast.error(message);
       } finally {
         setDeletingIds((prev) => {

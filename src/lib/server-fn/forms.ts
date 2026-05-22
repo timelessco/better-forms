@@ -1,12 +1,14 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { and, count, eq, inArray, ne, sql } from "drizzle-orm";
+import { createError } from "evlog";
 import { z } from "zod";
 import { customDomains, formSettings, forms, member, submissions, workspaces } from "@/db/schema";
 import { RESERVED_SLUGS } from "@/lib/config/plan-config";
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { db } from "@/db";
 import { authMiddleware, formProSettingsMiddleware } from "@/lib/auth/middleware";
+import type { ErrorCode } from "@/lib/errors/codes";
 import { purgeFormCache, purgeFormCacheBatch } from "@/lib/server-fn/cdn-cache";
 import { defaultFormSettings } from "@/types/form-settings";
 import type { FormSettings } from "@/types/form-settings";
@@ -99,7 +101,14 @@ export const createForm = createServerFn({ method: "POST" })
         throw err;
       }
     }
-    throw new Error(`failed to allocate unique shortId after ${MAX_SHORT_ID_ATTEMPTS} attempts`);
+    throw createError({
+      code: "forms/short-id-collision" satisfies ErrorCode,
+      status: 500,
+      message: "Couldn't allocate a unique short ID for the form. Please try again.",
+      why: `Hit ${MAX_SHORT_ID_ATTEMPTS} consecutive shortId UNIQUE collisions — should be effectively impossible at 7-char base62`,
+      fix: "Retry the request — this is almost certainly transient",
+      internal: { maxAttempts: MAX_SHORT_ID_ATTEMPTS, formId: data.id },
+    });
   });
 
 export const updateForm = createServerFn({ method: "POST" })
@@ -171,7 +180,14 @@ export const setFormAnalytics = createServerFn({ method: "POST" })
     if (data.enabled) {
       const plan = await getOrgPlanWithPolarSync(orgId, context.session.user.email ?? null);
       if (!planUnlocks(plan, "analytics")) {
-        throw new Error("Analytics requires a Pro subscription. Please upgrade to continue.");
+        throw createError({
+          code: "plan/pro-required" satisfies ErrorCode,
+          status: 402,
+          message: "Analytics requires a Pro subscription. Please upgrade to continue.",
+          why: "Org plan doesn't unlock the analytics feature gate",
+          fix: "Upgrade to Pro from the billing settings",
+          internal: { feature: "analytics", orgId, plan },
+        });
       }
     }
 
@@ -356,7 +372,14 @@ const _getFormById = createServerFn({ method: "GET" })
     ]);
 
     if (!form) {
-      throw new Error("Form not found");
+      throw createError({
+        code: "forms/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Form not found",
+        why: "No forms row exists with this ID after auth passed",
+        fix: "Refresh — the form may have been deleted",
+        internal: { formId: data.id },
+      });
     }
 
     return { form: serializeForm(form) };
@@ -397,17 +420,37 @@ export const updateFormSlug = createServerFn({ method: "POST" })
     await authForm(formId, context.session.user.id, orgId);
 
     if (!SLUG_PATTERN.test(slug)) {
-      throw new Error(
-        "Invalid slug format. Use lowercase letters, numbers, and hyphens only. Cannot start or end with a hyphen.",
-      );
+      throw createError({
+        code: "forms/slug-invalid-format" satisfies ErrorCode,
+        status: 400,
+        message:
+          "Invalid slug format. Use lowercase letters, numbers, and hyphens only. Cannot start or end with a hyphen.",
+        why: "Slug doesn't match the [a-z0-9-] pattern (no leading/trailing hyphen)",
+        fix: "Use only lowercase letters, numbers, and hyphens",
+        internal: { slug },
+      });
     }
 
     if (slug.length < 2 || slug.length > 60) {
-      throw new Error("Slug must be between 2 and 60 characters");
+      throw createError({
+        code: "forms/slug-invalid-length" satisfies ErrorCode,
+        status: 400,
+        message: "Slug must be between 2 and 60 characters",
+        why: "Slug length is outside the 2-60 character range",
+        fix: "Shorten or extend the slug to fit within 2-60 characters",
+        internal: { slug, length: slug.length },
+      });
     }
 
     if (RESERVED_SLUGS.has(slug)) {
-      throw new Error("This slug is reserved and cannot be used");
+      throw createError({
+        code: "forms/slug-reserved" satisfies ErrorCode,
+        status: 422,
+        message: "This slug is reserved and cannot be used",
+        why: "Slug matches one of the platform's reserved names",
+        fix: "Choose a different slug",
+        internal: { slug },
+      });
     }
 
     const [formRecord] = await db
@@ -416,7 +459,14 @@ export const updateFormSlug = createServerFn({ method: "POST" })
       .where(eq(forms.id, formId));
 
     if (!formRecord) {
-      throw new Error("Form not found");
+      throw createError({
+        code: "forms/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Form not found",
+        why: "Form was authorized but disappeared between auth and slug read",
+        fix: "Refresh and try again",
+        internal: { formId },
+      });
     }
 
     const [workspace] = await db
@@ -425,7 +475,14 @@ export const updateFormSlug = createServerFn({ method: "POST" })
       .where(eq(workspaces.id, formRecord.workspaceId));
 
     if (!workspace) {
-      throw new Error("Workspace not found");
+      throw createError({
+        code: "workspaces/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Workspace not found",
+        why: "Form's workspace row is missing — likely a stale reference",
+        fix: "Refresh and try again",
+        internal: { workspaceId: formRecord.workspaceId, formId },
+      });
     }
 
     const existing = await db
@@ -441,7 +498,14 @@ export const updateFormSlug = createServerFn({ method: "POST" })
       );
 
     if (existing.length > 0) {
-      throw new Error("Slug already in use");
+      throw createError({
+        code: "forms/slug-taken" satisfies ErrorCode,
+        status: 422,
+        message: "Slug already in use",
+        why: "Another form in this organization already uses this slug",
+        fix: "Pick a different slug",
+        internal: { slug, organizationId: workspace.organizationId, formId },
+      });
     }
 
     const [updatedForm] = await db
@@ -474,7 +538,14 @@ export const assignFormDomain = createServerFn({ method: "POST" })
     if (customDomainId !== null) {
       const plan = await getOrgPlan(orgId);
       if (!planUnlocks(plan, "customDomains")) {
-        throw new Error("Custom domains require a Pro subscription. Please upgrade to continue.");
+        throw createError({
+          code: "domains/pro-required" satisfies ErrorCode,
+          status: 402,
+          message: "Custom domains require a Pro subscription. Please upgrade to continue.",
+          why: "Org plan doesn't unlock the customDomains feature gate",
+          fix: "Upgrade to Pro from the billing settings",
+          internal: { feature: "customDomains", orgId, plan },
+        });
       }
 
       const [domain] = await db
@@ -483,15 +554,36 @@ export const assignFormDomain = createServerFn({ method: "POST" })
         .where(eq(customDomains.id, customDomainId));
 
       if (!domain) {
-        throw new Error("Custom domain not found");
+        throw createError({
+          code: "domains/not-found" satisfies ErrorCode,
+          status: 404,
+          message: "Custom domain not found",
+          why: "No custom_domain row exists with this ID",
+          fix: "Refresh the domain list — it may have been removed",
+          internal: { customDomainId, orgId },
+        });
       }
 
       if (domain.organizationId !== orgId) {
-        throw new Error("Custom domain does not belong to this organization");
+        throw createError({
+          code: "domains/not-belongs-to-org" satisfies ErrorCode,
+          status: 403,
+          message: "Custom domain does not belong to this organization",
+          why: "Domain row's organizationId doesn't match the active org",
+          fix: "Assign a domain that belongs to your current organization",
+          internal: { customDomainId, expectedOrgId: orgId, actualOrgId: domain.organizationId },
+        });
       }
 
       if (domain.status !== "verified") {
-        throw new Error("Custom domain is not verified");
+        throw createError({
+          code: "domains/not-verified" satisfies ErrorCode,
+          status: 422,
+          message: "Custom domain is not verified",
+          why: `Domain status is "${domain.status}" — needs to be "verified" before assignment`,
+          fix: "Complete domain verification from the domains settings",
+          internal: { customDomainId, status: domain.status },
+        });
       }
 
       const [formRecord] = await db

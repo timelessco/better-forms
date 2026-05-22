@@ -1,5 +1,6 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { useRouter } from "@tanstack/react-router";
+import { parseError } from "evlog";
 import { RefreshCwIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { useCallback } from "react";
@@ -8,15 +9,24 @@ export const ErrorBoundary = ({ error }: ErrorComponentProps) => {
   const router = useRouter();
   const isDev = import.meta.env.DEV;
 
+  // Normalize via parseError once. For structured server errors this gives us
+  // `code`/`why`/`fix`; for plain Errors we still get `.message`. `error.stack`
+  // is only present on real Error instances — read it off the original.
+  const parsed = parseError(error);
+  const stack = error instanceof Error ? error.stack : undefined;
+
   const createGithubIssue = useCallback(() => {
-    const title = encodeURIComponent(`Error: ${error.message}`);
+    const title = encodeURIComponent(`Error: ${parsed.message}`);
     const body = encodeURIComponent(`## Error Details
 
-**Message:** ${error.message}
+**Message:** ${parsed.message}
+${parsed.code ? `\n**Code:** ${parsed.code}` : ""}
+${parsed.why ? `\n**Why:** ${parsed.why}` : ""}
+${parsed.fix ? `\n**Fix:** ${parsed.fix}` : ""}
 
 **Stack:**
 \`\`\`
-${error.stack || "No stack trace available"}
+${stack || "No stack trace available"}
 \`\`\`
 
 **Location:** ${window.location.href}
@@ -37,7 +47,7 @@ ${error.stack || "No stack trace available"}
       `https://github.com/timelessco/better-forms/issues/new?title=${title}&body=${body}`,
       "_blank",
     );
-  }, [error.message, error.stack]);
+  }, [parsed.message, parsed.code, parsed.why, parsed.fix, stack]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
@@ -54,13 +64,23 @@ ${error.stack || "No stack trace available"}
         <div className="rounded-lg border bg-card p-6 shadow-sm">
           <h2 className="mb-3 text-lg font-semibold text-card-foreground">Error Details</h2>
           <p className="rounded bg-muted p-3 font-mono text-sm break-all text-muted-foreground">
-            {error.message || "Unknown error occurred"}
+            {parsed.message || "Unknown error occurred"}
           </p>
-          {isDev && error.stack && (
+          {parsed.why && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              <span className="font-semibold text-card-foreground">Why:</span> {parsed.why}
+            </p>
+          )}
+          {parsed.fix && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              <span className="font-semibold text-card-foreground">Try:</span> {parsed.fix}
+            </p>
+          )}
+          {isDev && stack && (
             <div className="mt-4">
               <h2 className="mb-2 text-sm font-semibold text-card-foreground">Stack Trace</h2>
               <div className="max-h-64 overflow-auto rounded bg-muted p-3">
-                <pre className="font-mono text-xs text-muted-foreground">{error.stack}</pre>
+                <pre className="font-mono text-xs text-muted-foreground">{stack}</pre>
               </div>
             </div>
           )}
