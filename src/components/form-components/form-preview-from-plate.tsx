@@ -236,8 +236,14 @@ const PreviewFormHeader = ({
         <span data-bf-logo-icon={isLogoMinimal ? "minimal" : ""}>
           <IconPickerPreview
             icon={icon}
-            iconColor={iconColor || undefined}
-            useThemeColor={!iconColor}
+            // Mirror form-header-node.tsx: when a custom theme is in
+            // play, force theme colors (bg-primary text-primary-foreground)
+            // so the icon contrast tracks the theme. Without this, the
+            // picker fell back to a default dark fill on themed forms
+            // because iconColor wasn't set, which mismatched the editor's
+            // white-on-primary rendering.
+            iconColor={hasCustomization ? undefined : iconColor || undefined}
+            useThemeColor={hasCustomization || !iconColor}
             iconSize="48"
             size={logoCircleSize}
             standaloneIcon
@@ -614,9 +620,11 @@ interface LayoutProps {
 const FieldByFieldHeaderIcon = ({
   icon,
   iconColor,
+  hasCustomization,
 }: {
   icon: string;
   iconColor?: string | null;
+  hasCustomization?: boolean;
 }) => {
   if (icon === DEFAULT_ICON) {
     return (
@@ -650,8 +658,10 @@ const FieldByFieldHeaderIcon = ({
     <span className="flex-shrink-0" data-bf-logo-icon>
       <IconPickerPreview
         icon={icon}
-        iconColor={iconColor || undefined}
-        useThemeColor={!iconColor}
+        // Match the card-mode + editor logic: themed forms force
+        // theme colors so the icon contrast tracks the theme.
+        iconColor={hasCustomization ? undefined : iconColor || undefined}
+        useThemeColor={hasCustomization || !iconColor}
         iconSize="40"
         size="80"
         standaloneIcon
@@ -671,12 +681,14 @@ const FieldByFieldLayout = ({
   hideTitle,
   layout,
   settings,
+  customization,
   isPopup,
   boundToParent,
   shareUrl,
   redirectCountdown,
 }: LayoutProps) => {
   const { currentStep, totalSteps, isSubmitted, direction, reset } = useStepForm();
+  const hasCustomization = !!(customization && Object.keys(customization).length > 0);
   const coverIsImage = cover && isValidUrl(cover);
   const coverIsColor = cover && isHexColor(cover);
   const isLastStep = currentStep === steps.length - 1;
@@ -728,7 +740,13 @@ const FieldByFieldLayout = ({
           )}
           style={isPopup ? undefined : { maxWidth: PAGE_MAX_WIDTH[layout] }}
         >
-          {hasIcon && icon && <FieldByFieldHeaderIcon icon={icon} iconColor={iconColor} />}
+          {hasIcon && icon && (
+            <FieldByFieldHeaderIcon
+              icon={icon}
+              iconColor={iconColor}
+              hasCustomization={hasCustomization}
+            />
+          )}
           {title && (
             <h1
               data-bf-title
