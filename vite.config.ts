@@ -33,9 +33,38 @@ const embedCacheHeadersPlugin = (): Plugin => ({
   },
 });
 
+// The framework's static-asset middleware (in both Vite dev and preview)
+// intercepts requests where the browser sends `Sec-Fetch-Dest: image` —
+// it tries to serve a public/ file, finds nothing for `/api/icons/...`,
+// and 404s before TanStack's `/api/icons/$name` route handler runs.
+// Strip the header for /api/icons/ requests so the asset middleware
+// skips them and TanStack gets a chance. Vercel routes /api/* directly
+// to functions in production, so this only matters locally.
+const stripImageSentinelForApiIcons = (
+  req: IncomingMessage,
+  _res: ServerResponse,
+  next: (err?: unknown) => void,
+) => {
+  if (req.url?.startsWith("/api/icons/")) {
+    delete req.headers["sec-fetch-dest"];
+  }
+  next();
+};
+
+const apiIconsDevBypass = (): Plugin => ({
+  name: "api-icons-dev-bypass",
+  configureServer(server) {
+    server.middlewares.use(stripImageSentinelForApiIcons);
+  },
+  configurePreviewServer(server) {
+    server.middlewares.use(stripImageSentinelForApiIcons);
+  },
+});
+
 const config = defineConfig({
   plugins: [
     embedCacheHeadersPlugin(),
+    apiIconsDevBypass(),
     devtools({
       editor: {
         name: "VSCode",
