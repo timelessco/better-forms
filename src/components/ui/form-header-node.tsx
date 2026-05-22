@@ -771,13 +771,12 @@ const HeaderCoverSection = ({
           <Button
             variant="ghost"
             size="sm"
-            className="rounded-none border-none text-xs text-foreground/80 hover:bg-secondary hover:text-foreground"
+            className="rounded-none rounded-r-lg border-none text-xs text-foreground/80 hover:bg-secondary hover:text-foreground"
             onClick={() => onCoverChange(null)}
             onMouseDown={(e) => e.preventDefault()}
           >
             Remove
           </Button>
-          <ButtonGroupSeparator className="bg-border" />
         </ButtonGroup>
       </div>
 
