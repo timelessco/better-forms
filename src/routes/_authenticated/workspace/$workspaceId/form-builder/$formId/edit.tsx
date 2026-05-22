@@ -142,6 +142,13 @@ export const Route = createFileRoute(
   ssr: "data-only",
   // Redirect published forms to submissions (prevents flash of editor)
   beforeLoad: async ({ context, params, search }) => {
+    // Warm the editor-app chunk during route preload (e.g. on Link hover with
+    // preload="intent") and on navigation. Window guard keeps the dynamic
+    // import off the server module graph in `ssr: "data-only"` mode.
+    if (typeof window !== "undefined") {
+      void import("../-components/editor-app");
+    }
+
     if (search.force === true) return;
 
     let status: FormStatus | undefined;
