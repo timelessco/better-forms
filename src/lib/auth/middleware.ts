@@ -1,8 +1,10 @@
 import { redirect } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
 import { getCookie, getRequestHeaders, getRequestUrl } from "@tanstack/react-start/server";
+import { createError } from "@/lib/errors/create";
 import type { RequestLogger } from "evlog";
 import { identifyUser } from "evlog/better-auth";
+import type { ErrorCode } from "@/lib/errors/codes";
 // Aliased — `useRequest` is a Nitro AsyncLocalStorage accessor, not a React hook,
 // but oxlint's react-hooks/rules-of-hooks flags it by name.
 import { useRequest as getNitroRequest } from "nitro/context";
@@ -14,11 +16,15 @@ import type { FormProSettingsInput } from "@/lib/server-fn/plan-helpers";
 import { getOrgPlan } from "@/lib/server-fn/plan-helpers.server";
 
 // Tag the active request's evlog wide event with the resolved Better Auth
-// user/session, plus the active org's id/role and the org's plan. Plan is
-// resolved via one cached-column read (`organization.plan` — synced by Polar
-// webhooks), kept best-effort: on any failure we still emit user fields.
+// user/session and the active org's id/role. SYNCHRONOUS by design — any
+// `await` here loses the tag because TanStack Start streams responses and
+// evlog emits the wide event when the stream opens; tags arriving after
+// that emit are dropped with the "log.set() called after the wide event
+// was emitted" warning. Org `plan` is intentionally not tagged here for
+// the same reason (would require an async DB read); slice by `activeOrganizationId`
+// in observability and join with the plan column out-of-band if needed.
 // No-op when evlog isn't installed for the request or session is null.
-const tagLoggerWithSession = async (
+const tagLoggerWithSession = (
   session: { user: Record<string, unknown>; session: Record<string, unknown> } | null,
 ) => {
   if (!session) return;
@@ -33,12 +39,11 @@ const tagLoggerWithSession = async (
   const ipAddress = typeof sessionData.ipAddress === "string" ? sessionData.ipAddress : null;
   const userAgent = typeof sessionData.userAgent === "string" ? sessionData.userAgent : null;
 
-  const plan = activeOrgId ? await getOrgPlan(activeOrgId).catch(() => null) : null;
-
   identifyUser(log, session, {
     // Trim the wide event: only keep the user fields we actually filter logs
     // by. `userId` is still emitted as a top-level field by identifyUser.
-    fields: ["name", "emailVerified"],
+    // `name` deliberately omitted — PII without observability value.
+    fields: ["emailVerified"],
     // Suppress the full session block; we re-add just ip + userAgent via extend.
     session: false,
     extend: () => ({
@@ -50,7 +55,6 @@ const tagLoggerWithSession = async (
       }),
       ...(activeOrgId && { activeOrganizationId: activeOrgId }),
       ...(role && { role }),
-      ...(plan && { plan }),
     }),
   });
 };
@@ -89,7 +93,7 @@ export const authMiddleware = createMiddleware().server(async ({ next }) => {
     });
   }
 
-  await tagLoggerWithSession(session);
+  tagLoggerWithSession(session);
 
   return next({
     context: {
@@ -113,7 +117,14 @@ export const formProSettingsMiddleware = createMiddleware({ type: "function" })
     const plan = await getOrgPlan(getActiveOrgId(context.session));
     const blocked = gates.find((gate) => !planUnlocks(plan, gate));
     if (blocked) {
-      throw new Error("This feature requires a Pro subscription. Please upgrade to continue.");
+      throw createError({
+        code: "plan/pro-required" satisfies ErrorCode,
+        status: 402,
+        message: "This feature requires a Pro subscription. Please upgrade to continue.",
+        why: `Org plan doesn't unlock the ${blocked} feature gate`,
+        fix: "Upgrade to Pro from the billing settings",
+        internal: { feature: blocked, plan, gates },
+      });
     }
     return next();
   });
@@ -132,7 +143,7 @@ export const apiAuthMiddleware = createMiddleware().server(async ({ next }) => {
     });
   }
 
-  await tagLoggerWithSession(session);
+  tagLoggerWithSession(session);
 
   return next({ context: { session } });
 });

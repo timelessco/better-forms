@@ -15,6 +15,7 @@ import { mergeThemeIntoCustomization } from "@/lib/editor/merge-theme";
 import { settingsDialogStore } from "@/hooks/use-settings-dialog";
 import { FREE_CUSTOMIZATION_KEYS } from "@/lib/server-fn/plan-helpers";
 import { AI_DAILY_LIMIT_ERROR } from "@/lib/server-fn/ai-quota-constants";
+import { parseError } from "@/lib/errors/parse";
 import { formGenSchema, isOpReady } from "@/lib/ai/ops-schema";
 import type { FormGenResult, Op, PartialOp, SetThemeOp } from "@/lib/ai/ops-schema";
 
@@ -307,7 +308,8 @@ export const useFormGenStream = ({
       onFinish?.();
     },
     onError: (err: Error) => {
-      onError?.(err.message || "Theme generation failed.");
+      const parsed = parseError(err);
+      onError?.(parsed.message || "Theme generation failed.");
     },
   });
 
@@ -419,12 +421,26 @@ export const useFormGenStream = ({
     },
     onError: (err: Error) => {
       rollback();
-      // Surface daily-limit toasts for the streaming path too. The server
-      // returns 429 before streaming starts; the AI SDK passes the body
-      // text through in `err.message`. We sniff for the canonical token
-      // we set server-side rather than the brittle message text.
-      const msg = err.message ?? "";
-      if (msg.includes(AI_DAILY_LIMIT_ERROR) || msg.includes("Daily AI limit")) {
+      // Surface daily-limit toasts for the streaming path too. The AI SDK's
+      // `useObject` doesn't route through ofetch — it serializes the server's
+      // 429 response body into `err.message` as a JSON string. We try to
+      // parse it for the structured `code` field; substring sniffing of
+      // AI_DAILY_LIMIT_ERROR stays as a back-compat fallback.
+      const parsed = parseError(err);
+      const msg = parsed.message ?? "";
+      let bodyCode: string | undefined;
+      try {
+        const body = JSON.parse(msg) as { code?: unknown };
+        if (typeof body?.code === "string") bodyCode = body.code;
+      } catch {
+        // err.message wasn't a JSON body (network error, abort, etc.)
+      }
+      const isDailyLimit =
+        bodyCode === "quota/ai-daily-limit" ||
+        parsed.code === "quota/ai-daily-limit" ||
+        msg.includes(AI_DAILY_LIMIT_ERROR) ||
+        msg.includes("Daily AI limit");
+      if (isDailyLimit) {
         toast.error("Daily AI limit reached. Upgrade to Pro for unlimited generations.", {
           action: {
             label: "Upgrade to Pro",

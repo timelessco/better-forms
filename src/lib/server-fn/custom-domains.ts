@@ -1,10 +1,12 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, isNotNull } from "drizzle-orm";
+import { createError } from "@/lib/errors/create";
 import { z } from "zod";
 import { customDomains, forms, member } from "@/db/schema";
 import { db } from "@/db";
 import { authMiddleware } from "@/lib/auth/middleware";
+import type { ErrorCode } from "@/lib/errors/codes";
 import { purgeFormCacheBatch } from "@/lib/server-fn/cdn-cache";
 import { vercelDomains } from "@/lib/vercel-domains.server";
 import type { VercelDomainVerification } from "@/lib/vercel-domains.server";
@@ -33,7 +35,14 @@ export const listOrgDomains = createServerFn({ method: "POST" })
       );
 
     if (!membership) {
-      throw new Error("Not authorized to view domains for this organization");
+      throw createError({
+        code: "domains/not-owner" satisfies ErrorCode,
+        status: 403,
+        message: "Not authorized to view domains for this organization",
+        why: "User isn't a member of the requested org",
+        fix: "Switch to an org you're a member of",
+        internal: { orgId: data.orgId, userId: context.session.user.id },
+      });
     }
 
     const domains = await db
@@ -54,9 +63,15 @@ export const addDomain = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     if (!isSubdomain(data.domain)) {
-      throw new Error(
-        "Custom domains must be a subdomain like forms.example.com. Bare/apex domains aren't supported — please use a subdomain.",
-      );
+      throw createError({
+        code: "domains/invalid-host" satisfies ErrorCode,
+        status: 400,
+        message:
+          "Custom domains must be a subdomain like forms.example.com. Bare/apex domains aren't supported — please use a subdomain.",
+        why: "Provided host has no subdomain label",
+        fix: "Use a subdomain such as forms.example.com",
+        internal: { domain: data.domain },
+      });
     }
 
     const [[membership], existingDomains] = await Promise.all([
@@ -74,11 +89,25 @@ export const addDomain = createServerFn({ method: "POST" })
     ]);
 
     if (!membership) {
-      throw new Error("Only organization owners can add domains");
+      throw createError({
+        code: "domains/not-owner" satisfies ErrorCode,
+        status: 403,
+        message: "Only organization owners can add domains",
+        why: "User is a member but not an owner of this org",
+        fix: "Ask the organization owner to add the domain",
+        internal: { orgId: data.orgId, userId: context.session.user.id },
+      });
     }
 
     if (existingDomains.length >= DOMAIN_LIMITS.maxDomainsPerOrg) {
-      throw new Error(`Maximum of ${DOMAIN_LIMITS.maxDomainsPerOrg} domains per organization`);
+      throw createError({
+        code: "domains/limit-reached" satisfies ErrorCode,
+        status: 422,
+        message: `Maximum of ${DOMAIN_LIMITS.maxDomainsPerOrg} domains per organization`,
+        why: "Organization has reached its custom-domain cap",
+        fix: "Remove an existing domain before adding another",
+        internal: { orgId: data.orgId, existingCount: existingDomains.length },
+      });
     }
 
     let vercelDomainId: string | undefined;
@@ -128,7 +157,14 @@ export const removeDomain = createServerFn({ method: "POST" })
       .where(eq(customDomains.id, data.domainId));
 
     if (!domain) {
-      throw new Error("Domain not found");
+      throw createError({
+        code: "domains/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Domain not found",
+        why: "No custom_domain row exists with this ID",
+        fix: "Refresh the domain list — it may have been removed",
+        internal: { domainId: data.domainId },
+      });
     }
 
     const [membership] = await db
@@ -143,7 +179,14 @@ export const removeDomain = createServerFn({ method: "POST" })
       );
 
     if (!membership) {
-      throw new Error("Only organization owners can remove domains");
+      throw createError({
+        code: "domains/not-owner" satisfies ErrorCode,
+        status: 403,
+        message: "Only organization owners can remove domains",
+        why: "User is a member but not an owner of this org",
+        fix: "Ask the organization owner to remove the domain",
+        internal: { domainId: data.domainId, userId: context.session.user.id },
+      });
     }
 
     try {
@@ -175,14 +218,28 @@ export const removeDomain = createServerFn({ method: "POST" })
 const assertCanReadDomain = async (domainId: string, userId: string) => {
   const [domain] = await db.select().from(customDomains).where(eq(customDomains.id, domainId));
   if (!domain) {
-    throw new Error("Domain not found");
+    throw createError({
+      code: "domains/not-found" satisfies ErrorCode,
+      status: 404,
+      message: "Domain not found",
+      why: "No custom_domain row exists with this ID",
+      fix: "Refresh the domain list — it may have been removed",
+      internal: { domainId },
+    });
   }
   const [membership] = await db
     .select()
     .from(member)
     .where(and(eq(member.userId, userId), eq(member.organizationId, domain.organizationId)));
   if (!membership) {
-    throw new Error("Not authorized to check this domain");
+    throw createError({
+      code: "domains/not-authorized" satisfies ErrorCode,
+      status: 403,
+      message: "Not authorized to check this domain",
+      why: "User isn't a member of the domain's organization",
+      fix: "Switch to the correct organization",
+      internal: { domainId, userId, organizationId: domain.organizationId },
+    });
   }
 };
 
@@ -219,7 +276,14 @@ export const updateDomainMeta = createServerFn({ method: "POST" })
       .where(eq(customDomains.id, data.domainId));
 
     if (!domain) {
-      throw new Error("Domain not found");
+      throw createError({
+        code: "domains/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Domain not found",
+        why: "No custom_domain row exists with this ID",
+        fix: "Refresh the domain list — it may have been removed",
+        internal: { domainId: data.domainId },
+      });
     }
 
     const [membership] = await db
@@ -234,7 +298,14 @@ export const updateDomainMeta = createServerFn({ method: "POST" })
       );
 
     if (!membership) {
-      throw new Error("Only organization owners can update domain settings");
+      throw createError({
+        code: "domains/not-owner" satisfies ErrorCode,
+        status: 403,
+        message: "Only organization owners can update domain settings",
+        why: "User is a member but not an owner of this org",
+        fix: "Ask the organization owner to update the domain",
+        internal: { domainId: data.domainId, userId: context.session.user.id },
+      });
     }
 
     const { domainId, ...updateFields } = data;

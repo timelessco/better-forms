@@ -1,6 +1,8 @@
 import { and, eq, exists, inArray } from "drizzle-orm";
+import { createError } from "@/lib/errors/create";
 import { forms, member, workspaces } from "@/db/schema";
 import { db } from "@/db";
+import type { ErrorCode } from "@/lib/errors/codes";
 
 /**
  * Authorize access to a workspace.
@@ -30,7 +32,14 @@ export const authWorkspace = async (
     .limit(1);
 
   if (workspace.length === 0) {
-    throw new Error("Workspace not found or access denied");
+    throw createError({
+      code: "auth/not-workspace-member" satisfies ErrorCode,
+      status: 404,
+      message: "Workspace not found or access denied",
+      why: "Workspace doesn't exist in this org or user isn't a member",
+      fix: "Confirm the workspace ID and that you're a member of its organization",
+      internal: { workspaceId, userId, organizationId },
+    });
   }
   return { workspace: workspace[0] };
 };
@@ -60,7 +69,14 @@ export const authForm = async (formId: string, userId: string, organizationId: s
     .limit(1);
 
   if (form.length === 0) {
-    throw new Error("Form not found or access denied");
+    throw createError({
+      code: "auth/not-form-owner" satisfies ErrorCode,
+      status: 404,
+      message: "Form not found or access denied",
+      why: "Form doesn't exist in this org or user isn't a member of its workspace",
+      fix: "Confirm the form ID and that you have access to its workspace",
+      internal: { formId, userId, organizationId },
+    });
   }
   return { form: form[0] };
 };
@@ -93,7 +109,14 @@ export const authFormsBulk = async (formIds: string[], userId: string, organizat
     );
 
   if (allowed.length !== formIds.length) {
-    throw new Error("Form not found or access denied");
+    throw createError({
+      code: "auth/not-form-owner" satisfies ErrorCode,
+      status: 404,
+      message: "Form not found or access denied",
+      why: "One or more form IDs don't belong to this org or user isn't a workspace member",
+      fix: "Remove inaccessible IDs from the batch and retry",
+      internal: { formIds, userId, organizationId, allowedCount: allowed.length },
+    });
   }
   return { formIds: allowed.map((r) => r.id) };
 };

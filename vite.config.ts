@@ -3,6 +3,7 @@ import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import rsc from "@vitejs/plugin-rsc";
+import evlog from "evlog/vite";
 import { nitro } from "nitro/vite";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
@@ -93,12 +94,46 @@ const config = defineConfig({
         levels: ["log", "warn", "error", "info", "debug"],
       },
     }),
+    // Build-time evlog: injects service/env via Vite `define` so
+    // `import { log } from "evlog"` works without a manual `initLogger()`,
+    // strips `log.debug()` from production builds, and adds `__source:
+    // 'file:line'` to object-form log calls in dev. `client: {...}` is
+    // intentionally omitted — no browser-side transport endpoint yet.
+    evlog({
+      service: "reform",
+      environment: process.env.NODE_ENV,
+      sourceLocation: "dev",
+      // Explicit prod gate: machine-readable JSON in production, pretty
+      // colors in dev. Default already follows this, made explicit so a
+      // future config audit doesn't have to guess.
+      pretty: process.env.NODE_ENV !== "production",
+    }),
     nitro({
+      experimental: {
+        asyncContext: true,
+        typescriptBundlerResolution: true,
+      },
       vercel: {
         functions: {
           maxDuration: 799,
           runtime: "nodejs22.x",
           supportsResponseStreaming: true,
+          regions: ["bom1", "iad1", "fra1"],
+        },
+        config: {
+          version: 3,
+          crons: [
+            { path: "/api/cron/aggregate-analytics", schedule: "15 0 * * *" },
+            { path: "/api/cron/purge-archived-forms", schedule: "30 0 * * *" },
+          ],
+        },
+      },
+      routeRules: {
+        "/embed/popup.js": {
+          headers: {
+            "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+            "Access-Control-Allow-Origin": "*",
+          },
         },
       },
     }),
@@ -221,6 +256,13 @@ const config = defineConfig({
       // the Vercel function. Inlining it into the SSR bundle drops the .ttf
       // and crashes with ENOENT on first import in /var/task/_ssr/.
       "@vercel/og",
+      // @vercel/oidc (pulled in transitively by `ai@6` → `@ai-sdk/gateway`
+      // → here for AI Gateway auth) ships CJS-only modules that crash Vite
+      // 7's module runner with `Cannot read properties of undefined
+      // (reading '__cjs_module_runner_transform')`. Hand it to Node's
+      // native CJS loader at runtime. `@ai-sdk/gateway` itself is ESM and
+      // must stay bundled so Rollup can resolve it.
+      "@vercel/oidc",
     ],
   },
   environments: {

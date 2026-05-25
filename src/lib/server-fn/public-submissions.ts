@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { waitUntil } from "@vercel/functions";
 import { and, count, eq, sql } from "drizzle-orm";
+import { createError } from "@/lib/errors/create";
 import { z } from "zod";
 import type { Value } from "platejs";
 import {
@@ -18,6 +18,7 @@ import {
   getEditableFields,
   transformPlateStateToFormElements,
 } from "@/lib/editor/transform-plate-to-form";
+import type { ErrorCode } from "@/lib/errors/codes";
 import { isServerPlan } from "./plan-helpers";
 import { recordOwnerSubmissionNotification } from "./notifications-helpers.server";
 
@@ -32,6 +33,23 @@ type VersionSettings = {
   respondentEmailNotifications?: boolean;
   respondentEmailSubject?: string | null;
   respondentEmailBody?: string | null;
+};
+
+// Inlined `waitUntil` — `@vercel/functions`'s index re-exports `./cache`,
+// which transitively loads `@vercel/oidc`'s CJS modules. Vite 7's module
+// runner can't evaluate those in dev (`Cannot read properties of undefined
+// (reading '__cjs_module_runner_transform')`), crashing the server. Vercel
+// exposes the request context via a Symbol-keyed global, so we read it
+// directly. On non-Vercel runtimes the symbol is unset and we just let the
+// promise run unattached — same behavior as `@vercel/functions/waitUntil`.
+const VERCEL_REQUEST_CONTEXT = Symbol.for("@vercel/request-context");
+const waitUntil = (promise: Promise<unknown>) => {
+  const ctx = (
+    globalThis as {
+      [k: symbol]: { get?: () => { waitUntil?: (p: Promise<unknown>) => void } } | undefined;
+    }
+  )[VERCEL_REQUEST_CONTEXT];
+  ctx?.get?.()?.waitUntil?.(promise);
 };
 
 // Max size of the `data` JSON payload in bytes for draft saves. Prevents
@@ -103,10 +121,23 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
     if (!data.isCompleted) {
       const payloadSize = JSON.stringify(data.data).length;
       if (payloadSize > MAX_DRAFT_PAYLOAD_BYTES) {
-        throw new Error("Draft payload too large");
+        throw createError({
+          code: "submissions/draft-too-large" satisfies ErrorCode,
+          status: 400,
+          message: "Draft payload too large",
+          why: `Encoded draft body exceeds the ${MAX_DRAFT_PAYLOAD_BYTES}-byte cap`,
+          fix: "Remove some answers or finalize the submission",
+          internal: { byteSize: payloadSize, maxBytes: MAX_DRAFT_PAYLOAD_BYTES },
+        });
       }
       if (!data.draftId) {
-        throw new Error("draftId is required for partial submissions");
+        throw createError({
+          code: "submissions/missing-draft-id" satisfies ErrorCode,
+          status: 400,
+          message: "draftId is required for partial submissions",
+          why: "Server can't upsert a draft row without a stable draftId",
+          fix: "Generate and persist a draftId before saving partial responses",
+        });
       }
       const now = Date.now();
       const lastAt = draftLastWriteAt.get(data.draftId) ?? 0;
@@ -134,11 +165,25 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
       .where(eq(forms.id, data.formId));
 
     if (!form) {
-      throw new Error("Form not found");
+      throw createError({
+        code: "forms/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Form not found",
+        why: "No form row matched the submitted formId",
+        fix: "Check the form URL — it may have been deleted",
+        internal: { formId: data.formId },
+      });
     }
 
     if (form.status !== "published") {
-      throw new Error("Form is not accepting submissions");
+      throw createError({
+        code: "forms/closed" satisfies ErrorCode,
+        status: 403,
+        message: "Form is not accepting submissions",
+        why: `Form status is "${form.status}" — only "published" forms accept submissions`,
+        fix: "Wait for the form owner to publish it",
+        internal: { formId: data.formId, status: form.status },
+      });
     }
 
     const [version] = form.lastPublishedVersionId
@@ -152,14 +197,28 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
 
     // --- Server-side gating (prevent client-side bypass) ---
     if (vSettings.closeForm) {
-      throw new Error("This form is closed");
+      throw createError({
+        code: "forms/closed" satisfies ErrorCode,
+        status: 403,
+        message: "This form is closed",
+        why: "Form owner toggled `closeForm` on the published version",
+        fix: "Contact the form owner if you believe this is a mistake",
+        internal: { formId: data.formId },
+      });
     }
     if (
       vSettings.closeOnDate &&
       vSettings.closeDate &&
       new Date(vSettings.closeDate) < new Date()
     ) {
-      throw new Error("This form is no longer accepting responses");
+      throw createError({
+        code: "forms/closed" satisfies ErrorCode,
+        status: 403,
+        message: "This form is no longer accepting responses",
+        why: "Configured closeDate is in the past",
+        fix: "Contact the form owner if you believe this is a mistake",
+        internal: { formId: data.formId, closeDate: vSettings.closeDate },
+      });
     }
     if (vSettings.limitSubmissions && vSettings.maxSubmissions) {
       // Only count completed rows toward the submission cap — incomplete ones shouldn't
@@ -169,7 +228,18 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
         .from(submissions)
         .where(and(eq(submissions.formId, data.formId), eq(submissions.isCompleted, true)));
       if (submissionCount >= vSettings.maxSubmissions) {
-        throw new Error("This form has reached its maximum number of submissions");
+        throw createError({
+          code: "forms/closed" satisfies ErrorCode,
+          status: 403,
+          message: "This form has reached its maximum number of submissions",
+          why: "Completed-submission count is at the configured maxSubmissions cap",
+          fix: "Contact the form owner if you believe this is a mistake",
+          internal: {
+            formId: data.formId,
+            submissionCount,
+            maxSubmissions: vSettings.maxSubmissions,
+          },
+        });
       }
     }
 

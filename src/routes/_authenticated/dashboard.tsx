@@ -62,6 +62,7 @@ import { getLeadingSortIndex, sortByManualOrder } from "@/lib/sort-utils";
 import { cn, parseTimestampAsUTC } from "@/lib/utils";
 import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import { createFileRoute, Link, useLoaderData, useNavigate } from "@tanstack/react-router";
+import { parseError } from "@/lib/errors/parse";
 import { formatDistanceToNow } from "date-fns";
 import { generateKeyBetween } from "fractional-indexing";
 import { FolderPlus } from "lucide-react";
@@ -469,7 +470,7 @@ const DashboardPage = () => {
       setBulkDeleteDialogOpen(false);
       toast.success(`${ids.length} form${ids.length !== 1 ? "s" : ""} deleted`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to delete some forms";
+      const message = parseError(error).message || "Failed to delete some forms";
       toast.error(message);
     }
   }, [selectedFormIds]);

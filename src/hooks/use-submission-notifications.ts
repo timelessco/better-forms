@@ -7,6 +7,7 @@ import {
 import type { SerializedSubmissionNotification } from "@/lib/server-fn/notifications";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
+import { parseError } from "@/lib/errors/parse";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -147,7 +148,7 @@ export const useSubmissionNotifications = ({ poll = false }: HookOptions = {}) =
     mutationFn: async (formId: string) => markSubmissionNotificationRead({ data: { formId } }),
     onSuccess: invalidateNotifications,
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "Failed to mark notification read";
+      const message = parseError(error).message || "Failed to mark notification read";
       toast.error(message);
     },
   });
@@ -156,7 +157,7 @@ export const useSubmissionNotifications = ({ poll = false }: HookOptions = {}) =
     mutationFn: async (formId: string) => clearSubmissionNotification({ data: { formId } }),
     onSuccess: invalidateNotifications,
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "Failed to clear notification";
+      const message = parseError(error).message || "Failed to clear notification";
       toast.error(message);
     },
   });
@@ -165,7 +166,7 @@ export const useSubmissionNotifications = ({ poll = false }: HookOptions = {}) =
     mutationFn: async () => clearAllReadSubmissionNotifications(),
     onSuccess: invalidateNotifications,
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "Failed to clear read notifications";
+      const message = parseError(error).message || "Failed to clear read notifications";
       toast.error(message);
     },
   });
