@@ -1,7 +1,7 @@
 import { APP_NAME, SPRITE_PATH } from "@/lib/config/app-config";
 import { Link, useSearch } from "@tanstack/react-router";
 import { SparklesIcon, XIcon } from "@/components/ui/icons";
-import { lazy, Suspense, useState, useCallback, useMemo } from "react";
+import { lazy, Suspense, useState, useCallback, useMemo, useRef } from "react";
 import { PopoverContainerContext } from "@/components/ui/popover";
 import type { Value } from "platejs";
 import { FormPreviewFromPlate } from "@/components/form-components/form-preview-from-plate";
@@ -33,23 +33,65 @@ const noop = async () => {};
 
 const AiChatPreview = ({
   formId,
+  shortId,
   content,
   settings,
 }: {
   formId: string;
+  shortId?: string;
   content: Value;
   settings: PublicFormSettings;
 }) => {
   const elements = useMemo(() => transformPlateStateToFormElements(content), [content]);
+  // Answers collected so far in the chat. Kept in a ref so capturing them
+  // doesn't re-render the chat on every reply; read once on switch.
+  const answersRef = useRef<Record<string, unknown>>({});
+  // Non-null once the Respondent switches — holds the answers to seed the
+  // standard form with so nothing they've already filled is lost.
+  const [standardData, setStandardData] = useState<Record<string, unknown> | null>(null);
+
+  const handleAnswersChange = useCallback((next: Record<string, unknown>) => {
+    answersRef.current = next;
+  }, []);
+  const handleSwitchToStandard = useCallback(() => {
+    setStandardData(answersRef.current);
+  }, []);
+
+  // "Switch to standard form" drops out of AI Chat into the card form, carrying
+  // every Answer captured so far as the form's initial values.
+  const standardSettings = useMemo<PublicFormSettings>(
+    () => ({ ...settings, presentationMode: "card" }),
+    [settings],
+  );
+
+  if (standardData !== null) {
+    return (
+      <FormPreviewFromPlate
+        content={content}
+        onSubmit={noop}
+        settings={standardSettings}
+        formId={formId}
+        shortId={shortId}
+        initialFormData={standardData}
+      />
+    );
+  }
+
   return (
     <Suspense fallback={null}>
       <AiChatForm
         formId={formId}
+        shortId={shortId}
         submissionId={`preview:${formId}`}
         content={elements}
         settings={settings}
         onSubmit={noop}
-        onSwitchToStandard={() => {}}
+        onSwitchToStandard={handleSwitchToStandard}
+        // A trip (quota/AI failure) keeps the chat mounted and shows a message
+        // rather than silently reverting to the standard form — only the manual
+        // "Switch to standard form" button does that.
+        onTrip={() => {}}
+        onAnswersChange={handleAnswersChange}
         isPreview
       />
     </Suspense>
@@ -312,6 +354,7 @@ const EmbedPreviewSurface = ({
                         {previewSettings.presentationMode === "ai-chat" ? (
                           <AiChatPreview
                             formId={formId}
+                            shortId={doc.shortId}
                             content={content}
                             settings={previewSettings}
                           />
@@ -326,6 +369,7 @@ const EmbedPreviewSurface = ({
                             customization={customization}
                             settings={previewSettings}
                             formId={formId}
+                            shortId={doc.shortId}
                             boundToParent={previewSettings?.presentationMode === "field-by-field"}
                           />
                         )}
@@ -453,7 +497,12 @@ const PopupPreviewOverlay = ({
             }
           >
             {previewSettings.presentationMode === "ai-chat" ? (
-              <AiChatPreview formId={formId} content={content} settings={previewSettings} />
+              <AiChatPreview
+                formId={formId}
+                shortId={doc.shortId}
+                content={content}
+                settings={previewSettings}
+              />
             ) : (
               <FormPreviewFromPlate
                 content={content}
@@ -466,6 +515,7 @@ const PopupPreviewOverlay = ({
                 settings={previewSettings}
                 isPopup
                 formId={formId}
+                shortId={doc.shortId}
               />
             )}
           </div>
@@ -565,7 +615,12 @@ const FullpagePreviewSurface = ({
         )}
       >
         {previewSettings.presentationMode === "ai-chat" ? (
-          <AiChatPreview formId={formId} content={content} settings={previewSettings} />
+          <AiChatPreview
+            formId={formId}
+            shortId={doc.shortId}
+            content={content}
+            settings={previewSettings}
+          />
         ) : (
           <FormPreviewFromPlate
             content={content}
@@ -578,6 +633,7 @@ const FullpagePreviewSurface = ({
             customization={customization}
             settings={previewSettings}
             formId={formId}
+            shortId={doc.shortId}
           />
         )}
       </div>

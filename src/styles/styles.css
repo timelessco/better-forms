@@ -3,6 +3,10 @@
 @import "shadcn/tailwind.css";
 @import "./inter-v.css";
 
+/* Streamdown renders Markdown in AI Chat bubbles — include its dist so Tailwind
+   keeps the utility classes it applies to rendered Markdown elements. */
+@source "../../node_modules/streamdown/dist/*.js";
+
 @custom-variant dark (&:is(.dark *));
 
 @layer base {

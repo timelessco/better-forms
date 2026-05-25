@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { RenderFieldComponent } from "@/components/form-components/render-step-preview-input";
 import { ServerFormIcon } from "@/components/form-components/server-form-icon";
+import { FormShareCard } from "@/components/form-components/form-share-card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import { ProgressBar } from "@/routes/forms/-components/progress-bar";
@@ -58,6 +59,8 @@ interface FormPreviewRSCProps {
   header?: unknown;
   settings?: PublicFormSettings;
   formId: string;
+  /** Public short id — used to render the share card on completion. */
+  shortId?: string;
   onSubmit?: (values: Record<string, unknown>) => Promise<void>;
   /** Rehydrate step state from a server-side draft (resume-after-refresh). */
   initialFormData?: Record<string, unknown>;
@@ -124,7 +127,7 @@ const SuccessCheckmarkIcon = (
   </svg>
 );
 
-const DefaultThankYou = ({ onReset }: { onReset?: () => void }) => {
+const DefaultThankYou = ({ shortId }: { shortId?: string }) => {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -133,11 +136,7 @@ const DefaultThankYou = ({ onReset }: { onReset?: () => void }) => {
       </div>
       <h2 className="mb-2 text-2xl font-semibold">{t("thankYou")}</h2>
       <p className="mb-6 text-muted-foreground">{t("responseSubmitted")}</p>
-      {onReset && (
-        <Button type="button" onClick={onReset} variant="outline" size="sm" className="rounded-lg">
-          {t("submitAnother")}
-        </Button>
-      )}
+      {shortId && <FormShareCard shortId={shortId} />}
     </div>
   );
 };
@@ -460,13 +459,15 @@ const FormPreviewRSCContent = ({
   thankYou,
   header,
   settings,
+  shortId,
 }: {
   steps: StepRSC[];
   thankYou?: string | null;
   header?: unknown;
   settings?: PublicFormSettings;
+  shortId?: string;
 }) => {
-  const { currentStep, totalSteps, isSubmitted, direction, reset } = useStepForm();
+  const { currentStep, totalSteps, isSubmitted, direction } = useStepForm();
   const { t } = useTranslation();
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
   const currentStepQuestions = useMemo(
@@ -512,22 +513,14 @@ const FormPreviewRSCContent = ({
             {thankYou ? (
               <div data-bf-field-list className="space-y-4">
                 <TypedComposite src={thankYou} />
-                {reset && (
+                {shortId && (
                   <div className="flex justify-center pt-4">
-                    <Button
-                      type="button"
-                      onClick={reset}
-                      variant="outline"
-                      size="sm"
-                      className="rounded-lg"
-                    >
-                      {t("submitAnother")}
-                    </Button>
+                    <FormShareCard shortId={shortId} />
                   </div>
                 )}
               </div>
             ) : (
-              <DefaultThankYou onReset={reset} />
+              <DefaultThankYou shortId={shortId} />
             )}
             {redirectCountdown !== null && (
               <p className="mt-4 text-center text-muted-foreground">
@@ -616,7 +609,7 @@ const ColoredSpriteIcon = ({
       }}
     >
       <svg height={iconSize} style={{ color: "currentColor" }} viewBox="0 0 18 18" width={iconSize}>
-        <use href={`/api/icons/${iconName}.svg#${iconName}`} />
+        <use href={`/api/icons/${iconName}#${iconName}`} />
       </svg>
     </div>
   );
@@ -670,13 +663,15 @@ const FieldByFieldRSCContent = ({
   thankYou,
   settings,
   meta,
+  shortId,
 }: {
   steps: StepRSC[];
   thankYou?: string | null;
   settings?: PublicFormSettings;
   meta: NonNullable<FormPreviewRSCProps["fieldByFieldMeta"]>;
+  shortId?: string;
 }) => {
-  const { currentStep, totalSteps, isSubmitted, direction, reset } = useStepForm();
+  const { currentStep, totalSteps, isSubmitted, direction } = useStepForm();
   const { t } = useTranslation();
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
   const currentStepQuestions = useMemo(
@@ -780,22 +775,14 @@ const FieldByFieldRSCContent = ({
               {thankYou ? (
                 <div data-bf-field-list className="space-y-4">
                   <TypedComposite src={thankYou} />
-                  {reset && (
+                  {shortId && (
                     <div className="flex justify-center pt-4">
-                      <Button
-                        type="button"
-                        onClick={reset}
-                        variant="outline"
-                        size="sm"
-                        className="rounded-lg"
-                      >
-                        {t("submitAnother")}
-                      </Button>
+                      <FormShareCard shortId={shortId} />
                     </div>
                   )}
                 </div>
               ) : (
-                <DefaultThankYou onReset={reset} />
+                <DefaultThankYou shortId={shortId} />
               )}
               {redirectCountdown !== null && (
                 <p className="mt-4 text-center text-muted-foreground">
@@ -839,6 +826,7 @@ export const FormPreviewRSC = ({
   header,
   settings,
   formId,
+  shortId,
   onSubmit,
   initialFormData,
   initialCurrentStep,
@@ -888,6 +876,7 @@ export const FormPreviewRSC = ({
           thankYou={thankYou}
           settings={settings}
           meta={fieldByFieldMeta}
+          shortId={shortId}
         />
       ) : (
         <FormPreviewRSCContent
@@ -895,6 +884,7 @@ export const FormPreviewRSC = ({
           thankYou={thankYou}
           header={header}
           settings={settings}
+          shortId={shortId}
         />
       )}
     </StepFormProvider>

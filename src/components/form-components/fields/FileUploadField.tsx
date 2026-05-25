@@ -4,30 +4,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Trash2Icon, UploadIcon } from "@/components/ui/icons";
 import { useStepForm } from "@/contexts/step-form-context";
 import { useFileUpload } from "@/hooks/use-file-upload";
+import { upload } from "@vercel/blob/client";
 import {
   buildAcceptString,
   buildPlaceholderLabel,
   DEFAULT_MAX_FILE_SIZE_MB,
+  MAX_FILE_SIZE_HARD_CAP_MB,
   resolveAllowedSubtypes,
 } from "@/lib/form-schema/file-upload-types";
-import type { UploadedFormFile } from "@/lib/server-fn/public-file-uploads";
-import { uploadFormFile } from "@/lib/server-fn/public-file-uploads";
+import type { UploadedFormFile } from "@/lib/form-schema/file-upload-types";
 import { cn } from "@/lib/utils";
 import type { FieldRendererProps } from "./shared";
-
-const fileToBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      const result = reader.result;
-      if (typeof result === "string") resolve(result);
-      else reject(new Error("Failed to read file"));
-    });
-    reader.addEventListener("error", () =>
-      reject(reader.error ?? new Error("Failed to read file")),
-    );
-    reader.readAsDataURL(file);
-  });
 
 type FileUploadState =
   | { status: "idle" }
@@ -68,7 +55,12 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
     () => buildPlaceholderLabel(category, subtypes),
     [category, subtypes],
   );
-  const maxFileSizeMb = element.maxFileSize ?? DEFAULT_MAX_FILE_SIZE_MB;
+  // Clamp the field's configured size to the hard cap so the client pre-check
+  // matches what Blob enforces server-side (no "accepted then rejected" gap).
+  const maxFileSizeMb = Math.min(
+    element.maxFileSize ?? DEFAULT_MAX_FILE_SIZE_MB,
+    MAX_FILE_SIZE_HARD_CAP_MB,
+  );
   const maxFileSizeBytes = maxFileSizeMb * 1024 * 1024;
 
   const { formId } = useStepForm();
@@ -117,29 +109,44 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
     setUploadState({ status: "uploading", localPreview, fileName: picked.name, isImage });
 
     try {
-      const base64 = await fileToBase64(picked);
-      const uploaded = await uploadFormFile({
-        data: {
-          formId,
-          draftId: draftIdRef.current,
-          fieldName: element.name,
-          filename: picked.name,
-          contentType: picked.type || "application/octet-stream",
-          base64,
+      const contentType = picked.type || "application/octet-stream";
+      // Upload straight from the browser to Vercel Blob. `/api/forms/upload`
+      // mints a scoped token (rate limit, form/field, MIME + size guards); the
+      // bytes never pass through our server, so large files aren't capped by
+      // the serverless request-body limit.
+      const blob = await upload(
+        `submissions/${formId}/${draftIdRef.current}/${picked.name}`,
+        picked,
+        {
+          access: "public",
+          contentType,
+          handleUploadUrl: "/api/forms/upload",
+          clientPayload: JSON.stringify({
+            formId,
+            draftId: draftIdRef.current,
+            fieldName: element.name,
+          }),
         },
-      });
+      );
+      const uploaded: UploadedFormFile = {
+        url: blob.url,
+        name: picked.name,
+        size: picked.size,
+        type: contentType,
+      };
       setUploadState({ status: "done", value: uploaded, localPreview });
       setValue(uploaded);
     } catch (err) {
-      // Prefer the structured `code` from the server. Fall back to the
-      // visible `message` (which is the legacy code on un-migrated endpoints),
-      // then to a generic message.
+      // Client uploads surface server-side rejections as an opaque BlobError
+      // ("Failed to retrieve the client token") — the token route's structured
+      // code/message doesn't cross back. So map any recognized code we do get,
+      // but otherwise show a clean generic message rather than the raw error.
       const parsed = parseError(err);
       const lookupKey = parsed.code ?? parsed.message ?? "";
       const friendly = UPLOAD_ERROR_MESSAGES[lookupKey];
       setUploadState({
         status: "error",
-        message: friendly ?? parsed.message ?? "Upload failed. Please try again.",
+        message: friendly ?? "Upload failed. Please try again.",
       });
       if (localPreview) URL.revokeObjectURL(localPreview);
       activePreviewRef.current = null;
@@ -153,6 +160,15 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
   ] = useFileUpload({
     accept,
     maxSize: maxFileSizeBytes,
+    // Surface the picker's own rejection (oversize / wrong type) — without
+    // this the field swallows the error and an oversized pick looks like a
+    // dead click. The next valid pick resets the state to "uploading".
+    onError: (errors) => {
+      setUploadState({
+        status: "error",
+        message: errors[0] ?? "That file can't be uploaded.",
+      });
+    },
     onFilesChange: (updatedFiles) => {
       const picked = updatedFiles[0]?.file;
       if (picked instanceof File) {

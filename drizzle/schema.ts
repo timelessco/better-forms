@@ -1,18 +1,6 @@
+import { pgTable, text, serial, jsonb, timestamp, integer, boolean, index, uniqueIndex, unique, check } from 'drizzle-orm/pg-core';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { sql } from "drizzle-orm";
-import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import {
-  boolean,
-  check,
-  index,
-  integer,
-  jsonb,
-  pgTable,
-  serial,
-  text,
-  timestamp,
-  unique,
-  uniqueIndex,
-} from "drizzle-orm/pg-core";
 
 export const account = pgTable("account", {
   id: text().primaryKey(),
@@ -207,6 +195,9 @@ export const formDropoffDaily = pgTable(
     updatedAt: timestamp({ withTimezone: true })
       .default(sql`now()`)
       .notNull(),
+    stepId: text(),
+    stepIndex: integer(),
+    terminalDropoffCount: integer().default(0).notNull(),
   },
   (table) => [
     index("idx_form_dropoff_daily_form_id_date").using(
@@ -296,10 +287,17 @@ export const formQuestionProgress = pgTable(
     createdAt: timestamp({ withTimezone: true })
       .default(sql`now()`)
       .notNull(),
+    stepId: text(),
+    stepIndex: integer(),
   },
   (table) => [
     index("idx_form_question_progress_form_id").using("btree", table.formId.asc().nullsLast()),
     index("idx_form_question_progress_visit_id").using("btree", table.visitId.asc().nullsLast()),
+    uniqueIndex("uq_form_question_progress_visit_question").using(
+      "btree",
+      table.visitId.asc().nullsLast(),
+      table.questionId.asc().nullsLast(),
+    ),
   ],
 );
 
@@ -406,6 +404,8 @@ export const formVersions = pgTable(
       .notNull(),
     icon: text(),
     cover: text(),
+    publishedByName: text(),
+    publishedByImage: text(),
   },
   (table) => [
     index("idx_form_versions_form_id").using("btree", table.formId.asc().nullsLast()),
@@ -528,6 +528,7 @@ export const forms = pgTable(
     slug: text(),
     customDomainId: text().references(() => customDomains.id, { onDelete: "set null" }),
     sortIndex: text(),
+    shortId: text().notNull(),
   },
   (table) => [
     index("idx_forms_id_created_by").using(
@@ -549,6 +550,7 @@ export const forms = pgTable(
     uniqueIndex("uniq_forms_slug_custom_domain")
       .using("btree", table.slug.asc().nullsLast(), table.customDomainId.asc().nullsLast())
       .where(sql`(slug IS NOT NULL)`),
+    unique("forms_shortId_key").on(table.shortId),
     check(
       "forms_status_check",
       sql`(status = ANY (ARRAY['draft'::text, 'published'::text, 'archived'::text]))`,

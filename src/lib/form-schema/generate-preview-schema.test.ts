@@ -44,4 +44,22 @@ describe("generateZodSchemaFromFields - Date / Time required", () => {
     expect(schema.safeParse({ n: "5" }).success).toBe(true);
     expect(schema.safeParse({ n: "20" }).success).toBe(false);
   });
+
+  it("accepts null for optional fields (regression: AI Chat records skips as null)", () => {
+    const fields: PlateFormField[] = [
+      { id: "m", name: "m", fieldType: "MultiSelect", required: false, options: [] },
+      { id: "f", name: "f", fieldType: "FileUpload", required: false },
+      { id: "t", name: "t", fieldType: "Input", required: false },
+    ] as PlateFormField[];
+    const schema = generateZodSchemaFromFields(fields);
+    expect(schema.safeParse({ m: null, f: null, t: null }).success).toBe(true);
+  });
+
+  it("still rejects null for a required array field", () => {
+    const fields: PlateFormField[] = [
+      { id: "m", name: "m", fieldType: "MultiSelect", required: true, options: [] },
+    ] as PlateFormField[];
+    const schema = generateZodSchemaFromFields(fields);
+    expect(schema.safeParse({ m: null }).success).toBe(false);
+  });
 });

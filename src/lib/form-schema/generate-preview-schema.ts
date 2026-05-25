@@ -151,7 +151,14 @@ export const generateZodSchemaFromFields = (fields: PlateFormField[]): z.ZodObje
     if (field.required) {
       schemaShape[field.name] = fieldSchema;
     } else {
-      schemaShape[field.name] = fieldSchema.optional();
+      // Treat `null` the same as "no answer" (undefined) for optional fields.
+      // AI Chat records skipped Questions as `null`; when those Answers carry
+      // into the standard form, array/file schemas would otherwise reject them
+      // ("expected array, received null"). Coerce null → undefined first.
+      schemaShape[field.name] = z.preprocess(
+        (v) => (v === null ? undefined : v),
+        fieldSchema.optional(),
+      );
     }
   }
 

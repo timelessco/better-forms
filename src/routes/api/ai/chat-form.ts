@@ -80,6 +80,9 @@ const askQuestionInput = z.object({
 const confirmParseInput = z.object({
   parsedValue: z.unknown(),
   prompt: z.string().min(1),
+  // Set when the Respondent explicitly declines / has no value / asks to skip,
+  // so the client can skip an optional Question immediately instead of re-asking.
+  declined: z.boolean().optional(),
 });
 const closingInput = z.object({ message: z.string().min(1) });
 
@@ -175,7 +178,7 @@ const callAiWithRetry = async (
     }),
     confirmParse: tool({
       description:
-        "Parse the Respondent's free-text reply into the strict value type for the current Question. `parsedValue` is the structured value; `prompt` is the prose for the next Question.",
+        "Parse the Respondent's free-text reply into the strict value type for the current Question. `parsedValue` is the structured value; `prompt` is the prose for the next Question. Set `declined: true` (and leave `parsedValue` empty) when the Respondent explicitly declines, says they don't have one, or asks to skip — do NOT set it for a genuine attempt to answer or a question about the form.",
       inputSchema: confirmParseInput,
       execute: async (args) => ({ ok: true, args }),
     }),
@@ -265,7 +268,9 @@ export const Route = createFileRoute("/api/ai/chat-form")({
           const userEmail = (session as { user?: { email?: string } }).user?.email ?? null;
           const plan = await getOrgPlanWithPolarSync(orgId, userEmail);
           const preview = await checkPreviewQuota(orgId, plan);
-          if (!preview.allowed) {
+          // The daily preview cap is enforced only in production — locally,
+          // builders iterate freely without burning through it.
+          if (!preview.allowed && process.env.NODE_ENV === "production") {
             return json(429, {
               error: AI_CHAT_PREVIEW_CAP_ERROR,
               used: preview.used,
@@ -346,6 +351,7 @@ const runAiTurn = async (
     currentQuestionId: body.currentQuestionId ?? null,
     priorAnswers,
     greeting,
+    isStart: body.intent === "start",
     validationError: body.validationError ?? null,
   });
 

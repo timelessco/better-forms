@@ -13,7 +13,7 @@ export type ChatPhase = "loading" | "ready" | "submitting" | "closed" | "fallbac
 
 export type AiToolEmission =
   | { tool: "askQuestion"; args: { prompt: string; ackPrior?: string } }
-  | { tool: "confirmParse"; args: { parsedValue: unknown; prompt: string } }
+  | { tool: "confirmParse"; args: { parsedValue: unknown; prompt: string; declined?: boolean } }
   | { tool: "closing"; args: { message: string } };
 
 export type ChatFormResponse =
@@ -30,8 +30,12 @@ export type AiChatFormProps = {
   submissionId: string;
   content: TransformedElement[];
   settings: PublicFormSettings;
-  /** Called when the Respondent presses "Switch to standard form" or AI fails repeatedly. */
+  /** Called when the Respondent presses "Switch to standard form". */
   onSwitchToStandard: () => void;
+  /** Called when the AI trips (repeated failures / quota). Defaults to
+   * `onSwitchToStandard`. The editor preview overrides this to keep the chat
+   * mounted and show a message instead of silently swapping to the standard form. */
+  onTrip?: () => void;
   /** Called with the final Answers map when the form is ready to submit. */
   onSubmit: (answers: Record<string, unknown>) => Promise<void> | void;
   /** Called whenever Answers change (used by the existing draft autosave). */
@@ -40,4 +44,6 @@ export type AiChatFormProps = {
   isPreview?: boolean;
   /** Optional pre-existing Answers (for resume after Incomplete Submission). */
   initialAnswers?: Record<string, unknown>;
+  /** Public short id — used to render the share card on completion. */
+  shortId?: string;
 };

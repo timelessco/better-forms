@@ -53,6 +53,11 @@ const ALL_FILES_ACCEPT = "image/*,.pdf,.doc,.docx,.txt,.xlsx,.xls,.csv";
 
 export const DEFAULT_MAX_FILE_SIZE_MB = 10;
 
+// Absolute ceiling for any file field, regardless of per-field config. Bounds
+// worst-case stored size; enforced both client-side (picker pre-check) and
+// server-side (Blob `maximumSizeInBytes` via the upload token route).
+export const MAX_FILE_SIZE_HARD_CAP_MB = 15;
+
 export const isFileTypeCategory = (value: unknown): value is FileTypeCategory =>
   value === "all" || value === "images" || value === "documents" || value === "spreadsheets";
 
@@ -114,28 +119,40 @@ export const buildPlaceholderLabel = (
   return list.map((s) => s.label).join(", ");
 };
 
-// Non-canonical MIME aliases that browsers/legacy uploads still emit.
-const MIME_EXT_ALIASES: Record<string, string> = {
-  "image/jpg": "jpg",
-  "application/csv": "csv",
-};
-
-const EXT_BY_MIME: Record<string, string> = (() => {
-  const map: Record<string, string> = {};
+// Maps a dotted extension (".pdf") to its MIME type(s).
+const MIME_BY_EXT: Record<string, string[]> = (() => {
+  const map: Record<string, string[]> = {};
   for (const subtypes of Object.values(FILE_SUBTYPES)) {
     for (const subtype of subtypes) {
-      const ext = subtype.extensions[0]?.replace(/^\./, "");
-      if (!ext) continue;
-      for (const mime of subtype.mimeTypes) {
-        map[mime] = ext;
+      for (const ext of subtype.extensions) {
+        map[ext] = subtype.mimeTypes;
       }
     }
   }
-  return { ...map, ...MIME_EXT_ALIASES };
+  return map;
 })();
 
-export const getExtensionForMime = (contentType: string): string | undefined =>
-  EXT_BY_MIME[contentType.toLowerCase()];
+/**
+ * Converts an HTML `accept` string (mix of `image/*`, explicit MIME types, and
+ * dotted extensions) into a flat list of media types. Wildcards and explicit
+ * MIME types pass through; extensions resolve via {@link MIME_BY_EXT}. Feeds
+ * Vercel Blob's `allowedContentTypes`, which it enforces at upload time — the
+ * server-side backstop for the client picker's `accept` pre-filtering.
+ */
+export const acceptStringToContentTypes = (accept: string): string[] => {
+  const out = new Set<string>();
+  for (const raw of accept.split(",")) {
+    const token = raw.trim().toLowerCase();
+    if (!token) continue;
+    if (token.startsWith(".")) {
+      for (const mime of MIME_BY_EXT[token] ?? []) out.add(mime);
+    } else if (token.includes("/")) {
+      // `image/*` wildcard or an explicit media type — Blob accepts both.
+      out.add(token);
+    }
+  }
+  return [...out];
+};
 
 type FileUploadNodeFields = {
   maxFileSize?: number;
@@ -150,3 +167,12 @@ export const extractFileUploadFields = (node: Record<string, unknown>): FileUplo
   allowedFileTypes: node.allowedFileTypes as string | undefined,
   allowedFileExtensions: node.allowedFileExtensions as string[] | undefined,
 });
+
+/** A file that has been uploaded to storage and referenced by submission
+ *  payloads — the URL plus display metadata, never the bytes. */
+export type UploadedFormFile = {
+  url: string;
+  name: string;
+  size: number;
+  type: string;
+};

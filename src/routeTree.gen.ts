@@ -20,6 +20,7 @@ import { Route as FFormIdRouteImport } from './routes/f/$formId'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as ApiTrackVisitEndRouteImport } from './routes/api/track/visit-end'
 import { Route as ApiIconsNameRouteImport } from './routes/api/icons/$name'
+import { Route as ApiFormsUploadRouteImport } from './routes/api/forms/upload'
 import { Route as ApiCronPurgeArchivedFormsRouteImport } from './routes/api/cron/purge-archived-forms'
 import { Route as ApiCronAggregateAnalyticsRouteImport } from './routes/api/cron/aggregate-analytics'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -86,6 +87,11 @@ const ApiTrackVisitEndRoute = ApiTrackVisitEndRouteImport.update({
 const ApiIconsNameRoute = ApiIconsNameRouteImport.update({
   id: '/api/icons/$name',
   path: '/api/icons/$name',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFormsUploadRoute = ApiFormsUploadRouteImport.update({
+  id: '/api/forms/upload',
+  path: '/api/forms/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCronPurgeArchivedFormsRoute =
@@ -183,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
+  '/api/forms/upload': typeof ApiFormsUploadRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/api/track/visit-end': typeof ApiTrackVisitEndRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
@@ -208,6 +215,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
+  '/api/forms/upload': typeof ApiFormsUploadRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/api/track/visit-end': typeof ApiTrackVisitEndRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
@@ -235,6 +243,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
+  '/api/forms/upload': typeof ApiFormsUploadRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/api/track/visit-end': typeof ApiTrackVisitEndRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
@@ -262,6 +271,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/cron/aggregate-analytics'
     | '/api/cron/purge-archived-forms'
+    | '/api/forms/upload'
     | '/api/icons/$name'
     | '/api/track/visit-end'
     | '/api/forms/$shortId/meta'
@@ -287,6 +297,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/cron/aggregate-analytics'
     | '/api/cron/purge-archived-forms'
+    | '/api/forms/upload'
     | '/api/icons/$name'
     | '/api/track/visit-end'
     | '/api/forms/$shortId/meta'
@@ -313,6 +324,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/cron/aggregate-analytics'
     | '/api/cron/purge-archived-forms'
+    | '/api/forms/upload'
     | '/api/icons/$name'
     | '/api/track/visit-end'
     | '/api/forms/$shortId/meta'
@@ -338,6 +350,7 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCronAggregateAnalyticsRoute: typeof ApiCronAggregateAnalyticsRoute
   ApiCronPurgeArchivedFormsRoute: typeof ApiCronPurgeArchivedFormsRoute
+  ApiFormsUploadRoute: typeof ApiFormsUploadRoute
   ApiIconsNameRoute: typeof ApiIconsNameRoute
   ApiTrackVisitEndRoute: typeof ApiTrackVisitEndRoute
   ApiFormsShortIdMetaRoute: typeof ApiFormsShortIdMetaRoute
@@ -421,6 +434,13 @@ declare module '@tanstack/react-router' {
       path: '/api/icons/$name'
       fullPath: '/api/icons/$name'
       preLoaderRoute: typeof ApiIconsNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/forms/upload': {
+      id: '/api/forms/upload'
+      path: '/api/forms/upload'
+      fullPath: '/api/forms/upload'
+      preLoaderRoute: typeof ApiFormsUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/cron/purge-archived-forms': {
@@ -585,6 +605,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCronAggregateAnalyticsRoute: ApiCronAggregateAnalyticsRoute,
   ApiCronPurgeArchivedFormsRoute: ApiCronPurgeArchivedFormsRoute,
+  ApiFormsUploadRoute: ApiFormsUploadRoute,
   ApiIconsNameRoute: ApiIconsNameRoute,
   ApiTrackVisitEndRoute: ApiTrackVisitEndRoute,
   ApiFormsShortIdMetaRoute: ApiFormsShortIdMetaRoute,

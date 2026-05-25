@@ -15,6 +15,27 @@ type Props = {
 
 const labelOf = (q: PlateFormField): string => ("label" in q && q.label) || q.name || q.id;
 
+// Roving focus across option rows with ArrowUp/ArrowDown (Tab still works too).
+// Attached to the options container; the keydown bubbles up from the focused
+// option. Wraps around at the ends.
+const moveOptionFocus = (e: React.KeyboardEvent<HTMLElement>) => {
+  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+  // The shadcn/base-ui Checkbox renders a focusable `[role=checkbox]` button AND
+  // a visually-hidden `<input type=checkbox>`. Match only the visible focusable
+  // control (`button` covers MultiChoice buttons and the checkbox button) and
+  // drop hidden elements (offsetParent === null) so focus doesn't land on the
+  // unfocusable hidden input.
+  const options = Array.from(
+    e.currentTarget.querySelectorAll<HTMLElement>('button, [role="checkbox"]'),
+  ).filter((el) => el.offsetParent !== null);
+  if (options.length === 0) return;
+  e.preventDefault();
+  const current = options.indexOf(document.activeElement as HTMLElement);
+  const delta = e.key === "ArrowDown" ? 1 : -1;
+  const next = current === -1 ? 0 : (current + delta + options.length) % options.length;
+  options[next]?.focus();
+};
+
 export const QuestionBubble = ({ question, onPick, onSkip, canSkip }: Props) => {
   switch (question.fieldType) {
     case "MultiChoice":
@@ -66,7 +87,13 @@ const MultiChoiceBubble = ({ question, onPick, onSkip, canSkip }: SubProps) => {
   if (question.fieldType !== "MultiChoice") return null;
   return (
     <Frame>
-      <div className="flex flex-col gap-2">
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <div
+        role="group"
+        aria-label={labelOf(question)}
+        onKeyDown={moveOptionFocus}
+        className="flex flex-col gap-2"
+      >
         {question.options.map((opt) => (
           <button
             key={opt.value}
@@ -94,7 +121,13 @@ const MultiSelectBubble = ({ question, onPick, onSkip, canSkip }: SubProps) => {
     setPicked((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
   return (
     <Frame>
-      <div className="flex flex-col gap-2">
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <div
+        role="group"
+        aria-label={labelOf(question)}
+        onKeyDown={moveOptionFocus}
+        className="flex flex-col gap-2"
+      >
         {question.options.map((opt) => {
           const id = `${question.id}-${opt.value}`;
           const checked = picked.includes(opt.value);
@@ -110,8 +143,9 @@ const MultiSelectBubble = ({ question, onPick, onSkip, canSkip }: SubProps) => {
           );
         })}
       </div>
-      <div className="mt-3 flex items-center justify-between">
-        {canSkip ? <SkipLink onSkip={onSkip} /> : <span />}
+      {/* Continue is first in the DOM (so Tab reaches it before Skip); row-reverse
+          keeps Skip visually on the left, Continue on the right. */}
+      <div className="mt-3 flex flex-row-reverse items-center justify-between">
         <Button
           type="button"
           size="sm"
@@ -126,6 +160,7 @@ const MultiSelectBubble = ({ question, onPick, onSkip, canSkip }: SubProps) => {
         >
           Continue
         </Button>
+        {canSkip ? <SkipLink onSkip={onSkip} /> : <span />}
       </div>
     </Frame>
   );
@@ -140,7 +175,13 @@ const CheckboxBubble = ({ question, onPick, onSkip, canSkip }: SubProps) => {
     setPicked((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
   return (
     <Frame>
-      <div className="flex flex-col gap-2">
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <div
+        role="group"
+        aria-label={labelOf(question)}
+        onKeyDown={moveOptionFocus}
+        className="flex flex-col gap-2"
+      >
         {question.options.map((opt) => {
           const id = `${question.id}-${opt.value}`;
           const checked = picked.includes(opt.value);
@@ -156,8 +197,7 @@ const CheckboxBubble = ({ question, onPick, onSkip, canSkip }: SubProps) => {
           );
         })}
       </div>
-      <div className="mt-3 flex items-center justify-between">
-        {canSkip ? <SkipLink onSkip={onSkip} /> : <span />}
+      <div className="mt-3 flex flex-row-reverse items-center justify-between">
         <Button
           type="button"
           size="sm"
@@ -171,6 +211,7 @@ const CheckboxBubble = ({ question, onPick, onSkip, canSkip }: SubProps) => {
         >
           Continue
         </Button>
+        {canSkip ? <SkipLink onSkip={onSkip} /> : <span />}
       </div>
     </Frame>
   );
@@ -223,8 +264,7 @@ const RankingBubble = ({ question, onPick, onSkip, canSkip }: SubProps) => {
           );
         })}
       </ol>
-      <div className="mt-3 flex items-center justify-between">
-        {canSkip ? <SkipLink onSkip={onSkip} /> : <span />}
+      <div className="mt-3 flex flex-row-reverse items-center justify-between">
         <Button
           type="button"
           size="sm"
@@ -238,6 +278,7 @@ const RankingBubble = ({ question, onPick, onSkip, canSkip }: SubProps) => {
         >
           Continue
         </Button>
+        {canSkip ? <SkipLink onSkip={onSkip} /> : <span />}
       </div>
     </Frame>
   );

@@ -59,6 +59,7 @@ describe("ai-chat-form-helpers", () => {
       currentQuestionId: "q1",
       priorAnswers: {} as Record<string, unknown>,
       greeting: null as string | null,
+      isStart: true,
     };
 
     it("includes the form title and tone in the prompt", () => {
@@ -93,6 +94,58 @@ describe("ai-chat-form-helpers", () => {
     it("uses the verbatim greeting Setting when supplied on the first turn", () => {
       const prompt = buildSystemPrompt({ ...baseInput, greeting: "Welcome to Acme!" });
       expect(prompt).toContain("Welcome to Acme!");
+    });
+
+    it("includes the one-time welcome rule on the opening (start) turn", () => {
+      const prompt = buildSystemPrompt(baseInput);
+      expect(prompt).toContain("FIRST turn");
+    });
+
+    it("does NOT re-welcome on a parse-and-advance turn even when no prior Answers are threaded yet", () => {
+      // Regression: parsing the FIRST Question's reply sends empty priorAnswers
+      // (the answer isn't merged until the parse succeeds). Emptiness alone must
+      // not re-trigger the form-title welcome on the next Question's bubble.
+      const prompt = buildSystemPrompt({ ...baseInput, isStart: false });
+      expect(prompt).not.toContain("FIRST turn");
+    });
+
+    it("does NOT re-welcome on resume (start turn with existing Answers, recap shown instead)", () => {
+      const prompt = buildSystemPrompt({
+        ...baseInput,
+        currentQuestionId: "q2",
+        priorAnswers: { q1: "Alice" },
+      });
+      expect(prompt).not.toContain("FIRST turn");
+    });
+
+    it("pins the acknowledgement to the immediately preceding answered Question", () => {
+      const content = [q("name"), q("color")];
+      const prompt = buildSystemPrompt({
+        ...baseInput,
+        content,
+        currentQuestionId: "color",
+        isStart: false,
+        priorAnswers: { name: "Alice" },
+      });
+      expect(prompt).toContain('immediately preceding Question ("name")');
+      expect(prompt.toLowerCase()).toContain("never acknowledge an earlier");
+    });
+
+    it("tells the AI not to acknowledge a skipped/blank preceding Question", () => {
+      const content = [q("name"), q("color")];
+      const prompt = buildSystemPrompt({
+        ...baseInput,
+        content,
+        currentQuestionId: "color",
+        isStart: false,
+        priorAnswers: { name: null },
+      });
+      expect(prompt.toLowerCase()).toContain("skipped or left blank");
+      expect(prompt.toLowerCase()).toContain("do not acknowledge");
+    });
+
+    it("includes the explicit-decline extraction rule", () => {
+      expect(buildSystemPrompt(baseInput)).toContain("declined: true");
     });
   });
 });

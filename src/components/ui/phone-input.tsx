@@ -22,6 +22,8 @@ import { ChevronDownIcon } from "@/components/ui/icons";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+const NON_DIGIT_REGEX = /\D/g;
+
 const getBrowserDefaultCountry = (): BasePhoneInput.Country | undefined => {
   if (typeof navigator === "undefined") return undefined;
   const region = navigator.language.split(/[-_]/)[1]?.toUpperCase();
@@ -158,15 +160,25 @@ function CountrySelect({
   const themeReanchor = useReanchorThemeProps();
 
   const filteredCountries = useMemo(() => {
-    if (!searchValue) return countryList;
-    return countryList.filter(({ label }) =>
-      label.toLowerCase().includes(searchValue.toLowerCase()),
-    );
+    const query = searchValue.trim().toLowerCase();
+    if (!query) return countryList;
+    // Match by country name OR calling code, so a Respondent who knows their
+    // dialing code (e.g. "91" or "+91") can type it directly, not just the name.
+    const digits = query.replace(NON_DIGIT_REGEX, "");
+    return countryList.filter(({ label, value }) => {
+      if (label.toLowerCase().includes(query)) return true;
+      if (!digits || !value || !BasePhoneInput.isSupportedCountry(value)) return false;
+      return BasePhoneInput.getCountryCallingCode(value).startsWith(digits);
+    });
   }, [countryList, searchValue]);
 
   return (
     <Combobox
       items={filteredCountries}
+      // We filter manually (by name OR calling code) above, so disable base-ui's
+      // built-in filter — it auto-matches the item `label` only, which would
+      // re-hide calling-code matches like "91".
+      filter={null}
       value={selectedCountry || ""}
       onValueChange={(country: BasePhoneInput.Country | null) => {
         if (country) {
