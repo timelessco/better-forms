@@ -30,7 +30,7 @@ minimumReleaseAgeExclude:
   - "@ai-sdk/react"
   - "@ai-sdk/openai"
   - "@ai-sdk/google"
-  - '@ai-sdk/gateway@3.0.119'
+  - "@ai-sdk/gateway@3.0.119"
 
 # Hoist these transitive deps to the node_modules root so direct imports keep
 # resolving:
