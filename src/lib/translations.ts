@@ -72,8 +72,7 @@ const es: Translations = {
   formNotFound: "Formulario no encontrado",
   formNotFoundDescription: "Este formulario no existe o ya no está disponible.",
   formNotAvailable: "Formulario no disponible",
-  formNotAvailableDescription:
-    "Este formulario no está aceptando respuestas actualmente.",
+  formNotAvailableDescription: "Este formulario no está aceptando respuestas actualmente.",
   formClosed: "Formulario cerrado",
   formClosedDescription: "Este formulario ya no acepta respuestas.",
   alreadySubmitted: "Ya enviado",
@@ -101,11 +100,9 @@ const fr: Translations = {
   submit: "Soumettre",
   submitting: "Envoi en cours...",
   formNotFound: "Formulaire introuvable",
-  formNotFoundDescription:
-    "Ce formulaire n'existe pas ou n'est plus disponible.",
+  formNotFoundDescription: "Ce formulaire n'existe pas ou n'est plus disponible.",
   formNotAvailable: "Formulaire non disponible",
-  formNotAvailableDescription:
-    "Ce formulaire n'accepte pas de réponses actuellement.",
+  formNotAvailableDescription: "Ce formulaire n'accepte pas de réponses actuellement.",
   formClosed: "Formulaire fermé",
   formClosedDescription: "Ce formulaire n'accepte plus de réponses.",
   alreadySubmitted: "Déjà soumis",
@@ -115,8 +112,7 @@ const fr: Translations = {
   responseSubmitted: "Votre réponse a été soumise avec succès.",
   submitAnother: "Soumettre une autre réponse",
   passwordProtected: "Protégé par mot de passe",
-  passwordDescription:
-    "Entrez le mot de passe pour accéder à ce formulaire.",
+  passwordDescription: "Entrez le mot de passe pour accéder à ce formulaire.",
   enterPassword: "Entrez le mot de passe",
   verifying: "Vérification...",
   unlock: "Déverrouiller",
@@ -136,24 +132,12 @@ const languageCodeMap: Record<string, string> = {
   French: "fr",
 };
 
-const codeLanguageMap: Record<string, string> = {
-  en: "English",
-  es: "Spanish",
-  fr: "French",
-};
+export const languageToCode = (language: string): string => languageCodeMap[language] ?? "en";
 
-export function languageToCode(language: string): string {
-  return languageCodeMap[language] ?? "en";
-}
-
-export function codeToLanguage(code: string): string {
-  return codeLanguageMap[code] ?? "English";
-}
-
-export function getTranslations(langOrCode: string): Translations {
+export const getTranslations = (langOrCode: string): Translations => {
   // Accept either language name or code
   const code = languageCodeMap[langOrCode] ?? langOrCode;
   return translations[code] ?? en;
-}
+};
 
 export type { TranslationKey, Translations };

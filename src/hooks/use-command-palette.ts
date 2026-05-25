@@ -23,7 +23,7 @@ const store = {
   },
 };
 
-export function useCommandPalette() {
+export const useCommandPalette = () => {
   const isPaletteOpen = useSyncExternalStore(store.subscribe, store.getSnapshot, () => false);
 
   return {
@@ -31,4 +31,4 @@ export function useCommandPalette() {
     setIsOpen: store.setIsOpen,
     toggle: store.toggle,
   };
-}
+};

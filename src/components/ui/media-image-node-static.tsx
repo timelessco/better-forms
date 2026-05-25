@@ -5,18 +5,18 @@ import { SlateElement } from "platejs/static";
 
 import { cn } from "@/lib/utils";
 
-export function ImageElementStatic(
+export const ImageElementStatic = (
   props: SlateElementProps<TImageElement & TCaptionProps & TResizableProps>,
-) {
+) => {
   const { align = "center", caption, url, width } = props.element;
 
   return (
     <SlateElement {...props} className="py-2.5">
       <figure className="group relative m-0 inline-block" style={{ width }}>
-        <div className="relative min-w-[92px] max-w-full" style={{ textAlign: align }}>
+        <div className="relative max-w-full min-w-[92px]" style={{ textAlign: align }}>
           <img
             className={cn("w-full max-w-full cursor-default object-cover px-0", "rounded-sm")}
-            alt={(props.attributes as any).alt}
+            alt={(props.attributes as Record<string, unknown>).alt as string}
             src={url}
           />
           {caption && (
@@ -29,4 +29,4 @@ export function ImageElementStatic(
       {props.children}
     </SlateElement>
   );
-}
+};

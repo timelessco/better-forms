@@ -1,192 +1,180 @@
 import { Button } from "@/components/ui/button";
-import { CustomizeSidebar } from "@/components/ui/customize-sidebar";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { NotFound } from "@/components/ui/not-found";
-import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { useFormVersionContent } from "@/hooks/use-form-versions";
-import { formCollection } from "@/db-collections/form.collections";
+import { getFormListings } from "@/collections";
+import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import { useVersionHistorySidebar } from "@/hooks/use-version-history-sidebar";
-import { getFormbyIdQueryOption } from "@/lib/fn/forms";
+import { getFormStatus } from "@/lib/server-fn/forms";
+import type { FormStatus } from "@/lib/server-fn/forms";
 import { cn } from "@/lib/utils";
-import { createFileRoute, redirect, useLocation } from "@tanstack/react-router";
+import { createFileRoute, isRedirect, redirect, useLocation } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { Loader2Icon } from "@/components/ui/icons";
 import type { Value } from "platejs";
-import { useEffect } from "react";
+import { Activity, Suspense, lazy } from "react";
 import { z } from "zod";
-import EditorApp from "../-components/editor-app";
-import { PreviewMode } from "../-components/preview-mode";
+import { zodValidator } from "@tanstack/zod-adapter";
 
-export const Route = createFileRoute(
-  "/_authenticated/workspace/$workspaceId/form-builder/$formId/edit",
-)({
-  validateSearch: z.object({
-    demo: z.boolean().optional(),
-    force: z.boolean().optional(), // When true, skip redirect for published forms
-    sidebar: z.string().optional(),
-    // Embed config params — synced from sidebar, read by PreviewMode
-    embedType: z.enum(["standard", "popup", "fullpage"]).catch("standard").optional(),
-    embedHeight: z.coerce.number().catch(558).optional(),
-    embedDynamicHeight: z.coerce.boolean().catch(true).optional(),
-    embedHideTitle: z.coerce.boolean().catch(false).optional(),
-    embedAlignLeft: z.coerce.boolean().catch(false).optional(),
-    embedTransparent: z.coerce.boolean().catch(false).optional(),
-    embedBranding: z.coerce.boolean().catch(true).optional(),
-    embedPopupPosition: z
-      .enum(["bottom-right", "bottom-left", "center"])
-      .catch("bottom-right")
-      .optional(),
-    embedPopupWidth: z.coerce.number().catch(376).optional(),
-    embedDarkOverlay: z.coerce.boolean().catch(false).optional(),
-    embedEmoji: z.coerce.boolean().catch(true).optional(),
-    embedEmojiIcon: z.string().catch("👋").optional(),
-    embedEmojiAnimation: z.enum(["wave", "bounce", "pulse"]).catch("wave").optional(),
-    embedPopupTrigger: z.enum(["button", "auto", "scroll"]).catch("button").optional(),
-    embedHideOnSubmit: z.coerce.boolean().catch(false).optional(),
-    embedHideOnSubmitDelay: z.coerce.number().catch(0).optional(),
-    embedTrackEvents: z.coerce.boolean().catch(false).optional(),
-  }),
-  // Redirect published forms to submissions (prevents flash of editor)
-  beforeLoad: async ({ context, params, search }) => {
-    if ((search as any).force === true) return;
+const EditorApp = lazy(() => import("../-components/editor-app"));
+const PreviewMode = lazy(() =>
+  import("../-components/preview-mode").then((m) => ({ default: m.PreviewMode })),
+);
 
-    try {
-      // Try collection cache first (instant, no network)
-      const cachedForm = formCollection.state.get(params.formId);
-      let status = cachedForm?.status;
-
-      // Fall back to server fetch if not in collection yet
-      if (!status) {
-        const result = await context.queryClient.ensureQueryData({
-          ...getFormbyIdQueryOption(params.formId),
-          revalidateIfStale: true,
-        });
-        status = result?.form?.status;
-      }
-
-      if (status === "published") {
-        throw redirect({
-          to: "/workspace/$workspaceId/form-builder/$formId/submissions",
-          params: { workspaceId: params.workspaceId, formId: params.formId },
-        });
-      }
-    } catch (error: unknown) {
-      // Rethrow redirects
-      if (
-        error instanceof Response ||
-        (typeof error === "object" &&
-          error !== null &&
-          ((error as any).to !== undefined ||
-            (error as any).href !== undefined ||
-            (error as any).isRedirect === true ||
-            [301, 302, 307, 308].includes((error as any).statusCode)))
-      ) {
-        throw error;
-      }
-      // On error, allow edit route to load
-    }
-  },
-  component: DesignPage,
-  pendingComponent: () => <div>Loading...</div>,
-  errorComponent: ErrorBoundary,
-  notFoundComponent: NotFound,
-});
-
-function DesignPage() {
-  const { pathname } = useLocation();
+const DesignPage = () => {
+  const pathname = useLocation({ select: (s) => s.pathname });
   // Extract formId from pathname to ensure it's always current
   const formIdFromPath = pathname.split("/form-builder/")[1]?.split("/")[0] || "";
   const params = Route.useParams();
   const { workspaceId } = params;
   const formId = formIdFromPath || params.formId;
 
-  // Version history sidebar state
-  const {
-    isOpen: isVersionHistoryOpen,
-    selectedVersionId,
-    isViewingVersion,
-    exitVersionView,
-  } = useVersionHistorySidebar();
+  const { selectedVersionId, isViewingVersion, exitVersionView } = useVersionHistorySidebar();
 
-  // Fetch version content when viewing a version
-  const { data: versionContentData, isLoading: isLoadingVersionContent } = useFormVersionContent(
-    isViewingVersion ? (selectedVersionId ?? undefined) : undefined,
-  );
+  const { data: versionContentDataArray, isLoading: isLoadingVersionContent } =
+    useFormVersionContent(isViewingVersion ? (selectedVersionId ?? undefined) : undefined);
 
-  const search = Route.useSearch();
-  const demo = search.demo;
+  const versionData = versionContentDataArray?.[0];
 
-  useEffect(() => {
-    if (!isVersionHistoryOpen && isViewingVersion) {
-      exitVersionView();
-    }
-  }, [isVersionHistoryOpen, isViewingVersion, exitVersionView]);
-  const formatDateTime = (dateString: string) => {
-    return format(new Date(dateString), "MMM d, h:mm a");
-  };
+  const { previewMode } = useEditorSidebar();
+  const formatDateTime = (dateString: string) => format(new Date(dateString), "MMM d, h:mm a");
 
-  const versionContent = versionContentData?.version?.content as Value | undefined;
+  const versionContent = versionData?.content as Value | undefined;
+  const versionCustomization = versionData?.customization as Record<string, unknown> | undefined;
 
   return (
-    <div className="flex flex-1 h-full overflow-hidden">
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
-        {/* Main editor panel */}
-        <ResizablePanel defaultSize={isVersionHistoryOpen ? 75 : 100} minSize={50}>
-          <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-background h-full flex flex-col">
-            {/* Version viewing banner */}
-            {isViewingVersion && (
-              <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between shrink-0">
-                <span className="text-sm text-amber-800">
-                  {isLoadingVersionContent ? (
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading version...
-                    </span>
-                  ) : versionContentData?.version?.publishedAt ? (
-                    <>
-                      Viewing version from{" "}
-                      <span className="font-semibold">
-                        {formatDateTime(versionContentData.version.publishedAt)}
-                      </span>
-                    </>
-                  ) : (
-                    "Viewing version..."
-                  )}
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+      <main className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto bg-background">
+        {isViewingVersion && (
+          <div className="flex shrink-0 items-center justify-between border-b border-accent/20 bg-accent/50 px-4 py-2">
+            <span className="text-accent-800 text-sm">
+              {isLoadingVersionContent ? (
+                <span className="flex items-center gap-2">
+                  <Loader2Icon className="size-4 animate-spin" />
+                  Loading version…
                 </span>
-                <Button variant="outline" size="sm" onClick={exitVersionView}>
-                  Return to editing
-                </Button>
-              </div>
-            )}
-
-            <div
-              className={cn(
-                "flex-1 overflow-x-hidden",
-                demo ? "h-full overflow-hidden" : "overflow-y-auto",
-              )}
-            >
-              {demo ? (
-                <PreviewMode formId={formId} workspaceId={workspaceId} />
-              ) : isViewingVersion && isLoadingVersionContent ? (
-                <div className="h-full w-full flex items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
+              ) : versionData?.publishedAt ? (
+                <>
+                  Viewing version from{" "}
+                  <span className="font-semibold">{formatDateTime(versionData.publishedAt)}</span>
+                </>
               ) : (
+                "Viewing version..."
+              )}
+            </span>
+            <Button variant="outline" size="sm" onClick={exitVersionView}>
+              Return to editing
+            </Button>
+          </div>
+        )}
+
+        <div
+          data-editor-scroll
+          className={cn(
+            "flex-1 overflow-x-hidden",
+            previewMode ? "h-full overflow-hidden" : "overflow-y-auto",
+          )}
+        >
+          {previewMode && <PreviewMode formId={formId} workspaceId={workspaceId} />}
+          {/* Keep EditorApp's fiber tree, Slate document, and DOM alive across
+              preview toggles via <Activity>. A fresh mount of Plate (50+
+              elements, per-element plugin effects) costs ~600ms; Activity
+              preserves the editor instance and only re-runs effects on the
+              hidden ↔ visible flip. */}
+          <Activity mode={previewMode ? "hidden" : "visible"}>
+            {isViewingVersion && isLoadingVersionContent ? (
+              <div className="flex size-full items-center justify-center">
+                <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <Suspense
+                fallback={
+                  <div className="flex h-full items-center justify-center">
+                    <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  </div>
+                }
+              >
                 <EditorApp
-                  key={isViewingVersion ? `version-${selectedVersionId}` : formId}
+                  key={formId}
                   formId={formId}
                   workspaceId={workspaceId}
                   versionContent={isViewingVersion ? versionContent : undefined}
+                  versionCustomization={isViewingVersion ? versionCustomization : undefined}
                   readOnly={isViewingVersion}
                 />
-              )}
-            </div>
-          </main>
-        </ResizablePanel>
-
-        {/* Version history sidebar is now handled in AuthLayout */}
-      </ResizablePanelGroup>
-      <CustomizeSidebar />
+              </Suspense>
+            )}
+          </Activity>
+        </div>
+      </main>
     </div>
   );
-}
+};
+
+export const Route = createFileRoute(
+  "/_authenticated/workspace/$workspaceId/form-builder/$formId/edit",
+)({
+  validateSearch: zodValidator(
+    z.object({
+      force: z.boolean().optional(),
+      embedType: z.enum(["standard", "popup", "fullpage"]).catch("standard").optional(),
+      embedHeight: z.coerce.number().catch(558).optional(),
+      embedDynamicHeight: z.coerce.boolean().catch(true).optional(),
+      embedDynamicWidth: z.coerce.boolean().catch(false).optional(),
+      embedHideTitle: z.coerce.boolean().catch(false).optional(),
+      embedAlignLeft: z.coerce.boolean().catch(false).optional(),
+      embedTransparent: z.coerce.boolean().catch(false).optional(),
+      embedBranding: z.coerce.boolean().catch(true).optional(),
+      embedPopupPosition: z
+        .enum(["bottom-right", "bottom-left", "center"])
+        .catch("bottom-right")
+        .optional(),
+      embedPopupWidth: z.coerce.number().catch(376).optional(),
+      embedDarkOverlay: z.coerce.boolean().catch(false).optional(),
+      embedEmoji: z.coerce.boolean().catch(true).optional(),
+      embedEmojiIcon: z.string().catch("\uD83D\uDC4B").optional(),
+      embedEmojiAnimation: z.enum(["wave", "bounce", "pulse"]).catch("wave").optional(),
+      embedPopupTrigger: z.enum(["button", "auto", "scroll"]).catch("button").optional(),
+      embedHideOnSubmit: z.coerce.boolean().catch(false).optional(),
+      embedHideOnSubmitDelay: z.coerce.number().catch(0).optional(),
+    }),
+  ),
+  ssr: "data-only",
+  // Redirect published forms to submissions (prevents flash of editor)
+  beforeLoad: async ({ context, params, search }) => {
+    // Warm the editor-app chunk during route preload (e.g. on Link hover with
+    // preload="intent") and on navigation. Window guard keeps the dynamic
+    // import off the server module graph in `ssr: "data-only"` mode.
+    if (typeof window !== "undefined") {
+      void import("../-components/editor-app");
+    }
+
+    if (search.force === true) return;
+
+    let status: FormStatus | undefined;
+    try {
+      const cachedForm = getFormListings().get(params.formId);
+      status = cachedForm?.status as FormStatus | undefined;
+
+      if (!status) {
+        status = await getFormStatus(context.queryClient, params.formId);
+      }
+    } catch (error: unknown) {
+      if (isRedirect(error)) {
+        throw error;
+      }
+      // On error, allow edit route to load
+    }
+
+    if (status === "published") {
+      throw redirect({
+        to: "/workspace/$workspaceId/form-builder/$formId/submissions",
+        params: { workspaceId: params.workspaceId, formId: params.formId },
+      });
+    }
+  },
+  component: DesignPage,
+  pendingComponent: () => <div>Loading…</div>,
+  errorComponent: ErrorBoundary,
+  notFoundComponent: NotFound,
+});

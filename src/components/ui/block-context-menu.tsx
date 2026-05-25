@@ -1,4 +1,3 @@
-import { AIChatPlugin } from "@platejs/ai/react";
 import {
   BLOCK_CONTEXT_MENU_ID,
   BlockMenuPlugin,
@@ -20,11 +19,11 @@ import {
 } from "@/components/ui/context-menu";
 import { useIsTouchDevice } from "@/hooks/use-is-touch-device";
 
-type Value = "askAI" | null;
+type _Value = "askAI" | null;
 
-export function BlockContextMenu({ children }: { children: React.ReactNode }) {
+export const BlockContextMenu = ({ children }: { children: React.ReactNode }) => {
   const { api, editor } = useEditorPlugin(BlockMenuPlugin);
-  const [value, setValue] = React.useState<Value>(null);
+  const [_value, setValue] = React.useState<_Value>(null);
   const isTouch = useIsTouchDevice();
   const [readOnly] = usePlateState("readOnly");
   const openId = usePluginOption(BlockMenuPlugin, "openId");
@@ -57,7 +56,18 @@ export function BlockContextMenu({ children }: { children: React.ReactNode }) {
 
   const selectedNodes = editor.getApi(BlockSelectionPlugin).blockSelection.getNodes();
   const hasFormLabel = selectedNodes.some(([node]) => node.type === "formLabel");
-  const isRequired = selectedNodes.some(([node]) => node.type === "formLabel" && node.required);
+  // Read required from the next sibling input node (not the label)
+  const isRequired = selectedNodes.some(([node, path]) => {
+    if (node.type !== "formLabel") return false;
+    const nextPath = [...path];
+    nextPath[nextPath.length - 1] += 1;
+    try {
+      const next = editor.api.node(nextPath);
+      return next ? Boolean(next[0]?.required) : false;
+    } catch {
+      return false;
+    }
+  });
 
   const handleRequiredToggle = React.useCallback(() => {
     editor
@@ -65,122 +75,124 @@ export function BlockContextMenu({ children }: { children: React.ReactNode }) {
       .blockSelection.getNodes()
       .forEach(([node, path]) => {
         if (node.type === "formLabel") {
-          editor.tf.setNodes({ required: !node.required }, { at: path });
+          // Write required to the next sibling input node
+          const nextPath = [...path];
+          nextPath[nextPath.length - 1] += 1;
+          try {
+            const next = editor.api.node(nextPath);
+            if (next) {
+              editor.tf.setNodes({ required: !next[0]?.required }, { at: nextPath });
+            }
+          } catch {
+            // No next sibling
+          }
         }
       });
   }, [editor]);
+
+  const handleOpenChange = React.useCallback(
+    (open: boolean) => {
+      if (!open) {
+        api.blockMenu.hide();
+      }
+    },
+    [api.blockMenu],
+  );
+
+  const handleContextMenu = React.useCallback(
+    (event: React.MouseEvent) => {
+      const dataset = (event.target as HTMLElement).dataset;
+      const disabled =
+        dataset?.slateEditor === "true" || readOnly || dataset?.plateOpenContextMenu === "false";
+
+      if (disabled) return event.preventDefault();
+
+      setTimeout(() => {
+        api.blockMenu.show(BLOCK_CONTEXT_MENU_ID, {
+          x: event.clientX,
+          y: event.clientY,
+        });
+      }, 0);
+    },
+    [api.blockMenu, readOnly],
+  );
+
+  const handleAskAI = React.useCallback(() => {
+    setValue("askAI");
+  }, []);
+
+  const handleDelete = React.useCallback(() => {
+    editor.getTransforms(BlockSelectionPlugin).blockSelection.removeNodes();
+    editor.tf.focus();
+  }, [editor]);
+
+  const handleDuplicate = React.useCallback(() => {
+    editor.getTransforms(BlockSelectionPlugin).blockSelection.duplicate();
+  }, [editor]);
+
+  const handleTurnIntoParagraph = React.useCallback(() => handleTurnInto(KEYS.p), [handleTurnInto]);
+  const handleTurnIntoH1 = React.useCallback(() => handleTurnInto(KEYS.h1), [handleTurnInto]);
+  const handleTurnIntoH2 = React.useCallback(() => handleTurnInto(KEYS.h2), [handleTurnInto]);
+  const handleTurnIntoH3 = React.useCallback(() => handleTurnInto(KEYS.h3), [handleTurnInto]);
+  const handleTurnIntoBlockquote = React.useCallback(
+    () => handleTurnInto(KEYS.blockquote),
+    [handleTurnInto],
+  );
+
+  const handleIndent = React.useCallback(() => {
+    editor.getTransforms(BlockSelectionPlugin).blockSelection.setIndent(1);
+  }, [editor]);
+
+  const handleOutdent = React.useCallback(() => {
+    editor.getTransforms(BlockSelectionPlugin).blockSelection.setIndent(-1);
+  }, [editor]);
+
+  const handleAlignLeft = React.useCallback(() => handleAlign("left"), [handleAlign]);
+  const handleAlignCenter = React.useCallback(() => handleAlign("center"), [handleAlign]);
+  const handleAlignRight = React.useCallback(() => handleAlign("right"), [handleAlign]);
 
   if (isTouch) {
     return children;
   }
 
   return (
-    <ContextMenu
-      onOpenChange={(open) => {
-        if (!open) {
-          api.blockMenu.hide();
-        }
-      }}
-      modal={false}
-    >
-      <ContextMenuTrigger
-        asChild
-        onContextMenu={(event) => {
-          const dataset = (event.target as HTMLElement).dataset;
-          const disabled =
-            dataset?.slateEditor === "true" ||
-            readOnly ||
-            dataset?.plateOpenContextMenu === "false";
-
-          if (disabled) return event.preventDefault();
-
-          setTimeout(() => {
-            api.blockMenu.show(BLOCK_CONTEXT_MENU_ID, {
-              x: event.clientX,
-              y: event.clientY,
-            });
-          }, 0);
-        }}
-      >
-        <div className="w-full">{children}</div>
+    <ContextMenu onOpenChange={handleOpenChange}>
+      <ContextMenuTrigger render={<div className="w-full" />} onContextMenu={handleContextMenu}>
+        {children}
       </ContextMenuTrigger>
       {isOpen && (
-        <ContextMenuContent
-          className="w-64"
-          onCloseAutoFocus={(e) => {
-            e.preventDefault();
-            editor.getApi(BlockSelectionPlugin).blockSelection.focus();
-
-            if (value === "askAI") {
-              editor.getApi(AIChatPlugin).aiChat.show();
-            }
-
-            setValue(null);
-          }}
-        >
+        <ContextMenuContent className="w-64">
           <ContextMenuGroup>
-            <ContextMenuItem
-              onClick={() => {
-                setValue("askAI");
-              }}
-            >
-              Ask AI
-            </ContextMenuItem>
+            <ContextMenuItem onClick={handleAskAI}>Ask AI</ContextMenuItem>
             {hasFormLabel && (
               <ContextMenuItem onClick={handleRequiredToggle}>
                 {isRequired ? "Unmark Required" : "Mark Required"}
               </ContextMenuItem>
             )}
-            <ContextMenuItem
-              onClick={() => {
-                editor.getTransforms(BlockSelectionPlugin).blockSelection.removeNodes();
-                editor.tf.focus();
-              }}
-            >
-              Delete
-            </ContextMenuItem>
-            <ContextMenuItem
-              onClick={() => {
-                editor.getTransforms(BlockSelectionPlugin).blockSelection.duplicate();
-              }}
-            >
-              Duplicate
-              {/* <ContextMenuShortcut>⌘ + D</ContextMenuShortcut> */}
-            </ContextMenuItem>
+            <ContextMenuItem onClick={handleDelete}>Delete</ContextMenuItem>
+            <ContextMenuItem onClick={handleDuplicate}>Duplicate</ContextMenuItem>
             <ContextMenuSub>
               <ContextMenuSubTrigger>Turn into</ContextMenuSubTrigger>
               <ContextMenuSubContent className="w-48">
-                <ContextMenuItem onClick={() => handleTurnInto(KEYS.p)}>Paragraph</ContextMenuItem>
+                <ContextMenuItem onClick={handleTurnIntoParagraph}>Paragraph</ContextMenuItem>
 
-                <ContextMenuItem onClick={() => handleTurnInto(KEYS.h1)}>Heading 1</ContextMenuItem>
-                <ContextMenuItem onClick={() => handleTurnInto(KEYS.h2)}>Heading 2</ContextMenuItem>
-                <ContextMenuItem onClick={() => handleTurnInto(KEYS.h3)}>Heading 3</ContextMenuItem>
-                <ContextMenuItem onClick={() => handleTurnInto(KEYS.blockquote)}>
-                  Blockquote
-                </ContextMenuItem>
+                <ContextMenuItem onClick={handleTurnIntoH1}>Heading 1</ContextMenuItem>
+                <ContextMenuItem onClick={handleTurnIntoH2}>Heading 2</ContextMenuItem>
+                <ContextMenuItem onClick={handleTurnIntoH3}>Heading 3</ContextMenuItem>
+                <ContextMenuItem onClick={handleTurnIntoBlockquote}>Blockquote</ContextMenuItem>
               </ContextMenuSubContent>
             </ContextMenuSub>
           </ContextMenuGroup>
 
           <ContextMenuGroup>
-            <ContextMenuItem
-              onClick={() => editor.getTransforms(BlockSelectionPlugin).blockSelection.setIndent(1)}
-            >
-              Indent
-            </ContextMenuItem>
-            <ContextMenuItem
-              onClick={() =>
-                editor.getTransforms(BlockSelectionPlugin).blockSelection.setIndent(-1)
-              }
-            >
-              Outdent
-            </ContextMenuItem>
+            <ContextMenuItem onClick={handleIndent}>Indent</ContextMenuItem>
+            <ContextMenuItem onClick={handleOutdent}>Outdent</ContextMenuItem>
             <ContextMenuSub>
               <ContextMenuSubTrigger>Align</ContextMenuSubTrigger>
               <ContextMenuSubContent className="w-48">
-                <ContextMenuItem onClick={() => handleAlign("left")}>Left</ContextMenuItem>
-                <ContextMenuItem onClick={() => handleAlign("center")}>Center</ContextMenuItem>
-                <ContextMenuItem onClick={() => handleAlign("right")}>Right</ContextMenuItem>
+                <ContextMenuItem onClick={handleAlignLeft}>Left</ContextMenuItem>
+                <ContextMenuItem onClick={handleAlignCenter}>Center</ContextMenuItem>
+                <ContextMenuItem onClick={handleAlignRight}>Right</ContextMenuItem>
               </ContextMenuSubContent>
             </ContextMenuSub>
           </ContextMenuGroup>
@@ -188,4 +200,4 @@ export function BlockContextMenu({ children }: { children: React.ReactNode }) {
       )}
     </ContextMenu>
   );
-}
+};

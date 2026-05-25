@@ -1,22 +1,28 @@
 import { insertCallout } from "@platejs/callout";
-import { insertCodeBlock, toggleCodeBlock } from "@platejs/code-block";
 import { insertDate } from "@platejs/date";
 import { insertColumnGroup, toggleColumnGroup } from "@platejs/layout";
 import { triggerFloatingLink } from "@platejs/link/react";
-import { insertEquation, insertInlineEquation } from "@platejs/math";
 import {
   insertAudioPlaceholder,
   insertFilePlaceholder,
   insertMedia,
   insertVideoPlaceholder,
 } from "@platejs/media";
-import { SuggestionPlugin } from "@platejs/suggestion/react";
-import { TablePlugin } from "@platejs/table/react";
 import { insertToc } from "@platejs/toc";
-import { KEYS, type NodeEntry, type Path, PathApi, type TElement } from "platejs";
+import { KEYS, PathApi } from "platejs";
+import type { NodeEntry, Path, TElement } from "platejs";
 import type { PlateEditor } from "platejs/react";
 
 const ACTION_THREE_COLUMNS = "action_three_columns";
+
+const scrollSelectionIntoView = (editor: PlateEditor) => {
+  requestAnimationFrame(() => {
+    const block = editor.api.block();
+    if (!block) return;
+    const domNode = editor.api.toDOMNode(block[0]);
+    domNode?.scrollIntoView({ block: "center", behavior: "smooth" });
+  });
+};
 
 const insertList = (editor: PlateEditor, type: string) => {
   editor.tf.insertNodes(
@@ -35,8 +41,6 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
   [ACTION_THREE_COLUMNS]: (editor) => insertColumnGroup(editor, { columns: 3, select: true }),
   [KEYS.audio]: (editor) => insertAudioPlaceholder(editor, { select: true }),
   [KEYS.callout]: (editor) => insertCallout(editor, { select: true }),
-  [KEYS.codeBlock]: (editor) => insertCodeBlock(editor, { select: true }),
-  [KEYS.equation]: (editor) => insertEquation(editor, { select: true }),
   [KEYS.file]: (editor) => insertFilePlaceholder(editor, { select: true }),
   [KEYS.img]: (editor) =>
     insertMedia(editor, {
@@ -48,7 +52,6 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
       select: true,
       type: KEYS.mediaEmbed,
     }),
-  [KEYS.table]: (editor) => editor.getTransforms(TablePlugin).insert.table({}, { select: true }),
   [KEYS.toc]: (editor) => insertToc(editor, { select: true }),
   [KEYS.video]: (editor) => insertVideoPlaceholder(editor, { select: true }),
   formInput: (editor) => {
@@ -64,7 +67,7 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
         required: true,
         placeholder: "Type a question",
         children: [{ text: "" }],
-      } as any,
+      } as TElement,
       { at: labelPath },
     );
 
@@ -73,7 +76,7 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
         type: "formInput",
         placeholder: "Type Placeholder text",
         children: [{ text: "" }],
-      } as any,
+      } as TElement,
       { at: PathApi.next(labelPath) },
     );
 
@@ -90,10 +93,10 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
     editor.tf.insertNodes(
       {
         type: "formLabel",
-        required: false,
+        required: true,
         placeholder: "Type a question",
         children: [{ text: "" }],
-      } as any,
+      } as TElement,
       { at: labelPath },
     );
 
@@ -102,137 +105,251 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
         type: "formTextarea",
         placeholder: "Type a placeholder",
         children: [{ text: "" }],
-      } as any,
+      } as TElement,
       { at: PathApi.next(labelPath) },
     );
 
     editor.tf.select({ path: [...labelPath, 0], offset: 0 });
     editor.tf.focus();
   },
-  pageBreak: (editor) => {
-    // Find existing Submit button and convert it to Next
-    const children = editor.children as TElement[];
-    const submitIndex = children.findIndex(
-      (n) => n.type === "formButton" && n.buttonRole === "submit",
-    );
-
-    if (submitIndex === -1) {
-      // No Submit button found - shouldn't happen with normalization, but handle gracefully
-      const block = editor.api.block();
-      if (!block) return;
-      const [, path] = block;
-      const nextPath = PathApi.next(path);
-
-      editor.tf.insertNodes(
-        {
-          type: "formButton",
-          buttonRole: "next",
-          children: [{ text: "Next" }],
-        } as any,
-        { at: nextPath },
-      );
-
-      const pageBreakPath = PathApi.next(nextPath);
-      editor.tf.insertNodes(
-        {
-          type: "pageBreak",
-          isThankYouPage: false,
-          children: [{ text: "" }],
-        } as any,
-        { at: pageBreakPath },
-      );
-
-      // Insert empty paragraph for content (focus here)
-      const paragraphPath = PathApi.next(pageBreakPath);
-      editor.tf.insertNodes(
-        {
-          type: "p",
-          children: [{ text: "" }],
-        } as any,
-        { at: paragraphPath, select: true },
-      );
-
-      const prevButtonPath = PathApi.next(paragraphPath);
-      editor.tf.insertNodes(
-        {
-          type: "formButton",
-          buttonRole: "previous",
-          children: [{ text: "Previous" }],
-        } as any,
-        { at: prevButtonPath },
-      );
-
-      const newSubmitPath = PathApi.next(prevButtonPath);
-      editor.tf.insertNodes(
-        {
-          type: "formButton",
-          buttonRole: "submit",
-          children: [{ text: "Submit" }],
-        } as any,
-        { at: newSubmitPath },
-      );
-      return;
-    }
-
-    // Convert existing Submit button to Next (replace entire node for void elements)
-    const submitPath: Path = [submitIndex];
-    const submitBtn = children[submitIndex];
-    const currentText = (submitBtn.children?.[0] as any)?.text;
-    const newText = currentText === "Submit" ? "Next" : currentText;
-
-    // Remove old button and insert new one with updated role/text
-    editor.tf.removeNodes({ at: submitPath });
+  formEmail: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
     editor.tf.insertNodes(
-      {
-        type: "formButton",
-        buttonRole: "next",
-        children: [{ text: newText }],
-      } as any,
-      { at: submitPath },
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formEmail", placeholder: "email@example.com", children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
     );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  formPhone: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formPhone", placeholder: "+1 (555) 000-0000", children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  formNumber: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formNumber", placeholder: "0", children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  formLink: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formLink", placeholder: "https://example.com", children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  formDate: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formDate", placeholder: "Select a date", children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  formTime: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formTime", placeholder: "Select a time", children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  formFileUpload: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formFileUpload", children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  formCheckbox: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formOptionItem", variant: "checkbox", children: [{ text: "" }] },
+        { type: "p", children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  formMultiChoice: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formOptionItem", variant: "multiChoice", children: [{ text: "" }] },
+        { type: "p", children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  formMultiSelect: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formMultiSelectInput", options: [], children: [{ text: "" }] },
+        { type: "p", children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  formRanking: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formOptionItem", variant: "ranking", children: [{ text: "" }] },
+        { type: "p", children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  pageBreak: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
 
-    // Insert pageBreak after the converted Next button
-    const pageBreakPath = PathApi.next(submitPath);
+    const pageBreakPath = PathApi.next(path);
     editor.tf.insertNodes(
       {
         type: "pageBreak",
         isThankYouPage: false,
         children: [{ text: "" }],
-      } as any,
+      } as TElement,
       { at: pageBreakPath },
     );
 
-    // Insert empty paragraph for content (focus here)
     const paragraphPath = PathApi.next(pageBreakPath);
     editor.tf.insertNodes(
       {
         type: "p",
         children: [{ text: "" }],
-      } as any,
+      } as TElement,
       { at: paragraphPath, select: true },
     );
 
-    // Insert "Previous" button after paragraph
-    const prevButtonPath = PathApi.next(paragraphPath);
-    editor.tf.insertNodes(
-      {
-        type: "formButton",
-        buttonRole: "previous",
-        children: [{ text: "Previous" }],
-      } as any,
-      { at: prevButtonPath },
-    );
-
-    // Insert new Submit button at the end (no select - focus stays on paragraph)
-    const newSubmitPath = PathApi.next(prevButtonPath);
-    editor.tf.insertNodes(
-      {
-        type: "formButton",
-        buttonRole: "submit",
-        children: [{ text: "Submit" }],
-      } as any,
-      { at: newSubmitPath },
-    );
+    scrollSelectionIntoView(editor);
   },
   pageBreakThankYou: (editor) => {
     // Remove isThankYouPage from all existing pageBreak elements
@@ -260,7 +377,7 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
           type: "formButton",
           buttonRole: "submit",
           children: [{ text: "Submit" }],
-        } as any,
+        } as TElement,
         { at: nextPath },
       );
 
@@ -270,7 +387,7 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
           type: "pageBreak",
           isThankYouPage: true,
           children: [{ text: "" }],
-        } as any,
+        } as TElement,
         { at: pageBreakPath },
       );
 
@@ -280,13 +397,14 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
         {
           type: "p",
           children: [{ text: "" }],
-        } as any,
+        } as TElement,
         { at: paragraphPath, select: true },
       );
+
+      scrollSelectionIntoView(editor);
       return;
     }
 
-    // Insert thank you pageBreak after the existing Submit button
     const submitPath: Path = [submitIndex];
     const pageBreakPath = PathApi.next(submitPath);
     editor.tf.insertNodes(
@@ -294,7 +412,7 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
         type: "pageBreak",
         isThankYouPage: true,
         children: [{ text: "" }],
-      } as any,
+      } as TElement,
       { at: pageBreakPath },
     );
 
@@ -304,17 +422,18 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
       {
         type: "p",
         children: [{ text: "" }],
-      } as any,
+      } as TElement,
       { at: paragraphPath, select: true },
     );
 
     // No buttons after thank you pageBreak - normalizer will handle cleanup
+
+    scrollSelectionIntoView(editor);
   },
 };
 
 const insertInlineMap: Record<string, (editor: PlateEditor, type: string) => void> = {
   [KEYS.date]: (editor) => insertDate(editor, { select: true }),
-  [KEYS.inlineEquation]: (editor) => insertInlineEquation(editor, "", { select: true }),
   [KEYS.link]: (editor) => triggerFloatingLink(editor, { focused: true }),
 };
 
@@ -353,9 +472,7 @@ export const insertBlock = (
     }
 
     if (!isSameBlockType) {
-      editor.getApi(SuggestionPlugin).suggestion.withoutSuggestions(() => {
-        editor.tf.removeNodes({ previousEmptyBlock: true });
-      });
+      editor.tf.removeNodes({ previousEmptyBlock: true });
     }
   });
 };
@@ -386,7 +503,6 @@ const setBlockMap: Record<
   [KEYS.ol]: setList,
   [KEYS.ul]: setList,
   [ACTION_THREE_COLUMNS]: (editor) => toggleColumnGroup(editor, { columns: 3 }),
-  [KEYS.codeBlock]: (editor) => toggleCodeBlock(editor),
 };
 
 export const setBlockType = (editor: PlateEditor, type: string, { at }: { at?: Path } = {}) => {

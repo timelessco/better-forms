@@ -1,12 +1,19 @@
-import { AIChatPlugin } from "@platejs/ai/react";
 import { BlockSelectionPlugin } from "@platejs/selection/react";
 import { getPluginTypes, isHotkey, KEYS } from "platejs";
+import type { PlateElementProps } from "platejs/react";
 
+import { triggerAIInput } from "@/components/editor/plugins/ai-input-kit";
 import { BlockSelection } from "@/components/ui/block-selection";
 
 export const BlockSelectionKit = [
   BlockSelectionPlugin.configure(({ editor }) => ({
     options: {
+      // Point viselect at the real scroll container so drag-select auto-scrolls
+      // when the cursor nears the viewport edge.
+      areaOptions: {
+        boundaries: "[data-editor-scroll]",
+        container: "[data-editor-scroll]",
+      },
       enableContextMenu: true,
       isSelectable: (element) =>
         !getPluginTypes(editor, [
@@ -16,18 +23,15 @@ export const BlockSelectionKit = [
           "formHeader",
           "formButton",
         ]).includes(element.type),
-      onKeyDownSelecting: (editor, e) => {
+      onKeyDownSelecting: (ed, e) => {
         if (isHotkey("mod+j")(e)) {
-          editor.getApi(AIChatPlugin).aiChat.show();
+          e.preventDefault();
+          triggerAIInput(ed);
         }
       },
     },
     render: {
-      belowRootNodes: (props) => {
-        if (!props.attributes.className?.includes("slate-selectable")) return null;
-
-        return <BlockSelection {...(props as any)} />;
-      },
+      belowRootNodes: (props) => <BlockSelection {...(props as unknown as PlateElementProps)} />,
     },
   })),
 ];

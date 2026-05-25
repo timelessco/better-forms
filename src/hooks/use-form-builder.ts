@@ -1,15 +1,5 @@
-/**
- * Form Builder Types
- *
- * This file exports the AppForm type used for typed form instances.
- * The full useFormBuilder hook from the original codebase is not needed
- * since we use usePreviewForm with Plate.js integration.
- */
 import type { useAppForm } from "@/components/ui/tanstack-form";
 
-/**
- * Default form values record type
- */
 interface DefaultValues {
   [key: string]: unknown;
 }

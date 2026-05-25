@@ -1,0 +1,36 @@
+import * as React from "react";
+
+import { cn } from "@/lib/utils";
+import { ChevronDownIcon } from "@/components/ui/icons";
+
+type NativeSelectProps = Omit<React.ComponentProps<"select">, "size"> & {
+  size?: "sm" | "default";
+};
+
+export const NativeSelect = ({ className, size = "default", ...props }: NativeSelectProps) => (
+  <div
+    className={cn("group/native-select relative w-fit has-[select:disabled]:opacity-50", className)}
+    data-slot="native-select-wrapper"
+    data-size={size}
+  >
+    <select
+      data-slot="native-select"
+      data-size={size}
+      className="h-8 w-full min-w-0 appearance-none rounded-lg bg-[var(--form-input-bg,var(--color-gray-50))] py-1 ps-2.5 pe-8 text-sm text-foreground elevation-sm transition-colors outline-none select-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] data-[size=sm]:py-0.5 dark:bg-input/30 dark:shadow-none dark:hover:bg-input/50 dark:aria-invalid:ring-destructive/40"
+      {...props}
+    />
+    <ChevronDownIcon
+      className="pointer-events-none absolute inset-e-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground select-none"
+      aria-hidden="true"
+      data-slot="native-select-icon"
+    />
+  </div>
+);
+
+export const NativeSelectOption = ({ ...props }: React.ComponentProps<"option">) => (
+  <option data-slot="native-select-option" {...props} />
+);
+
+export const NativeSelectOptGroup = ({ className, ...props }: React.ComponentProps<"optgroup">) => (
+  <optgroup data-slot="native-select-optgroup" className={cn(className)} {...props} />
+);

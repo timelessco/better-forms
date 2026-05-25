@@ -2,21 +2,14 @@ import { useSyncExternalStore } from "react";
 
 const MOBILE_BREAKPOINT = 768;
 
-function subscribe(callback: () => void) {
+const subscribe = (callback: () => void) => {
   const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
   mql.addEventListener("change", callback);
   return () => mql.removeEventListener("change", callback);
-}
+};
 
-function getSnapshot() {
-  return window.innerWidth < MOBILE_BREAKPOINT;
-}
+const getSnapshot = () => window.innerWidth < MOBILE_BREAKPOINT;
 
-function getServerSnapshot() {
-  // Default to false on server (desktop-first)
-  return false;
-}
+const getServerSnapshot = () => false;
 
-export function useIsMobile() {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-}
+export const useIsMobile = () => useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);

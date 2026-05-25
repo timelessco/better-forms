@@ -1,16 +1,27 @@
-import { type ReactNode, useSyncExternalStore } from "react";
+import { useState } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 
 interface ClientOnlyProps {
-  children: ReactNode;
+  children: ReactElement | ReactNode | (() => ReactElement | ReactNode);
   fallback?: ReactNode;
 }
 
-function ClientOnly({ children, fallback = null }: ClientOnlyProps) {
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
+export const ClientOnly = ({ children, fallback = null }: ClientOnlyProps) => {
+  // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value gates the early-return fallback render below
+  const [mounted, setMounted] = useState(false);
 
-  return mounted ? children : fallback;
-}
+  useMountEffect(() => {
+    setMounted(true);
+  });
+
+  if (!mounted) {
+    return <>{fallback}</>;
+  }
+
+  if (typeof children === "function") {
+    return <>{children()}</>;
+  }
+
+  return <>{children}</>;
+};

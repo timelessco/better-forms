@@ -1,11 +1,18 @@
 import { PlaceholderPlugin, PlaceholderProvider, updateUploadHistory } from "@platejs/media/react";
-import { AudioLines, FileUp, Film, ImageIcon, Loader2Icon } from "lucide-react";
+import {
+  AudioLinesIcon,
+  FileUpIcon,
+  FilmIcon,
+  ImageIcon,
+  Loader2Icon,
+} from "@/components/ui/icons";
 import type { TPlaceholderElement } from "platejs";
 import { KEYS } from "platejs";
 import type { PlateElementProps } from "platejs/react";
 import { PlateElement, useEditorPlugin, withHOC } from "platejs/react";
 import * as React from "react";
 import { useFilePicker } from "use-file-picker";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useUploadFile } from "@/hooks/use-upload-file";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,12 +28,12 @@ const CONTENT: Record<
   [KEYS.audio]: {
     accept: ["audio/*"],
     content: "Add an audio file",
-    icon: <AudioLines />,
+    icon: <AudioLinesIcon />,
   },
   [KEYS.file]: {
     accept: ["*"],
     content: "Add a file",
-    icon: <FileUp />,
+    icon: <FileUpIcon />,
   },
   [KEYS.img]: {
     accept: ["image/*"],
@@ -36,7 +43,7 @@ const CONTENT: Record<
   [KEYS.video]: {
     accept: ["video/*"],
     content: "Add a video",
-    icon: <Film />,
+    icon: <FilmIcon />,
   },
 };
 
@@ -95,7 +102,7 @@ export const PlaceholderElement = withHOC(
           isUpload: true,
           name: element.mediaType === KEYS.file ? uploadedFile.name : "",
           placeholderId: element.id as string,
-          type: element.mediaType!,
+          type: element.mediaType ?? KEYS.img,
           url: uploadedFile.url,
         };
 
@@ -112,7 +119,7 @@ export const PlaceholderElement = withHOC(
     const isReplaced = React.useRef(false);
 
     /** Paste and drop */
-    React.useEffect(() => {
+    useMountEffect(() => {
       if (isReplaced.current) return;
 
       isReplaced.current = true;
@@ -121,9 +128,7 @@ export const PlaceholderElement = withHOC(
       if (!currentFiles) return;
 
       replaceCurrentPlaceholder(currentFiles);
-
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [api.placeholder.getUploadingFile, element.id, replaceCurrentPlaceholder]);
+    });
 
     return (
       <PlateElement className="my-1" {...props}>
@@ -131,7 +136,7 @@ export const PlaceholderElement = withHOC(
           <Button
             variant="ghost"
             className={cn(
-              "flex cursor-pointer select-none items-center rounded-sm bg-muted p-3 pr-9 h-auto justify-start hover:bg-primary/10",
+              "flex h-auto cursor-pointer items-center justify-start rounded-sm bg-muted p-3 pr-9 select-none hover:bg-primary/10",
             )}
             onClick={() => !loading && openFilePicker()}
             contentEditable={false}
@@ -139,7 +144,7 @@ export const PlaceholderElement = withHOC(
             <div className="relative mr-3 flex text-muted-foreground/80 [&_svg]:size-6">
               {currentContent.icon}
             </div>
-            <div className="whitespace-nowrap text-muted-foreground text-sm text-left">
+            <div className="text-left text-sm whitespace-nowrap text-muted-foreground">
               <div>{loading ? uploadingFile?.name : currentContent.content}</div>
 
               {loading && !isImage && (
@@ -166,7 +171,7 @@ export const PlaceholderElement = withHOC(
   },
 );
 
-export function ImageProgress({
+export const ImageProgress = ({
   className,
   file,
   imageRef,
@@ -176,7 +181,7 @@ export function ImageProgress({
   className?: string;
   imageRef?: React.RefObject<HTMLImageElement | null>;
   progress?: number;
-}) {
+}) => {
   const [objectUrl, setObjectUrl] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -199,24 +204,26 @@ export function ImageProgress({
         className="h-auto w-full rounded-sm object-cover"
         alt={file.name}
         src={objectUrl}
+        width={800}
+        height={600}
       />
       {progress < 100 && (
-        <div className="absolute right-1 bottom-1 flex items-center space-x-2 rounded-full bg-black/50 px-1 py-0.5">
+        <div className="absolute right-1 bottom-1 flex items-center gap-x-2 rounded-full bg-black/50 px-1 py-0.5">
           <Loader2Icon className="size-3.5 animate-spin text-muted-foreground" />
-          <span className="font-medium text-white text-xs">{Math.round(progress)}%</span>
+          <span className="text-xs text-white">{Math.round(progress)}%</span>
         </div>
       )}
     </div>
   );
-}
+};
 
-function formatBytes(
+const formatBytes = (
   bytes: number,
   opts: {
     decimals?: number;
     sizeType?: "accurate" | "normal";
   } = {},
-) {
+) => {
   const { decimals = 0, sizeType = "normal" } = opts;
 
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
@@ -229,4 +236,4 @@ function formatBytes(
   return `${(bytes / 1024 ** i).toFixed(decimals)} ${
     sizeType === "accurate" ? (accurateSizes[i] ?? "Bytest") : (sizes[i] ?? "Bytes")
   }`;
-}
+};

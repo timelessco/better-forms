@@ -1,7 +1,7 @@
-import * as React from 'react';
-import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import * as React from "react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -10,14 +10,16 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Separator } from '@/components/ui/separator';
-import { Column } from '@tanstack/react-table';
-import { Check, CirclePlus } from 'lucide-react';
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import type { Column, RowData } from "@tanstack/table-core";
 
-interface DataGridColumnFilterProps<TData, TValue> {
-  column?: Column<TData, TValue>;
+import type { DataGridFeatures } from "@/components/ui/data-grid";
+import { CheckIcon, CirclePlusIcon } from "@/components/ui/icons";
+
+interface DataGridColumnFilterProps<TData extends RowData, TValue> {
+  column?: Column<DataGridFeatures, TData, TValue>;
   title?: string;
   options: {
     label: string;
@@ -26,40 +28,48 @@ interface DataGridColumnFilterProps<TData, TValue> {
   }[];
 }
 
-function DataGridColumnFilter<TData, TValue>({ column, title, options }: DataGridColumnFilterProps<TData, TValue>) {
+export const DataGridColumnFilter = <TData extends RowData, TValue>({
+  column,
+  title,
+  options,
+}: DataGridColumnFilterProps<TData, TValue>) => {
   const facets = column?.getFacetedUniqueValues();
   const selectedValues = new Set(column?.getFilterValue() as string[]);
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm">
-          <CirclePlus className="size-4" />
-          {title}
-          {selectedValues?.size > 0 && (
-            <>
-              <Separator orientation="vertical" className="mx-2 h-4" />
-              <Badge variant="secondary" className="rounded-sm px-1 font-normal lg:hidden">
-                {selectedValues.size}
-              </Badge>
-              <div className="hidden space-x-1 lg:flex">
-                {selectedValues.size > 2 ? (
-                  <Badge variant="secondary" className="rounded-sm px-1 font-normal">
-                    {selectedValues.size} selected
-                  </Badge>
-                ) : (
-                  options
-                    .filter((option) => selectedValues.has(option.value))
-                    .map((option) => (
-                      <Badge variant="secondary" key={option.value} className="rounded-sm px-1 font-normal">
-                        {option.label}
-                      </Badge>
-                    ))
-                )}
-              </div>
-            </>
-          )}
-        </Button>
+      <PopoverTrigger render={<Button variant="outline" size="sm" />}>
+        <CirclePlusIcon className="size-4" />
+        {title}
+        {selectedValues?.size > 0 && (
+          <>
+            <Separator orientation="vertical" className="mx-2 h-4" />
+            <Badge variant="secondary" className="rounded-sm px-1 font-normal lg:hidden">
+              {selectedValues.size}
+            </Badge>
+            <div className="hidden gap-x-1 lg:flex">
+              {selectedValues.size > 2 ? (
+                <Badge variant="secondary" className="rounded-sm px-1 font-normal">
+                  {selectedValues.size} selected
+                </Badge>
+              ) : (
+                options.flatMap((option) =>
+                  selectedValues.has(option.value)
+                    ? [
+                        <Badge
+                          variant="secondary"
+                          key={option.value}
+                          className="rounded-sm px-1 font-normal"
+                        >
+                          {option.label}
+                        </Badge>,
+                      ]
+                    : [],
+                )
+              )}
+            </div>
+          </>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0" align="start">
         <Command>
@@ -84,16 +94,18 @@ function DataGridColumnFilter<TData, TValue>({ column, title, options }: DataGri
                   >
                     <div
                       className={cn(
-                        'me-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
-                        isSelected ? 'bg-primary text-primary-foreground' : 'opacity-50 [&_svg]:invisible',
+                        "me-2 flex size-4 items-center justify-center rounded-sm border border-primary",
+                        isSelected
+                          ? "bg-primary text-primary-foreground"
+                          : "opacity-50 [&_svg]:invisible",
                       )}
                     >
-                      <Check className={cn('h-4 w-4')} />
+                      <CheckIcon className={cn("size-4")} />
                     </div>
-                    {option.icon && <option.icon className="mr-2 h-4 w-4 text-muted-foreground" />}
+                    {option.icon && <option.icon className="mr-2 size-4 text-muted-foreground" />}
                     <span>{option.label}</span>
                     {facets?.get(option.value) && (
-                      <span className="ms-auto flex h-4 w-4 items-center justify-center font-mono text-xs">
+                      <span className="ms-auto flex size-4 items-center justify-center font-mono text-xs">
                         {facets.get(option.value)}
                       </span>
                     )}
@@ -119,6 +131,6 @@ function DataGridColumnFilter<TData, TValue>({ column, title, options }: DataGri
       </PopoverContent>
     </Popover>
   );
-}
+};
 
-export { DataGridColumnFilter, type DataGridColumnFilterProps };
+export { type DataGridColumnFilterProps };

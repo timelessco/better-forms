@@ -1,52 +1,29 @@
 import type { PlateElementProps } from "platejs/react";
 
-import { PlateElement } from "platejs/react";
+import { PlateElement, useSelected } from "platejs/react";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { LabelRequiredBadge } from "@/components/ui/required-badge-button";
 
-export function FormLabelElement({ className, children, ...props }: PlateElementProps) {
-  const { editor, element, path } = props;
-  const isRequired = element.required as boolean | undefined;
+export const FormLabelElement = ({ children, ...props }: PlateElementProps) => {
+  const { editor, element } = props;
   const placeholder = element.placeholder as string | undefined;
   const isEmpty = editor.api.isEmpty(element);
-
-  const toggleRequired = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    editor.tf.setNodes({ required: !isRequired }, { at: path });
-  };
+  const isSelected = useSelected();
 
   return (
     <PlateElement
-      className={cn(
-        "m-0 px-0 py-1 text-sm font-medium text-foreground relative cursor-text caret-current",
-        className,
-      )}
+      className="relative m-0 cursor-text px-0 text-sm text-foreground caret-current"
       {...props}
     >
       <div className="flex items-center gap-1">
-        {isEmpty && placeholder && (
-          <span className="absolute text-muted-foreground/90 pointer-events-none select-none">
+        {isEmpty && placeholder && isSelected && (
+          <span className="pointer-events-none absolute text-muted-foreground/90 select-none">
             {placeholder}
           </span>
         )}
         <span className="min-w-px outline-none">{children}</span>
-        {isRequired && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={toggleRequired}
-            className={cn(
-              "flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full bg-muted text-xs text-red-500 leading-none hover:bg-muted-foreground hover:text-muted",
-              "ml-2",
-            )}
-            contentEditable={false}
-          >
-            *
-          </Button>
-        )}
       </div>
+      <LabelRequiredBadge labelElement={element} />
     </PlateElement>
   );
-}
+};

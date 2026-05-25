@@ -1,5 +1,12 @@
 import type { PlateElementProps } from "platejs/react";
-import { PlateElement, useEditorRef, useFocused, useReadOnly, useSelected } from "platejs/react";
+import {
+  PlateElement,
+  useEditorRef,
+  useEditorVersion,
+  useFocused,
+  useReadOnly,
+  useSelected,
+} from "platejs/react";
 
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -12,17 +19,15 @@ export interface PageBreakElementData {
   children: [{ text: "" }];
 }
 
-export function createPageBreakNode(
+export const createPageBreakNode = (
   data: Partial<Omit<PageBreakElementData, "type" | "children">> = {},
-): PageBreakElementData {
-  return {
-    type: "pageBreak",
-    isThankYouPage: data.isThankYouPage ?? false,
-    children: [{ text: "" }],
-  };
-}
+): PageBreakElementData => ({
+  type: "pageBreak",
+  isThankYouPage: data.isThankYouPage ?? false,
+  children: [{ text: "" }],
+});
 
-export function PageBreakElement(props: PlateElementProps) {
+export const PageBreakElement = (props: PlateElementProps) => {
   const { element, children } = props;
   const editor = useEditorRef();
   const readOnly = useReadOnly();
@@ -31,7 +36,11 @@ export function PageBreakElement(props: PlateElementProps) {
 
   const isThankYouPage = (element.isThankYouPage as boolean) ?? false;
 
-  // Calculate page number by counting pageBreak elements before this one
+  // Subscribe to every editor change so the displayed page number follows
+  // sibling reorders/deletes. findPath returns the live position, but Plate
+  // memoizes element components by identity — without this version dep, a
+  // pageBreak after a deleted sibling keeps rendering its stale page number.
+  useEditorVersion();
   const pageNumber = (() => {
     const path = editor.api.findPath(element);
     if (!path) return 2;
@@ -41,22 +50,20 @@ export function PageBreakElement(props: PlateElementProps) {
       at: [],
       match: { type: "pageBreak" },
     })) {
-      // Count pageBreaks that come before current element
       if (nodePath[0] < path[0]) {
         count++;
       }
     }
     return count;
   })();
-
   const handleThankYouToggle = (checked: boolean) => {
     const path = editor.api.findPath(element);
     if (!path) return;
 
-    // Wrap all operations to prevent normalization between steps
     editor.tf.withoutNormalizing(() => {
       if (checked) {
-        // Remove isThankYouPage from all other pageBreak elements
+        // Demote any other pageBreak that is currently flagged as thank-you so
+        // only this pageBreak ends up as the thank-you page.
         for (const [, nodePath] of editor.api.nodes({
           match: { type: "pageBreak" },
         })) {
@@ -64,76 +71,57 @@ export function PageBreakElement(props: PlateElementProps) {
             editor.tf.setNodes({ isThankYouPage: false }, { at: nodePath });
           }
         }
-
-        // FIRST set isThankYouPage so normalization knows this is a thank you section
         editor.tf.setNodes({ isThankYouPage: true }, { at: path });
-
-        // THEN remove buttons from the section after this pageBreak
-        // Find the range: from this pageBreak+1 to next pageBreak or end
-        const startIdx = path[0] + 1;
-        let endIdx = editor.children.length;
-        for (let i = startIdx; i < editor.children.length; i++) {
-          const node = editor.children[i] as { type?: string };
-          if (node.type === "pageBreak") {
-            endIdx = i;
-            break;
-          }
-        }
-        // Remove formButtons in range [startIdx, endIdx) in reverse order
-        for (let i = endIdx - 1; i >= startIdx; i--) {
-          const node = editor.children[i] as { type?: string };
-          if (node.type === "formButton") {
-            editor.tf.removeNodes({ at: [i] });
-          }
-        }
+        // The form-blocks-kit normalizer strips any pageBreaks, form fields,
+        // and form buttons that follow this thank-you pageBreak.
       } else {
-        // Set the current element's isThankYouPage to false
         editor.tf.setNodes({ isThankYouPage: false }, { at: path });
       }
     });
   };
 
   return (
-    <PlateElement {...props} className={cn("clear-both", props.className)}>
+    <PlateElement {...props} className="clear-both">
       <div
         contentEditable={false}
         role="presentation"
         className={cn(
           "relative my-6 flex items-center justify-center select-none",
-          selected && focused && "ring-2 ring-ring ring-offset-2 rounded",
+          selected && focused && "rounded ring-2 ring-ring ring-offset-2",
         )}
       >
-        {/* Left dashed line */}
         <div className="flex-1 border-t-2 border-dashed border-muted-foreground/30" />
 
-        {/* Page label */}
         <div className="mx-4 flex items-center gap-4 text-sm text-muted-foreground">
-          <span className="font-medium">Page {pageNumber}</span>
+          <span>Page {pageNumber}</span>
 
-          {/* Thank you page toggle */}
           {!((element.hasFormFields as boolean) ?? false) && (
             <div className="flex items-center gap-2">
               <Label
-                htmlFor={`thank-you-toggle-${element.id || pageNumber}`}
-                className="text-xs text-muted-foreground cursor-pointer"
+                htmlFor={`thank-you-toggle-${String(element.id || pageNumber)}`}
+                className="cursor-pointer text-xs text-muted-foreground"
               >
                 'Thank you' page
               </Label>
               <Switch
-                id={`thank-you-toggle-${element.id || pageNumber}`}
+                id={`thank-you-toggle-${String(element.id || pageNumber)}`}
+                aria-label="Thank you page"
                 checked={isThankYouPage}
                 onCheckedChange={handleThankYouToggle}
                 disabled={readOnly}
                 onMouseDown={(e) => e.stopPropagation()}
+                // The editor canvas is white; the Switch's default `bg-input`
+                // unchecked color blends into it. Border gives it an outline
+                // matching the visibility level in the settings sidebar.
+                className="border-border data-unchecked:bg-muted"
               />
             </div>
           )}
         </div>
 
-        {/* Right dashed line */}
         <div className="flex-1 border-t-2 border-dashed border-muted-foreground/30" />
       </div>
       {children}
     </PlateElement>
   );
-}
+};

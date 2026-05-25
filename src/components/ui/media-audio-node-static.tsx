@@ -1,4 +1,5 @@
-import { NodeApi, type TAudioElement, type TCaptionElement } from "platejs";
+import { NodeApi } from "platejs";
+import type { TAudioElement, TCaptionElement } from "platejs";
 import type { SlateElementProps } from "platejs/static";
 import { SlateElement } from "platejs/static";
 import * as React from "react";
@@ -9,7 +10,7 @@ const createCaptionTrackUrl = (text: string) => {
   return URL.createObjectURL(blob);
 };
 
-export function AudioElementStatic(props: SlateElementProps<TAudioElement & TCaptionElement>) {
+export const AudioElementStatic = (props: SlateElementProps<TAudioElement & TCaptionElement>) => {
   const { caption } = props.element;
   const captionText = React.useMemo(() => {
     if (!caption?.length) return "";
@@ -50,4 +51,4 @@ export function AudioElementStatic(props: SlateElementProps<TAudioElement & TCap
       {props.children}
     </SlateElement>
   );
-}
+};

@@ -1,13 +1,15 @@
-import { BaseTocPlugin, type Heading, isHeading } from "@platejs/toc";
+import { BaseTocPlugin, isHeading } from "@platejs/toc";
+import type { Heading } from "@platejs/toc";
 import { cva } from "class-variance-authority";
-import { NodeApi, type SlateEditor, type TElement } from "platejs";
+import { NodeApi } from "platejs";
+import type { SlateEditor, TElement } from "platejs";
 import type { SlateElementProps } from "platejs/static";
 import { SlateElement } from "platejs/static";
 
 import { Button } from "@/components/ui/button";
 
 const headingItemVariants = cva(
-  "block h-auto w-full cursor-pointer truncate rounded-none px-0.5 py-1.5 text-left font-medium text-muted-foreground underline decoration-[0.5px] underline-offset-4 hover:bg-accent hover:text-muted-foreground",
+  "block h-auto w-full cursor-pointer truncate rounded-none px-0.5 py-1.5 text-left text-muted-foreground underline decoration-[0.5px] underline-offset-4 hover:bg-accent hover:text-muted-foreground",
   {
     variants: {
       depth: {
@@ -19,7 +21,7 @@ const headingItemVariants = cva(
   },
 );
 
-export function TocElementStatic(props: SlateElementProps) {
+export const TocElementStatic = (props: SlateElementProps) => {
   const { editor } = props;
   const headingList = getHeadingList(editor);
 
@@ -39,7 +41,7 @@ export function TocElementStatic(props: SlateElementProps) {
             </Button>
           ))
         ) : (
-          <div className="text-gray-500 text-sm">
+          <div className="text-sm text-neutral-500">
             Create a heading to display the table of contents.
           </div>
         )}
@@ -47,7 +49,7 @@ export function TocElementStatic(props: SlateElementProps) {
       {props.children}
     </SlateElement>
   );
-}
+};
 
 const headingDepth: Record<string, number> = {
   h1: 1,

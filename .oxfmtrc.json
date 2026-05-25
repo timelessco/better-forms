@@ -2,6 +2,10 @@
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "indentStyle": "tab",
   "quoteStyle": "double",
+  "sortTailwindcss": {
+    "stylesheet": "./src/styles/styles.css",
+    "functions": ["cn", "clsx", "cva", "cx"]
+  },
   "ignorePatterns": [
     "**/routeTree.gen.ts",
     "**/styles.css",

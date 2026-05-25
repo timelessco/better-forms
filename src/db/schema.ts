@@ -1,11 +1,23 @@
-import { defineRelations } from "drizzle-orm";
-import { boolean, integer, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { defineRelations, sql } from "drizzle-orm";
+import {
+  boolean,
+  check,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { createSelectSchema } from "drizzle-zod";
+import type { VersionedSettingsSnapshot } from "@/lib/content-hash";
+import type { FormSettings } from "@/types/form-settings";
+import { defaultFormSettings } from "@/types/form-settings";
 
-// ============================================================================
 // Organization Tables (Better Auth Organization Plugin)
-// ============================================================================
-
 export const organization = pgTable("organization", {
   id: text().primaryKey(),
   name: text().notNull(),
@@ -13,15 +25,21 @@ export const organization = pgTable("organization", {
   logo: text(),
   metadata: text(),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  // Cached from Polar via webhooks (src/lib/auth/polar-handlers.ts).
+  plan: text().notNull().default("free"),
 });
 
-export const member = pgTable("member", {
-  id: text().primaryKey(),
-  userId: text().notNull(),
-  organizationId: text().notNull(),
-  role: text().notNull().default("member"),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
+export const member = pgTable(
+  "member",
+  {
+    id: text().primaryKey(),
+    userId: text().notNull(),
+    organizationId: text().notNull(),
+    role: text().notNull().default("member"),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_member_user_id_org_id").on(t.userId, t.organizationId)],
+);
 
 export const invitation = pgTable("invitation", {
   id: text().primaryKey(),
@@ -40,8 +58,6 @@ export const todos = pgTable("todos", {
   createdAt: timestamp({ withTimezone: true }).defaultNow(),
 });
 
-// Better Auth Tables
-
 export const user = pgTable("user", {
   id: text().primaryKey(),
   name: text().notNull(),
@@ -50,10 +66,8 @@ export const user = pgTable("user", {
   image: text(),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  // Username plugin fields
   username: text().unique(),
   displayUsername: text(),
-  // Two-factor plugin fields
   twoFactorEnabled: boolean().default(false),
 });
 
@@ -101,268 +115,442 @@ export const twoFactor = pgTable("twoFactor", {
   userId: text().notNull(),
 });
 
-export const apikey = pgTable("apikey", {
-  id: text().primaryKey(),
-  name: text(),
-  start: text(),
-  prefix: text(),
-  key: text().notNull(),
-  userId: text().notNull(),
-  refillInterval: integer(),
-  refillAmount: integer(),
-  lastRefillAt: timestamp({ withTimezone: true }),
-  enabled: boolean().default(true),
-  rateLimitEnabled: boolean().default(true),
-  rateLimitTimeWindow: integer().default(86400000),
-  rateLimitMax: integer().default(10),
-  requestCount: integer().default(0),
-  remaining: integer(),
-  lastRequest: timestamp({ withTimezone: true }),
-  expiresAt: timestamp({ withTimezone: true }),
-  createdAt: timestamp({ withTimezone: true }).notNull(),
-  updatedAt: timestamp({ withTimezone: true }).notNull(),
-  permissions: text(),
-  metadata: text(),
-});
+// Convention: tables with composite identity (`${userId}:${formId}`,
+// `${orgId}:${YYYY-MM-DD}`) use string-concatenated PKs in the `id` column.
+// Used by formFavorites, userWorkspaceOrder, formNotificationPreferences,
+// formSubmissionNotifications, aiGenerationCounts. Working compromise with
+// TanStack DB collection ergonomics; revisit if collection ergonomics change.
+//
+// Convention: `createdByUserId` / `publishedByUserId` are audit-trail FKs to
+// `user.id` with ON DELETE SET NULL — domain rows are owned by their org or
+// parent, not the user, so user deletion anonymises the audit field.
 
-// Workspaces table for organizing forms
-export const workspaces = pgTable("workspaces", {
-  id: text().primaryKey(),
-  organizationId: text().notNull(),
-  createdByUserId: text().notNull(),
-  name: text().notNull().default("Collection"),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
+// Single source of truth for the small enum-like status sets, used to derive
+// both DB-level CHECK constraints and TS unions. Keep the literal tuples in
+// sync with any consumer that needs the same set (forms.ts, custom-domains.ts).
+export const FORM_STATUSES = ["draft", "published", "archived"] as const;
+export const CUSTOM_DOMAIN_STATUSES = ["pending", "verified", "failed", "suspended"] as const;
+export const DEVICE_TYPES = ["desktop", "mobile", "tablet"] as const;
 
-// Forms table for storing form builder documents
-export const forms = pgTable("forms", {
-  id: text().primaryKey(), // UUID generated client-side
-  createdByUserId: text().notNull(),
-  workspaceId: text().notNull(),
-  title: text().notNull().default("Untitled"),
-  formName: text().notNull().default("draft"),
-  schemaName: text().notNull().default("draftFormSchema"),
-  content: jsonb().notNull().default([]),
-  settings: jsonb().notNull().default({}),
-  icon: text(),
-  cover: text(),
-  isMultiStep: boolean().notNull().default(false),
-  status: text().notNull().default("draft"), // 'draft' | 'published' | 'archived'
-  deletedAt: timestamp({ withTimezone: true }), // Soft delete timestamp for trash feature
-  // Version history fields
-  lastPublishedVersionId: text(), // FK to formVersions.id
-  publishedContentHash: text(), // Hash for fast change detection
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
+const sqlInList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(", "));
 
-// Form Versions table for storing published snapshots
-export const formVersions = pgTable("form_versions", {
-  id: text().primaryKey(),
-  formId: text().notNull(),
-  version: integer().notNull(), // v1, v2, v3...
-  content: jsonb().notNull(), // Plate.js JSON snapshot
-  settings: jsonb().notNull(), // Settings snapshot
-  title: text().notNull(),
-  publishedByUserId: text().notNull(),
-  publishedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
+export const workspaces = pgTable(
+  "workspaces",
+  {
+    id: text().primaryKey(),
+    organizationId: text()
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    createdByUserId: text().references(() => user.id, { onDelete: "set null" }),
+    name: text().notNull().default("Workspace"),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_workspaces_organization_id").on(t.organizationId),
+    index("idx_workspaces_id_created_by").on(t.id, t.createdByUserId),
+  ],
+);
 
-// Submissions table for storing form responses
-export const submissions = pgTable("submissions", {
-  id: text().primaryKey(),
-  formId: text().notNull(),
-  formVersionId: text(), // Links to the form version this submission was created against
-  data: jsonb().notNull().default({}),
-  isCompleted: boolean().notNull().default(true),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
+export const forms = pgTable(
+  "forms",
+  {
+    id: text().primaryKey(), // UUID generated client-side
+    // Public form identifier; never exposes the internal UUID. See ADR-0001.
+    shortId: text().notNull().unique(),
+    createdByUserId: text().references(() => user.id, { onDelete: "set null" }),
+    workspaceId: text()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    title: text().notNull().default("Untitled"),
+    // formName / schemaName are runtime identifiers passed to TanStack Form
+    // (they become DOM `id` and Zod schema export names). They are NOT the
+    // user-facing title — that's `title`. Both default to placeholder values
+    // for newly-created forms; document use sites in src/components/form-components/.
+    formName: text().notNull().default("draft"),
+    schemaName: text().notNull().default("draftFormSchema"),
+    content: jsonb().notNull().default([]),
+    icon: text(),
+    cover: text(),
+    status: text().notNull().default("draft"),
+    // Version history fields
+    lastPublishedVersionId: text().references((): AnyPgColumn => formVersions.id, {
+      onDelete: "set null",
+    }),
+    publishedContentHash: text(), // Hash for fast change detection
+    // Behavioral settings draft (working buffer). The live published settings
+    // live in `formSettings` keyed by formId. Both share the `FormSettings`
+    // shape; diffing draft vs. live drives the settings dirty flag.
+    draftSettings: jsonb().$type<FormSettings>().notNull().default(defaultFormSettings),
+    customization: jsonb().default({}),
+    slug: text(),
+    customDomainId: text().references((): AnyPgColumn => customDomains.id, {
+      onDelete: "set null",
+    }),
+    sortIndex: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_forms_workspace_id").on(t.workspaceId),
+    index("idx_forms_workspace_id_status").on(t.workspaceId, t.status),
+    index("idx_forms_id_created_by").on(t.id, t.createdByUserId),
+    uniqueIndex("uniq_forms_slug_custom_domain")
+      .on(t.slug, t.customDomainId)
+      .where(sql`${t.slug} IS NOT NULL`),
+    index("idx_forms_workspace_id_sort_index").on(t.workspaceId, t.sortIndex),
+    check("forms_status_check", sql`${t.status} IN (${sqlInList(FORM_STATUSES)})`),
+  ],
+);
 
-// Form Settings table for public form settings (separate from builder UI settings)
+export const customDomains = pgTable(
+  "custom_domains",
+  {
+    id: text().primaryKey(),
+    organizationId: text()
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    domain: text().notNull().unique(),
+    status: text().notNull().default("pending"),
+    // Captures `status` when an org is downgraded so re-upgrade can restore
+    // without re-verifying through Vercel.
+    previousStatus: text(),
+    vercelDomainId: text(),
+    siteTitle: text(),
+    faviconUrl: text(),
+    ogImageUrl: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("custom_domains_org_idx").on(t.organizationId),
+    index("custom_domains_domain_idx").on(t.domain),
+    check(
+      "custom_domains_status_check",
+      sql`${t.status} IN (${sqlInList(CUSTOM_DOMAIN_STATUSES)})`,
+    ),
+    check(
+      "custom_domains_previous_status_check",
+      sql`${t.previousStatus} IS NULL OR ${t.previousStatus} IN (${sqlInList(CUSTOM_DOMAIN_STATUSES)})`,
+    ),
+  ],
+);
+
+export const formVersions = pgTable(
+  "form_versions",
+  {
+    id: text().primaryKey(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    version: integer().notNull(), // v1, v2, v3...
+    content: jsonb().notNull(), // Plate.js JSON snapshot
+    // Legacy: pre-split versions snapshot the 23 versioned-settings keys here.
+    // Settings are no longer versioned — new version rows write null.
+    settings: jsonb().$type<VersionedSettingsSnapshot | null>(),
+    customization: jsonb().default({}), // Theme customization snapshot
+    title: text().notNull(),
+    icon: text(), // Visual asset snapshot
+    cover: text(), // Visual asset snapshot
+    publishedByUserId: text().references(() => user.id, { onDelete: "set null" }),
+    // Denormalized publisher snapshot — captured at publish time so the
+    // version history audit trail survives user deletion, name changes, and
+    // any Better Auth profile drift. Authoritative for "who published this
+    // version"; the FK above is only useful for "is this still the same
+    // active user". Both columns are nullable because legacy rows predate
+    // the snapshot.
+    publishedByName: text(),
+    publishedByImage: text(),
+    publishedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_form_versions_form_id").on(t.formId),
+    index("idx_form_versions_form_id_version").on(t.formId, t.version),
+  ],
+);
+
+/**
+ * Live published settings for each form. The form row carries `draftSettings`
+ * (working buffer); this table is what the public renderer reads. Settings
+ * are intentionally outside `formVersions` — they're flip-on/flip-off
+ * toggles, not snapshot-able content. See docs/plans/2026-05-04-settings-version-split.md.
+ */
 export const formSettings = pgTable("form_settings", {
-  id: text().primaryKey(),
   formId: text()
-    .notNull()
+    .primaryKey()
     .references(() => forms.id, { onDelete: "cascade" }),
-  // Public form behavior
-  language: text().default("English").notNull(),
-  redirectOnCompletion: boolean().default(false).notNull(),
-  redirectUrl: text(),
-  redirectDelay: integer().default(0).notNull(),
-  progressBar: boolean().default(false).notNull(),
-  branding: boolean().default(true).notNull(),
-  autoJump: boolean().default(false).notNull(),
-  saveAnswersForLater: boolean().default(true).notNull(),
-  // Email notifications
-  selfEmailNotifications: boolean().default(false).notNull(),
-  notificationEmail: text(),
-  respondentEmailNotifications: boolean().default(false).notNull(),
-  respondentEmailSubject: text(),
-  respondentEmailBody: text(),
-  // Access control
-  passwordProtect: boolean().default(false).notNull(),
-  password: text(),
-  closeForm: boolean().default(false).notNull(),
-  closedFormMessage: text().default("This form is now closed."),
-  closeOnDate: boolean().default(false).notNull(),
-  closeDate: text(),
-  limitSubmissions: boolean().default(false).notNull(),
-  maxSubmissions: integer(),
-  preventDuplicateSubmissions: boolean().default(false).notNull(),
-  // Data retention (UI only for now)
-  dataRetention: boolean().default(false).notNull(),
-  dataRetentionDays: integer(),
-  // Timestamps
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  settings: jsonb().$type<FormSettings>().notNull().default(defaultFormSettings),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
-// Form Favorites table for per-user favorites
-export const formFavorites = pgTable("form_favorites", {
-  id: text().primaryKey(), // Format: ${userId}:${formId}
-  userId: text().notNull(),
-  formId: text()
-    .notNull()
-    .references(() => forms.id, { onDelete: "cascade" }),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
+export const submissions = pgTable(
+  "submissions",
+  {
+    id: text().primaryKey(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    formVersionId: text().references(() => formVersions.id, { onDelete: "set null" }),
+    data: jsonb().notNull().default({}),
+    isCompleted: boolean().notNull().default(true),
+    // Client-generated UUID (localStorage) that links debounced draft saves to a
+    // single submission row. Null for legacy rows pre-autosave.
+    draftId: text(),
+    // Highest step index the respondent reached (0-based). Null until the form
+    // is multi-step and a draft save records it.
+    lastStepReached: integer(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_submissions_form_id").on(t.formId),
+    index("idx_submissions_form_id_created_at_id").on(t.formId, t.createdAt, t.id),
+    index("idx_submissions_form_version_id").on(t.formVersionId),
+    uniqueIndex("uniq_submissions_form_id_draft_id")
+      .on(t.formId, t.draftId)
+      .where(sql`${t.draftId} IS NOT NULL`),
+  ],
+);
 
+export const formFavorites = pgTable(
+  "form_favorites",
+  {
+    id: text().primaryKey(), // Format: ${userId}:${formId}
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    sortIndex: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_form_favorites_user_id").on(t.userId),
+    index("idx_form_favorites_user_id_form_id").on(t.userId, t.formId),
+  ],
+);
 
-// ============================================================================
-// Form Visits Table (Analytics - Raw Events)
-// ============================================================================
-export const formVisits = pgTable("form_visits", {
-  id: text().primaryKey(),
-  formId: text().notNull(),
+// Per-user workspace order (ordering is private per viewer)
+export const userWorkspaceOrder = pgTable(
+  "user_workspace_order",
+  {
+    id: text().primaryKey(), // Format: ${userId}:${workspaceId}
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    workspaceId: text()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    sortIndex: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_user_workspace_order_user_id").on(t.userId)],
+);
 
-  // Anonymous tracking
-  visitorHash: text().notNull(),
-  sessionId: text().notNull(),
+export const formNotificationPreferences = pgTable(
+  "form_notification_preferences",
+  {
+    id: text().primaryKey(), // Format: ${userId}:${formId}
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    inAppNotifications: boolean().notNull().default(false),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_form_notification_preferences_user_id").on(t.userId),
+    index("idx_form_notification_preferences_user_id_form_id").on(t.userId, t.formId),
+  ],
+);
 
-  // Source attribution
-  referrer: text(),
-  utmSource: text(),
-  utmMedium: text(),
-  utmCampaign: text(),
+export const formSubmissionNotifications = pgTable(
+  "form_submission_notifications",
+  {
+    id: text().primaryKey(), // Format: ${userId}:${formId}
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    unreadCount: integer().notNull().default(0),
+    isRead: boolean().notNull().default(true),
+    firstUnreadAt: timestamp({ withTimezone: true }),
+    latestSubmissionAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    latestSubmissionId: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_form_submission_notifications_user_id").on(t.userId),
+    index("idx_form_submission_notifications_user_id_form_id").on(t.userId, t.formId),
+    index("idx_form_submission_notifications_user_id_is_read").on(t.userId, t.isRead),
+  ],
+);
 
-  // Device metadata
-  deviceType: text(), // 'desktop' | 'tablet' | 'mobile'
-  browser: text(),
-  browserVersion: text(),
-  os: text(),
-  osVersion: text(),
+export const formVisits = pgTable(
+  "form_visits",
+  {
+    id: text().primaryKey(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
 
-  // Geolocation (country-level, privacy-friendly)
-  country: text(),
-  countryName: text(),
-  city: text(),
-  region: text(),
+    // Anonymous tracking
+    visitorHash: text().notNull(),
+    sessionId: text().notNull(),
 
-  // Timing
-  visitStartedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  visitEndedAt: timestamp({ withTimezone: true }),
-  durationMs: integer(),
+    // Source attribution
+    referrer: text(),
+    utmSource: text(),
+    utmMedium: text(),
+    utmCampaign: text(),
 
-  // Interaction tracking
-  didStartForm: boolean().notNull().default(false),
-  didSubmit: boolean().notNull().default(false),
-  submissionId: text(),
+    // Device metadata
+    deviceType: text(),
+    browser: text(),
+    browserVersion: text(),
+    os: text(),
+    osVersion: text(),
 
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
+    // Geolocation: ISO-3166 country code + city/region. Country display names
+    // are resolved at the application layer (i18n-aware) — no countryName column.
+    country: text(),
+    city: text(),
+    region: text(),
 
-// ============================================================================
-// Form Question Progress Table (Question Drop-off Tracking)
-// ============================================================================
-export const formQuestionProgress = pgTable("form_question_progress", {
-  id: text().primaryKey(),
-  formId: text().notNull(),
-  visitId: text().notNull(),
-  visitorHash: text().notNull(),
+    // Timing
+    visitStartedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    visitEndedAt: timestamp({ withTimezone: true }),
+    durationMs: integer(),
 
-  questionId: text().notNull(),
-  questionType: text(),
-  questionIndex: integer().notNull(),
+    // Interaction tracking
+    didStartForm: boolean().notNull().default(false),
+    didSubmit: boolean().notNull().default(false),
+    submissionId: text().references(() => submissions.id, { onDelete: "set null" }),
 
-  viewedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  startedAt: timestamp({ withTimezone: true }),
-  completedAt: timestamp({ withTimezone: true }),
-  wasLastQuestion: boolean().notNull().default(false),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_form_visits_form_id").on(t.formId),
+    index("idx_form_visits_visitor_hash").on(t.visitorHash),
+    index("idx_form_visits_form_id_visit_started_at").on(t.formId, t.visitStartedAt),
+    check(
+      "form_visits_device_type_check",
+      sql`${t.deviceType} IS NULL OR ${t.deviceType} IN (${sqlInList(DEVICE_TYPES)})`,
+    ),
+  ],
+);
 
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
+export const formQuestionProgress = pgTable(
+  "form_question_progress",
+  {
+    id: text().primaryKey(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    visitId: text()
+      .notNull()
+      .references(() => formVisits.id, { onDelete: "cascade" }),
+    visitorHash: text().notNull(),
 
-// ============================================================================
-// Form Analytics Daily Table (Pre-aggregated Daily Metrics)
-// ============================================================================
-export const formAnalyticsDaily = pgTable("form_analytics_daily", {
-  id: text().primaryKey(),
-  formId: text().notNull(),
-  date: text().notNull(), // 'YYYY-MM-DD'
+    questionId: text().notNull(),
+    questionType: text(),
+    questionIndex: integer().notNull(),
 
-  // Core metrics
-  totalVisits: integer().notNull().default(0),
-  uniqueVisitors: integer().notNull().default(0),
-  totalSubmissions: integer().notNull().default(0),
-  uniqueSubmitters: integer().notNull().default(0),
-  avgDurationMs: integer(),
-  medianDurationMs: integer(),
+    stepId: text(),
+    stepIndex: integer(),
 
-  // Device breakdown
-  deviceDesktop: integer().default(0),
-  deviceMobile: integer().default(0),
-  deviceTablet: integer().default(0),
+    viewedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp({ withTimezone: true }),
+    completedAt: timestamp({ withTimezone: true }),
+    wasLastQuestion: boolean().notNull().default(false),
 
-  // Browser breakdown
-  browserChrome: integer().default(0),
-  browserFirefox: integer().default(0),
-  browserSafari: integer().default(0),
-  browserEdge: integer().default(0),
-  browserOther: integer().default(0),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_form_question_progress_form_id").on(t.formId),
+    index("idx_form_question_progress_visit_id").on(t.visitId),
+    uniqueIndex("uq_form_question_progress_visit_question").on(t.visitId, t.questionId),
+  ],
+);
 
-  // OS breakdown
-  osWindows: integer().default(0),
-  osMacos: integer().default(0),
-  osIos: integer().default(0),
-  osAndroid: integer().default(0),
-  osLinux: integer().default(0),
-  osOther: integer().default(0),
+export const formAnalyticsDaily = pgTable(
+  "form_analytics_daily",
+  {
+    id: text().primaryKey(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    date: text().notNull(), // 'YYYY-MM-DD'
 
-  // Flexible breakdowns (JSONB for many values)
-  countryBreakdown: jsonb().notNull().default({}),
-  cityBreakdown: jsonb().notNull().default({}),
-  sourceBreakdown: jsonb().notNull().default({}),
+    // Core metrics
+    totalVisits: integer().notNull().default(0),
+    uniqueVisitors: integer().notNull().default(0),
+    totalSubmissions: integer().notNull().default(0),
+    uniqueSubmitters: integer().notNull().default(0),
+    avgDurationMs: integer(),
+    medianDurationMs: integer(),
 
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
+    // Breakdowns: counts keyed by dimension value, e.g.
+    //   deviceBreakdown:  { desktop: 12, mobile: 4, tablet: 1 }
+    //   browserBreakdown: { Chrome: 9, Safari: 3, Firefox: 2, Other: 3 }
+    //   osBreakdown:      { Windows: 6, macOS: 5, iOS: 2, Android: 4, Other: 0 }
+    deviceBreakdown: jsonb("device_breakdown")
+      .$type<Record<string, number>>()
+      .notNull()
+      .default({}),
+    browserBreakdown: jsonb("browser_breakdown")
+      .$type<Record<string, number>>()
+      .notNull()
+      .default({}),
+    osBreakdown: jsonb("os_breakdown").$type<Record<string, number>>().notNull().default({}),
+    countryBreakdown: jsonb().$type<Record<string, number>>().notNull().default({}),
+    cityBreakdown: jsonb().$type<Record<string, number>>().notNull().default({}),
+    sourceBreakdown: jsonb().$type<Record<string, number>>().notNull().default({}),
 
-// ============================================================================
-// Form Dropoff Daily Table (Question Drop-off Aggregates)
-// ============================================================================
-export const formDropoffDaily = pgTable("form_dropoff_daily", {
-  id: text().primaryKey(),
-  formId: text().notNull(),
-  date: text().notNull(), // 'YYYY-MM-DD'
-  questionId: text().notNull(),
-  questionIndex: integer().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("uniq_form_analytics_daily_form_id_date").on(t.formId, t.date)],
+);
 
-  viewCount: integer().notNull().default(0),
-  startCount: integer().notNull().default(0),
-  completeCount: integer().notNull().default(0),
-  dropoffCount: integer().notNull().default(0),
-  dropoffRate: integer(), // Percentage * 100
-  completionRate: integer(),
+export const formDropoffDaily = pgTable(
+  "form_dropoff_daily",
+  {
+    id: text().primaryKey(),
+    formId: text()
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    date: text().notNull(),
 
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
+    stepId: text(),
+    stepIndex: integer(),
+    questionId: text().notNull(),
+    questionIndex: integer().notNull(),
 
-// Drizzle v2 Relations using defineRelations
+    viewCount: integer().notNull().default(0),
+    startCount: integer().notNull().default(0),
+    completeCount: integer().notNull().default(0),
+    dropoffCount: integer().notNull().default(0),
+    terminalDropoffCount: integer().notNull().default(0),
+    dropoffRate: integer(),
+    completionRate: integer(),
+
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_form_dropoff_daily_form_id_date").on(t.formId, t.date)],
+);
+
 export const relations = defineRelations(
   {
     user,
@@ -371,23 +559,25 @@ export const relations = defineRelations(
     verification,
     todos,
     twoFactor,
-    apikey,
     organization,
     member,
     invitation,
     forms,
     formVersions,
+    formSettings,
     workspaces,
     submissions,
     formVisits,
     formQuestionProgress,
     formAnalyticsDaily,
     formDropoffDaily,
-    formSettings,
     formFavorites,
+    formNotificationPreferences,
+    formSubmissionNotifications,
+    customDomains,
+    userWorkspaceOrder,
   },
   (r) => ({
-    // User has many sessions, accounts, and forms they created
     user: {
       sessions: r.many.session({
         from: r.user.id,
@@ -401,12 +591,7 @@ export const relations = defineRelations(
         from: r.user.id,
         to: r.twoFactor.userId,
       }),
-      apikeys: r.many.apikey({
-        from: r.user.id,
-        to: r.apikey.userId,
-      }),
-      // Workspaces and forms are now owned by organization, not directly by user
-      // But we track who created them
+      // Workspaces and forms are owned by organization; this just tracks creator.
       createdWorkspaces: r.many.workspaces({
         from: r.user.id,
         to: r.workspaces.createdByUserId,
@@ -415,56 +600,49 @@ export const relations = defineRelations(
         from: r.user.id,
         to: r.forms.createdByUserId,
       }),
-      // Form versions published by user
       publishedVersions: r.many.formVersions({
         from: r.user.id,
         to: r.formVersions.publishedByUserId,
       }),
-      // User's memberships in organizations
       members: r.many.member({
         from: r.user.id,
         to: r.member.userId,
       }),
-      // Organizations where user is a member
       organizationMemberships: r.many.member({
         from: r.user.id,
         to: r.member.userId,
       }),
-      // User's favorited forms
       favorites: r.many.formFavorites({
         from: r.user.id,
         to: r.formFavorites.userId,
       }),
+      formNotificationPreferences: r.many.formNotificationPreferences({
+        from: r.user.id,
+        to: r.formNotificationPreferences.userId,
+      }),
+      formSubmissionNotifications: r.many.formSubmissionNotifications({
+        from: r.user.id,
+        to: r.formSubmissionNotifications.userId,
+      }),
     },
-    // Session belongs to one user
     session: {
       user: r.one.user({
         from: r.session.userId,
         to: r.user.id,
       }),
     },
-    // Account belongs to one user
     account: {
       user: r.one.user({
         from: r.account.userId,
         to: r.user.id,
       }),
     },
-    // TwoFactor belongs to one user
     twoFactor: {
       user: r.one.user({
         from: r.twoFactor.userId,
         to: r.user.id,
       }),
     },
-    // Apikey belongs to one user
-    apikey: {
-      user: r.one.user({
-        from: r.apikey.userId,
-        to: r.user.id,
-      }),
-    },
-    // Organization has many members and workspaces
     organization: {
       members: r.many.member({
         from: r.organization.id,
@@ -478,8 +656,11 @@ export const relations = defineRelations(
         from: r.organization.id,
         to: r.invitation.organizationId,
       }),
+      customDomains: r.many.customDomains({
+        from: r.organization.id,
+        to: r.customDomains.organizationId,
+      }),
     },
-    // Member belongs to one user and one organization
     member: {
       user: r.one.user({
         from: r.member.userId,
@@ -490,14 +671,12 @@ export const relations = defineRelations(
         to: r.organization.id,
       }),
     },
-    // Invitation belongs to one organization
     invitation: {
       organization: r.one.organization({
         from: r.invitation.organizationId,
         to: r.organization.id,
       }),
     },
-    // Workspace belongs to one organization and has many forms
     workspaces: {
       organization: r.one.organization({
         from: r.workspaces.organizationId,
@@ -512,7 +691,6 @@ export const relations = defineRelations(
         to: r.forms.workspaceId,
       }),
     },
-    // Form belongs to one workspace
     forms: {
       creator: r.one.user({
         from: r.forms.createdByUserId,
@@ -538,7 +716,6 @@ export const relations = defineRelations(
         from: r.forms.id,
         to: r.formDropoffDaily.formId,
       }),
-      // Version history
       versions: r.many.formVersions({
         from: r.forms.id,
         to: r.formVersions.formId,
@@ -547,18 +724,27 @@ export const relations = defineRelations(
         from: r.forms.lastPublishedVersionId,
         to: r.formVersions.id,
       }),
-      // Users who favorited this form
+      liveSettings: r.one.formSettings({
+        from: r.forms.id,
+        to: r.formSettings.formId,
+      }),
       favorites: r.many.formFavorites({
         from: r.forms.id,
         to: r.formFavorites.formId,
       }),
-      // Form settings (public form behavior, separate from builder UI settings)
-      formSettings: r.one.formSettings({
+      notificationPreferences: r.many.formNotificationPreferences({
         from: r.forms.id,
-        to: r.formSettings.formId,
+        to: r.formNotificationPreferences.formId,
+      }),
+      submissionNotifications: r.many.formSubmissionNotifications({
+        from: r.forms.id,
+        to: r.formSubmissionNotifications.formId,
+      }),
+      customDomain: r.one.customDomains({
+        from: r.forms.customDomainId,
+        to: r.customDomains.id,
       }),
     },
-    // Form Version belongs to one form and one user (publisher)
     formVersions: {
       form: r.one.forms({
         from: r.formVersions.formId,
@@ -569,14 +755,18 @@ export const relations = defineRelations(
         to: r.user.id,
       }),
     },
-    // Submission belongs to one form
+    formSettings: {
+      form: r.one.forms({
+        from: r.formSettings.formId,
+        to: r.forms.id,
+      }),
+    },
     submissions: {
       form: r.one.forms({
         from: r.submissions.formId,
         to: r.forms.id,
       }),
     },
-    // Form Visits belongs to one form
     formVisits: {
       form: r.one.forms({
         from: r.formVisits.formId,
@@ -591,7 +781,6 @@ export const relations = defineRelations(
         to: r.formQuestionProgress.visitId,
       }),
     },
-    // Form Question Progress belongs to form and visit
     formQuestionProgress: {
       form: r.one.forms({
         from: r.formQuestionProgress.formId,
@@ -602,28 +791,18 @@ export const relations = defineRelations(
         to: r.formVisits.id,
       }),
     },
-    // Form Analytics Daily belongs to form
     formAnalyticsDaily: {
       form: r.one.forms({
         from: r.formAnalyticsDaily.formId,
         to: r.forms.id,
       }),
     },
-    // Form Dropoff Daily belongs to form
     formDropoffDaily: {
       form: r.one.forms({
         from: r.formDropoffDaily.formId,
         to: r.forms.id,
       }),
     },
-    // Form Settings belongs to one form
-    formSettings: {
-      form: r.one.forms({
-        from: r.formSettings.formId,
-        to: r.forms.id,
-      }),
-    },
-    // Form Favorites belongs to user and form
     formFavorites: {
       user: r.one.user({
         from: r.formFavorites.userId,
@@ -634,14 +813,66 @@ export const relations = defineRelations(
         to: r.forms.id,
       }),
     },
+    formNotificationPreferences: {
+      user: r.one.user({
+        from: r.formNotificationPreferences.userId,
+        to: r.user.id,
+      }),
+      form: r.one.forms({
+        from: r.formNotificationPreferences.formId,
+        to: r.forms.id,
+      }),
+    },
+    formSubmissionNotifications: {
+      user: r.one.user({
+        from: r.formSubmissionNotifications.userId,
+        to: r.user.id,
+      }),
+      form: r.one.forms({
+        from: r.formSubmissionNotifications.formId,
+        to: r.forms.id,
+      }),
+    },
+    customDomains: {
+      organization: r.one.organization({
+        from: r.customDomains.organizationId,
+        to: r.organization.id,
+      }),
+      forms: r.many.forms({
+        from: r.customDomains.id,
+        to: r.forms.customDomainId,
+      }),
+    },
   }),
 );
 
-// ============================================================================
-// Zod Schema Exports (Single Source of Truth)
-// ============================================================================
-
 export const WorkspaceZod = createSelectSchema(workspaces);
+
+export const uploadRateLimits = pgTable("upload_rate_limits", {
+  ip: text("ip").primaryKey(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull().defaultNow(),
+  count: integer("count").notNull().default(0),
+});
+
+// Tracks AI form-generate calls per org per UTC day. Read by the rate-limit
+// check in /api/ai/form-generate, written on every successful generation.
+// `id` format: `${organizationId}:${YYYY-MM-DD}` so a single upsert handles
+// the per-day bucket without a composite-PK migration.
+export const aiGenerationCounts = pgTable(
+  "ai_generation_counts",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    periodDay: text("period_day").notNull(), // YYYY-MM-DD (UTC)
+    count: integer("count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_ai_generation_counts_org_day").on(t.organizationId, t.periodDay)],
+);
+
 export const FormZod = createSelectSchema(forms);
 export const FormVersionZod = createSelectSchema(formVersions);
 export const SubmissionZod = createSelectSchema(submissions);
@@ -650,13 +881,11 @@ export const FormQuestionProgressZod = createSelectSchema(formQuestionProgress);
 export const FormAnalyticsDailyZod = createSelectSchema(formAnalyticsDaily);
 export const FormDropoffDailyZod = createSelectSchema(formDropoffDaily);
 
-// Organization schemas
 export const OrganizationZod = createSelectSchema(organization);
 export const MemberZod = createSelectSchema(member);
 export const InvitationZod = createSelectSchema(invitation);
 
-// Form Settings schema
-export const FormSettingsZod = createSelectSchema(formSettings);
-
-// Form Favorites schema
 export const FormFavoriteZod = createSelectSchema(formFavorites);
+export const CustomDomainZod = createSelectSchema(customDomains);
+export const FormNotificationPreferenceZod = createSelectSchema(formNotificationPreferences);
+export const FormSubmissionNotificationZod = createSelectSchema(formSubmissionNotifications);

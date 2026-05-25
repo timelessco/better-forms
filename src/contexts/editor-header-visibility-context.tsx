@@ -1,5 +1,15 @@
 import type React from "react";
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  use,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 
 interface EditorHeaderVisibilityContextType {
   enabled: boolean;
@@ -15,13 +25,13 @@ const EditorHeaderVisibilityContext = createContext<EditorHeaderVisibilityContex
   undefined,
 );
 
-export function EditorHeaderVisibilityProvider({
+export const EditorHeaderVisibilityProvider = ({
   enabled,
   children,
 }: {
   enabled: boolean;
   children: React.ReactNode;
-}) {
+}) => {
   const [visible, setVisible] = useState(true);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -54,46 +64,49 @@ export function EditorHeaderVisibilityProvider({
   // When disabled, visibility is always true (derived, not via effect)
   const effectiveVisible = enabled ? visible : true;
 
+  const onMouseMoveEvent = useEffectEvent(() => {
+    reportPointerActivity();
+  });
+
   useEffect(() => {
     if (!enabled || visible) return;
     const onMouseMove = () => {
-      reportPointerActivity();
+      onMouseMoveEvent();
     };
     window.addEventListener("mousemove", onMouseMove, { passive: true });
     return () => window.removeEventListener("mousemove", onMouseMove);
-  }, [enabled, visible, reportPointerActivity]);
+  }, [enabled, visible]);
 
-  useEffect(() => {
-    return () => {
-      clearHideTimer();
-    };
-  }, [clearHideTimer]);
+  useMountEffect(() => () => {
+    clearHideTimer();
+  });
+
+  const value = useMemo(
+    () => ({
+      enabled,
+      visible: effectiveVisible,
+      reportTyping,
+      reportPointerActivity,
+      resetVisibility,
+    }),
+    [enabled, effectiveVisible, reportTyping, reportPointerActivity, resetVisibility],
+  );
 
   return (
-    <EditorHeaderVisibilityContext.Provider
-      value={{
-        enabled,
-        visible: effectiveVisible,
-        reportTyping,
-        reportPointerActivity,
-        resetVisibility,
-      }}
-    >
+    <EditorHeaderVisibilityContext.Provider value={value}>
       {children}
     </EditorHeaderVisibilityContext.Provider>
   );
-}
+};
 
-export function useEditorHeaderVisibility() {
-  const context = useContext(EditorHeaderVisibilityContext);
+export const useEditorHeaderVisibility = () => {
+  const context = use(EditorHeaderVisibilityContext);
   if (!context) {
     throw new Error(
       "useEditorHeaderVisibility must be used within a EditorHeaderVisibilityProvider",
     );
   }
   return context;
-}
+};
 
-export function useEditorHeaderVisibilitySafe() {
-  return useContext(EditorHeaderVisibilityContext);
-}
+export const useEditorHeaderVisibilitySafe = () => use(EditorHeaderVisibilityContext);

@@ -1,55 +1,46 @@
+import { XIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
-import { useFormSettingsSidebar } from "@/hooks/use-form-settings-sidebar";
-import { cn } from "@/lib/utils";
-import { SettingsContent } from "@/routes/_authenticated/workspace/$workspaceId/form-builder/$formId/settings";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-} from "@/components/ui/sidebar";
+import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
+import { SettingsContent } from "@/components/form-builder/settings-content";
+import { Sidebar, SidebarContent, SidebarHeader } from "@/components/ui/sidebar";
 
 interface FormSettingsSidebarProps {
   formId: string;
+  isLocal?: boolean;
 }
 
-export function FormSettingsSidebar({ formId }: FormSettingsSidebarProps) {
-  const { activeTab, setActiveTab } = useFormSettingsSidebar();
+export const FormSettingsSidebar = ({ formId, isLocal }: FormSettingsSidebarProps) => {
+  const { closeSidebar } = useEditorSidebar();
 
   return (
     <Sidebar
+      side="right"
       collapsible="none"
-      className="w-full h-full border-none animate-in slide-in-from-right duration-300 ease-in-out"
+      className="size-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
     >
-      {/* Header with tabs */}
-      <SidebarHeader className="p-0 shrink-0 border-b">
-        {/* Tab Navigation - underline style like the image */}
-        <div className="px-4 pt-4 flex items-center gap-6">
+      <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
+        <div className="flex items-center justify-between">
+          <h2 className="pl-2.5 text-base font-normal text-foreground">Settings</h2>
           <Button
             variant="ghost"
-            onClick={() => setActiveTab("settings")}
-            data-active={activeTab === "settings"}
-            className={cn(
-              "pb-3 h-auto rounded-none px-0 text-sm font-medium relative hover:bg-transparent",
-              activeTab === "settings"
-                ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
+            size="icon-xs"
+            className="size-7 text-muted-foreground hover:text-foreground"
+            onClick={closeSidebar}
+            aria-label="Close"
           >
-            Settings
+            <XIcon className="size-4" />
           </Button>
         </div>
       </SidebarHeader>
 
-      {/* Tab Content */}
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent className="p-4">
-            <SettingsContent formId={formId} />
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <div className="p-2 [&_button[data-empty]]:!w-auto [&_button[data-empty]]:max-w-[55%]">
+          <p className="px-2 pb-2 text-[11px] text-muted-foreground/80">
+            Changes apply to the public form on next publish.
+          </p>
+          <SettingsContent formId={formId} isLocal={isLocal} />
+        </div>
       </SidebarContent>
     </Sidebar>
   );
-}
+};

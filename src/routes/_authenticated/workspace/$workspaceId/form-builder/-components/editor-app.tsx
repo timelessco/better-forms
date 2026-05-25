@@ -1,22 +1,34 @@
 import { EditorKit } from "@/components/editor/editor-kit";
+import { AIInputPlugin } from "@/components/editor/plugins/ai-input-kit";
 import { Editor, EditorContainer } from "@/components/ui/editor";
 import { createFormButtonNode } from "@/components/ui/form-button-node";
 import type { FormHeaderElementData } from "@/components/ui/form-header-node";
 import { createFormHeaderNode } from "@/components/ui/form-header-node";
+import { migrateEditorContent } from "@/lib/editor/migrate-editor-content";
 import { useEditorHeaderVisibilitySafe } from "@/contexts/editor-header-visibility-context";
-import { updateDoc, updateHeader } from "@/db-collections";
+import { EditorThemeProvider } from "@/contexts/editor-theme-context";
+import { getFormListings } from "@/collections";
+import type { Form } from "@/collections";
+import { useFormCustomization } from "@/hooks/use-form-customization";
+import { useFormThemeContextValue } from "@/hooks/use-form-theme";
 import { useForm } from "@/hooks/use-live-hooks";
-import { normalizeNodeId, type TElement, type Value } from "platejs";
+import { useResolvedTheme } from "@/components/theme-provider";
+import { cn } from "@/lib/utils";
+import { Loader2Icon } from "@/components/ui/icons";
+import { normalizeNodeId } from "platejs";
+import type { TElement, Value } from "platejs";
 import { Plate, usePlateEditor } from "platejs/react";
+import { useDebouncedCallback } from "@tanstack/react-pacer";
 import type { KeyboardEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface EditorAppProps {
   formId: string;
   workspaceId?: string;
   defaultValue?: ReturnType<typeof normalizeNodeId>;
-  initialForm?: any;
+  initialForm?: unknown;
   versionContent?: Value;
+  versionCustomization?: Record<string, unknown>;
   readOnly?: boolean;
 }
 
@@ -29,21 +41,139 @@ const DEFAULT_EDITOR_VALUE = normalizeNodeId([
   createFormButtonNode("submit") as unknown as TElement,
 ]);
 
-export default function EditorApp({
+/**
+ * Outer component: fetches data and guards against rendering
+ * the editor before the collection data has loaded.
+ *
+ * This split is necessary because React hooks always execute regardless
+ * of early returns. Without it, `usePlateEditor` would be called with
+ * DEFAULT_EDITOR_VALUE on the first render (while data is loading),
+ * and the editor would never update because `resetKey` doesn't change.
+ */
+const EditorApp = ({
   formId,
   workspaceId,
   versionContent,
+  versionCustomization,
   readOnly = false,
-}: EditorAppProps) {
-  const { data: savedDocs } = useForm(formId);
+}: EditorAppProps) => {
+  const { data: savedDocsRaw, isReady: isFormReady } = useForm(formId);
+  // Query-backed FormDetail is structurally compatible with Form at runtime
+  const savedDocs = savedDocsRaw as Form[] | undefined;
+
+  // Guard: don't mount the editor until we have actual form content (not just listing metadata)
+  if (!versionContent && (!savedDocs?.length || !savedDocs[0]?.content)) {
+    // Collection ready but form not found → genuinely doesn't exist
+    if (isFormReady) {
+      return <div className="flex size-full items-center justify-center">Loading editor…</div>;
+    }
+    // Still syncing → show spinner
+    return (
+      <div className="flex size-full items-center justify-center">
+        <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <EditorAppInner
+      formId={formId}
+      workspaceId={workspaceId}
+      versionContent={versionContent}
+      versionCustomization={versionCustomization}
+      readOnly={readOnly}
+      savedDocs={savedDocs}
+    />
+  );
+};
+export default EditorApp;
+
+/**
+ * Inner component: only mounts once data is available.
+ * `usePlateEditor` is guaranteed to receive real content from its first call.
+ */
+const EditorAppInner = ({
+  formId,
+  workspaceId,
+  versionContent,
+  versionCustomization,
+  readOnly,
+  savedDocs,
+}: {
+  formId: string;
+  workspaceId?: string;
+  versionContent?: Value;
+  versionCustomization?: Record<string, unknown>;
+  readOnly: boolean;
+  savedDocs: Form[] | undefined;
+}) => {
+  const resolvedAppTheme = useResolvedTheme();
+
+  const customizationDoc = versionCustomization
+    ? { customization: versionCustomization }
+    : savedDocs?.[0];
+  const { customization, hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
+    customizationDoc,
+    resolvedAppTheme,
+  );
+
   const skipSaveRef = useRef(false);
   const lastKnownContentRef = useRef<string | null>(null);
+  const pendingValueRef = useRef<Value | null>(null);
   const headerVisibility = useEditorHeaderVisibilitySafe();
-  const mountedRef = useRef(false);
+  const [resetKey, setResetKey] = useState(0);
 
-  // Compute initial content from liveQuery - single source of truth
+  // Detect version content transitions (enter/exit/switch version view).
+  // Uses render-time setState — same pattern as the external change detector below.
+  const prevVersionContentRef = useRef(versionContent);
+  const justExitedVersionRef = useRef(false);
+  if (prevVersionContentRef.current !== versionContent) {
+    prevVersionContentRef.current = versionContent;
+    if (versionContent) {
+      // Entering or switching version — reset editor with version content immediately
+      setResetKey((k) => k + 1);
+      skipSaveRef.current = true;
+      justExitedVersionRef.current = false;
+    } else {
+      // Exiting version view — don't reset yet. Mark that we exited so the
+      // external change detector forces a reset once savedDocs is available.
+      lastKnownContentRef.current = null;
+      justExitedVersionRef.current = true;
+    }
+  }
+
+  // React Compiler memoizes this on `savedContent`'s reference. Immer (used by
+  // TanStack DB) preserves unchanged-field references across structural
+  // updates, so during a customization-only mutation `savedDocs[0]?.content`
+  // is the same reference and `contentStr` stays stable — no spurious
+  // resetKey bumps, no Plate remount loop.
+  const savedContent = savedDocs?.[0]?.content;
+  const contentStr = savedContent ? JSON.stringify(savedContent) : null;
+
+  // Detect external content change (discard, restore, remote sync) and recreate editor.
+  // setState during render is a documented React pattern — React aborts this
+  // render and immediately re-renders with the new state.
+  // Skip detection while we have a pending save — the sync-back is our own edit.
+  if (!versionContent && contentStr !== null && !pendingValueRef.current) {
+    if (lastKnownContentRef.current === null) {
+      lastKnownContentRef.current = contentStr;
+      // Force reset when returning from version view so editor picks up
+      // the (potentially restored) content from savedDocs
+      if (justExitedVersionRef.current) {
+        setResetKey((k) => k + 1);
+        skipSaveRef.current = true;
+        justExitedVersionRef.current = false;
+      }
+    } else if (lastKnownContentRef.current !== contentStr) {
+      setResetKey((k) => k + 1);
+      lastKnownContentRef.current = contentStr;
+      skipSaveRef.current = true;
+    }
+  }
+
+  // Compute initial content from liveQuery - single source of truth.
+  // ID normalization is handled by NodeIdPlugin in EditorKit.
   const initialContent = useMemo(() => {
-    // Version content takes priority (read-only viewing)
     if (versionContent) return versionContent;
 
     const docData = savedDocs?.[0];
@@ -51,71 +181,57 @@ export default function EditorApp({
       return DEFAULT_EDITOR_VALUE;
     }
 
-    let content: Value;
-
-    if (docData.content.length > 0 && docData.content[0]?.type === "formHeader") {
-      content = docData.content as Value;
-    } else {
-      // Add formHeader at index 0 with data from doc metadata
-      content = [
-        createFormHeaderNode({
-          title: docData.title || "",
-          icon: docData.icon || null,
-          cover: docData.cover || null,
-        }) as unknown as TElement,
-        ...(docData.content as Value),
-      ];
-    }
-
-    // Migration: ensure Submit button exists for existing forms
-    const hasSubmitButton = content.some(
-      (node: TElement) => node.type === "formButton" && node.buttonRole === "submit",
-    );
-    if (!hasSubmitButton) {
-      const thankYouIndex = content.findIndex(
-        (node: TElement) => node.type === "pageBreak" && node.isThankYouPage === true,
-      );
-      const insertIndex = thankYouIndex !== -1 ? thankYouIndex : content.length;
-      content = [
-        ...content.slice(0, insertIndex),
-        createFormButtonNode("submit") as unknown as TElement,
-        ...content.slice(insertIndex),
-      ];
-    }
-
-    return content;
-  }, [versionContent, savedDocs]);
-
-  const editor = usePlateEditor({
-    plugins: EditorKit,
-    value: initialContent,
-  });
-
-  const lastSavedContentRef = useRef<Value | null>(initialContent);
-
-  // Handle external updates (remote sync changes)
-  useEffect(() => {
-    if (versionContent) return;
-    if (!savedDocs?.length) return;
-
-    const docData = savedDocs[0];
-    const incomingContentStr = JSON.stringify(docData?.content);
-
-    // Skip if this is our own change or content hasn't changed
-    if (lastKnownContentRef.current === incomingContentStr) return;
-
-    lastKnownContentRef.current = incomingContentStr;
-    lastSavedContentRef.current = docData.content as Value;
-    skipSaveRef.current = true;
-    editor.tf.init({
-      value: docData.content as Value,
-      autoSelect: "end",
+    return migrateEditorContent(docData.content as Value, {
+      title: docData.title,
+      icon: docData.icon,
+      cover: docData.cover,
     });
-  }, [savedDocs, editor, versionContent]);
+    // eslint-disable-next-line eslint-plugin-react-hooks/exhaustive-deps -- savedDocs intentionally excluded; resetKey triggers recompute
+  }, [versionContent, resetKey]);
 
-  const handleChange = useCallback(
+  const editor = usePlateEditor(
+    {
+      plugins: EditorKit,
+      value: initialContent,
+    },
+    [resetKey],
+  );
+
+  useEffect(() => {
+    editor.setOption(AIInputPlugin, "formId", formId);
+  }, [editor, formId]);
+
+  const debouncedSave = useDebouncedCallback(
+    (val: Value) => {
+      const headerNode =
+        val.length > 0 && val[0]?.type === "formHeader"
+          ? (val[0] as unknown as FormHeaderElementData)
+          : null;
+
+      const collection = getFormListings();
+      if (!collection.get(formId)) return; // Not in collection yet — next onChange will retry
+
+      // Update the ref so external-change detection recognizes
+      // the upcoming sync-back as our own edit
+      lastKnownContentRef.current = JSON.stringify(val);
+      pendingValueRef.current = null;
+
+      collection.update(formId, (draft) => {
+        draft.content = val;
+        if (workspaceId) draft.workspaceId = workspaceId;
+        draft.updatedAt = new Date().toISOString();
+        if (headerNode) {
+          if (headerNode.title !== undefined) draft.title = headerNode.title;
+          if (headerNode.icon !== undefined) draft.icon = headerNode.icon ?? null;
+          if (headerNode.cover !== undefined) draft.cover = headerNode.cover ?? null;
+        }
+      });
+    },
+    { wait: 500 },
+  );
+
+  const persistEditorValue = useCallback(
     ({ value }: { value: Value }) => {
-      // Skip saving when in read-only mode (viewing a version)
       if (readOnly) return;
 
       if (skipSaveRef.current) {
@@ -123,33 +239,17 @@ export default function EditorApp({
         return;
       }
 
-      const contentStr = JSON.stringify(value);
-      const lastSavedStr = JSON.stringify(lastSavedContentRef.current);
-      if (contentStr === lastSavedStr) return;
+      // Plate fires onChange on selection/focus changes too (clicking into the
+      // color picker, opening a popover, etc.) with the same content. Skip the
+      // save when content is unchanged so we don't queue a server roundtrip
+      // for a pure updatedAt bump.
+      const serialized = JSON.stringify(value);
+      if (serialized === lastKnownContentRef.current) return;
 
-      lastSavedContentRef.current = value;
-      lastKnownContentRef.current = contentStr;
-      const now = new Date().toISOString();
-
-      updateDoc(formId, (draft) => {
-        draft.workspaceId = workspaceId;
-        draft.updatedAt = now;
-        draft.content = value;
-      });
-
-      if (value.length > 0 && value[0]?.type === "formHeader") {
-        const headerNode = value[0] as unknown as FormHeaderElementData;
-        updateHeader(formId, {
-          title: headerNode.title,
-          icon: headerNode.icon ?? undefined,
-          cover: headerNode.cover ?? undefined,
-          workspaceId: String(workspaceId),
-          updatedAt: now,
-          createdAt: savedDocs?.[0]?.createdAt ?? "",
-        });
-      }
+      pendingValueRef.current = value;
+      debouncedSave(value);
     },
-    [formId, workspaceId, readOnly, savedDocs],
+    [readOnly, debouncedSave],
   );
 
   const handleEditorKeyDown = useCallback(
@@ -173,23 +273,73 @@ export default function EditorApp({
     [readOnly, headerVisibility],
   );
 
-  // Form not found - show error
-  if (savedDocs !== undefined && savedDocs.length === 0 && !versionContent) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center">Loading editor...</div>
-    );
-  }
+  const updateThemeColor = useCallback(
+    (themeColor: string) => {
+      if (!formId) return;
+      const collection = getFormListings();
+      if (!collection.get(formId)) return;
+      collection.update(formId, (draft) => {
+        const current = (draft.customization ?? {}) as Record<string, string>;
+        draft.customization = { ...current, themeColor, preset: "custom" };
+        draft.updatedAt = new Date().toISOString();
+      });
+    },
+    [formId],
+  );
+
+  const themeCtx = useFormThemeContextValue({
+    themeVars,
+    hasCustomization,
+    customization,
+    updateThemeColor,
+  });
 
   return (
-    <div className="h-screen w-full overflow-y-auto overflow-x-hidden">
-      <Plate editor={editor} readOnly={readOnly} onChange={handleChange}>
-        <EditorContainer
-          variant="default"
-          className="px-0 sm:px-0 max-w-full  border-none shadow-none"
-        >
-          <Editor variant="demo" onKeyDown={handleEditorKeyDown} />
-        </EditorContainer>
-      </Plate>
-    </div>
+    <EditorThemeProvider value={themeCtx}>
+      <div
+        className={cn(
+          "min-h-full w-full overflow-x-hidden bg-background text-foreground",
+          hasCustomization && "bf-themed",
+          effectiveTheme === "dark" && "dark",
+        )}
+        style={hasCustomization ? themeVars : undefined}
+      >
+        <PlateEditorTree
+          editor={editor}
+          readOnly={readOnly}
+          onChange={persistEditorValue}
+          onKeyDown={handleEditorKeyDown}
+        />
+      </div>
+    </EditorThemeProvider>
   );
-}
+};
+
+// Memoized Plate subtree. Customization-driven re-renders of `EditorAppInner`
+// (theme variables, dark-class flips, etc.) update the wrapper div above but
+// stop dead here — Plate and its selection/AI/etc. plugins don't see the
+// updates, so their useEffects don't repeatedly mount/unmount and we don't
+// hit React's update-depth limit during heavy color-picker drags.
+const PlateEditorTree = memo(
+  ({
+    editor,
+    readOnly,
+    onChange,
+    onKeyDown,
+  }: {
+    editor: ReturnType<typeof usePlateEditor>;
+    readOnly: boolean;
+    onChange: (args: { value: Value }) => void;
+    onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => void;
+  }) => (
+    <Plate editor={editor} readOnly={readOnly} onChange={onChange}>
+      <EditorContainer
+        variant="default"
+        className="max-w-full overflow-y-visible border-none px-0 shadow-none sm:px-0"
+      >
+        <Editor variant="demo" className="rounded-none" onKeyDown={onKeyDown} />
+      </EditorContainer>
+    </Plate>
+  ),
+);
+PlateEditorTree.displayName = "PlateEditorTree";

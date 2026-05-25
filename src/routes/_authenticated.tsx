@@ -1,7 +1,5 @@
-import { FormSettingsSidebar } from "@/components/form-builder/form-settings-sidebar";
-import { ShareSummarySidebar } from "@/components/form-builder/share-summary-sidebar";
-import { VersionHistorySidebar } from "@/components/form-builder/version-history-sidebar";
-import { useTheme } from "@/components/ThemeProvider";
+import { ThemedFormIcon } from "@/components/icon-picker/icon-picker-preview";
+import { SidebarItem } from "@/components/sidebar-item";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,9 +11,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AppHeader } from "@/components/ui/app-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Command,
   CommandDialog,
   CommandEmpty,
   CommandGroup,
@@ -25,14 +23,6 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -41,15 +31,35 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import {
+  ArrowLeftIcon,
+  BellIcon,
+  CheckIcon,
+  FileTextIcon,
+  HelpCircleIcon,
+  HomeIcon,
+  Loader2Icon,
+  LogOutIcon,
+  PlusIcon,
+  SearchIcon,
+  SettingsIcon,
+  StarIcon,
+  Trash2Icon,
+  Undo2Icon,
+  UsersIcon,
+  XIcon,
+} from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import Loader from "@/components/ui/loader";
+import { LogoToggle } from "@/components/ui/logo";
 import { NotFound } from "@/components/ui/not-found";
 import {
-  type ImperativePanelHandle,
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
+  RIGHT_SIDEBAR_WIDTH_DEFAULT,
+  RIGHT_SIDEBAR_WIDTH_KEY,
+  RIGHT_SIDEBAR_WIDTH_MAX,
+  RIGHT_SIDEBAR_WIDTH_MIN,
+  RightSidebarResizeHandle,
+} from "@/components/ui/right-sidebar-resize-handle";
 import {
   Sidebar,
   SidebarContent,
@@ -59,150 +69,283 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  AlphabeticalIcon,
-  BellIcon,
-  CalendarIcon,
-  ChevronDownIcon,
-  ClockFastForwardIcon,
-  ClockRewindIcon,
-  CopyIcon,
-  HomeIcon,
-  MoreHorizontalIcon,
-  Pencil2Icon,
-  PlusIcon,
-  SearchIcon,
-  SettingsIcon,
-  StarIcon,
-} from "@/components/ui/sidebar-icons";
+import { SidebarSection, SidebarSectionResetProvider } from "@/components/ui/sidebar-section";
+import { UserMenuMinimal } from "./_authenticated/-components/user-menu-minimal";
+import type { WorkspaceWithForms } from "./_authenticated/-components/workspace-item-minimal";
+import { WorkspaceItemMinimal } from "./_authenticated/-components/workspace-item-minimal";
 import {
   EditorHeaderVisibilityProvider,
   useEditorHeaderVisibility,
 } from "@/contexts/editor-header-visibility-context";
 import { MinimalSidebarProvider, useMinimalSidebar } from "@/contexts/minimal-sidebar-context";
+import { Search as LucideSearch } from "lucide-react";
 import {
   createFormLocal,
   createWorkspaceLocal,
   deleteWorkspaceLocal,
-  duplicateFormById,
-  favoriteCollection,
-  formCollection,
-  formSettingsCollection,
-  formVersionCollection,
+  initCollections,
+  isInitialized as isCollectionsInitialized,
+  bulkPermanentDeleteFormsLocal,
   permanentDeleteFormLocal,
+  reorderFavoriteLocal,
+  reorderFormLocal,
+  reorderWorkspaceLocal,
   restoreFormLocal,
-  submissionCollection,
+  toggleFavoriteLocal,
   updateFormStatus,
   updateWorkspaceName,
-  workspaceCollection,
-} from "@/db-collections";
+} from "@/collections";
 import { useCommandPalette } from "@/hooks/use-command-palette";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileRightDrawer } from "@/components/ui/mobile-right-drawer";
 import {
   useArchivedForms,
   useFavoriteForms,
-  useForms,
+  useOrgForms,
+  useOrgWorkspaces,
   useSubmissionCounts,
-  useWorkspaces,
 } from "@/hooks/use-live-hooks";
-import { auth, useSession } from "@/lib/auth-client";
-import { orgDataForLayoutQueryOptions } from "@/lib/fn/org";
-import { getUserMembershipsQueryOptions } from "@/lib/fn/workspaces";
+import { settingsDialogStore } from "@/hooks/use-settings-dialog";
+import { auth, useSession } from "@/lib/auth/auth-client";
+import {
+  addFavorite,
+  getFavorites as getFavoritesServer,
+  removeFavorite,
+  reorderFavorite,
+} from "@/lib/server-fn/favorites";
+import { getFormVersionContent, getFormVersions } from "@/lib/server-fn/form-versions";
+import {
+  createForm,
+  bulkArchiveForms,
+  bulkDeleteForms,
+  deleteForm,
+  getFormListings as getFormListingsServer,
+  updateForm,
+} from "@/lib/server-fn/forms";
+import { useDuplicateForm } from "@/hooks/use-duplicate-form";
+import { useSubmissionNotifications } from "@/hooks/use-submission-notifications";
+import { orgDataForLayoutQueryOptions } from "@/lib/server-fn/org";
+import {
+  workspacesCollectionQueryOptions,
+  formListingsCollectionQueryOptions,
+  favoritesCollectionQueryOptions,
+} from "@/lib/server-fn/query-options";
+import { getSubmissionsCount } from "@/lib/server-fn/submissions";
+import {
+  createWorkspace,
+  deleteWorkspace,
+  getWorkspaces,
+  reorderWorkspace,
+  updateWorkspace,
+} from "@/lib/server-fn/workspaces";
+import { HOTKEYS } from "@/lib/hotkeys";
 import { cn } from "@/lib/utils";
-import { authMiddleware } from "@/middleware/auth";
+import { authMiddleware } from "@/lib/auth/middleware";
+import { formatForDisplay, useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
+import type { QueryClient } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Outlet, useLocation, useParams, useRouter } from "@tanstack/react-router";
+import { createClientOnlyFn } from "@tanstack/react-start";
+import { generateKeyBetween } from "fractional-indexing";
 import {
-  createFileRoute,
-  Link,
-  Outlet,
-  useLocation,
-  useNavigate,
-  useParams,
-  useRouter,
-  useSearch,
-} from "@tanstack/react-router";
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 import {
-  Check,
-  ChevronDown,
-  ChevronsLeft,
-  Feather,
-  FileText,
-  Filter,
-  Github,
-  GripVertical,
-  HelpCircle,
-  Home,
-  Loader2,
-  LogOut,
-  Moon,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Settings,
-  Star,
-  Sun,
-  Trash2,
-  TrashIcon,
-  Undo2,
-  Users,
-  Zap
-} from "lucide-react";
-import type * as React from "react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import { Logo } from "@/components/ui/logo";
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { generateOrderedIndexes, getLeadingSortIndex, sortByManualOrder } from "@/lib/sort-utils";
 
-// Route configuration
-export const Route = createFileRoute("/_authenticated")({
-  server: {
-    middleware: [authMiddleware],
-  },
-  component: AuthLayout,
-  loader: async ({ context }) => {
-    // Pre-fetch org data via ensureQueryData (like my-account pattern)
-    const { activeOrg, orgsData } = await context.queryClient.ensureQueryData({
-      ...orgDataForLayoutQueryOptions(),
-      revalidateIfStale: true,
-    });
-    // Seed auth.organization cache so useQuery in org-switcher, billing, etc. works
-    context.queryClient.setQueryData(
-      auth.organization.getFullOrganization.queryKey(),
-      activeOrg,
-    );
-    context.queryClient.setQueryData(
-      auth.organization.list.queryKey(),
-      orgsData,
-    );
-    // Start Electric sync for all collections - client-only since Electric
-    // requires browser cookies for auth and server-side preload would fail
-    if (typeof window !== "undefined") {
-      await Promise.all([
-        workspaceCollection.preload(),
-        formCollection.preload(),
-        submissionCollection.preload(),
-        favoriteCollection.preload(),
-        formVersionCollection.preload(),
-        formSettingsCollection.preload(),
-      ]);
-    }
-    return { activeOrg, orgsData };
-  },
-  staleTime: 500000,// 500 seconds
-  pendingComponent: Loader,
-  errorComponent: ErrorBoundary,
-  notFoundComponent: NotFound,
-  ssr: "data-only",
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatDistanceToNow } from "date-fns";
+import type * as React from "react";
+import { Activity, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
+import { toast } from "sonner";
+
+import {
+  importCustomizeSidebar,
+  importFormSettingsSidebar,
+  importSettingsDialog,
+  importShareSummarySidebar,
+  importVersionHistorySidebar,
+} from "./_authenticated/-components/lazy-modules";
+
+const LazySettingsDialog = lazy(() =>
+  importSettingsDialog().then((m) => ({ default: m.SettingsDialog })),
+);
+const LazyFormSettingsSidebar = lazy(() =>
+  importFormSettingsSidebar().then((m) => ({ default: m.FormSettingsSidebar })),
+);
+const LazyShareSummarySidebar = lazy(() =>
+  importShareSummarySidebar().then((m) => ({ default: m.ShareSummarySidebar })),
+);
+const LazyVersionHistorySidebar = lazy(() =>
+  importVersionHistorySidebar().then((m) => ({ default: m.VersionHistorySidebar })),
+);
+const LazyCustomizeSidebar = lazy(() =>
+  importCustomizeSidebar().then((m) => ({ default: m.CustomizeSidebar })),
+);
+
+/**
+ * Keeps each sidebar's React tree alive across activeSidebar toggles via
+ * <Activity>, so switching settings ↔ share ↔ customize doesn't remount the
+ * TanStack Form, lose scroll position, or reset transient field-level state.
+ *
+ * Per-sidebar epoch counters increment on every hidden→visible transition
+ * and feed `SidebarSectionResetProvider`. Each `<SidebarSection>` consumes
+ * that epoch as a `key` on its inner Accordion only — so reopening a sidebar
+ * resets the expanded/collapsed state of all sections back to `initialOpen`
+ * while everything above the Accordion (form provider, scroll container)
+ * stays mounted. Best of both: cheap reopen, predictable expanded state.
+ *
+ * `key={formId}` on the inner sidebar ensures a hard remount when the user
+ * navigates between forms, since per-sidebar form state is form-specific.
+ *
+ * `history` is excluded from the persistence path — it's a one-shot
+ * view/restore action and rarely toggled.
+ */
+const PersistentSidebars = ({
+  activeSidebar,
+  formId,
+}: {
+  activeSidebar: ReturnType<typeof useEditorSidebar>["activeSidebar"];
+  formId: string | undefined;
+}) => {
+  const showSettings = activeSidebar === "settings";
+  const showShare = activeSidebar === "share";
+  const showCustomize = activeSidebar === "customize";
+
+  const [openedSettings, setOpenedSettings] = useState(showSettings);
+  const [openedShare, setOpenedShare] = useState(showShare);
+  const [openedCustomize, setOpenedCustomize] = useState(showCustomize);
+
+  if (showSettings && !openedSettings) setOpenedSettings(true);
+  if (showShare && !openedShare) setOpenedShare(true);
+  if (showCustomize && !openedCustomize) setOpenedCustomize(true);
+
+  const [settingsEpoch, setSettingsEpoch] = useState(0);
+  const [shareEpoch, setShareEpoch] = useState(0);
+  const [customizeEpoch, setCustomizeEpoch] = useState(0);
+  const wasShowingSettings = useRef(showSettings);
+  const wasShowingShare = useRef(showShare);
+  const wasShowingCustomize = useRef(showCustomize);
+  useEffect(() => {
+    if (showSettings && !wasShowingSettings.current) setSettingsEpoch((e) => e + 1);
+    wasShowingSettings.current = showSettings;
+  }, [showSettings]);
+  useEffect(() => {
+    if (showShare && !wasShowingShare.current) setShareEpoch((e) => e + 1);
+    wasShowingShare.current = showShare;
+  }, [showShare]);
+  useEffect(() => {
+    if (showCustomize && !wasShowingCustomize.current) setCustomizeEpoch((e) => e + 1);
+    wasShowingCustomize.current = showCustomize;
+  }, [showCustomize]);
+
+  return (
+    <>
+      {openedSettings && (
+        <SidebarSectionResetProvider value={settingsEpoch}>
+          <Activity mode={showSettings ? "visible" : "hidden"}>
+            {formId && <LazyFormSettingsSidebar key={formId} formId={formId} />}
+          </Activity>
+        </SidebarSectionResetProvider>
+      )}
+      {openedShare && (
+        <SidebarSectionResetProvider value={shareEpoch}>
+          <Activity mode={showShare ? "visible" : "hidden"}>
+            {formId && <LazyShareSummarySidebar key={formId} formId={formId} />}
+          </Activity>
+        </SidebarSectionResetProvider>
+      )}
+      {activeSidebar === "history" && formId && <LazyVersionHistorySidebar formId={formId} />}
+      {openedCustomize && (
+        <SidebarSectionResetProvider value={customizeEpoch}>
+          <Activity mode={showCustomize ? "visible" : "hidden"}>
+            {formId && <LazyCustomizeSidebar key={formId} formId={formId} />}
+          </Activity>
+        </SidebarSectionResetProvider>
+      )}
+    </>
+  );
+};
+
+const formatNotificationTime = (value: string) =>
+  formatDistanceToNow(new Date(value), {
+    addSuffix: true,
+  });
+
+const initCollectionsOnClient = createClientOnlyFn((queryClient: QueryClient) => {
+  if (isCollectionsInitialized()) return;
+
+  initCollections(queryClient, {
+    getWorkspacesWithForms: async () => {
+      const result = await getWorkspaces();
+      return {
+        workspaces: result.workspaces.map(
+          // oxlint-disable-next-line typescript-eslint/no-explicit-any -- server type bridge
+          (ws: any) => ({
+            ...ws,
+            forms: [],
+          }),
+        ),
+      };
+    },
+    getFormListings: () => getFormListingsServer(),
+    getFormDetail: async (formId: string) => {
+      const { getFormbyIdQueryOption } = await import("@/lib/server-fn/forms");
+      const result = await queryClient.ensureQueryData(getFormbyIdQueryOption(formId));
+      // oxlint-disable-next-line typescript-eslint/no-explicit-any -- server type bridge
+      return (result as { form?: any })?.form ?? null;
+    },
+    getFavorites: () => getFavoritesServer(),
+    getVersionList: async (formId: string) => {
+      const result = await getFormVersions({ data: { formId } });
+      return result.versions;
+    },
+    getVersionContent: async (versionId: string) => {
+      const result = await getFormVersionContent({ data: { versionId } });
+      return result.version;
+    },
+    getSubmissionsCount: async (formId: string) => {
+      const result = await getSubmissionsCount({ data: { formId } });
+      return { total: result.total };
+    },
+    createWorkspace: async (data) => await createWorkspace({ data: data }),
+    updateWorkspace: async (data) => await updateWorkspace({ data: data }),
+    deleteWorkspace: async (data) => await deleteWorkspace({ data: data }),
+    createForm: async (data) => await createForm({ data: data }),
+    updateForm: async (data) => await updateForm({ data: data }),
+    deleteForm: async (data) => await deleteForm({ data: data }),
+    bulkArchiveForms: async (data) => await bulkArchiveForms({ data: data }),
+    bulkDeleteForms: async (data) => await bulkDeleteForms({ data: data }),
+    addFavorite: async (data) => await addFavorite({ data }),
+    removeFavorite: async (data) => await removeFavorite({ data }),
+    reorderFavorite: async (data) => await reorderFavorite({ data }),
+    reorderWorkspace: async (data) => await reorderWorkspace({ data }),
+  });
 });
 
-const TypedResizableHandle = ResizableHandle as any;
-
-function AuthLayout() {
-  const { pathname } = useLocation();
+const AuthLayout = () => {
+  const queryClient = useQueryClient();
+  initCollectionsOnClient(queryClient);
+  const pathname = useLocation({ select: (s) => s.pathname });
   const isEditRoute = pathname.includes("/form-builder/") && pathname.endsWith("/edit");
 
   return (
@@ -214,583 +357,460 @@ function AuthLayout() {
       </EditorHeaderVisibilityProvider>
     </SidebarProvider>
   );
-}
+};
 
-function AuthLayoutContent() {
-  const location = useLocation();
-  const { pathname } = location;
+export const Route = createFileRoute("/_authenticated")({
+  server: {
+    middleware: [authMiddleware],
+  },
+  ssr: "data-only",
+  loader: async ({ context }) => {
+    const [orgResult] = await Promise.all([
+      context.queryClient.ensureQueryData({
+        ...orgDataForLayoutQueryOptions(),
+        revalidateIfStale: true,
+      }),
+      // Prefetch collection data using the same query keys TanStack DB will use.
+      // This seeds the query cache so collections find warm data on init.
+      context.queryClient.ensureQueryData(workspacesCollectionQueryOptions()),
+      context.queryClient.ensureQueryData(formListingsCollectionQueryOptions()),
+      context.queryClient.ensureQueryData(favoritesCollectionQueryOptions()),
+    ]);
+    return { activeOrg: orgResult.activeOrg, orgsData: orgResult.orgsData };
+  },
+  staleTime: 500000, // 500 seconds
+  component: AuthLayout,
+  pendingComponent: Loader,
+  errorComponent: ErrorBoundary,
+  notFoundComponent: NotFound,
+});
+
+const AuthLayoutContent = () => {
+  const pathname = useLocation({ select: (s) => s.pathname });
   const isEditRoute = pathname.includes("/form-builder/") && pathname.endsWith("/edit");
   const { visible: isHeaderVisible, reportPointerActivity } = useEditorHeaderVisibility();
-  const [resizeTooltip, setResizeTooltip] = useState({
-    visible: false,
-    x: 0,
-    y: 0,
-  });
 
-  const { formId } = useParams({ strict: false }) as { formId?: string };
-
-  // Editor sidebar management
-  const navigate = useNavigate();
-  const search: any = useSearch({ strict: false });
-  const sidebarParam = search.sidebar;
-  const { activeSidebar, setActiveSidebar, resetSidebar, closeSidebar } = useEditorSidebar();
-
-  // Close sidebar and update URL to clear sidebar param
-  const handleCloseSidebar = useCallback(() => {
-    closeSidebar();
-    navigate({
-      to: ".",
-      search: (prev: any) => ({ ...prev, sidebar: "" }),
-      replace: true,
-    });
-  }, [closeSidebar, navigate]);
-  const handleRef = useRef<HTMLDivElement>(null);
-  const rightPanelRef = useRef<ImperativePanelHandle>(null);
-  const [handleLeft, setHandleLeft] = useState(0);
-  const handleDragRef = useRef({ dragging: false, startX: 0, startY: 0 });
-  const leftPanelRef = useRef<HTMLDivElement>(null);
-
-  // Initialize sidebar state from URL params on mount only
-  // Changes should be handled via event handlers (router navigation)
+  // Warm the user-settings dialog chunk in the background so the first open
+  // doesn't pay for a round-trip behind <Suspense fallback={null}>.
   useEffect(() => {
-    if (sidebarParam) {
-      setActiveSidebar(sidebarParam);
-    } else {
-      resetSidebar();
-    }
+    void importSettingsDialog();
   }, []);
+
+  const { formId } = useParams({ strict: false });
+
+  const { activeSidebar, closeSidebar } = useEditorSidebar();
+  const isMobile = useIsMobile();
 
   const isFormBuilder = pathname.includes("/form-builder/");
-  const showEditorSidebar = !!(activeSidebar && isFormBuilder && formId);
+  // "history" and "customize" sidebars are edit-route-only (derived guard replaces useEffect cleanup)
+  const isEditOnlySidebar = activeSidebar === "history" || activeSidebar === "customize";
+  const showEditorSidebar = !!(
+    activeSidebar &&
+    isFormBuilder &&
+    formId &&
+    (!isEditOnlySidebar || isEditRoute)
+  );
   const isDistractionHeaderHidden = isEditRoute && !isHeaderVisible;
 
-  const updateHandleLeft = useCallback(() => {
-    const node = leftPanelRef.current;
-    if (!node) return;
-    const rect = node.getBoundingClientRect();
-    setHandleLeft(rect.right);
-  }, []);
-
-  useLayoutEffect(() => {
-    updateHandleLeft();
-  }, [updateHandleLeft]);
-
-  useEffect(() => {
-    const onResize = () => updateHandleLeft();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [updateHandleLeft]);
-
-  useEffect(() => {
-    if (!leftPanelRef.current) return;
-    const observer = new ResizeObserver(() => updateHandleLeft());
-    observer.observe(leftPanelRef.current);
-    return () => observer.disconnect();
-  }, [updateHandleLeft]);
-
-  // Imperatively control right panel expand/collapse
-  useEffect(() => {
-    if (rightPanelRef.current) {
-      if (showEditorSidebar) {
-        rightPanelRef.current.expand();
-      } else {
-        rightPanelRef.current.collapse();
+  const [rightSidebarWidth, _setRightSidebarWidth] = useState(() => {
+    if (typeof window === "undefined") return RIGHT_SIDEBAR_WIDTH_DEFAULT;
+    const stored = localStorage.getItem(RIGHT_SIDEBAR_WIDTH_KEY);
+    if (stored) {
+      const parsed = Number(stored);
+      if (
+        !Number.isNaN(parsed) &&
+        parsed >= RIGHT_SIDEBAR_WIDTH_MIN &&
+        parsed <= RIGHT_SIDEBAR_WIDTH_MAX
+      ) {
+        return parsed;
       }
     }
-  }, [showEditorSidebar]);
+    return RIGHT_SIDEBAR_WIDTH_DEFAULT;
+  });
+  const [isRightResizing, setIsRightResizing] = useState(false);
 
-  // Bug 2 fix: Sync sidebar state with URL param changes
-  useEffect(() => {
-    if (sidebarParam && sidebarParam !== activeSidebar) {
-      setActiveSidebar(sidebarParam);
-    } else if (!sidebarParam && activeSidebar) {
-      closeSidebar();
-    }
-  }, [sidebarParam, activeSidebar, setActiveSidebar, closeSidebar]);
+  const setRightSidebarWidth = useCallback((width: number) => {
+    const clamped = Math.round(
+      Math.min(RIGHT_SIDEBAR_WIDTH_MAX, Math.max(RIGHT_SIDEBAR_WIDTH_MIN, width)),
+    );
+    _setRightSidebarWidth(clamped);
+    localStorage.setItem(RIGHT_SIDEBAR_WIDTH_KEY, String(clamped));
+  }, []);
 
   return (
     <>
       <AppSidebar />
       <SidebarInbox />
 
-      <SidebarInset className="overflow-hidden relative flex flex-col h-screen">
+      <SidebarInset
+        className="relative flex h-screen flex-col overflow-hidden"
+        data-resizing={isRightResizing ? "" : undefined}
+      >
         {isDistractionHeaderHidden && (
           <div
-            className="fixed inset-x-0 top-0 z-[1200] h-3 bg-transparent"
+            className="fixed inset-x-0 top-0 z-1200 h-3 bg-transparent"
             onMouseEnter={reportPointerActivity}
             aria-hidden="true"
           />
         )}
-        <div className="relative z-0">
-          <AppHeader
-            dividerX={handleLeft}
-            isSidebarOpen={showEditorSidebar}
-            isDistractionHidden={isDistractionHeaderHidden}
+        <div className="relative z-20 flex min-h-0 flex-1 overflow-hidden">
+          {/* On mobile the right sidebar is a floating overlay (a drawer),
+              so we don't pad the content out — that's what made the editor
+              unreadably narrow on phones. Desktop keeps the push-to-resize
+              behavior users expect on wide screens. */}
+          <div
+            className={cn(
+              "z-50 flex min-w-0 flex-1 flex-col",
+              !isRightResizing && "transition-[padding] duration-200 ease-linear",
+            )}
+            style={{
+              paddingRight: !isMobile && showEditorSidebar ? rightSidebarWidth : 0,
+            }}
+          >
+            <div className="relative z-0 shrink-0">
+              <AppHeader isDistractionHidden={isDistractionHeaderHidden} />
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <Outlet key={formId} />
+            </div>
+          </div>
+        </div>
+
+        {/* Resize handle is desktop-only — there's nothing to resize when
+            the sidebar is a drawer. */}
+        {showEditorSidebar && !isMobile && (
+          <RightSidebarResizeHandle
+            sidebarWidth={rightSidebarWidth}
+            setSidebarWidth={setRightSidebarWidth}
+            setIsResizing={setIsRightResizing}
           />
-        </div>
+        )}
 
-        <div className="relative z-20 flex-1 min-h-0 overflow-hidden">
-          <ResizablePanelGroup direction="horizontal" className="h-full">
-            {/* Main content panel - non-resizable */}
-            <ResizablePanel
-              defaultSize={showEditorSidebar ? 70 : 100}
-              minSize={70}
-              className="transition-all duration-300 ease-in-out"
-            >
-              <div ref={leftPanelRef} className={cn("flex h-full min-w-0 flex-col z-50")}>
-                <Outlet key={formId} />
-              </div>
-            </ResizablePanel>
-
-            {/* Resize handle - draggable, click to close */}
-            <TypedResizableHandle
+        {(() => {
+          const rightSidebarContent = (
+            <Suspense fallback={null}>
+              <PersistentSidebars activeSidebar={activeSidebar} formId={formId} />
+            </Suspense>
+          );
+          if (isMobile) {
+            return (
+              <MobileRightDrawer open={showEditorSidebar} onClose={closeSidebar}>
+                {rightSidebarContent}
+              </MobileRightDrawer>
+            );
+          }
+          return (
+            <div
               className={cn(
-                "fixed top-0 bottom-0 left-(--handle-left) -translate-x-1/2 w-px",
-                "bg-border/60 z-[999] pointer-events-auto",
-                "transition-none duration-0 hover:w-px data-[resize-handle-state=drag]:w-px",
-                !showEditorSidebar && "hidden pointer-events-none",
+                "fixed top-0 right-0 bottom-0 z-40 overflow-hidden bg-background",
+                !isRightResizing && "transition-[width] duration-200 ease-linear",
+                "[[data-resizing]_&]:transition-none",
+                showEditorSidebar && "border-l border-sidebar-border",
+                !showEditorSidebar && "pointer-events-none",
               )}
-              ref={handleRef}
-              style={{ "--handle-left": `${handleLeft}px` } as React.CSSProperties}
-              onDragging={(isDragging: boolean) => {
-                handleDragRef.current.dragging = isDragging;
-              }}
-              onPointerDown={() => {
-                handleDragRef.current.dragging = false;
-                updateHandleLeft();
-              }}
-              onPointerMove={() => {
-                updateHandleLeft();
-              }}
-              onPointerUp={() => {
-                if (!handleDragRef.current.dragging && activeSidebar) handleCloseSidebar();
-                handleDragRef.current.dragging = false;
-              }}
-              onMouseEnter={(event: any) => {
-                setResizeTooltip({ visible: true, x: event.clientX, y: event.clientY });
-              }}
-              onMouseMove={(event: any) => {
-                setResizeTooltip((prev) => ({
-                  ...prev,
-                  x: event.clientX,
-                  y: event.clientY,
-                }));
-              }}
-              onMouseLeave={() => {
-                setResizeTooltip((prev) => ({ ...prev, visible: false }));
+              style={{
+                width: showEditorSidebar ? `${rightSidebarWidth}px` : 0,
               }}
             >
-              <div
-                className={cn(
-                  "pointer-events-none fixed",
-                  "rounded-md border border-foreground/10 bg-background/90 px-2 py-1 text-[11px] text-muted-foreground shadow-lg",
-                  "transition-opacity duration-150",
-                  resizeTooltip.visible ? "opacity-100" : "opacity-0",
-                )}
-                style={{
-                  left: resizeTooltip.x - 12,
-                  top: resizeTooltip.y + 12,
-                  transform: "translateX(-100%)",
-                }}
-              >
-                <div className="leading-4">
-                  <div>Close Click</div>
-                  <div>Resize Drag</div>
-                </div>
-              </div>
-            </TypedResizableHandle>
-
-            {/* Right sidebar - Settings/Share/History, resizable */}
-            <ResizablePanel
-              ref={rightPanelRef}
-              collapsible
-              collapsedSize={0}
-              defaultSize={showEditorSidebar ? 40 : 0}
-              minSize={30}
-              maxSize={50}
-              className={cn(
-                "h-full overflow-hidden transition-all duration-300 ease-in-out bg-background",
-                !showEditorSidebar && "border-none",
-              )}
-            >
-              <div className="h-full w-full">
-                {activeSidebar === "settings" && formId && <FormSettingsSidebar formId={formId} />}
-                {activeSidebar === "share" && formId && <ShareSummarySidebar formId={formId} />}
-                {activeSidebar === "history" && formId && <VersionHistorySidebar formId={formId} />}
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </div>
+              <div className="size-full">{rightSidebarContent}</div>
+            </div>
+          );
+        })()}
       </SidebarInset>
     </>
   );
-}
+};
 
-// Minimal Sidebar Item Component (Figma system-flat: form list item with icon, title, optional count)
-interface SidebarItemProps {
-  to?: string;
-  label: string;
-  isNested?: boolean;
-  isActive?: boolean;
-  onClick?: () => void;
-  prefix?: React.ReactNode;
-}
-
-function SidebarItem({
-  to,
-  label,
-  isActive,
-  onClick,
-  prefix,
-  children,
-}: SidebarItemProps & { children?: React.ReactNode }) {
-  const Component: React.ElementType = to ? Link : "button";
-  const componentProps = to ? { to } : { type: "button" as const };
-
-  return (
-    <Component
-      {...componentProps}
-      onClick={onClick}
-      className={cn(
-        "group flex w-full items-center justify-between gap-x-2.5 rounded-lg px-2 py-[7px] text-[14px] font-medium transition-colors relative cursor-pointer h-[30px] overflow-clip",
-        "text-accent-foreground",
-        !isActive && "hover:bg-muted",
-        isActive && "bg-secondary text-accent-foreground",
-      )}
-    >
-      <span className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
-        <div className="flex items-center justify-center shrink-0">{prefix}</div>
-        <span className="truncate leading-[1.15] font-case tracking-1">{label}</span>
-      </span>
-      {children}
-    </Component>
-  );
-}
-
-// App Sidebar Component using shadcn/ui
-function AppSidebar() {
+const AppSidebar = () => {
   const { toggleSidebar } = useSidebar();
-  const { isInboxOpen, setIsInboxOpen } = useMinimalSidebar();
-  const location = useLocation();
+  const { isInboxOpen, toggleInbox, closeInbox } = useMinimalSidebar();
+  const isMobile = useIsMobile();
+  const pathname = useLocation({ select: (s) => s.pathname });
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const { theme, setTheme } = useTheme();
   const {
     toggle: togglePalette,
     isOpen: isPaletteOpen,
     setIsOpen: setIsPaletteOpen,
   } = useCommandPalette();
 
-  // Trash dialog state
+  const handleOpenSettings = useCallback(() => settingsDialogStore.open(), []);
+
+  const handleOpenTrash = useCallback(() => setTrashDialogOpen(true), []);
+
   const [trashDialogOpen, setTrashDialogOpen] = useState(false);
+  const [paletteSearch, setPaletteSearch] = useState("");
 
-  // Get pre-fetched data from route loader for immediate render
-  const { activeOrg, orgsData } = Route.useLoaderData();
-  const { data: membersData } = useQuery(auth.organization.listMembers.queryOptions());
-  const { data: workspacesData } = useWorkspaces();
-
+  const activeOrg = Route.useLoaderData({ select: (d) => d.activeOrg });
+  const { data: workspacesData } = useOrgWorkspaces(activeOrg?.id);
+  const { data: formsData } = useOrgForms(activeOrg?.id);
+  const { unreadSubmissionCount } = useSubmissionNotifications({ poll: true });
   const { data: invitations } = useQuery(auth.organization.listUserInvitations.queryOptions());
-  const pendingCount = (invitations ?? []).filter((inv: any) => inv.status === "pending").length;
-
-  const { data: session } = useSession();
+  const pendingInvitationCount = useMemo(
+    () => (invitations ?? []).filter((inv: { status: string }) => inv.status === "pending").length,
+    [invitations],
+  );
+  const pendingCount = unreadSubmissionCount + pendingInvitationCount;
 
   const signOutMutation = useMutation(
     auth.signOut.mutationOptions({
       onSuccess: () => {
-        localStorage.removeItem("electricAuthToken");
-        localStorage.clear();
-        router.invalidate();
-        router.navigate({ to: "/" });
+        void router.invalidate();
+        void router.navigate({ to: "/" });
       },
     }),
   );
 
-  const { data: orgs } = useQuery(auth.organization.list.queryOptions());
-  const { data: membershipsData } = useQuery(getUserMembershipsQueryOptions());
+  useHotkey(HOTKEYS.TOGGLE_COMMAND_PALETTE, () => togglePalette(), {
+    ignoreInputs: true,
+  });
 
-  const roleByOrgId = useMemo(() => {
-    const map: Record<string, string> = {};
-    membershipsData?.memberships?.forEach((m) => {
-      map[m.organizationId] = m.role;
-    });
-    return map;
-  }, [membershipsData]);
-
-  const setActiveOrgMutation = useMutation(
-    auth.organization.setActive.mutationOptions({
-      onSuccess: async () => {
-        // Invalidate and wait for refetch before navigating
-        await queryClient.invalidateQueries({
-          queryKey: ["organization", "getFullOrganization"],
-          refetchType: "all",
-        });
-        await queryClient.invalidateQueries({
-          queryKey: ["workspaces-with-forms"],
-          refetchType: "all",
-        });
-        router.navigate({ to: "/dashboard" });
-      },
-    }),
-  );
-
-  // Set active organization if user has orgs but none is active (runs for all auth routes)
-  useEffect(() => {
-    if (!session?.user) return;
-    if (!activeOrg && orgsData && orgsData.length > 0) {
-      setActiveOrgMutation.mutate({ organizationId: orgsData[0].id });
-    }
-  }, [activeOrg, orgsData, session, setActiveOrgMutation]);
-
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        togglePalette();
-      }
-    };
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, [togglePalette]);
-
-  const getInitials = (name?: string | null) => {
-    if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const displayName = activeOrg?.name || session?.user?.name || "User";
+  // On mobile, tapping "Notifications" pushes an inbox view into the drawer
+  // instead of opening the desktop floating panel (which has no sensible
+  // anchor when the sidebar itself is a floating drawer).
+  const showMobileInbox = isMobile && isInboxOpen;
 
   return (
     <>
-      <Sidebar className="border-r-[0.5px] bg-background h-screen">
-        <SidebarHeader className="h-12 pl-3.5 pr-2 pt-2 pb-0 flex flex-row items-center justify-between group/logo">
-          <Logo className="h-5.5 w-5.5 text-sidebar-foreground" />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => toggleSidebar()}
-            className="hover:bg-sidebar-active text-light-gray-400 hover:text-light-gray-900 group-data-[state=collapsed]:hidden"
-            title="Collapse sidebar"
-          >
-            <ChevronsLeft className="h-4 w-4" strokeWidth={1.5} />
-          </Button>
-        </SidebarHeader>
-
-        <SidebarContent>
-          <SidebarGroup className="pt-2 py-0">
-            <SidebarGroupContent className="">
-              {/* Nav items: Figma system-flat node 23504-5047 - pixel-perfect */}
-              <SidebarMenu className="gap-0">
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location.pathname === "/dashboard"}
-                    tooltip="All"
-                    className="h-[30px] min-w-0 rounded-lg px-2 py-[7px] gap-2 transition-colors hover:bg-sidebar-active data-[active=true]:bg-sidebar-active"
-                  >
-                    <Link to="/dashboard" className="flex items-center gap-2 min-w-0">
-                      <div className="flex items-center justify-center size-5 shrink-0">
-                        <HomeIcon className="h-[18px] w-[18px] text-muted-foreground" />
-                      </div>
-                      <span className="text-[14px] font-medium font-var-medium-14 text-light-gray-800 dark:text-dark-gray-800 tracking-[0.14px] leading-tight font-case truncate">All</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={togglePalette}
-                    tooltip="Search"
-                    className="h-[30px] min-w-0 rounded-lg px-2 py-[7px] gap-2 transition-colors hover:bg-sidebar-active"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="flex items-center justify-center size-5 shrink-0">
-                        <SearchIcon className="h-[18px] w-[18px] text-muted-foreground" />
-                      </div>
-                      <span className="text-[14px] font-var-medium-14 text-light-gray-800 dark:text-dark-gray-800 tracking-[0.14px] leading-tight font-case truncate">Search</span>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => setIsInboxOpen(!isInboxOpen)}
-                    isActive={isInboxOpen}
-                    tooltip={pendingCount > 0 ? `Notifications (${pendingCount})` : "Notifications"}
-                    className="h-[30px] min-w-0 rounded-lg px-2 py-[7px] gap-2 transition-colors hover:bg-sidebar-active data-[active=true]:bg-sidebar-active"
-                  >
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className="relative flex items-center justify-center size-5 shrink-0">
-                        <BellIcon className="h-[18px] w-[18px] text-muted-foreground" />
-                        {pendingCount > 0 && (
-                          <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-blue-500 ring-2 ring-background" />
-                        )}
-                      </div>
-                      <span className="text-[14px] font-medium font-var-medium-14 text-light-gray-800 dark:text-dark-gray-800 tracking-[0.14px] leading-tight font-case truncate flex-1 min-w-0">Notifications</span>
-                      {pendingCount > 0 && (
-                        <span className="text-[10px] bg-blue-500 text-white  py-0.5 rounded-full font-semibold shrink-0 tabular-nums">
-                          {pendingCount}
-                        </span>
-                      )}
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location.pathname.startsWith("/settings")}
-                    tooltip="Settings"
-                    className="h-[30px] min-w-0 rounded-lg px-2 py-[7px] gap-2 transition-colors hover:bg-sidebar-active data-[active=true]:bg-sidebar-active"
-                  >
-                    <Link to="/settings/my-account" className="flex items-center gap-2 min-w-0">
-                      <div className="flex items-center justify-center size-5 shrink-0">
-                        <SettingsIcon className="h-[18px] w-[18px] text-muted-foreground" />
-                      </div>
-                      <span className="text-[14px] font-medium font-var-medium-14 text-light-gray-800 dark:text-dark-gray-800 tracking-[0.14px] leading-tight font-case truncate">Settings</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          <div className="mt-[15px] px-2">
-            <SidebarWorkspacesMinimal activeOrgId={activeOrg?.id} />
-          </div>
-        </SidebarContent>
-
-        <SidebarFooter className="p-0 pt-2 pb-2 flex shrink-0 flex-col gap-4">
-          <FreePlanCard />
-          <UserMenuMinimal
-            session={session}
-            activeOrg={activeOrg}
-            orgs={orgs}
-            displayName={displayName}
-            getInitials={getInitials}
-            setActiveOrgMutation={setActiveOrgMutation}
-            signOutMutation={signOutMutation}
-            router={router}
-            theme={theme}
-            setTheme={setTheme as (theme: string) => void}
-            onOpenTrash={() => setTrashDialogOpen(true)}
-            membersData={membersData}
-            roleByOrgId={roleByOrgId}
+      <Sidebar className="h-screen border-r-[0.5px] bg-background">
+        {showMobileInbox ? (
+          <InboxPanelBody
+            onClose={closeInbox}
+            headerLeft={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 text-muted-foreground hover:text-foreground"
+                onClick={closeInbox}
+                aria-label="Back"
+              >
+                <ArrowLeftIcon className="size-4" />
+              </Button>
+            }
           />
-        </SidebarFooter>
-        {/* <SidebarRail /> */}
+        ) : (
+          <>
+            <SidebarHeader className="flex h-12 flex-row items-center pt-2 pr-2 pb-0 pl-2">
+              <Tooltip>
+                <TooltipTrigger render={<LogoToggle direction="left" onClick={toggleSidebar} />} />
+                <TooltipContent side="bottom" align="start">
+                  <p>Collapse sidebar</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatForDisplay(HOTKEYS.DISMISS_SIDEBARS)}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </SidebarHeader>
+
+            <SidebarContent className="gap-0">
+              <SidebarGroup className="py-0 pt-2">
+                <SidebarGroupContent className="">
+                  <SidebarMenu className="gap-0">
+                    <SidebarMenuItem>
+                      <SidebarItem
+                        prefix={<HomeIcon className="size-[18px] text-muted-foreground" />}
+                        label="All"
+                        linkOptions={{ to: "/dashboard" }}
+                        isActive={pathname === "/dashboard"}
+                      />
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarItem
+                        onClick={togglePalette}
+                        prefix={<SearchIcon className="size-[18px] text-muted-foreground" />}
+                        label="Search"
+                      />
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarItem
+                        onClick={toggleInbox}
+                        isActive={isInboxOpen}
+                        prefix={<BellIcon className="size-[18px] text-muted-foreground" />}
+                        label="Notifications"
+                      >
+                        {pendingCount > 0 && (
+                          <span className="w-4 shrink-0 rounded-full bg-primary py-0.5 text-center text-[10px] font-semibold text-primary-foreground tabular-nums">
+                            {pendingCount}
+                          </span>
+                        )}
+                      </SidebarItem>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarItem
+                        onClick={handleOpenSettings}
+                        prefix={<SettingsIcon className="size-[18px] text-muted-foreground" />}
+                        label="Settings"
+                      />
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+
+              <div className="mt-[13px] px-2">
+                <SidebarWorkspacesMinimal activeOrgId={activeOrg?.id} />
+              </div>
+            </SidebarContent>
+
+            <SidebarFooter className="flex shrink-0 flex-col gap-4 p-0 px-2 py-3">
+              <UserMenuMinimal onOpenTrash={handleOpenTrash} />
+            </SidebarFooter>
+          </>
+        )}
       </Sidebar>
 
-      {/* Command Palette */}
-      <CommandDialog open={isPaletteOpen} onOpenChange={setIsPaletteOpen}>
-        <CommandInput placeholder="Search for forms and help articles" />
-        <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
-          <CommandGroup heading="Actions">
-            <CommandItem
-              onSelect={async () => {
-                setIsPaletteOpen(false);
-                if (activeOrg && workspacesData) {
-                  const orgWorkspaces = workspacesData.filter(
-                    (ws) => ws.organizationId === activeOrg.id,
-                  );
-                  if (orgWorkspaces.length > 0) {
-                    // Use workspace from URL if available, otherwise use first workspace
-                    const workspaceMatch = location.pathname.match(/\/workspace\/([^/]+)/);
-                    const currentWorkspaceId = workspaceMatch?.[1];
-                    const targetWorkspace = currentWorkspaceId
-                      ? orgWorkspaces.find((ws) => ws.id === currentWorkspaceId) || orgWorkspaces[0]
-                      : orgWorkspaces[0];
+      {/* Command Palette - rendered only on client to avoid cmdk React 19 SSR issue */}
+      {typeof window !== "undefined" && (
+        <CommandDialog
+          open={isPaletteOpen}
+          onOpenChange={(open) => {
+            setIsPaletteOpen(open);
+            if (!open) setPaletteSearch("");
+          }}
+        >
+          <Command>
+            <CommandInput
+              placeholder="Search for forms and help articles"
+              value={paletteSearch}
+              onValueChange={setPaletteSearch}
+            />
+            <CommandList>
+              <CommandEmpty>No results found.</CommandEmpty>
+              <CommandGroup heading="Actions">
+                <CommandItem
+                  onSelect={async () => {
+                    setIsPaletteOpen(false);
+                    if (activeOrg && workspacesData) {
+                      const orgWorkspaces = workspacesData;
+                      if (orgWorkspaces.length > 0) {
+                        const workspaceMatch = pathname.match(/\/workspace\/([^/]+)/);
+                        const currentWorkspaceId = workspaceMatch?.[1];
+                        const targetWorkspace = currentWorkspaceId
+                          ? orgWorkspaces.find((ws) => ws.id === currentWorkspaceId) ||
+                            orgWorkspaces[0]
+                          : orgWorkspaces[0];
 
-                    const newForm = await createFormLocal(targetWorkspace.id);
-                    router.navigate({
-                      to: "/workspace/$workspaceId/form-builder/$formId/edit",
-                      params: {
-                        workspaceId: targetWorkspace.id,
-                        formId: newForm.id,
-                      },
-                    });
-                  }
-                }
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              <span>New form</span>
-            </CommandItem>
-            <CommandItem
-              onSelect={() => {
-                if (activeOrg) {
-                  createWorkspaceLocal(activeOrg.id, "Collection")
-                    .then((workspace) => {
-                      router.navigate({
-                        to: "/workspace/$workspaceId",
-                        params: { workspaceId: workspace.id },
-                      });
-                    })
-                    .catch(console.error);
-                }
-                setIsPaletteOpen(false);
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              <span>New workspace</span>
-            </CommandItem>
-          </CommandGroup>
-          <CommandSeparator />
-          <CommandGroup heading="Navigation">
-            <CommandItem
-              onSelect={() => {
-                router.navigate({ to: "/dashboard" });
-                setIsPaletteOpen(false);
-              }}
-            >
-              <Home className="mr-2 h-4 w-4" />
-              <span>Go to home</span>
-            </CommandItem>
-            <CommandItem
-              onSelect={() => {
-                router.navigate({ to: "/settings" });
-                setIsPaletteOpen(false);
-              }}
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Go to settings</span>
-            </CommandItem>
-            <CommandItem
-              onSelect={() => {
-                setTrashDialogOpen(true);
-                setIsPaletteOpen(false);
-              }}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Trash</span>
-            </CommandItem>
-            <CommandItem
-              onSelect={() => {
-                signOutMutation.mutate({});
-                setIsPaletteOpen(false);
-              }}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Sign out</span>
-            </CommandItem>
-          </CommandGroup>
-        </CommandList>
-      </CommandDialog>
+                        const { form: newForm } = createFormLocal(targetWorkspace.id);
+                        void router.navigate({
+                          to: "/workspace/$workspaceId/form-builder/$formId/edit",
+                          params: {
+                            workspaceId: targetWorkspace.id,
+                            formId: newForm.id,
+                          },
+                        });
+                      }
+                    }
+                  }}
+                >
+                  <PlusIcon className="size-4" />
+                  <span>New form</span>
+                </CommandItem>
+                <CommandItem
+                  onSelect={() => {
+                    if (activeOrg) {
+                      const leadingSortIndex = generateKeyBetween(
+                        null,
+                        getLeadingSortIndex(workspacesData ?? []),
+                      );
+                      createWorkspaceLocal(activeOrg.id, "New Workspace", leadingSortIndex)
+                        .then((workspace) => {
+                          void router.navigate({
+                            to: "/workspace/$workspaceId",
+                            params: { workspaceId: workspace.id },
+                          });
+                        })
+                        .catch(console.error);
+                    }
+                    setIsPaletteOpen(false);
+                  }}
+                >
+                  <PlusIcon className="size-4" />
+                  <span>New workspace</span>
+                </CommandItem>
+              </CommandGroup>
+              {paletteSearch.trim().length > 0 && formsData && formsData.length > 0 && (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup heading="Forms">
+                    {formsData.map((form) => (
+                      <CommandItem
+                        key={form.id}
+                        value={`${form.title || "Untitled form"} ${form.id}`}
+                        onSelect={() => {
+                          setIsPaletteOpen(false);
+                          setPaletteSearch("");
+                          void router.navigate({
+                            to: "/workspace/$workspaceId/form-builder/$formId/edit",
+                            params: {
+                              workspaceId: form.workspaceId,
+                              formId: form.id,
+                            },
+                          });
+                        }}
+                      >
+                        <FileTextIcon className="size-4" />
+                        <span>{form.title || "Untitled form"}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </>
+              )}
+              <CommandSeparator />
+              <CommandGroup heading="Navigation">
+                <CommandItem
+                  onSelect={() => {
+                    void router.navigate({ to: "/dashboard" });
+                    setIsPaletteOpen(false);
+                  }}
+                >
+                  <HomeIcon className="size-4" />
+                  <span>Go to home</span>
+                </CommandItem>
+                <CommandItem
+                  onSelect={() => {
+                    settingsDialogStore.open();
+                    setIsPaletteOpen(false);
+                  }}
+                >
+                  <SettingsIcon className="size-4" />
+                  <span>Go to settings</span>
+                </CommandItem>
+                <CommandItem
+                  onSelect={() => {
+                    setTrashDialogOpen(true);
+                    setIsPaletteOpen(false);
+                  }}
+                >
+                  <Trash2Icon className="size-4" />
+                  <span>Trash</span>
+                </CommandItem>
+                <CommandItem
+                  onSelect={() => {
+                    signOutMutation.mutate({});
+                    setIsPaletteOpen(false);
+                  }}
+                >
+                  <LogOutIcon className="size-4" />
+                  <span>Sign out</span>
+                </CommandItem>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </CommandDialog>
+      )}
 
-      {/* Trash Dialog */}
       <TrashDialog
         open={trashDialogOpen}
         onOpenChange={setTrashDialogOpen}
         activeOrgId={activeOrg?.id}
       />
+
+      <Suspense fallback={null}>
+        <LazySettingsDialog />
+      </Suspense>
     </>
   );
-}
+};
 
-// Trash Dialog Component
-function TrashDialog({
+const TrashDialog = ({
   open,
   onOpenChange,
   activeOrgId,
@@ -798,207 +818,470 @@ function TrashDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   activeOrgId?: string;
-}) {
+}) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: archivedFormsData } = useArchivedForms();
-  const { data: workspacesData } = useWorkspaces();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+  // Per-row pending state — tracked separately so each restore/delete button
+  // can show a spinner and disable independently while in flight.
+  const [restoringIds, setRestoringIds] = useState<Set<string>>(new Set());
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  // Trash list is a server-fetched query gated on dialog open — no payload
+  // until the user actually wants to see it. Sidebar listings stay archived-free.
+  const { data: archivedFormsData, isFetching: isFetchingArchived } = useArchivedForms(open);
+  const { data: orgWorkspacesData } = useOrgWorkspaces(activeOrgId);
 
-  // Get archived forms filtered by active organization
   const archivedForms = useMemo(() => {
-    if (!activeOrgId || !archivedFormsData || !workspacesData) return [];
+    if (!activeOrgId || !archivedFormsData || !orgWorkspacesData) return [];
 
-    // Get workspace IDs belonging to active org
-    const orgWorkspaceIds = new Set(
-      workspacesData.filter((ws) => ws.organizationId === activeOrgId).map((ws) => ws.id),
-    );
+    const orgWorkspaceIds = new Set(orgWorkspacesData.map((ws) => ws.id));
 
-    // Filter forms that belong to org's workspaces
+    const lowerQuery = searchQuery.toLowerCase();
     return archivedFormsData
-      .filter((form) => orgWorkspaceIds.has(form.workspaceId))
-      .filter(
-        (form) => !searchQuery || form.title.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-      .toSorted(
-        (a, b) =>
-          new Date(b.deletedAt || b.updatedAt).getTime() -
-          new Date(a.deletedAt || a.updatedAt).getTime(),
-      );
-  }, [archivedFormsData, workspacesData, activeOrgId, searchQuery]);
+      .filter((form) => {
+        if (!orgWorkspaceIds.has(form.workspaceId)) return false;
+        if (!searchQuery) return true;
+        return (form?.title ?? "").toLowerCase().includes(lowerQuery);
+      })
+      .toSorted((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }, [archivedFormsData, orgWorkspacesData, activeOrgId, searchQuery]);
 
-  // Create a map of workspace names
   const workspaceNames = useMemo(() => {
-    if (!workspacesData) return {};
-    return workspacesData.reduce(
+    if (!orgWorkspacesData) return {};
+    return orgWorkspacesData.reduce(
       (acc, ws) => {
         acc[ws.id] = ws.name;
         return acc;
       },
       {} as Record<string, string>,
     );
-  }, [workspacesData]);
+  }, [orgWorkspacesData]);
 
-  const handleRestore = async (formId: string) => {
-    try {
-      await restoreFormLocal(formId);
-    } catch (error) {
-      console.error("Failed to restore form:", error);
-    }
-  };
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) setSelectedIds(new Set());
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange],
+  );
 
-  const handlePermanentDelete = async (formId: string) => {
-    try {
-      await permanentDeleteFormLocal(formId);
-    } catch (error) {
-      console.error("Failed to delete form:", error);
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleToggleSelect = useCallback((formId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(formId)) {
+        next.delete(formId);
+      } else {
+        next.add(formId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    if (selectedIds.size === archivedForms.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(archivedForms.map((f) => f.id)));
     }
-  };
+  }, [selectedIds.size, archivedForms]);
+
+  const removeFromSelection = useCallback((formId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(formId);
+      return next;
+    });
+  }, []);
+
+  const handleRestore = useCallback(
+    async (formId: string) => {
+      if (restoringIds.has(formId) || deletingIds.has(formId)) return;
+      setRestoringIds((prev) => new Set(prev).add(formId));
+      try {
+        await restoreFormLocal(formId);
+        removeFromSelection(formId);
+        toast.success("Form restored");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to restore form";
+        toast.error(message);
+      } finally {
+        setRestoringIds((prev) => {
+          const next = new Set(prev);
+          next.delete(formId);
+          return next;
+        });
+      }
+    },
+    [removeFromSelection, restoringIds, deletingIds],
+  );
+
+  const handlePermanentDelete = useCallback(
+    async (formId: string) => {
+      if (restoringIds.has(formId) || deletingIds.has(formId)) return;
+      setDeletingIds((prev) => new Set(prev).add(formId));
+      try {
+        await permanentDeleteFormLocal(formId);
+        removeFromSelection(formId);
+        toast.success("Form deleted");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to delete form";
+        toast.error(message);
+      } finally {
+        setDeletingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(formId);
+          return next;
+        });
+      }
+    },
+    [removeFromSelection, restoringIds, deletingIds],
+  );
+
+  const handleBulkDelete = useCallback(async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setIsDeleting(true);
+    setDeletingIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.add(id);
+      return next;
+    });
+    try {
+      await bulkPermanentDeleteFormsLocal(ids);
+      toast.success(`Deleted ${ids.length} form${ids.length === 1 ? "" : "s"}`);
+      setSelectedIds(new Set());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to delete forms";
+      toast.error(message);
+    } finally {
+      setIsDeleting(false);
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        for (const id of ids) next.delete(id);
+        return next;
+      });
+    }
+  }, [selectedIds]);
+
+  const hasSelection = selectedIds.size > 0;
+
+  // `allow` (not `replace`): dashboard registers the same hotkeys at document
+  // level. `replace` would unregister those and leak — they'd be gone after
+  // this dialog closes. With `allow`, both stay registered; the dashboard
+  // handlers no-op when a dialog is open, so this one wins while open.
+  useHotkey("Mod+A", handleSelectAll, {
+    enabled: open,
+    conflictBehavior: "allow",
+    ignoreInputs: true,
+  });
+
+  useHotkeys(
+    [
+      { hotkey: "Backspace", callback: handleBulkDelete },
+      { hotkey: "Delete", callback: handleBulkDelete },
+    ],
+    { enabled: open && hasSelection, conflictBehavior: "allow", ignoreInputs: true },
+  );
+
+  useHotkey(
+    "Escape",
+    () => {
+      if (hasSelection) {
+        setSelectedIds(new Set());
+      } else {
+        handleOpenChange(false);
+      }
+    },
+    {
+      enabled: open,
+      conflictBehavior: "allow",
+    },
+  );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] p-0 gap-0 bg-background border-foreground/10">
-        {/* Search Input */}
-        <div className="p-3 border-b border-foreground/5">
-          <Input
-            placeholder="Search pages in Trash"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 bg-muted/30 border-0 focus-visible:ring-1 focus-visible:ring-foreground/20"
-          />
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        showCloseButton={false}
+        className="gap-0 border-foreground/10 bg-background p-0 sm:max-w-[500px]"
+      >
+        <div className="p-1.5 pb-0">
+          {/* Matches CommandInput shell so trash search reads as the same
+              search affordance used elsewhere in the app. */}
+          <div className="flex h-[30px] w-full items-center gap-1.5 overflow-hidden rounded-xl bg-accent px-2.5 py-1.75">
+            <LucideSearch
+              className="size-4 shrink-0 text-muted-foreground"
+              strokeWidth={2}
+              aria-hidden="true"
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              placeholder="Search pages in Trash"
+              aria-label="Search trash"
+              className="min-w-0 flex-1 border-0 bg-transparent p-0 text-base text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
         </div>
 
-        {/* Forms List */}
         <div className="max-h-[400px] overflow-y-auto">
-          {archivedForms.length === 0 ? (
+          {archivedFormsData === undefined && isFetchingArchived ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Trash2 className="h-10 w-10 mb-3 opacity-30" />
+              <Loader2Icon className="mb-3 size-6 animate-spin opacity-60" />
+              <p className="text-sm">Loading trash…</p>
+            </div>
+          ) : archivedForms.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Trash2Icon className="mb-3 size-10 opacity-30" />
               <p className="text-sm">Trash is empty</p>
             </div>
           ) : (
             <div className="p-1">
               {archivedForms.map((form) => (
-                <div
+                <TrashRow
                   key={form.id}
-                  className="group flex items-center justify-between px-3 py-2 hover:bg-muted/50 rounded-md transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-medium text-foreground truncate">
-                        {form.title || "Untitled"}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground/60 truncate">
-                        {workspaceNames[form.workspaceId] || "Unknown workspace"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => handleRestore(form.id)}
-                      className="h-7 w-7"
-                      title="Restore"
-                    >
-                      <Undo2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => handlePermanentDelete(form.id)}
-                      className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
-                      title="Delete permanently"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+                  form={form}
+                  workspaceName={workspaceNames[form.workspaceId]}
+                  isSelected={selectedIds.has(form.id)}
+                  isRestoring={restoringIds.has(form.id)}
+                  isDeleting={deletingIds.has(form.id)}
+                  onToggleSelect={handleToggleSelect}
+                  onRestore={handleRestore}
+                  onPermanentDelete={handlePermanentDelete}
+                />
               ))}
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-foreground/5 bg-muted/20">
-          <p className="text-[11px] text-muted-foreground/60">
-            Pages in Trash for over 30 days will be automatically deleted
-          </p>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="h-7 w-7 text-muted-foreground/40 hover:text-muted-foreground"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </Button>
-        </div>
+        <TrashFooter
+          hasSelection={hasSelection}
+          selectedCount={selectedIds.size}
+          totalCount={archivedForms.length}
+          isDeleting={isDeleting}
+          onSelectAll={handleSelectAll}
+          onBulkDelete={handleBulkDelete}
+        />
       </DialogContent>
     </Dialog>
   );
+};
+
+interface TrashRowForm {
+  id: string;
+  title: string | null;
+  workspaceId: string;
 }
 
-// Sidebar Inbox Panel Component
-function SidebarInbox() {
-  const { isInboxOpen, setIsInboxOpen } = useMinimalSidebar();
-  const { state } = useSidebar();
+interface TrashRowProps {
+  form: TrashRowForm;
+  workspaceName: string | undefined;
+  isSelected: boolean;
+  isRestoring: boolean;
+  isDeleting: boolean;
+  onToggleSelect: (formId: string) => void;
+  onRestore: (formId: string) => Promise<void> | void;
+  onPermanentDelete: (formId: string) => Promise<void> | void;
+}
+
+const TrashRow = ({
+  form,
+  workspaceName,
+  isSelected,
+  isRestoring,
+  isDeleting,
+  onToggleSelect,
+  onRestore,
+  onPermanentDelete,
+}: TrashRowProps) => {
+  const isRowBusy = isRestoring || isDeleting;
+  return (
+    <div
+      className={`group flex cursor-pointer items-center justify-between rounded-md px-3 py-2 transition-colors ${isSelected ? "bg-muted/50" : "hover:bg-muted/50"} ${isRowBusy ? "pointer-events-none opacity-60" : ""}`}
+      onClick={() => onToggleSelect(form.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onToggleSelect(form.id);
+      }}
+      role="option"
+      aria-selected={isSelected}
+      aria-busy={isRowBusy}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex size-5 shrink-0 items-center justify-center rounded">
+          {isSelected ? (
+            <div className="flex size-5 items-center justify-center rounded bg-foreground text-background transition-colors">
+              <CheckIcon className="size-3.5" strokeWidth={3} />
+            </div>
+          ) : (
+            <>
+              <FileTextIcon className="size-4 text-muted-foreground group-hover:hidden" />
+              <div className="hidden size-5 items-center justify-center rounded bg-foreground/10 text-muted-foreground transition-colors group-hover:flex">
+                <CheckIcon className="size-3.5" />
+              </div>
+            </>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] text-foreground">{form.title || "Untitled"}</p>
+          <p className="truncate text-[11px] text-muted-foreground/60">
+            {workspaceName || "Unknown workspace"}
+          </p>
+        </div>
+      </div>
+      <div
+        className={`flex items-center gap-1 transition-opacity ${isSelected || isRowBusy ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+      >
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            void onRestore(form.id);
+          }}
+          disabled={isRowBusy}
+          className="size-7"
+          title="Restore"
+          aria-label="Restore"
+        >
+          {isRestoring ? (
+            <Loader2Icon className="size-4 animate-spin" />
+          ) : (
+            <Undo2Icon className="size-4" />
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            void onPermanentDelete(form.id);
+          }}
+          disabled={isRowBusy}
+          className="size-7 hover:bg-destructive/10 hover:text-destructive"
+          title="Delete permanently"
+          aria-label="Delete permanently"
+        >
+          {isDeleting ? (
+            <Loader2Icon className="size-4 animate-spin" />
+          ) : (
+            <Trash2Icon className="size-4" />
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+interface TrashFooterProps {
+  hasSelection: boolean;
+  selectedCount: number;
+  totalCount: number;
+  isDeleting: boolean;
+  onSelectAll: () => void;
+  onBulkDelete: () => void;
+}
+
+const TrashFooter = ({
+  hasSelection,
+  selectedCount,
+  totalCount,
+  isDeleting,
+  onSelectAll,
+  onBulkDelete,
+}: TrashFooterProps) => (
+  <div className="flex items-center justify-between border-t border-foreground/5 bg-muted/20 px-4 py-3">
+    {hasSelection ? (
+      <>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onSelectAll}
+            className="cursor-pointer text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {selectedCount === totalCount ? "Deselect all" : "Select all"}
+          </button>
+          <span className="text-[11px] text-muted-foreground/60">{selectedCount} selected</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBulkDelete}
+          disabled={isDeleting}
+          className="h-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        >
+          {isDeleting ? (
+            <>
+              <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
+              Deleting…
+            </>
+          ) : (
+            "Delete selected"
+          )}
+        </Button>
+      </>
+    ) : (
+      <>
+        <p className="text-[11px] text-muted-foreground/60">
+          Pages in Trash for over 30 days will be automatically deleted
+        </p>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="size-7 text-muted-foreground/40 hover:text-muted-foreground"
+          aria-label="Help"
+        >
+          <HelpCircleIcon className="size-4" />
+        </Button>
+      </>
+    )}
+  </div>
+);
+
+// Inbox body — header + notifications + invitations. Extracted so it can be
+// rendered in two contexts:
+//   1. Floating panel beside the docked desktop sidebar (via `SidebarInbox`).
+//   2. In-place inside the mobile drawer (push-navigation from the sidebar
+//      nav view, with a back button instead of a close button).
+interface InboxPanelBodyProps {
+  onClose: () => void;
+  // When supplied, rendered to the left of the title. Mobile uses this for a
+  // back-arrow; desktop passes nothing (only the right-side close button).
+  headerLeft?: React.ReactNode;
+}
+
+const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
   const queryClient = useQueryClient();
-  const prevOpenRef = useRef(isInboxOpen);
-  const [isExiting, setIsExiting] = useState(false);
-  const [applyExitClass, setApplyExitClass] = useState(false);
 
-  // Start exit animation when closing - set isExiting so we keep rendering (prevents flash)
-  useEffect(() => {
-    if (isInboxOpen) {
-      prevOpenRef.current = true;
-      setIsExiting(false);
-      setApplyExitClass(false);
-    } else if (prevOpenRef.current) {
-      setIsExiting(true);
-      prevOpenRef.current = false;
-    }
-  }, [isInboxOpen]);
-
-  // Apply exit class after mount so transition runs (visible -> slide out)
-  useLayoutEffect(() => {
-    if (!isExiting) return;
-    const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => setApplyExitClass(true));
-    });
-    return () => cancelAnimationFrame(id);
-  }, [isExiting]);
-
-  // Unmount after transition - use both transitionend and setTimeout fallback (Safari can be unreliable with transitionend)
-  const EXIT_DURATION_MS = 250;
-  useEffect(() => {
-    if (!isExiting) return;
-    const timeoutId = setTimeout(() => {
-      setIsExiting(false);
-    }, EXIT_DURATION_MS);
-    return () => clearTimeout(timeoutId);
-  }, [isExiting]);
-
-  const handleTransitionEnd = useCallback((e: React.TransitionEvent) => {
-    if (e.target !== e.currentTarget) return;
-    if (e.propertyName === "transform") setIsExiting(false);
-  }, []);
-
-  // Fetch invitations received by current user
   const { data: invitations } = useQuery(auth.organization.listUserInvitations.queryOptions());
+  const {
+    notifications,
+    readNotificationCount,
+    openNotification,
+    clearNotification,
+    clearAllReadNotifications,
+    isClearingAllRead,
+    clearingFormId,
+    readingFormId,
+  } = useSubmissionNotifications();
 
-  // Helper to refetch invitations on error (stale data)
-  const handleError = (error: any) => {
-    const message = error?.message || "Something went wrong";
+  const handleError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : "Something went wrong";
     toast.error(message);
-    // Refetch to clear stale invitations
-    queryClient.invalidateQueries({
+    void queryClient.invalidateQueries({
       queryKey: auth.organization.listUserInvitations.queryKey(),
     });
   };
 
-  // Accept/Reject mutations
   const acceptMutation = useMutation(
     auth.organization.acceptInvitation.mutationOptions({
       onSuccess: () => {
         toast.success("Invitation accepted!");
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: auth.organization.listUserInvitations.queryKey(),
         });
       },
@@ -1010,7 +1293,7 @@ function SidebarInbox() {
     auth.organization.rejectInvitation.mutationOptions({
       onSuccess: () => {
         toast.success("Invitation declined");
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: auth.organization.listUserInvitations.queryKey(),
         });
       },
@@ -1018,69 +1301,123 @@ function SidebarInbox() {
     }),
   );
 
-  // Keep mounted during "closing" transition - avoid return null before effect sets isExiting (which would cause flash: close → open → close)
-  if (!isInboxOpen && !isExiting && !prevOpenRef.current) return null;
-
-  // Only show pending invitations
-  const pendingInvitations = (invitations ?? []).filter((inv: any) => inv.status === "pending");
+  const pendingInvitations = (invitations ?? []).filter(
+    (inv: { status: string }) => inv.status === "pending",
+  );
+  const hasNotifications = notifications.length > 0;
+  const hasPendingInvitations = pendingInvitations.length > 0;
 
   return (
-    <div
-      className={cn(
-        "fixed z-40 flex w-80 flex-col bg-background select-none border-r border-foreground/5 top-0 bottom-0",
-        "transition-[left,opacity] duration-150 ease-out",
-        state === "expanded" ? "left-(--sidebar-width)" : "left-(--sidebar-width-icon)",
-        applyExitClass && "opacity-0",
-      )}
-      onTransitionEnd={handleTransitionEnd}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 h-10 border-b border-foreground/5">
-        <div className="flex items-center gap-2">
-          <h2 className="text-[13px] font-bold text-foreground">Inbox</h2>
-          {pendingInvitations.length > 0 && (
-            <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
-              {pendingInvitations.length}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-0.5">
+    <div className="flex size-full flex-col">
+      <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
+        <div className="flex items-center justify-between gap-1">
+          <div className="flex min-w-0 items-center gap-1">
+            {headerLeft}
+            <h2 className="truncate pl-2.5 text-base text-foreground">Inbox</h2>
+          </div>
           <Button
             variant="ghost"
-            size="icon-sm"
-            onClick={() => setIsInboxOpen(false)}
-            className="h-6 w-7 mr-1"
-            title="Collapse"
+            size="icon"
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={onClose}
+            aria-label="Close"
           >
-            <ChevronsLeft className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="h-6 w-6"
-          >
-            <Filter className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="h-6 w-6"
-          >
-            <MoreHorizontal className="h-3.5 w-3.5" />
+            <XIcon className="size-4" />
           </Button>
         </div>
-      </div>
+      </SidebarHeader>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-2 no-scrollbar">
-        <div className="px-1 overflow-hidden">
-          {/* Invitations Section */}
-          {pendingInvitations.length > 0 && (
+      <div className="no-scrollbar flex-1 overflow-y-auto p-2">
+        <div className="overflow-hidden px-1">
+          {hasNotifications && (
             <>
-              <p className="text-[10px] font-bold text-muted-foreground/30 uppercase tracking-widest mb-3 px-2">
+              <div className="mb-3 flex items-center justify-between px-2">
+                <p className="text-[10px] font-bold tracking-widest text-muted-foreground/30 uppercase">
+                  Submissions
+                </p>
+                {readNotificationCount > 0 ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                    disabled={isClearingAllRead}
+                    onClick={() => void clearAllReadNotifications()}
+                  >
+                    {isClearingAllRead ? "Clearing..." : "Clear all read"}
+                  </Button>
+                ) : null}
+              </div>
+
+              <div className="mb-4 flex flex-col gap-px overflow-hidden rounded-lg">
+                {notifications.map((notification) => {
+                  const isUnread = !notification.isRead && notification.unreadCount > 0;
+                  const isBusy =
+                    readingFormId === notification.formId || clearingFormId === notification.formId;
+
+                  return (
+                    <button
+                      key={notification.id}
+                      type="button"
+                      className="group flex min-h-8.5 w-full items-center gap-3 bg-secondary py-1.75 pr-[6px] pl-2.5 text-left transition-colors hover:bg-muted/80"
+                      onClick={() => void openNotification(notification)}
+                      disabled={readingFormId === notification.formId}
+                    >
+                      <div className="flex size-6 shrink-0 items-center justify-center rounded bg-foreground/5">
+                        <ThemedFormIcon
+                          icon={notification.formIcon}
+                          customization={undefined}
+                          size="14"
+                          iconSize="8"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-base font-normal">
+                          {notification.formTitle || "Untitled"}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {isUnread ? (
+                          <span className="text-[11px] text-foreground tabular-nums">
+                            {notification.unreadCount === 1
+                              ? "1 new"
+                              : `${notification.unreadCount} new`}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground/50">
+                            {formatNotificationTime(notification.latestSubmissionAt)}
+                          </span>
+                        )}
+                        {notification.isRead ? (
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="size-5 text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
+                            disabled={isBusy}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void clearNotification(notification.formId);
+                            }}
+                            aria-label="Clear notification"
+                          >
+                            <XIcon className="size-3" />
+                          </Button>
+                        ) : (
+                          <div className="size-1.5 rounded-full bg-primary" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {hasPendingInvitations && (
+            <>
+              <p className="mb-3 px-2 text-[10px] font-bold tracking-widest text-muted-foreground/30 uppercase">
                 Invitations
               </p>
-              <div className="space-y-1 mb-4">
+              <div className="mb-4 space-y-1">
                 {pendingInvitations.map((invitation) => {
                   const isProcessing =
                     (acceptMutation.isPending &&
@@ -1091,46 +1428,58 @@ function SidebarInbox() {
                   return (
                     <div
                       key={invitation.id}
-                      className="group flex flex-col gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors border border-transparent hover:border-foreground/5"
+                      className="group flex flex-col gap-2 rounded-md border border-transparent p-2 transition-colors hover:border-foreground/5 hover:bg-muted/50"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="h-8 w-8 rounded bg-foreground/5 flex items-center justify-center shrink-0">
-                          <Users className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded bg-foreground/5">
+                          <UsersIcon className="size-4 text-muted-foreground" />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-medium text-foreground leading-tight">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[12px] text-foreground">
                             You've been invited to join{" "}
                             <span className="font-bold">
-                              {(invitation as any).organization?.name ?? "an organization"}
+                              {(
+                                invitation as unknown as {
+                                  organization?: { name?: string };
+                                }
+                              ).organization?.name ?? "an organization"}
                             </span>
                           </p>
-                          <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+                          <p className="mt-0.5 text-[11px] text-muted-foreground/50">
                             Role: <span className="capitalize">{invitation.role}</span>
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 ml-11">
+                      <div className="ml-11 flex items-center gap-2">
                         <Button
                           size="sm"
                           variant="default"
-                          className="h-7 text-xs px-3"
+                          className="h-7 px-3 text-xs"
                           disabled={isProcessing}
-                          onClick={() => acceptMutation.mutate({ invitationId: invitation.id })}
+                          onClick={() =>
+                            acceptMutation.mutate({
+                              invitationId: invitation.id,
+                            })
+                          }
                         >
                           {acceptMutation.isPending &&
-                            acceptMutation.variables?.invitationId === invitation.id
+                          acceptMutation.variables?.invitationId === invitation.id
                             ? "Accepting..."
                             : "Accept"}
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-7 text-xs px-3"
+                          className="h-7 px-3 text-xs"
                           disabled={isProcessing}
-                          onClick={() => rejectMutation.mutate({ invitationId: invitation.id })}
+                          onClick={() =>
+                            rejectMutation.mutate({
+                              invitationId: invitation.id,
+                            })
+                          }
                         >
                           {rejectMutation.isPending &&
-                            rejectMutation.variables?.invitationId === invitation.id
+                          rejectMutation.variables?.invitationId === invitation.id
                             ? "Declining..."
                             : "Decline"}
                         </Button>
@@ -1142,684 +1491,223 @@ function SidebarInbox() {
             </>
           )}
 
-          {/* Older / Other notifications section (for future extensibility) */}
-          <p className="text-[10px] font-bold text-muted-foreground/30 uppercase tracking-widest mb-3 px-2">
-            {pendingInvitations.length > 0 ? "Other" : "Notifications"}
-          </p>
-          <div className="space-y-1">
-            <div className="flex items-center justify-center py-8 text-muted-foreground/40">
-              <p className="text-xs">No other notifications</p>
+          {!hasNotifications && !hasPendingInvitations ? (
+            <div className="flex flex-col items-center justify-center gap-1 py-8 text-center">
+              <p className="text-base text-muted-foreground/50">No notifications yet</p>
+              <p className="max-w-[220px] text-[11px] text-muted-foreground/40">
+                Submission notifications appear here for forms where in-app notifications are
+                enabled.
+              </p>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </div>
   );
-}
+};
 
-// User Menu Component - styled to match sidebar design tokens
-function UserMenuMinimal({
-  session,
-  activeOrg,
-  orgs,
-  displayName,
-  getInitials,
-  setActiveOrgMutation,
-  signOutMutation,
-  router,
-  theme,
-  setTheme,
-  onOpenTrash,
-  membersData,
-  roleByOrgId,
-}: {
-  session: any;
-  activeOrg: any;
-  orgs: any;
-  displayName: string;
-  getInitials: (name?: string | null) => string;
-  setActiveOrgMutation: any;
-  signOutMutation: any;
-  router: any;
-  theme: string;
-  setTheme: (theme: string) => void;
-  onOpenTrash: () => void;
-  membersData: any;
-  roleByOrgId: Record<string, string>;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
+/**
+ * Desktop-only floating Inbox panel. Docks beside the main sidebar (left-X
+ * positioning follows the sidebar's collapsed/expanded width). On mobile we
+ * return null — the inbox content is rendered inside the drawer instead, via
+ * push-navigation in `AppSidebar`.
+ */
+const SidebarInbox = () => {
+  const { isInboxOpen, closeInbox } = useMinimalSidebar();
+  const { state } = useSidebar();
+  const isMobile = useIsMobile();
+  const prevOpenRef = useRef(isInboxOpen);
+  // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value is read in JSX to apply exit animation styling
+  const [isExiting, setIsExiting] = useState(false);
+  const [applyExitClass, setApplyExitClass] = useState(false);
 
+  const [lastIsInboxOpen, setLastIsInboxOpen] = useState(isInboxOpen);
+  if (lastIsInboxOpen !== isInboxOpen) {
+    setLastIsInboxOpen(isInboxOpen);
+    if (isInboxOpen) {
+      prevOpenRef.current = true;
+      setIsExiting(false);
+      setApplyExitClass(false);
+    } else if (prevOpenRef.current) {
+      setIsExiting(true);
+      prevOpenRef.current = false;
+    }
+  }
+
+  useIsomorphicLayoutEffect(() => {
+    if (!isExiting) return;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setApplyExitClass(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [isExiting]);
+
+  const EXIT_DURATION_MS = 250;
   useEffect(() => {
-    if (!isOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest(".user-menu-container")) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
+    if (!isExiting) return;
+    const timeoutId = setTimeout(() => setIsExiting(false), EXIT_DURATION_MS);
+    return () => clearTimeout(timeoutId);
+  }, [isExiting]);
+
+  const handleTransitionEnd = useCallback((e: React.TransitionEvent) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.propertyName === "transform") setIsExiting(false);
+  }, []);
+
+  if (isMobile) return null;
+  if (!isInboxOpen && !isExiting && !prevOpenRef.current) return null;
 
   return (
-    <div className="relative user-menu-container border-t border-b pt-[4.8px] pb-2 bg-background">
-      <Button
-        variant="ghost"
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-2 py-1.5 h-8 w-full min-w-0 rounded-md hover:bg-sidebar-active justify-start"
-        aria-label="Toggle user menu"
-      >
-        <div className="h-6 w-6 rounded-full overflow-hidden bg-sidebar-active flex items-center justify-center text-[10px] font-bold shrink-0">
-          {session?.user?.image ? (
-            <img
-              src={session.user.image}
-              alt={displayName}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            getInitials(displayName)
-          )}
-        </div>
-        <span className="text-[14px] font-medium text-sidebar-foreground truncate flex-1 text-left tracking-[0.14px]">
-          {displayName}
-        </span>
-        <ChevronDown
-          className={cn(
-            "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 shrink-0",
-            isOpen && "rotate-180",
-          )}
-          strokeWidth={1.5}
-        />
-      </Button>
-
-      {isOpen && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 mx-2 bg-background border rounded-xl shadow-[0px_4px_16px_rgba(0,0,0,0.08)] p-1.5 z-100 animate-in fade-in slide-in-from-bottom-2 duration-200 min-w-[220px]">
-          <div className="px-3 py-2 border-b mb-1.5 flex items-start gap-3">
-            <div className="h-10 w-10 rounded-lg bg-sidebar-active flex items-center justify-center text-lg font-bold shrink-0 overflow-hidden">
-              {session?.user?.image ? (
-                <img
-                  src={session.user.image}
-                  alt={displayName}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                getInitials(displayName)
-              )}
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-[14px] font-bold text-sidebar-foreground truncate">{displayName}</span>
-              <span className="text-[11px] text-muted-foreground">Free Plan · {membersData?.members?.length ?? 0} {membersData?.members?.length === 1 ? "member" : "members"}</span>
-            </div>
-          </div>
-
-          <div className="px-2 py-1 mb-1.5">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1 mb-1">
-              Account
-            </p>
-            <div className="space-y-0.5">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  router.navigate({ to: "/settings/my-account" });
-                  setIsOpen(false);
-                }}
-                className="flex items-center gap-2 w-full px-2 py-1.5 h-auto justify-start text-[13px] text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-active rounded-lg"
-              >
-                <Settings className="h-3.5 w-3.5" strokeWidth={1.5} />
-                Settings
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setTheme(theme === "dark" ? "light" : "dark");
-                  setIsOpen(false);
-                }}
-                className="flex items-center gap-2 w-full px-2 py-1.5 h-auto justify-start text-[13px] text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-active rounded-lg"
-              >
-                {theme === "dark" ? <Sun className="h-3.5 w-3.5" strokeWidth={1.5} /> : <Moon className="h-3.5 w-3.5" strokeWidth={1.5} />}
-                <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  onOpenTrash();
-                  setIsOpen(false);
-                }}
-                className="flex items-center gap-2 w-full px-2 py-1.5 h-auto justify-start text-[13px] text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-active rounded-lg"
-              >
-                <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                Trash
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  router.navigate({ to: "/settings/members" });
-                  setIsOpen(false);
-                }}
-                className="flex items-center gap-2 w-full px-2 py-1.5 h-auto justify-start text-[13px] text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-active rounded-lg"
-              >
-                <Users className="h-3.5 w-3.5" strokeWidth={1.5} />
-                Members
-              </Button>
-            </div>
-          </div>
-
-          <div className="px-2 py-1 mb-1.5">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1 mb-1">
-              {session?.user?.email}
-            </p>
-            <div className="space-y-0.5">
-              {orgs?.map((org: any) => {
-                const role = roleByOrgId[org.id];
-                return (
-                  <Button
-                    variant="ghost"
-                    key={org.id}
-                    onClick={() => {
-                      setActiveOrgMutation.mutate({ organizationId: org.id });
-                      setIsOpen(false);
-                    }}
-                    className="flex items-center gap-2 px-2 py-1.5 h-auto w-full justify-start text-muted-foreground hover:bg-sidebar-active rounded-lg"
-                    aria-label={`Switch to ${org.name}`}
-                  >
-                    <div className="h-5 w-5 rounded bg-sidebar-active flex items-center justify-center text-[9px] font-bold text-sidebar-foreground">
-                      {getInitials(org.name)}
-                    </div>
-                    <span className="text-[13px] font-medium text-foreground group-hover:text-sidebar-foreground flex-1 truncate">{org.name}</span>
-                    {role && (
-                      <Badge
-                        variant={role === "owner" ? "primary" : "outline"}
-                        className="text-[9px] px-1.5 py-0 h-4 capitalize"
-                      >
-                        {role}
-                      </Badge>
-                    )}
-                    {org.id === activeOrg?.id && (
-                      <div className="h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" />
-                    )}
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="h-px bg-foreground/5 my-1" />
-          <div className="space-y-0.5 px-1">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                signOutMutation.mutate({});
-                setIsOpen(false);
-              }}
-              className="flex items-center gap-2 w-full px-2 py-1.5 h-auto justify-start text-[13px] text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-active rounded-lg"
-            >
-              <LogOut className="h-3.5 w-3.5" strokeWidth={1.5} />
-              Log out
-            </Button>
-          </div>
-        </div>
+    <div
+      className={cn(
+        "fixed top-0 bottom-0 z-40 flex w-80 flex-col border-r border-foreground/5 bg-background select-none",
+        "transition-[left,opacity] duration-150 ease-out [[data-resizing]_&]:transition-none",
+        state === "expanded" ? "left-(--sidebar-width)" : "left-(--sidebar-width-icon)",
+        applyExitClass && "opacity-0",
       )}
+      onTransitionEnd={handleTransitionEnd}
+    >
+      <InboxPanelBody onClose={closeInbox} />
     </div>
   );
-}
-
-// Free Plan Card - Figma node 23504-5269 (pixel-perfect)
-function FreePlanCard() {
-  return (
-    <div className="shrink-0 overflow-hidden rounded-xl bg-free-plan-card-bg p-3 mx-3 w-[204px] shadow-sm">
-      <div className="flex items-center gap-2 mb-2">
-        <div className="shrink-0 size-6 rounded flex items-center justify-center bg-teal-100 dark:bg-teal-700/20">
-          <Zap className="h-3.5 w-3.5 text-teal-700 dark:text-teal-400" strokeWidth={2} fill="currentColor" />
-        </div>
-        <span className="text-[14px] font-medium text-sidebar-foreground">
-          Free Plan
-        </span>
-      </div>
-      <p className="text-[13px] text-muted-foreground tracking-[0.13px] leading-[1.48] mb-3">
-        Try Booster to capture high-quality inbound and outbound leads
-      </p>
-      <Button
-        variant="outline"
-        className="w-full h-7 text-[13px] font-medium text-sidebar-foreground bg-background border border-border hover:bg-muted rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.1)]"
-      >
-        Try for free
-      </Button>
-    </div>
-  );
-}
-
-// Type for workspace with forms from server
-type WorkspaceWithForms = {
-  id: string;
-  organizationId: string;
-  createdByUserId?: string;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-  forms: Array<{
-    id: string;
-    title: string;
-    updatedAt: string;
-    workspaceId: string;
-    icon?: string | null;
-    status: string;
-  }>;
 };
 
-// Minimal Workspace Item Component
-function WorkspaceItemMinimal({
-  workspace,
-  submissionCounts,
+interface UseSortedWorkspacesWithFormsOptions {
+  workspacesData: ReturnType<typeof useOrgWorkspaces>["data"];
+  formsData: ReturnType<typeof useOrgForms>["data"];
+  activeOrgId: string | undefined;
+  isDataReady: boolean;
+  sortMode: "recent" | "oldest" | "alphabetical" | "manual";
+}
+
+const arraysAreShallowEqual = <T,>(a: readonly T[], b: readonly T[]) => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+};
+
+const useSortedWorkspacesWithForms = ({
+  workspacesData,
+  formsData,
+  activeOrgId,
+  isDataReady,
   sortMode,
-  onSortChange,
-  onRename,
-  onDelete,
-  onDuplicateForm,
-  onDeleteForm,
-}: {
-  workspace: WorkspaceWithForms;
-  submissionCounts: Map<string, number>;
-  sortMode: string;
-  onSortChange: (mode: "recent" | "oldest" | "alphabetical" | "manual") => void;
-  onRename: () => void;
-  onDelete: () => void;
-  onDuplicateForm: (form: WorkspaceWithForms["forms"][0]) => void;
-  onDeleteForm: (form: WorkspaceWithForms["forms"][0]) => void;
-}) {
-  const router = useRouter();
-  const [isOpen, setIsOpen] = useState(true);
-  const [isCreatingForm, setIsCreatingForm] = useState(false);
+}: UseSortedWorkspacesWithFormsOptions) => {
+  // Cache workspace + forms-array identities by id so a live-query notification
+  // that doesn't actually change content (just the array reference) doesn't
+  // cascade new identities into every consumer downstream.
+  const workspaceCacheRef = useRef(new Map<string, WorkspaceWithForms>());
+  const formsArrayCacheRef = useRef(new Map<string, WorkspaceWithForms["forms"]>());
 
-  const handleCreateForm = async () => {
-    setIsCreatingForm(true);
-    try {
-      const newForm = await createFormLocal(workspace.id);
-      router.navigate({
-        to: "/workspace/$workspaceId/form-builder/$formId/edit",
-        params: { workspaceId: workspace.id, formId: newForm.id },
-      });
-    } catch (error) {
-      console.error("Failed to create form:", error);
-    } finally {
-      setIsCreatingForm(false);
-    }
-  };
-
-  return (
-    <div className="flex flex-col">
-      {/* Figma system-flat node 23504-5156: workspace/collection header row */}
-      <div className="group flex items-center justify-between px-1 py-[7px] transition-colors">
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1 h-auto p-0 cursor-pointer flex-1 min-w-0 justify-start bg-transparent border-none"
-          aria-expanded={isOpen}
-        >
-          <span className="text-[13px] font-medium text-muted-foreground tracking-[0.26px] truncate">
-            {workspace.name}
-          </span>
-          <ChevronDownIcon
-            className={cn(
-              "h-2.5 w-2.5 shrink-0 text-muted-foreground transition-transform duration-200",
-              !isOpen && "-rotate-90",
-            )}
-          />
-        </button>
-
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="h-6 w-6 hover:bg-sidebar-active text-muted-foreground hover:text-foreground"
-                title="More options"
-              >
-                <MoreHorizontalIcon className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-[195px]" sideOffset={4}>
-              <div className="text-[12px] font-medium text-muted-foreground px-2 py-1.5 tracking-[0.24px]">Sort by</div>
-              {[
-                { value: "recent", label: "Recent First", icon: CalendarIcon},
-                { value: "oldest", label: "Oldest First", icon: ClockRewindIcon },
-                { value: "alphabetical", label: "Alphabetical", icon: AlphabeticalIcon },
-                { value: "manual", label: "Manual", icon: CopyIcon },
-              ].map((option) => (
-                <Button
-                  key={option.value}
-                  variant="ghost"
-                  onClick={() => onSortChange(option.value as "recent" | "oldest" | "alphabetical" | "manual")}
-                  className={cn(
-                    "w-full justify-start gap-1.5 rounded-lg px-2 py-1.5 h-[26px] text-[13px] font-medium tracking-[0.13px] transition-colors",
-                    sortMode === option.value
-                      ? "bg-black/5 text-[#212121]"
-                      : "text-light-gray-800 hover:bg-black/5 hover:text-[#212121]",
-                  )}
-                >
-                  <option.icon className="h-3.5 w-3.5" strokeWidth={1.5} />
-                  <span className="flex-1 text-left">{option.label}</span>
-                  {sortMode === option.value && (
-                    <Check className="h-3 w-3" strokeWidth={2} />
-                  )}
-                </Button>
-              ))}
-              <div className="my-1 h-px bg-border" />
-              <div className="text-[12px] font-medium text-muted-foreground px-2 py-1.5 tracking-[0.24px]">
-                Workspace
-              </div>
-              <Button
-                variant="ghost"
-                onClick={handleCreateForm}
-                disabled={isCreatingForm}
-                className={cn(
-                  "w-full justify-start gap-1.5 rounded-lg px-2 py-1.5 h-[26px] text-[13px] font-medium tracking-[0.13px] transition-colors",
-                  "text-light-gray-800 hover:bg-black/5 hover:text-[#212121]",
-                )}
-              >
-                {isCreatingForm ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" strokeWidth={1.5} />
-                ) : (
-                  <PlusIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-                )}
-                <span className="flex-1 text-left">New form</span>
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={onRename}
-                className={cn(
-                  "w-full justify-start gap-1.5 rounded-lg px-2 py-1.5 h-[26px] text-[13px] font-medium tracking-[0.13px] transition-colors",
-                  "text-light-gray-800 hover:bg-black/5 hover:text-[#212121]",
-                )}
-              >
-                <Pencil2Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-                <span className="flex-1 text-left">Rename</span>
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={onDelete}
-                className={cn(
-                  "w-full justify-start gap-1.5 rounded-lg px-2 py-1.5 h-[26px] text-[13px] font-medium tracking-[0.13px] transition-colors",
-                  "text-red-500/70 hover:text-red-500 hover:bg-red-500/5",
-                )}
-              >
-                <TrashIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-                <span className="flex-1 text-left">Delete</span>
-              </Button>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-
-      {isOpen && (
-        <div className="flex flex-col">
-          {workspace.forms.map((form) => (
-            <WorkspaceFormMinimal
-              key={form.id}
-              form={form}
-              workspaceId={workspace.id}
-              submissionCount={submissionCounts.get(form.id) || 0}
-              onDuplicate={() => onDuplicateForm(form)}
-              onDelete={() => onDeleteForm(form)}
-            />
-          ))}
-          {workspace.forms.length === 0 && (
-            <span className="text-muted-foreground/50 text-[11px] px-8 py-1 italic">
-              No forms yet
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Form icons matching Figma system-flat (23504-5089): Contact=star, Employee Intake=teardrop, etc.
-const getFormIcon = (title: string, icon?: string | null) => {
-  const iconWrapper = "rounded-full size-[18px] flex items-center justify-center border-[0.5px] border-form-icon-border shrink-0";
-  const iconFill = "text-foreground fill-foreground";
-
-  if (icon && isEmoji(icon)) return (
-    <div className={`bg-form-icon-bg ${iconWrapper}`}>
-      <span className="text-xs leading-none">{icon}</span>
-    </div>
-  );
-
-  const lowerTitle = title.toLowerCase();
-  // Contact: white circle, black star (Figma)
-  if (lowerTitle.includes("contact")) return (
-    <div className={`bg-form-icon-bg shadow-sm ${iconWrapper}`}>
-      <Star className="h-3 w-3 fill-foreground text-foreground" />
-    </div>
-  );
-  // Employee Intake: teardrop/inverted triangle
-  if (lowerTitle.includes("employee intake")) return (
-    <div className={`bg-secondary ${iconWrapper}`}>
-      <div className="size-2 bg-foreground rounded-full" style={{ clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)" }} />
-    </div>
-  );
-  // Onboarding: lightning bolt
-  if (lowerTitle.includes("onboarding") && !lowerTitle.includes("client")) return (
-    <div className={`bg-secondary ${iconWrapper}`}>
-      <Zap className={`h-3 w-3 ${iconFill}`} strokeWidth={1} />
-    </div>
-  );
-  // Client Onboarding / feedback: feather
-  if (lowerTitle.includes("client onboarding") || lowerTitle.includes("feedback")) return (
-    <div className={`bg-secondary ${iconWrapper}`}>
-      <Feather className="h-3 w-3 text-foreground" strokeWidth={1.5} />
-    </div>
-  );
-  // Open source: GitHub
-  if (lowerTitle.includes("open source")) return (
-    <div className={`bg-secondary ${iconWrapper}`}>
-      <Github className={`h-3 w-3 ${iconFill}`} strokeWidth={1} />
-    </div>
-  );
-
-  // Default: sparkle in white circle
-  return (
-    <div className={`bg-form-icon-bg ${iconWrapper}`}>
-      <span className="text-xs leading-none">✨</span>
-    </div>
-  );
-};
-
-
-function isEmoji(str: string): boolean {
-  if (!str) return false;
-  const emojiRange = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u;
-  return str.length <= 4 && emojiRange.test(str);
-}
-
-function WorkspaceFormMinimal({
-  form,
-  workspaceId,
-  submissionCount,
-  onDuplicate,
-  onDelete,
-}: {
-  form: { id: string; title: string; icon?: string | null; workspaceId: string; status: string };
-  workspaceId: string;
-  submissionCount: number;
-  onDuplicate: () => void;
-  onDelete: () => void;
-}) {
-  const location = useLocation();
-  const isPublishedForm = form.status === "published";
-  const to = isPublishedForm
-    ? `/workspace/${workspaceId}/form-builder/${form.id}/submissions`
-    : `/workspace/${workspaceId}/form-builder/${form.id}/edit`;
-  const isActive = location.pathname.startsWith(`/workspace/${workspaceId}/form-builder/${form.id}`);
-  const label = form.title || "Untitled";
-
-  const prefix = getFormIcon(label, form.icon);
-
-  const isPublished = form.status === "published";
-  const showCount = isPublished && submissionCount > 0;
-
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div>
-          <SidebarItem label={label} to={to} isActive={isActive} prefix={prefix}>
-            {showCount && (
-              <span className="text-[11px] tracking-[0.33px] text-muted-foreground tabular-nums shrink-0 font-medium leading-[1.15] font-case">
-                {submissionCount}
-              </span>
-            )}
-          </SidebarItem>
-        </div>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-[195px] rounded-2xl p-1 shadow-popover border-0 outline-hidden">
-        <div className="text-[12px] font-medium text-muted-foreground px-2 py-1.5 tracking-[0.24px]">
-          Form
-        </div>
-        <ContextMenuItem
-          onClick={(e) => {
-            e.stopPropagation();
-            onDuplicate();
-          }}
-          className="w-full justify-start gap-1.5 rounded-lg px-2 py-1.5 h-[26px] text-[13px] font-medium tracking-[0.13px] transition-colors text-light-gray-800 hover:bg-black/5 hover:text-foreground focus:bg-black/5 focus:text-foreground [&_svg]:size-3.5"
-        >
-          <CopyIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-          <span className="flex-1 text-left">Duplicate</span>
-        </ContextMenuItem>
-        <ContextMenuSeparator className="my-1 h-px bg-border mx-0" />
-        <ContextMenuItem
-          variant="destructive"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="w-full justify-start gap-1.5 rounded-lg px-2 py-1.5 h-[26px] text-[13px] font-medium tracking-[0.13px] transition-colors text-red-500/70 hover:bg-red-500/5 focus:bg-red-500/5 focus:text-red-500 [&_svg]:size-3.5"
-        >
-          <TrashIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-          <span className="flex-1 text-left">Delete</span>
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
-  );
-}
-
-// Sidebar Section Component (Figma system-flat: External/collapsible section with chevron)
-function SidebarSection({
-  label,
-  children,
-  action,
-  initialOpen = true,
-}: {
-  label: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-  initialOpen?: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(() => initialOpen);
-
-  return (
-    <div className="flex flex-col">
-      <div className="group flex items-center justify-between px-1 py-[7px] transition-colors">
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1 h-auto p-0 cursor-pointer flex-1 min-w-0 justify-start bg-transparent border-none"
-          aria-expanded={isOpen}
-        >
-          <span className="text-[13px] font-medium text-muted-foreground tracking-[0.26px] truncate">
-            {label}
-          </span>
-          <ChevronDown
-            className={cn(
-              "h-2.5 w-2.5 shrink-0 text-muted-foreground transition-transform duration-200",
-              !isOpen && "-rotate-90",
-            )}
-            strokeWidth={2}
-          />
-        </button>
-
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          {action ?? (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="h-6 w-6 hover:bg-sidebar-active text-muted-foreground hover:text-foreground"
-            >
-              <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.5} />
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {isOpen && <div className="flex flex-col">{children}</div>}
-    </div>
-  );
-}
-
-// Workspaces section - uses live queries for real-time sync (Minimal Style)
-function SidebarWorkspacesMinimal({ activeOrgId }: { activeOrgId?: string }) {
-  const router = useRouter();
-  const location = useLocation();
-  const { data: session } = useSession();
-
-  // Sort mode state with localStorage persistence
-  const [sortMode, setSortMode] = useState<"recent" | "oldest" | "alphabetical" | "manual">(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("sidebar-sort-mode") as "recent" | "oldest" | "alphabetical" | "manual") || "recent";
-    }
-    return "recent";
-  });
-  const handleSortChange = (mode: "recent" | "oldest" | "alphabetical" | "manual") => {
-    setSortMode(mode);
-    localStorage.setItem("sidebar-sort-mode", mode);
-  };
-
-  // Use live queries for real-time sync
-  const { data: workspacesData, isLoading: workspacesLoading } = useWorkspaces();
-  const { data: formsData, isLoading: formsLoading } = useForms();
-  const submissionCounts = useSubmissionCounts();
-
-  // Get user's favorite forms
-  const favoriteForms = useFavoriteForms(session?.user?.id);
-
-  // Determine if Electric has synced
-  const isLoading = workspacesLoading || formsLoading;
-  const isElectricReady = !isLoading && workspacesData !== undefined && formsData !== undefined;
-
-  // Combine workspaces with their forms, filtered by active organization
   const workspaces: WorkspaceWithForms[] = useMemo(() => {
-    if (!activeOrgId || !isElectricReady) return [];
+    if (!activeOrgId || !isDataReady) return [];
 
     const formsByWorkspace = (formsData || []).reduce(
       (acc, form) => {
         if (!acc[form.workspaceId]) acc[form.workspaceId] = [];
-        acc[form.workspaceId].push(form);
+        acc[form.workspaceId].push(form as unknown as WorkspaceWithForms["forms"][0]);
         return acc;
       },
-      {} as Record<string, typeof formsData>,
+      {} as Record<string, WorkspaceWithForms["forms"]>,
     );
 
-    return (workspacesData || [])
-      .filter((ws) => ws.organizationId === activeOrgId)
-      .map((ws) => ({
-        ...ws,
-        // Sort forms by recently edited (most recent first)
-        forms: (formsByWorkspace[ws.id] || []).toSorted((a, b) => {
-          switch (sortMode) {
-            case "oldest":
-              return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
-            case "alphabetical":
-              return (a.title || "").localeCompare(b.title || "");
-            case "manual":
-              return 0;
-            case "recent":
-            default:
-              return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-          }
-        }),
-      }));
-  }, [workspacesData, formsData, activeOrgId, isElectricReady, sortMode]);
+    const orderedWorkspaces = sortByManualOrder(
+      workspacesData || [],
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
 
-  // State for workspace dialogs
+    const nextWorkspaceCache = new Map<string, WorkspaceWithForms>();
+    const nextFormsCache = new Map<string, WorkspaceWithForms["forms"]>();
+
+    const result = orderedWorkspaces.map((ws) => {
+      const forms = formsByWorkspace[ws.id] || [];
+      let sortedForms: WorkspaceWithForms["forms"];
+      if (sortMode === "manual") {
+        sortedForms = sortByManualOrder(
+          forms,
+          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        );
+      } else {
+        sortedForms = forms.toSorted(
+          (a: WorkspaceWithForms["forms"][0], b: WorkspaceWithForms["forms"][0]) => {
+            switch (sortMode) {
+              case "oldest":
+                return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+              case "alphabetical":
+                return (a.title || "").localeCompare(b.title || "");
+              case "recent":
+              default:
+                return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+            }
+          },
+        );
+      }
+
+      // Reuse the previous forms array if every form item is the same reference
+      // in the same order — this stabilises both the array and any per-form
+      // identity churn upstream.
+      const previousForms = formsArrayCacheRef.current.get(ws.id);
+      if (previousForms && arraysAreShallowEqual(previousForms, sortedForms)) {
+        sortedForms = previousForms;
+      }
+      nextFormsCache.set(ws.id, sortedForms);
+
+      const previousWorkspace = workspaceCacheRef.current.get(ws.id);
+      if (
+        previousWorkspace &&
+        previousWorkspace.forms === sortedForms &&
+        previousWorkspace.name === ws.name &&
+        previousWorkspace.sortIndex === ws.sortIndex &&
+        previousWorkspace.organizationId === ws.organizationId &&
+        previousWorkspace.updatedAt === ws.updatedAt &&
+        previousWorkspace.createdAt === ws.createdAt &&
+        previousWorkspace.createdByUserId === ws.createdByUserId
+      ) {
+        nextWorkspaceCache.set(ws.id, previousWorkspace);
+        return previousWorkspace;
+      }
+      const fresh = { ...ws, forms: sortedForms };
+      nextWorkspaceCache.set(ws.id, fresh);
+      return fresh;
+    });
+
+    workspaceCacheRef.current = nextWorkspaceCache;
+    formsArrayCacheRef.current = nextFormsCache;
+    return result;
+  }, [workspacesData, formsData, activeOrgId, isDataReady, sortMode]);
+
+  // Same content-stability trick: keep the previous summaries array when every
+  // (id, name) tuple is unchanged so memoised children skip re-rendering.
+  const allWorkspaceSummariesRef = useRef<Array<Pick<WorkspaceWithForms, "id" | "name">>>([]);
+  const allWorkspaceSummaries = useMemo(() => {
+    const next = workspaces.map((w) => ({ id: w.id, name: w.name }));
+    const previous = allWorkspaceSummariesRef.current;
+    if (
+      previous.length === next.length &&
+      previous.every((p, i) => p.id === next[i].id && p.name === next[i].name)
+    ) {
+      return previous;
+    }
+    allWorkspaceSummariesRef.current = next;
+    return next;
+  }, [workspaces]);
+
+  return { workspaces, allWorkspaceSummaries };
+};
+
+interface UseSidebarWorkspaceDialogsOptions {
+  router: ReturnType<typeof useRouter>;
+  pathname: string;
+  duplicateForm: ReturnType<typeof useDuplicateForm>;
+}
+
+const useSidebarWorkspaceDialogs = ({
+  router,
+  pathname,
+  duplicateForm,
+}: UseSidebarWorkspaceDialogsOptions) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [workspaceToDelete, setWorkspaceToDelete] = useState<WorkspaceWithForms | null>(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
@@ -1827,248 +1715,744 @@ function SidebarWorkspacesMinimal({ activeOrgId }: { activeOrgId?: string }) {
   const [workspaceToRename, setWorkspaceToRename] = useState<WorkspaceWithForms | null>(null);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
 
-  // State for form delete dialog
   const [formDeleteDialogOpen, setFormDeleteDialogOpen] = useState(false);
-  const [formToDelete, setFormToDelete] = useState<{ id: string; title: string } | null>(null);
+  const [formToDelete, setFormToDelete] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  // Pending state for destructive dialogs — prevents double-submission and
+  // gives the action button a spinner while the server fn is in flight.
+  const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
+  const [isDeletingForm, setIsDeletingForm] = useState(false);
+  const [duplicatingIds, setDuplicatingIds] = useState<Set<string>>(new Set());
+  const [isRenamingWorkspace, setIsRenamingWorkspace] = useState(false);
 
-  const handleDeleteWorkspace = async () => {
+  const handleDeleteDialogOpenChange = useCallback((open: boolean) => {
+    setDeleteDialogOpen(open);
+    if (!open) setDeleteConfirmName("");
+  }, []);
+
+  const handleDeleteConfirmNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setDeleteConfirmName(e.target.value),
+    [],
+  );
+
+  const handleNewWorkspaceNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setNewWorkspaceName(e.target.value),
+    [],
+  );
+
+  const handleCloseRenameDialog = useCallback(() => setRenameDialogOpen(false), []);
+
+  const handleDeleteWorkspace = useCallback(async () => {
     if (!workspaceToDelete || deleteConfirmName !== workspaceToDelete.name) return;
+    if (isDeletingWorkspace) return;
+    setIsDeletingWorkspace(true);
     try {
       await deleteWorkspaceLocal(workspaceToDelete.id);
       setDeleteDialogOpen(false);
       setWorkspaceToDelete(null);
       setDeleteConfirmName("");
-      router.navigate({ to: "/dashboard" });
+      void router.navigate({ to: "/dashboard" });
     } catch (error) {
-      console.error("Failed to delete workspace:", error);
+      const message = error instanceof Error ? error.message : "Failed to delete workspace";
+      toast.error(message);
+    } finally {
+      setIsDeletingWorkspace(false);
     }
-  };
+  }, [workspaceToDelete, deleteConfirmName, router, isDeletingWorkspace]);
 
-  const handleRenameWorkspace = async () => {
-    if (!workspaceToRename || !newWorkspaceName.trim()) return;
+  const handleRenameWorkspace = useCallback(async () => {
+    if (!workspaceToRename || !newWorkspaceName.trim() || isRenamingWorkspace) return;
+    setIsRenamingWorkspace(true);
     try {
       await updateWorkspaceName(workspaceToRename.id, newWorkspaceName.trim());
       setRenameDialogOpen(false);
       setWorkspaceToRename(null);
       setNewWorkspaceName("");
     } catch (error) {
-      console.error("Failed to rename workspace:", error);
+      const message = error instanceof Error ? error.message : "Failed to rename workspace";
+      toast.error(message);
+    } finally {
+      setIsRenamingWorkspace(false);
     }
-  };
+  }, [workspaceToRename, newWorkspaceName, isRenamingWorkspace]);
 
-  const openRenameDialog = (workspace: WorkspaceWithForms) => {
+  const handleRenameKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        void handleRenameWorkspace();
+      }
+    },
+    [handleRenameWorkspace],
+  );
+
+  const openRenameDialog = useCallback((workspace: WorkspaceWithForms) => {
     setWorkspaceToRename(workspace);
     setNewWorkspaceName(workspace.name);
     setRenameDialogOpen(true);
-  };
+  }, []);
 
-  const openDeleteDialog = (workspace: WorkspaceWithForms) => {
+  const openDeleteDialog = useCallback((workspace: WorkspaceWithForms) => {
     setWorkspaceToDelete(workspace);
     setDeleteConfirmName("");
     setDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const handleDuplicateForm = async (form: WorkspaceWithForms["forms"][0]) => {
-    try {
-      const newForm = await duplicateFormById(form.id);
-      toast.success("Form duplicated");
-      router.navigate({
-        to: "/workspace/$workspaceId/form-builder/$formId/edit",
-        params: { workspaceId: newForm.workspaceId, formId: newForm.id },
-      });
-    } catch (error) {
-      console.error("Failed to duplicate form:", error);
-      toast.error("Failed to duplicate form");
-    }
-  };
+  const duplicatingIdsRef = useRef(duplicatingIds);
+  duplicatingIdsRef.current = duplicatingIds;
 
-  const handleDeleteForm = (form: WorkspaceWithForms["forms"][0]) => {
+  const handleDuplicateForm = useCallback(
+    async (form: WorkspaceWithForms["forms"][0]) => {
+      if (duplicatingIdsRef.current.has(form.id)) return;
+      setDuplicatingIds((prev) => new Set(prev).add(form.id));
+      try {
+        await duplicateForm(form.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to duplicate form";
+        toast.error(message);
+      } finally {
+        setDuplicatingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(form.id);
+          return next;
+        });
+      }
+    },
+    [duplicateForm],
+  );
+
+  const isFormDuplicating = useCallback(
+    (formId: string) => duplicatingIds.has(formId),
+    [duplicatingIds],
+  );
+
+  const handleDeleteForm = useCallback((form: WorkspaceWithForms["forms"][0]) => {
     setFormToDelete({ id: form.id, title: form.title || "Untitled" });
     setFormDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const handleConfirmDeleteForm = async () => {
-    if (!formToDelete) return;
+  const handleConfirmDeleteForm = useCallback(async () => {
+    if (!formToDelete || isDeletingForm) return;
+    setIsDeletingForm(true);
     try {
       await updateFormStatus(formToDelete.id, "archived");
       toast.success("Form deleted");
       // Navigate to dashboard if user is on the deleted form's page
-      if (location.pathname.includes(`/form-builder/${formToDelete.id}`)) {
-        router.navigate({ to: "/dashboard" });
+      if (pathname.includes(`/form-builder/${formToDelete.id}`)) {
+        void router.navigate({ to: "/dashboard" });
       }
       setFormDeleteDialogOpen(false);
       setFormToDelete(null);
     } catch (error) {
-      console.error("Failed to delete form:", error);
-      toast.error("Failed to delete form");
+      const message = error instanceof Error ? error.message : "Failed to delete form";
+      toast.error(message);
+    } finally {
+      setIsDeletingForm(false);
     }
+  }, [formToDelete, pathname, router, isDeletingForm]);
+
+  return {
+    deleteDialogOpen,
+    workspaceToDelete,
+    deleteConfirmName,
+    isDeletingWorkspace,
+    renameDialogOpen,
+    setRenameDialogOpen,
+    newWorkspaceName,
+    isRenamingWorkspace,
+    formDeleteDialogOpen,
+    setFormDeleteDialogOpen,
+    formToDelete,
+    isDeletingForm,
+    handleDeleteDialogOpenChange,
+    handleDeleteConfirmNameChange,
+    handleNewWorkspaceNameChange,
+    handleCloseRenameDialog,
+    handleDeleteWorkspace,
+    handleRenameWorkspace,
+    handleRenameKeyDown,
+    openRenameDialog,
+    openDeleteDialog,
+    handleDuplicateForm,
+    isFormDuplicating,
+    handleDeleteForm,
+    handleConfirmDeleteForm,
   };
+};
+
+const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => {
+  const router = useRouter();
+  const pathname = useLocation({ select: (s) => s.pathname });
+  const duplicateForm = useDuplicateForm();
+  const { data: session } = useSession();
+
+  const [sortMode, setSortMode] = useState<"recent" | "oldest" | "alphabetical" | "manual">(() => {
+    if (typeof window !== "undefined") {
+      return (
+        (localStorage.getItem("sidebar-sort-mode") as
+          | "recent"
+          | "oldest"
+          | "alphabetical"
+          | "manual") || "recent"
+      );
+    }
+    return "recent";
+  });
+  const handleSortChange = useCallback((mode: "recent" | "oldest" | "alphabetical" | "manual") => {
+    setSortMode(mode);
+    localStorage.setItem("sidebar-sort-mode", mode);
+  }, []);
+
+  const { data: workspacesData, isLoading: workspacesLoading } = useOrgWorkspaces(activeOrgId);
+  const { data: formsData, isLoading: formsLoading } = useOrgForms(activeOrgId);
+  const submissionCounts = useSubmissionCounts();
+
+  const favoriteForms = useFavoriteForms(session?.user?.id);
+
+  // Derive a stable Set of favorited form ids so individual sidebar rows can
+  // read a primitive `isFavorite` prop instead of each spinning up its own
+  // `useIsFavorite` live-query subscription. The Set identity is reused when
+  // the membership is unchanged so the prop chain stays referentially stable.
+  const favoriteFormIdsRef = useRef<Set<string>>(new Set());
+  const favoriteFormIds = useMemo(() => {
+    const next = new Set<string>();
+    for (const f of favoriteForms) next.add(f.id);
+    const previous = favoriteFormIdsRef.current;
+    if (previous.size === next.size) {
+      let identical = true;
+      for (const id of next) {
+        if (!previous.has(id)) {
+          identical = false;
+          break;
+        }
+      }
+      if (identical) return previous;
+    }
+    favoriteFormIdsRef.current = next;
+    return next;
+  }, [favoriteForms]);
+
+  // Pull the active form id once at the parent so each form row can read a
+  // primitive `isActive` prop instead of subscribing to `useLocation`.
+  const activeFormId = useMemo(() => {
+    const match = pathname.match(/\/form-builder\/([^/]+)/);
+    return match?.[1];
+  }, [pathname]);
+
+  const isLoading = workspacesLoading || formsLoading;
+  const isDataReady = !isLoading && workspacesData !== undefined && formsData !== undefined;
+
+  const { workspaces, allWorkspaceSummaries } = useSortedWorkspacesWithForms({
+    workspacesData,
+    formsData,
+    activeOrgId,
+    isDataReady,
+    sortMode,
+  });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const workspaceIds = useMemo(() => workspaces.map((w) => w.id), [workspaces]);
+
+  // Read-only ref so drag handlers can read the freshest workspaces snapshot
+  // without re-binding their identity (and re-rendering every WorkspaceItemMinimal)
+  // each time the live-query data churns.
+  const workspacesRef = useRef(workspaces);
+  workspacesRef.current = workspaces;
+  const sortModeRef = useRef(sortMode);
+  sortModeRef.current = sortMode;
+
+  const handleWorkspaceDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const current = workspacesRef.current;
+    const oldIdx = current.findIndex((w) => w.id === active.id);
+    const newIdx = current.findIndex((w) => w.id === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+
+    const reordered = [...current];
+    const [moved] = reordered.splice(oldIdx, 1);
+    reordered.splice(newIdx, 0, moved);
+
+    try {
+      const indexes = generateOrderedIndexes(reordered.length);
+      reordered.forEach((ws, i) => {
+        if ((ws.sortIndex ?? null) !== indexes[i]) {
+          reorderWorkspaceLocal(ws.id, indexes[i]).catch(() =>
+            toast.error("Failed to reorder workspace"),
+          );
+        }
+      });
+    } catch (err) {
+      console.error("Failed to compute workspace sort indexes", err);
+    }
+  }, []);
+
+  const handleFormDragEnd = useCallback(
+    (workspaceId: string, event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const ws = workspacesRef.current.find((w) => w.id === workspaceId);
+      if (!ws) return;
+
+      const oldIdx = ws.forms.findIndex((f) => f.id === active.id);
+      const newIdx = ws.forms.findIndex((f) => f.id === over.id);
+      if (oldIdx < 0 || newIdx < 0) return;
+
+      const reordered = [...ws.forms];
+      const [moved] = reordered.splice(oldIdx, 1);
+      reordered.splice(newIdx, 0, moved);
+
+      try {
+        const indexes = generateOrderedIndexes(reordered.length);
+        reordered.forEach((form, i) => {
+          if ((form.sortIndex ?? null) !== indexes[i]) {
+            reorderFormLocal(form.id, indexes[i]).catch(() =>
+              toast.error("Failed to reorder form"),
+            );
+          }
+        });
+        // Auto-switch sidebar to manual mode so the reorder "sticks" visually
+        if (sortModeRef.current !== "manual") handleSortChange("manual");
+      } catch (err) {
+        console.error("Failed to compute form sort indexes", err);
+      }
+    },
+    [handleSortChange],
+  );
+
+  const dialogs = useSidebarWorkspaceDialogs({ router, pathname, duplicateForm });
+  const {
+    deleteDialogOpen,
+    workspaceToDelete,
+    deleteConfirmName,
+    isDeletingWorkspace,
+    renameDialogOpen,
+    setRenameDialogOpen,
+    newWorkspaceName,
+    isRenamingWorkspace,
+    formDeleteDialogOpen,
+    setFormDeleteDialogOpen,
+    formToDelete,
+    isDeletingForm,
+    handleDeleteDialogOpenChange,
+    handleDeleteConfirmNameChange,
+    handleNewWorkspaceNameChange,
+    handleCloseRenameDialog,
+    handleDeleteWorkspace,
+    handleRenameWorkspace,
+    handleRenameKeyDown,
+    openRenameDialog,
+    openDeleteDialog,
+    handleDuplicateForm,
+    isFormDuplicating,
+    handleDeleteForm,
+    handleConfirmDeleteForm,
+  } = dialogs;
 
   return (
     <>
       <div className="flex flex-col">
-        {/* Favorites Section */}
-        <SidebarSection
-          label="Favorites"
-          initialOpen={favoriteForms.length > 0}
-          action={<></>}
-        >
-          {favoriteForms.length === 0 ? (
-            <span className="text-muted-foreground/50 text-[11px] px-2 py-1 italic">
-              No favorites yet
-            </span>
-          ) : (
-            favoriteForms.map((form) => {
-              const favTo = form.status === "published"
-                ? `/workspace/${form.workspaceId}/form-builder/${form.id}/submissions`
-                : `/workspace/${form.workspaceId}/form-builder/${form.id}/edit`;
-              const isFavActive = location.pathname.startsWith(`/workspace/${form.workspaceId}/form-builder/${form.id}`);
-              return (
-                <SidebarItem
-                  key={form.id}
-                  label={form.title || "Untitled"}
-                  to={favTo}
-                  isActive={isFavActive}
-                  prefix={
-                    <div className="bg-form-icon-bg rounded-full size-[18px] flex items-center justify-center border-[0.5px] border-form-icon-border shrink-0">
-                      <StarIcon className="h-4.5 w-4.5 fill-foreground text-foreground" />
-                    </div>
-                  }
-                />
-              );
-            })
-          )}
-        </SidebarSection>
+        {favoriteForms.length > 0 && session?.user?.id && (
+          <SortableFavoritesSection userId={session.user.id} favoriteForms={favoriteForms} />
+        )}
 
-        {/* Workspaces Section - 15px gap to match Figma mt-[15px] */}
         <div className="mt-[15px] space-y-4">
           {isLoading ? (
             ["collection-skeleton-1", "collection-skeleton-2"].map((key) => (
               <div key={key} className="flex items-center gap-2 px-2 py-1.5">
-                <div className="h-4 w-4 rounded bg-muted animate-pulse" />
-                <div className="h-4 flex-1 rounded bg-muted animate-pulse" />
+                <div className="size-4 animate-pulse rounded bg-muted" />
+                <div className="h-4 flex-1 animate-pulse rounded bg-muted" />
               </div>
             ))
           ) : (
-            <div className="space-y-4">
-              {workspaces.map((workspace) => (
-                <WorkspaceItemMinimal
-                  key={workspace.id}
-                  workspace={workspace}
-                  submissionCounts={submissionCounts}
-                  sortMode={sortMode}
-                  onSortChange={handleSortChange}
-                  onRename={() => openRenameDialog(workspace)}
-                  onDelete={() => openDeleteDialog(workspace)}
-                  onDuplicateForm={handleDuplicateForm}
-                  onDeleteForm={handleDeleteForm}
-                />
-              ))}
-              {workspaces.length === 0 && (
-                <span className="text-muted-foreground/50 text-[11px] px-2 py-1 italic">
-                  No workspaces yet
-                </span>
-              )}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleWorkspaceDragEnd}
+              modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+            >
+              <SortableContext items={workspaceIds} strategy={verticalListSortingStrategy}>
+                <div className="space-y-4">
+                  {workspaces.map((workspace) => (
+                    <WorkspaceItemMinimal
+                      key={workspace.id}
+                      workspace={workspace}
+                      allWorkspaces={allWorkspaceSummaries}
+                      submissionCounts={submissionCounts}
+                      favoriteFormIds={favoriteFormIds}
+                      activeFormId={activeFormId}
+                      sortMode={sortMode}
+                      onSortChange={handleSortChange}
+                      onRename={openRenameDialog}
+                      onDelete={openDeleteDialog}
+                      onDuplicateForm={handleDuplicateForm}
+                      onDeleteForm={handleDeleteForm}
+                      onFormDragEnd={handleFormDragEnd}
+                      isFormDuplicating={isFormDuplicating}
+                    />
+                  ))}
+                  {workspaces.length === 0 && (
+                    <span className="px-2 py-1 text-[11px] text-muted-foreground/50 italic">
+                      No workspaces yet
+                    </span>
+                  )}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>
 
-      {/* Delete Workspace Confirmation Dialog */}
-      <AlertDialog
+      <WorkspaceDeleteConfirmDialog
         open={deleteDialogOpen}
-        onOpenChange={(open) => {
-          setDeleteDialogOpen(open);
-          if (!open) setDeleteConfirmName("");
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete workspace</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-4">
-                <p>
-                  This will permanently delete <strong>"{workspaceToDelete?.name}"</strong> and{" "}
-                  <strong>
-                    {workspaceToDelete?.forms?.length || 0} form
-                    {(workspaceToDelete?.forms?.length || 0) !== 1 ? "s" : ""}
-                  </strong>{" "}
-                  within it. This action cannot be undone.
-                </p>
-                <div className="space-y-2">
-                  <p className="text-sm">
-                    Type <strong>{workspaceToDelete?.name}</strong> to confirm:
-                  </p>
-                  <Input
-                    value={deleteConfirmName}
-                    onChange={(e) => setDeleteConfirmName(e.target.value)}
-                    placeholder="Type workspace name to confirm"
-                    className="mt-2"
-                  />
-                </div>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteWorkspace}
-              disabled={deleteConfirmName !== workspaceToDelete?.name}
-              className="bg-destructive text-white hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Delete workspace
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        workspace={workspaceToDelete}
+        confirmName={deleteConfirmName}
+        isDeleting={isDeletingWorkspace}
+        onOpenChange={handleDeleteDialogOpenChange}
+        onConfirmNameChange={handleDeleteConfirmNameChange}
+        onDelete={handleDeleteWorkspace}
+      />
 
-      {/* Rename Workspace Dialog */}
-      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rename workspace</DialogTitle>
-            <DialogDescription>Enter a new name for this workspace.</DialogDescription>
-          </DialogHeader>
-          <Input
-            value={newWorkspaceName}
-            onChange={(e) => setNewWorkspaceName(e.target.value)}
-            placeholder="Workspace name"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleRenameWorkspace();
-              }
-            }}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleRenameWorkspace}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <WorkspaceRenameDialog
+        open={renameDialogOpen}
+        name={newWorkspaceName}
+        isRenaming={isRenamingWorkspace}
+        onOpenChange={setRenameDialogOpen}
+        onNameChange={handleNewWorkspaceNameChange}
+        onClose={handleCloseRenameDialog}
+        onRename={handleRenameWorkspace}
+        onKeyDown={handleRenameKeyDown}
+      />
 
-      {/* Form Delete Confirmation Dialog */}
-      <AlertDialog open={formDeleteDialogOpen} onOpenChange={setFormDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete form</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{formToDelete?.title}"? This action will move it to
-              trash.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDeleteForm}
-              className="bg-destructive text-white hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <FormDeleteConfirmDialog
+        open={formDeleteDialogOpen}
+        form={formToDelete}
+        isDeleting={isDeletingForm}
+        onOpenChange={setFormDeleteDialogOpen}
+        onConfirm={handleConfirmDeleteForm}
+      />
     </>
   );
+};
+
+interface WorkspaceDeleteConfirmDialogProps {
+  open: boolean;
+  workspace: WorkspaceWithForms | null;
+  confirmName: string;
+  isDeleting: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirmNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDelete: () => void;
 }
+
+const WorkspaceDeleteConfirmDialog = ({
+  open,
+  workspace,
+  confirmName,
+  isDeleting,
+  onOpenChange,
+  onConfirmNameChange,
+  onDelete,
+}: WorkspaceDeleteConfirmDialogProps) => (
+  <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Delete workspace</AlertDialogTitle>
+        <AlertDialogDescription render={<div className="space-y-4" />}>
+          <p>
+            This will permanently delete <strong>"{workspace?.name}"</strong> and{" "}
+            <strong>
+              {workspace?.forms?.length || 0} form
+              {(workspace?.forms?.length || 0) !== 1 ? "s" : ""}
+            </strong>
+            within it. This action cannot be undone.
+          </p>
+          <div className="space-y-2">
+            <p className="text-sm">
+              Type <strong>{workspace?.name}</strong> to confirm:
+            </p>
+            <Input
+              value={confirmName}
+              onChange={onConfirmNameChange}
+              placeholder="Type workspace name to confirm"
+              aria-label="Type to confirm deletion"
+              className="mt-2"
+            />
+          </div>
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          onClick={onDelete}
+          disabled={confirmName !== workspace?.name || isDeleting}
+          className="bg-destructive text-white hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isDeleting ? (
+            <>
+              <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
+              Deleting…
+            </>
+          ) : (
+            "Delete workspace"
+          )}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
+
+interface WorkspaceRenameDialogProps {
+  open: boolean;
+  name: string;
+  isRenaming: boolean;
+  onOpenChange: (open: boolean) => void;
+  onNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClose: () => void;
+  onRename: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+}
+
+const WorkspaceRenameDialog = ({
+  open,
+  name,
+  isRenaming,
+  onOpenChange,
+  onNameChange,
+  onClose,
+  onRename,
+  onKeyDown,
+}: WorkspaceRenameDialogProps) => (
+  <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="gap-4 sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>Rename workspace</DialogTitle>
+        <DialogDescription>Enter a new name for this workspace.</DialogDescription>
+      </DialogHeader>
+      <Input
+        value={name}
+        onChange={onNameChange}
+        placeholder="Workspace name"
+        aria-label="Workspace name"
+        onKeyDown={onKeyDown}
+      />
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} disabled={isRenaming}>
+          Cancel
+        </Button>
+        <Button onClick={onRename} disabled={!name.trim() || isRenaming}>
+          {isRenaming ? (
+            <>
+              <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
+              Saving…
+            </>
+          ) : (
+            "Save"
+          )}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+);
+
+interface FormDeleteConfirmDialogProps {
+  open: boolean;
+  form: { id: string; title: string } | null;
+  isDeleting: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+}
+
+const FormDeleteConfirmDialog = ({
+  open,
+  form,
+  isDeleting,
+  onOpenChange,
+  onConfirm,
+}: FormDeleteConfirmDialogProps) => (
+  <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Delete form</AlertDialogTitle>
+        <AlertDialogDescription>
+          Are you sure you want to delete "{form?.title}"? This action will move it to trash.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          onClick={onConfirm}
+          disabled={isDeleting}
+          className="bg-destructive text-white hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isDeleting ? (
+            <>
+              <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
+              Deleting…
+            </>
+          ) : (
+            "Delete"
+          )}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
+
+type FavoriteFormItem = {
+  id: string;
+  title: string | null;
+  workspaceId: string;
+  status: string;
+  updatedAt: string;
+  icon: string | null;
+  customization: unknown;
+  favoriteId: string;
+  favoriteSortIndex: string | null;
+  favoriteCreatedAt: string;
+};
+
+const SortableFavoritesSection = ({
+  userId,
+  favoriteForms,
+}: {
+  userId: string;
+  favoriteForms: FavoriteFormItem[];
+}) => {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const sorted = useMemo(
+    () =>
+      sortByManualOrder(
+        favoriteForms.map((f) => ({ ...f, sortIndex: f.favoriteSortIndex })),
+        (a, b) => new Date(a.favoriteCreatedAt).getTime() - new Date(b.favoriteCreatedAt).getTime(),
+      ),
+    [favoriteForms],
+  );
+
+  const favIds = useMemo(() => sorted.map((f) => f.favoriteId), [sorted]);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const oldIdx = sorted.findIndex((f) => f.favoriteId === active.id);
+      const newIdx = sorted.findIndex((f) => f.favoriteId === over.id);
+      if (oldIdx < 0 || newIdx < 0) return;
+
+      const reordered = [...sorted];
+      const [moved] = reordered.splice(oldIdx, 1);
+      reordered.splice(newIdx, 0, moved);
+
+      try {
+        const indexes = generateOrderedIndexes(reordered.length);
+        reordered.forEach((fav, i) => {
+          if ((fav.favoriteSortIndex ?? null) !== indexes[i]) {
+            reorderFavoriteLocal(fav.favoriteId, indexes[i]).catch(() =>
+              toast.error("Failed to reorder favorite"),
+            );
+          }
+        });
+      } catch (err) {
+        console.error("Failed to compute favorite sort indexes", err);
+      }
+    },
+    [sorted],
+  );
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+      modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+    >
+      <SidebarSection label="Favorites" initialOpen action={<></>}>
+        <SortableContext items={favIds} strategy={verticalListSortingStrategy}>
+          {sorted.map((form) => (
+            <SortableFavoriteItem key={form.favoriteId} form={form} userId={userId} />
+          ))}
+        </SortableContext>
+      </SidebarSection>
+    </DndContext>
+  );
+};
+
+const SortableFavoriteItem = ({
+  form,
+  userId,
+}: {
+  form: FavoriteFormItem & { sortIndex: string | null };
+  userId: string;
+}) => {
+  const pathname = useLocation({ select: (s) => s.pathname });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: form.favoriteId,
+    data: { type: "favorite" },
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  const isFavActive = pathname.startsWith(`/workspace/${form.workspaceId}/form-builder/${form.id}`);
+
+  const handleUnfavorite = useCallback(() => {
+    toggleFavoriteLocal(userId, form.id).catch(() => toast.error("Failed to unfavorite"));
+  }, [userId, form.id]);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="group/row relative"
+    >
+      <SidebarItem
+        label={form.title || "Untitled"}
+        linkOptions={{
+          to:
+            form.status === "published"
+              ? "/workspace/$workspaceId/form-builder/$formId/submissions"
+              : "/workspace/$workspaceId/form-builder/$formId/edit",
+          params: { workspaceId: form.workspaceId, formId: form.id },
+        }}
+        isActive={isFavActive}
+        prefix={
+          <ThemedFormIcon
+            icon={form.icon}
+            customization={form.customization as Record<string, string> | null | undefined}
+          />
+        }
+        className="group-hover/row:pe-7 group-has-[[data-state=open]]/row:pe-7"
+      />
+      <button
+        type="button"
+        aria-label="Remove from favorites"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleUnfavorite();
+        }}
+        className="hover:bg-sidebar-active absolute top-1/2 right-2 z-10 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 hover:text-foreground"
+      >
+        <StarIcon className="size-3.5" />
+      </button>
+    </div>
+  );
+};

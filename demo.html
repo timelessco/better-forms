@@ -4,16 +4,50 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
-    <script async src="http://localhost:3000/embed/popup.js"></script>
-    <style>
-      body {
-        background: orange;
-      }
-    </style>
+    <script
+      async
+      src="http://localhost:3000/embed/popup.js"
+      data-form-id="71136b40-6d49-4052-a3eb-3fd7c91882df"
+      data-position="bottom-right"
+      data-width="376"
+    ></script>
   </head>
   <body>
-    <a href="http://localhost:3000/forms/13d0a44e-2175-45e7-b92e-e9045bcac4f2?dynamicHeight=true"
-      >Open Form</a
-    >
+    <div></div>
+    <!-- <iframe
+      data-reform-src="http://localhost:3000/forms/7817f8e4-a66d-46b5-947b-9707a9f3a571?dynamicHeight=true"
+      loading="lazy"
+      width="100%"
+      height="558"
+      frameborder="0"
+      marginheight="0"
+      marginwidth="0"
+      title="pretex"
+    ></iframe>
+    <script>
+      window.addEventListener("message", function (e) {
+        try {
+          var d = JSON.parse(e.data);
+          if (d.event === "Reform.Resize") {
+            var f = document.querySelector("iframe[data-reform-src]");
+            if (f && typeof d.height === "number") f.style.height = d.height + "px";
+          }
+        } catch {}
+      });
+      var d = document,
+        w = "http://localhost:3000/widgets/embed.js",
+        v = function () {
+          "undefined" != typeof Reform
+            ? Reform.loadEmbeds()
+            : d.querySelectorAll("iframe[data-reform-src]:not([src])").forEach(function (e) {
+                e.src = e.dataset.reformSrc;
+              });
+        };
+      if ("undefined" != typeof Reform) v();
+      else if (d.querySelector('script[src="' + w + '"]') == null) {
+        var s = d.createElement("script");
+        ((s.src = w), (s.onload = v), (s.onerror = v), d.body.appendChild(s));
+      }
+    </script> -->
   </body>
 </html>

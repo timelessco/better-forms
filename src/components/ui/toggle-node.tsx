@@ -1,11 +1,11 @@
 import { useToggleButton, useToggleButtonState } from "@platejs/toggle/react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRightIcon } from "@/components/ui/icons";
 import type { PlateElementProps } from "platejs/react";
 import { PlateElement } from "platejs/react";
 
 import { Button } from "@/components/ui/button";
 
-export function ToggleElement(props: PlateElementProps) {
+export const ToggleElement = (props: PlateElementProps) => {
   const element = props.element;
   const state = useToggleButtonState(element.id as string);
   const { buttonProps, open } = useToggleButton(state);
@@ -15,11 +15,11 @@ export function ToggleElement(props: PlateElementProps) {
       <Button
         size="icon"
         variant="ghost"
-        className="-left-0.5 absolute top-0 size-6 cursor-pointer select-none items-center justify-center rounded-md p-px text-muted-foreground transition-colors hover:bg-accent [&_svg]:size-4"
+        className="absolute top-0 -left-0.5 size-6 cursor-pointer items-center justify-center rounded-md p-px text-muted-foreground transition-colors select-none hover:bg-accent [&_svg]:size-4"
         contentEditable={false}
         {...buttonProps}
       >
-        <ChevronRight
+        <ChevronRightIcon
           className={
             open
               ? "rotate-90 transition-transform duration-75"
@@ -30,4 +30,4 @@ export function ToggleElement(props: PlateElementProps) {
       {props.children}
     </PlateElement>
   );
-}
+};

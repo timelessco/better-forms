@@ -5,11 +5,9 @@ import {
   autoformatArrow,
   autoformatLegal,
   autoformatLegalHtml,
-  autoformatMath,
   autoformatPunctuation,
   autoformatSmartQuotes,
 } from "@platejs/autoformat";
-import { insertEmptyCodeBlock } from "@platejs/code-block";
 import { toggleList } from "@platejs/list";
 import { KEYS } from "platejs";
 
@@ -123,23 +121,6 @@ const autoformatBlocks: AutoformatRule[] = [
     type: KEYS.blockquote,
   },
   {
-    match: "```",
-    mode: "block",
-    type: KEYS.codeBlock,
-    format: (editor) => {
-      insertEmptyCodeBlock(editor, {
-        defaultType: KEYS.p,
-        insertNodesOptions: { select: true },
-      });
-    },
-  },
-  // {
-  //   match: '+ ',
-  //   mode: 'block',
-  //   preFormat: openNextToggles,
-  //   type: KEYS.toggle,
-  // },
-  {
     match: ["---", "—-", "___ "],
     mode: "block",
     type: KEYS.hr,
@@ -177,31 +158,11 @@ const autoformatLists: AutoformatRule[] = [
     },
   },
   {
-    match: ["[] "],
+    match: ["[] ", "[ ] "],
     mode: "block",
-    type: "list",
+    type: "formOptionItem",
     format: (editor) => {
-      toggleList(editor, {
-        listStyleType: KEYS.listTodo,
-      });
-      editor.tf.setNodes({
-        checked: false,
-        listStyleType: KEYS.listTodo,
-      });
-    },
-  },
-  {
-    match: ["[x] "],
-    mode: "block",
-    type: "list",
-    format: (editor) => {
-      toggleList(editor, {
-        listStyleType: KEYS.listTodo,
-      });
-      editor.tf.setNodes({
-        checked: true,
-        listStyleType: KEYS.listTodo,
-      });
+      editor.tf.setNodes({ type: "formOptionItem", variant: "checkbox" });
     },
   },
 ];
@@ -218,17 +179,8 @@ export const AutoformatKit = [
         ...autoformatLegal,
         ...autoformatLegalHtml,
         ...autoformatArrow,
-        ...autoformatMath,
         ...autoformatLists,
-      ].map(
-        (rule): AutoformatRule => ({
-          ...rule,
-          query: (editor) =>
-            !editor.api.some({
-              match: { type: editor.getType(KEYS.codeBlock) },
-            }),
-        }),
-      ),
+      ],
     },
   }),
 ];

@@ -1,0 +1,310 @@
+import type {
+  formAnalyticsDaily,
+  formDropoffDaily,
+  formQuestionProgress,
+  formVisits,
+} from "@/db/schema";
+
+type RawVisit = typeof formVisits.$inferSelect;
+type RawProgress = typeof formQuestionProgress.$inferSelect;
+type DailyAnalyticsInsert = typeof formAnalyticsDaily.$inferInsert;
+type DailyDropoffInsert = typeof formDropoffDaily.$inferInsert;
+
+// Schema convention: dropoffRate / completionRate are stored as percentage * 100.
+// e.g. 50% → 5000, 12.34% → 1234. Read side currently recomputes from raw counts,
+// but storing the scaled integer is required for forensic queries and to match
+// the column comment.
+const PERCENT_SCALE = 100;
+
+const computeAverage = (values: number[]): number | null => {
+  if (values.length === 0) {
+    return null;
+  }
+  let sum = 0;
+  for (const v of values) {
+    sum += v;
+  }
+  return Math.round(sum / values.length);
+};
+
+const computeMedian = (values: number[]): number | null => {
+  if (values.length === 0) {
+    return null;
+  }
+  const sorted = [...values].toSorted((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    const lo = sorted[mid - 1] ?? 0;
+    const hi = sorted[mid] ?? 0;
+    return Math.round((lo + hi) / 2);
+  }
+  return sorted[mid] ?? null;
+};
+
+export const bumpKey = (target: Record<string, number>, key: string | null | undefined): void => {
+  if (!key) {
+    return;
+  }
+  target[key] = (target[key] ?? 0) + 1;
+};
+
+/**
+ * Group raw visits by formId and return one DailyAnalyticsInsert row per form.
+ * `dateKey` is YYYY-MM-DD UTC.
+ */
+export const buildDailyAnalyticsRows = (
+  visits: RawVisit[],
+  dateKey: string,
+  now: Date,
+): DailyAnalyticsInsert[] => {
+  if (visits.length === 0) {
+    return [];
+  }
+
+  const groups = new Map<string, RawVisit[]>();
+  for (const visit of visits) {
+    const list = groups.get(visit.formId);
+    if (list) {
+      list.push(visit);
+    } else {
+      groups.set(visit.formId, [visit]);
+    }
+  }
+
+  const rows: DailyAnalyticsInsert[] = [];
+
+  for (const [formId, group] of groups) {
+    const uniqueVisitorHashes = new Set<string>();
+    const uniqueSubmitterHashes = new Set<string>();
+    let totalSubmissions = 0;
+    const durations: number[] = [];
+
+    const deviceBreakdown: Record<string, number> = {};
+    const browserBreakdown: Record<string, number> = {};
+    const osBreakdown: Record<string, number> = {};
+    const countryBreakdown: Record<string, number> = {};
+    const cityBreakdown: Record<string, number> = {};
+    const sourceBreakdown: Record<string, number> = {};
+
+    for (const visit of group) {
+      uniqueVisitorHashes.add(visit.visitorHash);
+
+      if (visit.didSubmit) {
+        totalSubmissions += 1;
+        uniqueSubmitterHashes.add(visit.visitorHash);
+      }
+
+      if (visit.durationMs !== null && visit.durationMs !== undefined) {
+        durations.push(visit.durationMs);
+      }
+
+      bumpKey(deviceBreakdown, visit.deviceType);
+      bumpKey(browserBreakdown, visit.browser ?? "Other");
+      bumpKey(osBreakdown, visit.os ?? "Other");
+      bumpKey(countryBreakdown, visit.country);
+      bumpKey(cityBreakdown, visit.city);
+
+      const sourceKey = visit.utmSource ?? "direct";
+      sourceBreakdown[sourceKey] = (sourceBreakdown[sourceKey] ?? 0) + 1;
+    }
+
+    rows.push({
+      id: crypto.randomUUID(),
+      formId,
+      date: dateKey,
+      totalVisits: group.length,
+      uniqueVisitors: uniqueVisitorHashes.size,
+      totalSubmissions,
+      uniqueSubmitters: uniqueSubmitterHashes.size,
+      avgDurationMs: computeAverage(durations),
+      medianDurationMs: computeMedian(durations),
+      deviceBreakdown,
+      browserBreakdown,
+      osBreakdown,
+      countryBreakdown,
+      cityBreakdown,
+      sourceBreakdown,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  return rows;
+};
+
+/**
+ * Visit slice needed by the daily rollup for terminal-drop attribution.
+ * The cron loads full `formVisits` rows; this is the minimal shape consumed
+ * by {@link buildDailyDropoffRows}.
+ */
+export type VisitForRollup = {
+  id: string;
+  didSubmit: boolean;
+  visitEndedAt: Date | null;
+};
+
+/**
+ * Group raw progress events by (formId, questionId, questionIndex) and return
+ * one DailyDropoffInsert row per group.
+ *
+ * Per ADR-0002:
+ *  - `dropoffCount` means "started but not completed" (intra-Question
+ *    abandonment), NOT the legacy `viewCount - completeCount`.
+ *  - `terminalDropoffCount` is the per-Visit attribution: for each Visit that
+ *    ended without submitting (`didSubmit === false && visitEndedAt != null`),
+ *    the Question with the latest `startedAt` and no `completedAt` is the
+ *    terminal one — increment its counter once.
+ *  - `stepId` / `stepIndex` are pass-through from a representative row per
+ *    (formId, questionId, questionIndex). Upstream guarantees they agree
+ *    within a group (Task 3.2).
+ *
+ * NOTE: every progress row has a non-null `viewedAt` (it's the row's primary
+ * timestamp), so `viewCount === 0` cannot occur for an existing group. We still
+ * guard against divide-by-zero and store null rates if it ever happens.
+ */
+export const buildDailyDropoffRows = ({
+  rows: progressEvents,
+  visits,
+  dateKey,
+  now,
+}: {
+  rows: readonly RawProgress[];
+  visits: readonly VisitForRollup[];
+  dateKey: string;
+  now: Date;
+}): DailyDropoffInsert[] => {
+  if (progressEvents.length === 0) {
+    return [];
+  }
+
+  // Terminal-drop attribution per Visit.
+  // For each incomplete (didSubmit=false, visitEndedAt!=null) Visit, find the
+  // Question with the latest `startedAt` whose `completedAt` is null. That's
+  // the terminal Question for that Visit; increment its counter once.
+  const visitsById = new Map<string, VisitForRollup>();
+  for (const v of visits) {
+    visitsById.set(v.id, v);
+  }
+
+  const rowsByVisit = new Map<string, RawProgress[]>();
+  for (const event of progressEvents) {
+    const list = rowsByVisit.get(event.visitId);
+    if (list) {
+      list.push(event);
+    } else {
+      rowsByVisit.set(event.visitId, [event]);
+    }
+  }
+
+  const terminalCount = new Map<string, number>();
+  for (const [visitId, vRows] of rowsByVisit) {
+    const visit = visitsById.get(visitId);
+    if (!visit) {
+      continue;
+    }
+    if (visit.didSubmit) {
+      continue;
+    }
+    if (!visit.visitEndedAt) {
+      continue;
+    }
+    let terminal: RawProgress | null = null;
+    let terminalTs = -Infinity;
+    for (const row of vRows) {
+      if (row.startedAt === null) {
+        continue;
+      }
+      if (row.completedAt !== null) {
+        continue;
+      }
+      const ts = row.startedAt.getTime();
+      if (ts > terminalTs) {
+        terminal = row;
+        terminalTs = ts;
+      }
+    }
+    if (terminal !== null) {
+      const key = terminal.questionId;
+      terminalCount.set(key, (terminalCount.get(key) ?? 0) + 1);
+    }
+  }
+
+  type GroupKey = string;
+  const groups = new Map<
+    GroupKey,
+    {
+      formId: string;
+      questionId: string;
+      questionIndex: number;
+      stepId: string | null;
+      stepIndex: number | null;
+      events: RawProgress[];
+    }
+  >();
+
+  for (const event of progressEvents) {
+    const key = `${event.formId} ${event.questionId} ${event.questionIndex}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.events.push(event);
+    } else {
+      groups.set(key, {
+        formId: event.formId,
+        questionId: event.questionId,
+        questionIndex: event.questionIndex,
+        stepId: event.stepId,
+        stepIndex: event.stepIndex,
+        events: [event],
+      });
+    }
+  }
+
+  const rows: DailyDropoffInsert[] = [];
+
+  for (const group of groups.values()) {
+    const viewCount = group.events.length;
+    let startCount = 0;
+    let completeCount = 0;
+    let dropoffCount = 0;
+    for (const event of group.events) {
+      if (event.startedAt !== null) {
+        startCount += 1;
+      }
+      if (event.completedAt !== null) {
+        completeCount += 1;
+      }
+      // ADR-0002: dropoffCount = "started but not completed" (intra-Question).
+      if (event.startedAt !== null && event.completedAt === null) {
+        dropoffCount += 1;
+      }
+    }
+
+    let dropoffRate: number | null = null;
+    let completionRate: number | null = null;
+    if (viewCount > 0) {
+      dropoffRate = Math.round((dropoffCount / viewCount) * 100 * PERCENT_SCALE);
+      completionRate = Math.round((completeCount / viewCount) * 100 * PERCENT_SCALE);
+    }
+
+    rows.push({
+      id: crypto.randomUUID(),
+      formId: group.formId,
+      date: dateKey,
+      stepId: group.stepId,
+      stepIndex: group.stepIndex,
+      questionId: group.questionId,
+      questionIndex: group.questionIndex,
+      viewCount,
+      startCount,
+      completeCount,
+      dropoffCount,
+      terminalDropoffCount: terminalCount.get(group.questionId) ?? 0,
+      dropoffRate,
+      completionRate,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  return rows;
+};

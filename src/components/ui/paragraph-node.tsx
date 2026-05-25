@@ -1,12 +1,12 @@
 import type { PlateElementProps } from "platejs/react";
 import { PlateElement } from "platejs/react";
 
+import { LabelRequiredBadge } from "@/components/ui/required-badge-button";
 import { cn } from "@/lib/utils";
 
-export function ParagraphElement(props: PlateElementProps) {
-  return (
-    <PlateElement {...props} className={cn("m-0 px-0 py-1")}>
-      {props.children}
-    </PlateElement>
-  );
-}
+export const ParagraphElement = (props: PlateElementProps) => (
+  <PlateElement {...props} className={cn("relative m-0 px-0")}>
+    {props.children}
+    <LabelRequiredBadge labelElement={props.element} />
+  </PlateElement>
+);

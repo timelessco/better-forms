@@ -3,11 +3,11 @@ import { usePluginOption } from "platejs/react";
 import * as React from "react";
 import { toast } from "sonner";
 
-export function MediaUploadToast() {
+export const MediaUploadToast = () => {
   useUploadErrorToast();
 
   return null;
-}
+};
 
 const useUploadErrorToast = () => {
   const uploadError = usePluginOption(PlaceholderPlugin, "error");

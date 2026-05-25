@@ -1,22 +1,25 @@
-import * as Sentry from "@sentry/tanstackstart-react";
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import * as TanstackQuery from "./integrations/tanstack-query/root-provider";
 
-// Import the generated route tree
 import { routeTree } from "./routeTree.gen";
+import { NotFound } from "./components/ui/not-found";
+import { ErrorBoundary } from "./components/ui/error-boundary";
+import Loader from "./components/ui/loader";
 
-// Create a new router instance
 export const getRouter = () => {
   const rqContext = TanstackQuery.getContext();
 
   const router = createRouter({
     routeTree,
+    scrollRestoration: true,
+    defaultNotFoundComponent: NotFound,
+    defaultErrorComponent: ErrorBoundary,
+    defaultPendingComponent: Loader,
     context: {
       ...rqContext,
       session: null,
     },
-
     defaultPreload: "intent",
   });
 
@@ -25,14 +28,11 @@ export const getRouter = () => {
     queryClient: rqContext.queryClient,
   });
 
-  if (!router.isServer) {
-    Sentry.init({
-      dsn: import.meta.env.VITE_SENTRY_DSN,
-      integrations: [],
-      tracesSampleRate: 1.0,
-      sendDefaultPii: true,
-    });
-  }
-
   return router;
 };
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: ReturnType<typeof getRouter>;
+  }
+}

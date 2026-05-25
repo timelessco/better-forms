@@ -1,11 +1,12 @@
 import { useCallback } from "react";
 import { useEditorSidebar } from "./use-editor-sidebar";
 
-export function useVersionHistorySidebar() {
+export const useVersionHistorySidebar = () => {
   const {
     activeSidebar,
     toggleSidebar,
-    setActiveSidebar,
+    openVersionHistory,
+    closeSidebar,
     selectedVersionId,
     selectVersion,
     exitVersionView,
@@ -13,18 +14,18 @@ export function useVersionHistorySidebar() {
 
   const isOpen = activeSidebar === "history";
 
-  // Derived: viewing a version when one is selected
   const isViewingVersion = selectedVersionId !== null;
 
-  // Wrapper that resets state when closing
   const handleSetIsOpen = useCallback(
     (open: boolean) => {
-      if (!open) {
+      if (open) {
+        openVersionHistory();
+      } else {
         exitVersionView();
+        closeSidebar();
       }
-      setActiveSidebar(open ? "history" : null);
     },
-    [setActiveSidebar, exitVersionView],
+    [openVersionHistory, closeSidebar, exitVersionView],
   );
 
   return {
@@ -36,4 +37,4 @@ export function useVersionHistorySidebar() {
     exitVersionView,
     toggle: () => toggleSidebar("history"),
   };
-}
+};

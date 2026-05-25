@@ -1,302 +1,227 @@
-import { type Path, PathApi, type TElement } from "platejs";
+import { PathApi } from "platejs";
+import type { Path, TElement } from "platejs";
 import type { PlateEditor } from "platejs/react";
 import { createPlatePlugin } from "platejs/react";
 import { FormButtonElement } from "@/components/ui/form-button-node";
-import { FormInputElement } from "@/components/ui/form-input-node";
+import { FormFieldElement } from "@/components/ui/form-field-node";
 import { FormLabelElement } from "@/components/ui/form-label-node";
 import { FormTextareaElement } from "@/components/ui/form-textarea-node";
 import { PageBreakElement } from "@/components/ui/page-break-node";
+import { FormFileUploadElement } from "@/components/ui/form-file-upload-node";
+import { FormMultiSelectInputElement } from "@/components/ui/form-multi-select-input-node";
+import { FormOptionItemElement } from "@/components/ui/form-option-item-node";
+import {
+  findNextNonButtonPath,
+  findPrevNonButtonPath,
+  moveToPath,
+} from "@/components/editor/plugins/form-blocks-utils";
 
-const FORM_FIELD_TYPES = ["formInput", "formTextarea", "formButton", "formLabel", "pageBreak"];
+const FORM_FIELD_TYPES = new Set([
+  "formInput",
+  "formTextarea",
+  "formEmail",
+  "formPhone",
+  "formNumber",
+  "formLink",
+  "formDate",
+  "formTime",
+  "formFileUpload",
+  "formMultiSelectInput",
+  "formOptionItem",
+  "formButton",
+  "formLabel",
+  "pageBreak",
+]);
 
 // Button types that should not be deleted
-const PROTECTED_BUTTON_TYPES = ["formButton"];
+const PROTECTED_BUTTON_TYPES = new Set(["formButton"]);
 
-function moveToPath(editor: PlateEditor, path: Path): boolean {
-  const node = editor.api.node(path);
-  if (node) {
-    editor.tf.select({ path: [...path, 0], offset: 0 });
-    return true;
-  }
-  return false;
-}
+const VOID_FORM_INPUT_TYPES = new Set(["formFileUpload", "formMultiSelectInput"]);
 
-/**
- * Find the next block after the given path, skipping form buttons and page breaks.
- * - If next is a "submit" button (last page), return null (stay in place)
- * - If next is a "next/previous" button, skip to first element after page break
- */
-function findNextNonButtonPath(editor: PlateEditor, currentPath: Path): Path | null {
-  const children = editor.children as TElement[];
-  const currentIndex = currentPath[0];
-
-  for (let i = currentIndex + 1; i < children.length; i++) {
-    const node = children[i];
-    if (!node) continue;
-
-    // If we hit a form button, check its role
-    if (node.type === "formButton") {
-      const buttonRole = (node as any).buttonRole || "submit";
-
-      // If it's a submit button, check if there's a thank you page after it
-      if (buttonRole === "submit") {
-        // Look ahead for a pageBreak with isThankYouPage: true
-        let hasThankYouPage = false;
-        for (let j = i + 1; j < children.length; j++) {
-          const nextNode = children[j];
-          if (nextNode.type === "pageBreak" && (nextNode as any).isThankYouPage) {
-            hasThankYouPage = true;
-            break;
-          }
-        }
-        // If no thank you page, stop navigation here
-        if (!hasThankYouPage) {
-          return null;
-        }
-        // Otherwise continue to find content after the thank you pageBreak
-        continue;
-      }
-
-      // If it's a next/previous button, continue looking for content after page break
-      continue;
-    }
-
-    // Skip page breaks - continue to find first content block after it
-    if (node.type === "pageBreak") {
-      continue;
-    }
-
-    // Skip form header (shouldn't navigate into it)
-    if (node.type === "formHeader") {
-      continue;
-    }
-
-    return [i];
-  }
-
-  return null;
-}
+const PAGE_FIELD_TYPES = new Set([
+  "formInput",
+  "formTextarea",
+  "formLabel",
+  "formRadioGroup",
+  "formCheckbox",
+  "formOptionItem",
+  "formSelect",
+  "formDatePicker",
+]);
+const NON_EDITABLE_BLOCK_TYPES = new Set([
+  "formButton",
+  "pageBreak",
+  "formHeader",
+  "formFileUpload",
+  "formMultiSelectInput",
+]);
 
 /**
- * Find the previous block before the given path, skipping form buttons, page breaks, and headers.
+ * If the block at `blockPath` is the only content block after a preceding pageBreak,
+ * delete both the block and the pageBreak, then move the cursor to the previous content block.
+ * Returns true if it handled the deletion.
  */
-function findPrevNonButtonPath(editor: PlateEditor, currentPath: Path): Path | null {
+const tryDeletePageBreakWithEmptyBlock = (editor: PlateEditor, blockPath: Path): boolean => {
   const children = editor.children as TElement[];
-  const currentIndex = currentPath[0];
+  const currentIndex = blockPath[0];
 
+  let pageBreakIndex = -1;
   for (let i = currentIndex - 1; i >= 0; i--) {
-    const node = children[i];
-    if (!node) continue;
-
-    // Skip form buttons
-    if (node.type === "formButton") continue;
-
-    // Skip page breaks
-    if (node.type === "pageBreak") continue;
-
-    // Skip form header
-    if (node.type === "formHeader") continue;
-
-    return [i];
+    const prev = children[i];
+    if (prev.type === "formButton") continue;
+    if (prev.type === "pageBreak") {
+      pageBreakIndex = i;
+    }
+    break;
   }
 
-  return null;
-}
+  if (pageBreakIndex === -1) return false;
 
-function handleFormBlockKeyDown(editor: PlateEditor, event: React.KeyboardEvent): void {
+  let hasOtherContent = false;
+  for (let i = pageBreakIndex + 1; i < children.length; i++) {
+    if (i === currentIndex) continue;
+    const n = children[i];
+    if (n.type === "pageBreak" || n.type === "formButton") break;
+    hasOtherContent = true;
+    break;
+  }
 
-  // Prevent double-handling when multiple form plugins process same event
-  if ((event as any).__formBlockHandled) return;
+  if (hasOtherContent) return false;
+
+  const prevPath = findPrevNonButtonPath(editor, [pageBreakIndex]);
+  editor.tf.withoutNormalizing(() => {
+    editor.tf.removeNodes({ at: blockPath });
+    editor.tf.removeNodes({ at: [pageBreakIndex] });
+  });
+  if (prevPath) {
+    const edges = editor.api.edges(prevPath);
+    if (edges?.[1]) {
+      editor.tf.select(edges[1]);
+    }
+  }
+  return true;
+};
+
+/**
+ * Backspace handler for form-field blocks. Preserves the delete-edge-case
+ * behaviors (empty option collapse, page-break cleanup, button protection).
+ */
+const handleBackspace = (editor: PlateEditor, event: React.KeyboardEvent): void => {
+  if (event.key !== "Backspace") return;
 
   const block = editor.api.block();
-  if (!block || !FORM_FIELD_TYPES.includes(block[0].type)) return;
-
-  // Mark as handled before any action
-  (event as any).__formBlockHandled = true;
+  if (!block || !FORM_FIELD_TYPES.has(block[0].type)) return;
 
   const [node, path] = block;
+  if (!editor.api.isEmpty(node)) return;
 
-  // Tab or ArrowDown → move to next sibling block (skip buttons)
-  if ((event.key === "Tab" && !event.shiftKey) || event.key === "ArrowDown") {
-    const nextPath = findNextNonButtonPath(editor, path);
-    if (nextPath) {
-      event.preventDefault();
-      event.stopPropagation();
-      event.nativeEvent.stopImmediatePropagation();
-      moveToPath(editor, nextPath);
-    } else {
-      // No next block - create new p block before submit button
-      event.preventDefault();
-      event.stopPropagation();
-      event.nativeEvent.stopImmediatePropagation();
+  // Empty formOptionItem → delete unless it's the only option
+  if (node.type === "formOptionItem") {
+    event.preventDefault();
+    event.stopPropagation();
 
-      // Find insert position (before first formButton or at end)
-      const children = editor.children as TElement[];
-      let insertIndex = children.length;
-      for (let i = path[0] + 1; i < children.length; i++) {
-        if (children[i].type === "formButton") {
-          insertIndex = i;
-          break;
-        }
-      }
+    const children = editor.children as TElement[];
+    const prevNode = children[path[0] - 1];
+    const nextNode = children[path[0] + 1];
+    const isPrevLabel = prevNode?.type === "formLabel";
+    const isNextOption = nextNode?.type === "formOptionItem";
 
-      // Insert new paragraph and move to it
-      const insertPath: Path = [insertIndex];
-      editor.tf.insertNodes({ type: "p", children: [{ text: "" }] } as TElement, {
-        at: insertPath,
+    if (isPrevLabel && !isNextOption) {
+      editor.tf.setNodes({ type: "p", variant: undefined } as unknown as Partial<TElement>, {
+        at: path,
       });
-      moveToPath(editor, insertPath);
-    }
-    return;
-  }
-
-  // Shift+Tab or ArrowUp → move to previous sibling block (skip buttons)
-  if ((event.key === "Tab" && event.shiftKey) || event.key === "ArrowUp") {
-    const prevPath = findPrevNonButtonPath(editor, path);
-    if (prevPath) {
-      event.preventDefault();
-      event.stopPropagation();
-      event.nativeEvent.stopImmediatePropagation();
-      moveToPath(editor, prevPath);
-    }
-    return;
-  }
-
-  // ArrowLeft at start of block → check if previous is a form button, block if so
-  if (event.key === "ArrowLeft") {
-    const children = editor.children as TElement[];
-    const prevIndex = path[0] - 1;
-    const prevNode = children[prevIndex];
-
-    // Check if cursor is at the start of the block
-    const selection = editor.selection;
-    if (selection) {
-      const edges = editor.api.edges(path);
-      const start = edges?.[0];
-      if (
-        start &&
-        selection.anchor.offset === start.offset &&
-        PathApi.equals(selection.anchor.path, start.path)
-      ) {
-        // Cursor is at start of block - check previous block
-        if (prevNode && (prevNode.type === "formButton" || prevNode.type === "pageBreak")) {
-          // Block left arrow from entering button/pagebreak
-          event.preventDefault();
-          event.stopPropagation();
-          return;
-        }
-      }
-    }
-  }
-
-  // Enter in formLabel → if next sibling is formInput/formTextarea, move focus there
-  if (event.key === "Enter" && !event.shiftKey && node.type === "formLabel") {
-    const children = editor.children as TElement[];
-    const nextIndex = path[0] + 1;
-    const nextNode = children[nextIndex];
-
-    if (nextNode && (nextNode.type === "formInput" || nextNode.type === "formTextarea")) {
-      event.preventDefault();
-      event.stopPropagation();
-      moveToPath(editor, [nextIndex]);
-      return;
-    }
-  }
-
-  // Enter → create new paragraph (position depends on cursor location)
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const isEmpty = editor.api.isEmpty(node);
-    const selection = editor.selection;
-    const edges = editor.api.edges(path);
-
-    // Check if cursor is at the START of the block
-    const isAtStart =
-      selection &&
-      edges?.[0] &&
-      PathApi.equals(selection.anchor.path, edges[0].path) &&
-      selection.anchor.offset === edges[0].offset;
-
-    // If at START with content → insert paragraph ABOVE (push form field down)
-    if (!isEmpty && isAtStart) {
-      editor.tf.insertNodes({ type: "p", children: [{ text: "" }] } as TElement, { at: path });
-      // Cursor stays in new paragraph (now at original path)
-      moveToPath(editor, path);
       return;
     }
 
-    // Otherwise → insert paragraph BELOW (original behavior)
-    const nextPath = PathApi.next(path);
-    const children = editor.children as TElement[];
-    const nextIndex = nextPath[0];
-    const nextNode = children[nextIndex];
-
-    // If next block is a form button, insert BEFORE the button (at current position + 1)
-    // This keeps the button at the end
-    if (nextNode && (nextNode.type === "formButton" || nextNode.type === "pageBreak")) {
-      editor.tf.insertNodes({ type: "p", children: [{ text: "" }] } as TElement, {
-        at: nextPath,
-      });
-      moveToPath(editor, nextPath);
-      return;
-    }
-
-    editor.tf.insertNodes({ type: "p", children: [{ text: "" }] } as TElement, {
-      at: nextPath,
-    });
-    moveToPath(editor, nextPath);
-    return;
-  }
-
-  // Shift+Enter → insert newline in current block
-  if (event.key === "Enter" && event.shiftKey) {
-    event.preventDefault();
-    event.stopPropagation();
-    editor.tf.insertNodes({ text: "\n" });
-    return;
-  }
-
-  // Backspace on empty → delete current block (but NOT protected buttons)
-  if (event.key === "Backspace" && editor.api.isEmpty(node)) {
-    // Prevent deletion of protected button types
-    if (PROTECTED_BUTTON_TYPES.includes(node.type)) {
-      event.preventDefault();
-      event.stopPropagation();
-      return; // Don't delete, just prevent the action
-    }
-    event.preventDefault();
-    event.stopPropagation();
+    const prevPath: Path = [path[0] - 1];
     editor.tf.removeNodes({ at: path });
+    const edges = editor.api.edges(prevPath);
+    if (edges?.[1]) {
+      editor.tf.select(edges[1]);
+    }
     return;
   }
-}
+
+  if (PROTECTED_BUTTON_TYPES.has(node.type)) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+
+  if (tryDeletePageBreakWithEmptyBlock(editor, path)) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  editor.tf.removeNodes({ at: path });
+};
+
+/**
+ * Enter handler for form-field blocks: insert a plain paragraph below the
+ * current block and move the cursor into it, instead of splitting the
+ * field's label text. formOptionItem is excluded — its own plugin handles
+ * Enter to continue the option list.
+ */
+const handleFormFieldEnter = (editor: PlateEditor, event: React.KeyboardEvent): boolean => {
+  if (event.key !== "Enter" || event.shiftKey) return false;
+
+  const block = editor.api.block();
+  if (!block) return false;
+
+  const [node, path] = block;
+  if (!FORM_FIELD_TYPES.has(node.type)) return false;
+  if (node.type === "formOptionItem") return false;
+  if (node.type === "formButton" || node.type === "pageBreak") {
+    event.preventDefault();
+    event.stopPropagation();
+    return true;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  event.nativeEvent.stopImmediatePropagation();
+
+  // When a label sits directly above a void form field, Enter should land the
+  // new paragraph *after* the whole label+input group — otherwise there's no
+  // way to escape past a trailing void input like file upload.
+  let insertIndex = path[0] + 1;
+  if (node.type === "formLabel") {
+    const siblings = editor.children as TElement[];
+    const next = siblings[insertIndex];
+    if (next && VOID_FORM_INPUT_TYPES.has(next.type)) {
+      insertIndex += 1;
+    }
+  }
+  const nextPath = [insertIndex];
+  editor.tf.insertNodes({ type: "p", children: [{ text: "" }] } as TElement, {
+    at: nextPath,
+  });
+  moveToPath(editor, nextPath);
+  return true;
+};
 
 export const FormLabelPlugin = createPlatePlugin({
   key: "formLabel",
   node: { isElement: true, component: FormLabelElement },
   options: { gutterPosition: "center" },
   handlers: {
-    onKeyDown: ({ editor, event }) => handleFormBlockKeyDown(editor, event),
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
   },
 });
 
 export const FormInputPlugin = createPlatePlugin({
   key: "formInput",
-  node: { isElement: true, component: FormInputElement },
+  node: { isElement: true, component: FormFieldElement },
   options: { gutterPosition: "center" },
   handlers: {
-    onKeyDown: ({ editor, event }) => handleFormBlockKeyDown(editor, event),
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
   },
 });
 
-/**
- * Check if node is any form button
- */
-function isFormButton(node: TElement): boolean {
-  return node.type === "formButton";
-}
+const isFormButton = (node: TElement): boolean => node.type === "formButton";
 
 export const FormButtonPlugin = createPlatePlugin({
   key: "formButton",
@@ -307,81 +232,112 @@ export const FormButtonPlugin = createPlatePlugin({
     component: FormButtonElement,
   },
   handlers: {
-    onKeyDown: ({ editor, event }) => handleFormBlockKeyDown(editor, event),
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
     onChange: ({ editor }) => {
-      // Redirect selection away from form buttons when it lands on them
-      // Use a flag to prevent re-entrancy
-      if ((editor as any).__redirectingSelection) return;
+      // Redirect selection away from form buttons/page breaks. Uses the last
+      // selected block index to infer direction: moving forward (e.g. ArrowDown)
+      // redirects forward across the button, moving backward redirects backward.
+      // eslint-disable-next-line typescript-eslint/no-explicit-any
+      const editorRef = editor as any;
+      if (editorRef.__redirectingSelection) return;
 
       const { selection } = editor;
       if (!selection) return;
 
-      const blockPath = selection.anchor.path.slice(0, 1);
-      const blockIndex = blockPath[0];
+      const blockIndex = selection.anchor.path[0];
+      const lastIndex: number | undefined = editorRef.__lastBlockIndex;
+      editorRef.__lastBlockIndex = blockIndex;
+
       const children = editor.children as TElement[];
       const currentNode = children[blockIndex];
+      if (!currentNode) return;
 
-      if (currentNode && (currentNode.type === "formButton" || currentNode.type === "pageBreak")) {
-        // Find the previous non-button block to select instead
-        for (let i = blockIndex - 1; i >= 0; i--) {
-          const prevNode = children[i];
-          if (
-            prevNode &&
-            prevNode.type !== "formButton" &&
-            prevNode.type !== "pageBreak" &&
-            prevNode.type !== "formHeader"
-          ) {
-            // Select the end of the previous block synchronously
-            const prevPath = [i];
-            const edges = editor.api.edges(prevPath);
-            if (edges?.[1]) {
-              (editor as any).__redirectingSelection = true;
-              try {
-                editor.tf.select(edges[1]);
-              } finally {
-                (editor as any).__redirectingSelection = false;
-              }
-              return;
-            }
-          }
-        }
+      if (currentNode.type !== "formButton" && currentNode.type !== "pageBreak") return;
+
+      const goForward = lastIndex !== undefined && lastIndex < blockIndex;
+      const target = goForward
+        ? findNextNonButtonPath(editor, [blockIndex])
+        : findPrevNonButtonPath(editor, [blockIndex]);
+      if (!target) return;
+
+      const edges = editor.api.edges(target);
+      const point = goForward ? edges?.[0] : edges?.[1];
+      if (!point) return;
+
+      editorRef.__redirectingSelection = true;
+      try {
+        editor.tf.select(point);
+      } finally {
+        editorRef.__redirectingSelection = false;
       }
+      editorRef.__lastBlockIndex = target[0];
     },
   },
+  // eslint-disable-next-line typescript-eslint/no-explicit-any
   extendEditor: ({ editor }: any) => {
-    const editorRef = editor as any;
+    // eslint-disable-next-line typescript-eslint/no-explicit-any
+    const editorRef = editor;
     const { deleteBackward, deleteForward, deleteFragment } = editorRef;
 
-    // ... (delete overrides remain the same, kept for brevity in this prompt context if unchanged)
-    // Re-implementing delete overrides as they are inside the function I am replacing.
-
-    // Prevent backspace from deleting any form button
+    // Prevent backspace from deleting any form button + handle pageBreak cleanup
+    // eslint-disable-next-line typescript-eslint/no-explicit-any
     editorRef.deleteBackward = (unit: any) => {
       const block = editorRef.api.block();
       if (block) {
-        const [_node, path] = block;
-        if (path && path[0] > 0) {
-          const prevIndex = path[0] - 1;
-          const prevNode = editorRef.children[prevIndex] as TElement;
+        const [node, path] = block;
+        const selection = editorRef.selection;
+        const isAtStart =
+          selection &&
+          editorRef.api.isCollapsed(selection) &&
+          (() => {
+            // eslint-disable-next-line typescript-eslint/no-explicit-any
+            const edges = editorRef.api.edges(path);
+            const start = edges?.[0];
+            return (
+              start &&
+              PathApi.equals(selection.anchor.path, start.path) &&
+              selection.anchor.offset === start.offset
+            );
+          })();
+
+        if (isAtStart && path && path[0] > 0) {
+          const children = editorRef.children as TElement[];
+          const currentIndex = path[0];
+          const prevNode = children[currentIndex - 1];
+
+          // Block backspace from merging into a formButton
           if (prevNode && isFormButton(prevNode)) {
-            const selection = editorRef.selection;
-            if (selection && editorRef.api.isCollapsed(selection)) {
-              const edges = editorRef.api.edges(path) as any;
-              const start = edges?.[0];
-              if (
-                start &&
-                PathApi.equals(selection.anchor.path, start.path) &&
-                selection.anchor.offset === start.offset
-              ) {
-                return;
-              }
+            return;
+          }
+
+          // Deleting an empty paragraph that sits directly after a void form
+          // input (file upload, multi-select) — Plate's default merge leaves
+          // selection dangling in a trailing paragraph. Remove the empty block
+          // ourselves and park the cursor at the end of the nearest editable
+          // block above.
+          const isVoidFormInput = prevNode && VOID_FORM_INPUT_TYPES.has(prevNode.type);
+          if (isVoidFormInput && editorRef.api.isEmpty(node)) {
+            editorRef.tf.removeNodes({ at: path });
+            for (let i = currentIndex - 2; i >= 0; i--) {
+              const n = children[i];
+              if (!n) continue;
+              if (NON_EDITABLE_BLOCK_TYPES.has(n.type)) continue;
+              const edges = editorRef.api.edges([i]);
+              if (edges?.[1]) editorRef.tf.select(edges[1]);
+              break;
             }
+            return;
+          }
+
+          if (editorRef.api.isEmpty(node) && tryDeletePageBreakWithEmptyBlock(editorRef, path)) {
+            return;
           }
         }
       }
       deleteBackward(unit);
     };
 
+    // eslint-disable-next-line typescript-eslint/no-explicit-any
     editorRef.deleteForward = (unit: any) => {
       const block = editorRef.api.block();
       if (block) {
@@ -392,7 +348,8 @@ export const FormButtonPlugin = createPlatePlugin({
           if (nextNode && isFormButton(nextNode)) {
             const selection = editorRef.selection;
             if (selection && editorRef.api.isCollapsed(selection)) {
-              const edges = editorRef.api.edges(path) as any;
+              // eslint-disable-next-line typescript-eslint/no-explicit-any
+              const edges = editorRef.api.edges(path);
               const end = edges?.[1];
               if (
                 end &&
@@ -408,6 +365,7 @@ export const FormButtonPlugin = createPlatePlugin({
       deleteForward(unit);
     };
 
+    // eslint-disable-next-line typescript-eslint/no-explicit-any
     editorRef.deleteFragment = (direction: any) => {
       const { selection } = editorRef;
       if (!selection) {
@@ -425,6 +383,7 @@ export const FormButtonPlugin = createPlatePlugin({
     };
 
     const originalRemoveNodes = editorRef.tf.removeNodes.bind(editorRef.tf);
+    // eslint-disable-next-line typescript-eslint/no-explicit-any
     editorRef.tf.removeNodes = (options: any = {}) => {
       const selection = options.at || editorRef.selection;
       if (!selection) return originalRemoveNodes(options);
@@ -439,25 +398,16 @@ export const FormButtonPlugin = createPlatePlugin({
     };
 
     const originalInsertText = editorRef.tf.insertText.bind(editorRef.tf);
-    editorRef.tf.insertText = (text: string, options?: any) => {
-      // Basic protection: don't insert if cursor is strictly after the last button of a page
-      // For now, simpler validation relies on Normalizer to cleanup bad states.
-      // But for immediate UI feedback:
-      // Basic protection: don't insert if cursor is strictly after the last button of a page
-      // For now, simpler validation relies on Normalizer to cleanup bad states.
-      // But for immediate UI feedback:
-      // We can't easily check "after button" without knowing WHICH button.
-      // Rely on normalization for structure enforcement.
-      return originalInsertText(text, options);
-    };
+    // eslint-disable-next-line typescript-eslint/no-explicit-any
+    editorRef.tf.insertText = (text: string, options?: any) => originalInsertText(text, options);
 
     const originalSelect = editorRef.tf.select.bind(editorRef.tf);
+    // eslint-disable-next-line typescript-eslint/no-explicit-any
     editorRef.tf.select = (target: any) => {
-      // Check if selection target is on a form button and redirect
+      // Check if selection target is on a form button/pageBreak and redirect.
+      // Direction inferred from the current selection vs target.
       if (target && typeof target === "object") {
         let targetPath: Path | null = null;
-
-        // Handle different target formats
         if ("path" in target) {
           targetPath = target.path;
         } else if ("anchor" in target && target.anchor?.path) {
@@ -470,24 +420,16 @@ export const FormButtonPlugin = createPlatePlugin({
           const targetNode = children[blockIndex];
 
           if (targetNode && (targetNode.type === "formButton" || targetNode.type === "pageBreak")) {
-            // Find the previous non-button block to select instead
-            for (let i = blockIndex - 1; i >= 0; i--) {
-              const prevNode = children[i];
-              if (
-                prevNode &&
-                prevNode.type !== "formButton" &&
-                prevNode.type !== "pageBreak" &&
-                prevNode.type !== "formHeader"
-              ) {
-                // Select the end of the previous block
-                const prevPath = [i];
-                const edges = editorRef.api.edges(prevPath);
-                if (edges?.[1]) {
-                  return originalSelect(edges[1]);
-                }
-              }
-            }
-            // If no previous block found, don't change selection
+            const currentIdx = editorRef.selection?.anchor.path[0];
+            const goForward = currentIdx !== undefined && currentIdx < blockIndex;
+            const redirectTarget = goForward
+              ? findNextNonButtonPath(editorRef, [blockIndex])
+              : findPrevNonButtonPath(editorRef, [blockIndex]);
+            if (!redirectTarget) return;
+
+            const edges = editorRef.api.edges(redirectTarget);
+            const point = goForward ? edges?.[0] : edges?.[1];
+            if (point) return originalSelect(point);
             return;
           }
         }
@@ -496,6 +438,7 @@ export const FormButtonPlugin = createPlatePlugin({
     };
 
     const originalInsertNodes = editorRef.tf.insertNodes.bind(editorRef.tf);
+    // eslint-disable-next-line typescript-eslint/no-explicit-any
     editorRef.tf.insertNodes = (nodes: any, options: any = {}) => {
       const children = editorRef.children as TElement[];
       let insertPath = options.at;
@@ -509,14 +452,14 @@ export const FormButtonPlugin = createPlatePlugin({
         // Validate insertion relative to buttons
         const prevNode = children[insertIndex - 1];
         if (prevNode && isFormButton(prevNode)) {
-          // We are inserting immediately after a button
           const nodeArray = Array.isArray(nodes) ? nodes : [nodes];
 
           // Only allow PageBreaks after a button
-          const allPageBreaks = nodeArray.every((n: any) => n.type === "pageBreak");
+          const allPageBreaks = nodeArray.every(
+            (n: Record<string, unknown>) => n.type === "pageBreak",
+          );
 
           if (!allPageBreaks) {
-            // Redirect insertion to before the button
             return originalInsertNodes(nodes, {
               ...options,
               at: [insertIndex - 1], // this might be wrong if button is at 0?
@@ -529,13 +472,11 @@ export const FormButtonPlugin = createPlatePlugin({
     };
 
     const originalMoveNodes = editorRef.moveNodes.bind(editorRef);
+    // eslint-disable-next-line typescript-eslint/no-explicit-any
     editorRef.moveNodes = (options: any) => {
-      // Similar logic: allow moving PageBreaks to be after buttons.
-      // Prevent moving other things to be after buttons.
       const { to, at } = options;
       const children = editorRef.children as TElement[];
 
-      // Destination check
       let targetIndex = -1;
       if (Array.isArray(to)) targetIndex = to[0];
 
@@ -543,7 +484,7 @@ export const FormButtonPlugin = createPlatePlugin({
         const prevNode = children[targetIndex - 1];
         if (prevNode && isFormButton(prevNode)) {
           // Moving something to be after a button.
-          // Must be a PageBreak.
+          // PageBreaks can stay right after a button.
           if (at) {
             const entry = editorRef.api.node(at);
             if (entry) {
@@ -553,17 +494,33 @@ export const FormButtonPlugin = createPlatePlugin({
               }
             }
           }
-          return; // Block move
+          // Otherwise, redirect the drop to the first position of the NEXT page
+          // (after the trailing pageBreak).
+          let pageBreakIndex = -1;
+          for (let i = targetIndex; i < children.length; i++) {
+            if (children[i]?.type === "pageBreak") {
+              pageBreakIndex = i;
+              break;
+            }
+            if (children[i]?.type !== "formButton") break;
+          }
+          if (pageBreakIndex !== -1) {
+            return originalMoveNodes({ ...options, to: [pageBreakIndex + 1] });
+          }
+          // No pageBreak ahead. Redirect to before the button instead of
+          // silently dropping the move — silent no-op manifests as a snap-back
+          // even though the drop indicator showed a valid target.
+          return originalMoveNodes({ ...options, to: [targetIndex - 1] });
         }
       }
+
       return originalMoveNodes(options);
     };
-    // Normalize to enforce multi-page button logic
     const originalNormalizeNode = editorRef.normalizeNode.bind(editorRef);
+    // eslint-disable-next-line typescript-eslint/no-explicit-any
     editorRef.normalizeNode = (entry: any) => {
       const [_node, path] = entry;
 
-      // Only normalize at the editor root level
       if (path.length === 0) {
         // Access children directly from editor to ensure fresh state
         const getChildren = () => editorRef.children as TElement[];
@@ -574,6 +531,28 @@ export const FormButtonPlugin = createPlatePlugin({
           return;
         }
 
+        // 2. Multi thank-you enforcement: only one pageBreak can be the thank-you page.
+        // If multiple exist (e.g. via paste, undo, or loaded data), keep the LAST one
+        // (most recently flagged wins) and demote the rest.
+        const thankYouIndices: number[] = [];
+        const rootChildren = getChildren();
+        for (let i = 0; i < rootChildren.length; i++) {
+          const n = rootChildren[i];
+          if (n?.type === "pageBreak" && (n as Record<string, unknown>).isThankYouPage === true) {
+            thankYouIndices.push(i);
+          }
+        }
+        if (thankYouIndices.length > 1) {
+          const lastThankYou = thankYouIndices[thankYouIndices.length - 1];
+          for (const idx of thankYouIndices) {
+            if (idx !== lastThankYou) {
+              editorRef.tf.setNodes({ isThankYouPage: false }, { at: [idx] });
+            }
+          }
+          return; // Restart normalization
+        }
+
+        const { insertNodes: tfInsertNodes, moveNodes: tfMoveNodes } = editorRef.tf;
         let pageStartIndex = 0;
         for (let i = 0; i <= getChildren().length; i++) {
           const node = getChildren()[i];
@@ -585,15 +564,18 @@ export const FormButtonPlugin = createPlatePlugin({
             const pageEndIndex = i; // exclusive
             const isFirstPage = pageStartIndex === 0;
             // isLastPage = true if at document end OR next section is thank you page
-            const isLastPage = isEnd || (isPageBreak && (node as any).isThankYouPage === true);
+            const isLastPage =
+              isEnd || (isPageBreak && (node as Record<string, unknown>).isThankYouPage === true);
 
-            // Determine if this is a Thank You section
             let isThankYouSection = false;
             let precedingBreakIndex = -1;
             if (!isFirstPage) {
               const prevBreak = getChildren()[pageStartIndex - 1];
               precedingBreakIndex = pageStartIndex - 1;
-              if (prevBreak?.type === "pageBreak" && (prevBreak as any).isThankYouPage) {
+              if (
+                prevBreak?.type === "pageBreak" &&
+                (prevBreak as Record<string, unknown>).isThankYouPage
+              ) {
                 isThankYouSection = true;
               }
             }
@@ -603,27 +585,15 @@ export const FormButtonPlugin = createPlatePlugin({
             const previousButtonIndices: number[] = []; // Track ALL previous buttons
             let hasFields = false;
 
-            // First pass: find button positions and check for fields
             for (let j = pageStartIndex; j < pageEndIndex; j++) {
               const n = getChildren()[j];
 
-              // Check for form fields
-              if (
-                [
-                  "formInput",
-                  "formTextarea",
-                  "formLabel",
-                  "formRadioGroup",
-                  "formCheckbox",
-                  "formSelect",
-                  "formDatePicker",
-                ].includes(n.type)
-              ) {
+              if (PAGE_FIELD_TYPES.has(n.type)) {
                 hasFields = true;
               }
 
               if (n.type === "formButton") {
-                const role = (n as any).buttonRole || "submit";
+                const role = (n as Record<string, unknown>).buttonRole || "submit";
                 if (role === "previous") {
                   previousButtonIndices.push(j);
                 } else {
@@ -651,9 +621,8 @@ export const FormButtonPlugin = createPlatePlugin({
             const previousButtonIndex =
               previousButtonIndices.length > 0 ? previousButtonIndices[0] : -1;
 
-            // Update Preceding Page Break with hasFormFields state
             if (precedingBreakIndex !== -1) {
-              const prevBreak = getChildren()[precedingBreakIndex] as any;
+              const prevBreak = getChildren()[precedingBreakIndex] as Record<string, unknown>;
               const currentHasData = prevBreak.hasFormFields === true;
               if (currentHasData !== hasFields) {
                 editorRef.tf.setNodes({ hasFormFields: hasFields }, { at: [precedingBreakIndex] });
@@ -662,44 +631,34 @@ export const FormButtonPlugin = createPlatePlugin({
             }
 
             if (isThankYouSection) {
-              // First, remove any buttons from thank you section
+              // Rule: thank-you must be the FINAL pageBreak. If another pageBreak
+              // ends this section, remove it (and let the next iteration absorb
+              // its content into the thank-you section, which will then be cleaned
+              // of any disallowed nodes).
+              if (isPageBreak) {
+                originalRemoveNodes({ at: [i] });
+                return; // Restart normalization
+              }
+
+              // Rule: thank-you section cannot contain form fields, form buttons,
+              // or other layout blocks (pageBreaks). Plain text / headings / lists
+              // remain allowed so users can author the thank-you message.
+              // Iterate from end to start so removal doesn't shift indices we'd revisit.
               for (let j = pageEndIndex - 1; j >= pageStartIndex; j--) {
                 const n = getChildren()[j];
-                if (n?.type === "formButton") {
+                if (!n) continue;
+                const t = n.type;
+                const isForbidden =
+                  t === "formButton" ||
+                  t === "pageBreak" ||
+                  (typeof t === "string" && t.startsWith("form"));
+                if (isForbidden) {
                   originalRemoveNodes({ at: [j] });
                   return; // Restart normalization
                 }
               }
 
-              // Check if form fields exist in this thank you section
-              // (excluding buttons - they should already be removed above)
-              let hasFormFields = false;
-              for (let j = pageStartIndex; j < pageEndIndex; j++) {
-                const n = getChildren()[j];
-                if (
-                  n &&
-                  [
-                    "formInput",
-                    "formTextarea",
-                    "formLabel",
-                    "formRadioGroup",
-                    "formCheckbox",
-                    "formSelect",
-                    "formDatePicker",
-                  ].includes(n.type)
-                ) {
-                  hasFormFields = true;
-                  break;
-                }
-              }
-
-              // If form fields exist, convert thank you page to normal page
-              if (hasFormFields && precedingBreakIndex !== -1) {
-                editorRef.tf.setNodes({ isThankYouPage: false }, { at: [precedingBreakIndex] });
-                return; // Restart normalization (will now process as normal page)
-              }
-
-              // No form fields - this is a valid thank you page, skip button enforcement
+              // Clean thank-you section - skip button enforcement.
               pageStartIndex = i + 1;
               continue;
             }
@@ -721,13 +680,10 @@ export const FormButtonPlugin = createPlatePlugin({
                 // Found orphaned content after action button - MOVE it before the button
                 // This allows "Type to Add" behavior
                 // Even for Thank You pages, content should be BEFORE the button.
-                editorRef.tf.moveNodes({ at: [j], to: [actionButtonIndex] });
+                tfMoveNodes({ at: [j], to: [actionButtonIndex] });
                 return;
               }
             }
-
-            // --- Button Enforcement (Normal Pages AND Thank You Pages) ---
-            // ... logic continues ...
 
             // --- Button Enforcement (Normal Pages) ---
 
@@ -741,7 +697,7 @@ export const FormButtonPlugin = createPlatePlugin({
             if (actionButtonIndex === -1) {
               const role = isLastPage ? "submit" : "next";
               const labelText = role === "next" ? "Next" : "Submit";
-              editorRef.tf.insertNodes(
+              tfInsertNodes(
                 {
                   type: "formButton",
                   buttonRole: role,
@@ -757,7 +713,7 @@ export const FormButtonPlugin = createPlatePlugin({
             // "Smart Update": Only update if role is wrong.
             // Access button directly from editor to ensure fresh state
             const actionBtn = getChildren()[actionButtonIndex];
-            const currentRole = (actionBtn as any).buttonRole || "submit";
+            const currentRole = (actionBtn as Record<string, unknown>).buttonRole || "submit";
             const expectedRole = isLastPage ? "submit" : "next";
 
             if (currentRole !== expectedRole) {
@@ -765,7 +721,9 @@ export const FormButtonPlugin = createPlatePlugin({
               const oldDefault = currentRole === "submit" ? "Submit" : "Next";
               // Re-read button - check label property first, fallback to children for backwards compat
               const btn = getChildren()[actionButtonIndex];
-              const currentLabel = (btn as any).label ?? (btn?.children?.[0] as any)?.text;
+              const currentLabel =
+                (btn as Record<string, unknown>).label ??
+                (btn?.children?.[0] as Record<string, unknown>)?.text;
               const newLabel =
                 currentLabel === oldDefault
                   ? expectedRole === "submit"
@@ -775,7 +733,7 @@ export const FormButtonPlugin = createPlatePlugin({
 
               // Replace the entire button node (use originalRemoveNodes to bypass override)
               originalRemoveNodes({ at: [actionButtonIndex] });
-              editorRef.tf.insertNodes(
+              tfInsertNodes(
                 {
                   type: "formButton",
                   buttonRole: expectedRole,
@@ -789,7 +747,7 @@ export const FormButtonPlugin = createPlatePlugin({
 
             // 4. Ensure Previous Button (Non-First Page)
             if (!isFirstPage && previousButtonIndex === -1) {
-              editorRef.tf.insertNodes(
+              tfInsertNodes(
                 {
                   type: "formButton",
                   buttonRole: "previous",
@@ -808,7 +766,7 @@ export const FormButtonPlugin = createPlatePlugin({
               previousButtonIndex !== -1 &&
               previousButtonIndex !== actionButtonIndex - 1
             ) {
-              editorRef.tf.moveNodes({
+              tfMoveNodes({
                 at: [previousButtonIndex],
                 to: [actionButtonIndex],
               });
@@ -832,7 +790,7 @@ export const FormTextareaPlugin = createPlatePlugin({
   node: { isElement: true, component: FormTextareaElement },
   options: { gutterPosition: "top" },
   handlers: {
-    onKeyDown: ({ editor, event }) => handleFormBlockKeyDown(editor, event),
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
   },
 });
 
@@ -845,188 +803,194 @@ export const PageBreakPlugin = createPlatePlugin({
     component: PageBreakElement,
   },
   handlers: {
-    onKeyDown: ({ editor, event }) => handleFormBlockKeyDown(editor, event),
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+});
+
+export const FormEmailPlugin = createPlatePlugin({
+  key: "formEmail",
+  node: { isElement: true, component: FormFieldElement },
+  options: { gutterPosition: "center" },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+});
+
+export const FormPhonePlugin = createPlatePlugin({
+  key: "formPhone",
+  node: { isElement: true, component: FormFieldElement },
+  options: { gutterPosition: "center" },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+});
+
+export const FormNumberPlugin = createPlatePlugin({
+  key: "formNumber",
+  node: { isElement: true, component: FormFieldElement },
+  options: { gutterPosition: "center" },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+});
+
+export const FormLinkPlugin = createPlatePlugin({
+  key: "formLink",
+  node: { isElement: true, component: FormFieldElement },
+  options: { gutterPosition: "center" },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+});
+
+export const FormDatePlugin = createPlatePlugin({
+  key: "formDate",
+  node: { isElement: true, component: FormFieldElement },
+  options: { gutterPosition: "center" },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+});
+
+export const FormTimePlugin = createPlatePlugin({
+  key: "formTime",
+  node: { isElement: true, component: FormFieldElement },
+  options: { gutterPosition: "center" },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+});
+
+export const FormFileUploadPlugin = createPlatePlugin({
+  key: "formFileUpload",
+  node: { isElement: true, isVoid: true, component: FormFileUploadElement },
+  options: { gutterPosition: "top" },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+});
+
+export const FormOptionItemPlugin = createPlatePlugin({
+  key: "formOptionItem",
+  node: { isElement: true, component: FormOptionItemElement },
+  options: { gutterPosition: "center" },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+}).overrideEditor(({ editor, tf: { insertBreak } }) => ({
+  transforms: {
+    insertBreak: () => {
+      const block = editor.api.block();
+      if (block && block[0].type === "formOptionItem") {
+        const [node, path] = block;
+
+        // Empty option → exit the list by converting this option to a paragraph.
+        // Lets users press Enter twice to escape the option group and add a new field.
+        if (editor.api.isEmpty(node)) {
+          editor.tf.setNodes({ type: "p", variant: undefined } as unknown as Partial<TElement>, {
+            at: path,
+          });
+          return;
+        }
+
+        const nextPath = PathApi.next(path);
+        editor.tf.insertNodes(
+          {
+            type: "formOptionItem",
+            variant: node.variant || "checkbox",
+            children: [{ text: "" }],
+          } as TElement,
+          { at: nextPath },
+        );
+        moveToPath(editor, nextPath);
+        return;
+      }
+      insertBreak();
+    },
+  },
+}));
+
+export const FormMultiSelectInputPlugin = createPlatePlugin({
+  key: "formMultiSelectInput",
+  node: {
+    isElement: true,
+    isVoid: true,
+    component: FormMultiSelectInputElement,
+  },
+  options: { gutterPosition: "center" },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
   },
 });
 
 /**
- * Global keyboard navigation plugin to skip form buttons when navigating with Tab/Arrow keys.
- * This applies to ALL blocks, not just form blocks.
+ * Global Tab / Shift+Tab navigation and Enter-on-form-field handling.
+ * Tab moves the cursor between content blocks, skipping form buttons,
+ * page breaks, and the form header. Enter on a form field (other than
+ * formOptionItem) inserts a plain paragraph below instead of splitting
+ * the field's label. formOptionItem's Enter is handled by its own
+ * insertBreak override to continue the option list.
  */
-function handleGlobalKeyDown(editor: PlateEditor, event: React.KeyboardEvent): void {
-  // Don't interfere if already handled by form block handlers
-  if ((event as any).__formBlockHandled) return;
-
-  const block = editor.api.block();
-  if (!block) return;
-
-  const [_node, path] = block;
-
-  // Only handle Tab and Arrow keys for navigation
-  if (event.key === "Tab" && !event.shiftKey) {
-    const nextPath = findNextNonButtonPath(editor, path);
-    if (nextPath) {
-      event.preventDefault();
-      event.stopPropagation();
-      event.nativeEvent.stopImmediatePropagation();
-      (event as any).__formBlockHandled = true;
-      moveToPath(editor, nextPath);
-    } else {
-      // No next block - create new p block before submit button
-      event.preventDefault();
-      event.stopPropagation();
-      event.nativeEvent.stopImmediatePropagation();
-      (event as any).__formBlockHandled = true;
-
-      // Find insert position (before first formButton or at end)
-      const children = editor.children as TElement[];
-      let insertIndex = children.length;
-      for (let i = path[0] + 1; i < children.length; i++) {
-        if (children[i].type === "formButton") {
-          insertIndex = i;
-          break;
-        }
-      }
-
-      // Insert new paragraph and move to it
-      const insertPath: Path = [insertIndex];
-      editor.tf.insertNodes({ type: "p", children: [{ text: "" }] } as TElement, {
-        at: insertPath,
-      });
-      moveToPath(editor, insertPath);
-    }
-    return;
-  }
-
-  if (event.key === "Tab" && event.shiftKey) {
-    const prevPath = findPrevNonButtonPath(editor, path);
-    if (prevPath) {
-      const defaultPrevPath = PathApi.previous(path);
-      const defaultPrevNode = defaultPrevPath ? editor.api.node(defaultPrevPath) : null;
-      if (defaultPrevNode && (defaultPrevNode[0] as TElement).type === "formButton") {
-        event.preventDefault();
-        event.stopPropagation();
-        event.nativeEvent.stopImmediatePropagation();
-        (event as any).__formBlockHandled = true;
-        moveToPath(editor, prevPath);
-      }
-    }
-    return;
-  }
-
-  // ArrowDown at the end of block content
-  if (event.key === "ArrowDown") {
-    const nextPath = findNextNonButtonPath(editor, path);
-    if (nextPath) {
-      const defaultNextPath = PathApi.next(path);
-      const defaultNextNode = defaultNextPath ? editor.api.node(defaultNextPath) : null;
-      if (defaultNextNode && (defaultNextNode[0] as TElement).type === "formButton") {
-        event.preventDefault();
-        event.stopPropagation();
-        (event as any).__formBlockHandled = true;
-        moveToPath(editor, nextPath);
-      }
-    } else {
-      // Block ArrowDown from entering trailing buttons - keep cursor where it is
-      event.preventDefault();
-      event.stopPropagation();
-      (event as any).__formBlockHandled = true;
-      // Explicitly maintain current selection to prevent cursor from vanishing
-      const currentSelection = editor.selection;
-      if (currentSelection) {
-        editor.tf.select(currentSelection);
-      }
-    }
-    return;
-  }
-
-  // ArrowUp at the start of block content
-  if (event.key === "ArrowUp") {
-    const prevPath = findPrevNonButtonPath(editor, path);
-    if (prevPath) {
-      const defaultPrevPath = PathApi.previous(path);
-      const defaultPrevNode = defaultPrevPath ? editor.api.node(defaultPrevPath) : null;
-      if (defaultPrevNode && (defaultPrevNode[0] as TElement).type === "formButton") {
-        event.preventDefault();
-        event.stopPropagation();
-        (event as any).__formBlockHandled = true;
-        moveToPath(editor, prevPath);
-      }
-    }
-    return;
-  }
-
-  // ArrowLeft at start of block → block if previous is a form button
-  if (event.key === "ArrowLeft") {
-    const children = editor.children as TElement[];
-    const prevIndex = path[0] - 1;
-    const prevNode = children[prevIndex];
-
-    // Check if cursor is at the start of the block
-    const selection = editor.selection;
-    if (selection) {
-      const edges = editor.api.edges(path);
-      const start = edges?.[0];
-      if (
-        start &&
-        selection.anchor.offset === start.offset &&
-        PathApi.equals(selection.anchor.path, start.path)
-      ) {
-        // Cursor is at start of block - check previous block
-        if (prevNode && (prevNode.type === "formButton" || prevNode.type === "pageBreak")) {
-          // Block left arrow from entering button/pagebreak
-          event.preventDefault();
-          event.stopPropagation();
-          return;
-        }
-      }
-    }
-  }
-
-  // Enter → if next block is a form button, insert new paragraph before it
-  if (event.key === "Enter" && !event.shiftKey) {
-    const children = editor.children as TElement[];
-    const currentIndex = path[0];
-    const currentNode = children[currentIndex];
-
-    // If cursor is somehow ON a button, block Enter entirely
-    if (currentNode && (currentNode.type === "formButton" || currentNode.type === "pageBreak")) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
-
-    const nextIndex = currentIndex + 1;
-    const nextNode = children[nextIndex];
-
-    // If next block is a form button, insert new paragraph before it (button stays at end)
-    if (nextNode && (nextNode.type === "formButton" || nextNode.type === "pageBreak")) {
-      event.preventDefault();
-      event.stopPropagation();
-      const insertPath = [nextIndex];
-      editor.tf.insertNodes({ type: "p", children: [{ text: "" }] } as TElement, {
-        at: insertPath,
-      });
-      // Move to the new paragraph
-      moveToPath(editor, insertPath);
-      return;
-    }
-  }
-}
-
-const GlobalKeyboardNavigationPlugin = createPlatePlugin({
-  key: "globalKeyboardNavigation",
-  priority: 1000, // High priority to run before IndentPlugin's Tab handler
+const NavigationPlugin = createPlatePlugin({
+  key: "navigation",
+  priority: 1000, // Runs before IndentPlugin's Tab handler
   handlers: {
-    onKeyDown: ({ editor, event }) => handleGlobalKeyDown(editor, event),
+    onKeyDown: ({ editor, event }) => {
+      if (handleFormFieldEnter(editor, event)) return;
+
+      if (event.key !== "Tab") return;
+
+      const block = editor.api.block();
+      if (!block) return;
+      const [, path] = block;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.nativeEvent.stopImmediatePropagation();
+
+      const target = event.shiftKey
+        ? findPrevNonButtonPath(editor, path)
+        : findNextNonButtonPath(editor, path);
+
+      if (target) moveToPath(editor, target);
+    },
   },
 });
 
+/**
+ * Must be registered AFTER IndentPlugin (from ListKit/ToggleKit) so that this
+ * tab override wraps outermost and can short-circuit before IndentPlugin indents.
+ */
+export const TabGuardPlugin = createPlatePlugin({
+  key: "tabGuard",
+}).overrideEditor(({ editor, tf: { tab } }) => ({
+  transforms: {
+    // eslint-disable-next-line typescript-eslint/no-explicit-any
+    tab: (options: any) => {
+      // eslint-disable-next-line typescript-eslint/no-explicit-any
+      const event = (editor as any).dom?.currentKeyboardEvent;
+
+      if (event?.defaultPrevented) return;
+
+      return tab(options);
+    },
+  },
+}));
+
 export const FormBlocksKit = [
-  GlobalKeyboardNavigationPlugin,
+  NavigationPlugin,
   FormLabelPlugin,
   FormInputPlugin,
   FormButtonPlugin,
   FormTextareaPlugin,
+  FormEmailPlugin,
+  FormPhonePlugin,
+  FormNumberPlugin,
+  FormLinkPlugin,
+  FormDatePlugin,
+  FormTimePlugin,
+  FormFileUploadPlugin,
+  FormOptionItemPlugin,
+  FormMultiSelectInputPlugin,
   PageBreakPlugin,
 ];

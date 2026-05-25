@@ -1,81 +1,63 @@
-import { eq, or, useLiveQuery } from "@tanstack/react-db";
-import { useMemo } from "react";
+import { eq, useLiveQuery } from "@tanstack/react-db";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useRef } from "react";
 import {
-  favoriteCollection,
-  formCollection,
-  formSettingsCollection,
-  localFormCollection,
-  submissionCollection,
-  workspaceCollection,
-} from "@/db-collections";
+  isInitialized,
+  getWorkspaces,
+  getFormListings,
+  getFavorites,
+  enrichFormDetail,
+} from "@/collections";
+import { localFormCollection } from "@/collections/local/form";
+import { archivedFormListingsQueryOptions } from "@/lib/server-fn/forms";
 
-/**
- * Custom hook for real-time workspaces sync.
- */
-export const useWorkspaces = () => {
-  return useLiveQuery((q) =>
-    q.from({ ws: workspaceCollection }).select(({ ws }) => ({
-      id: ws.id,
-      organizationId: ws.organizationId,
-      createdByUserId: ws.createdByUserId,
-      name: ws.name,
-      createdAt: ws.createdAt,
-      updatedAt: ws.updatedAt,
-    })),
+export const useOrgWorkspaces = (organizationId?: string) =>
+  useLiveQuery(
+    (q) => {
+      if (!organizationId || !isInitialized()) return undefined;
+      return q
+        .from({ ws: getWorkspaces() })
+        .where(({ ws }) => eq(ws.organizationId, organizationId))
+        .select(({ ws }) => ({
+          id: ws.id,
+          organizationId: ws.organizationId,
+          createdByUserId: ws.createdByUserId,
+          name: ws.name,
+          createdAt: ws.createdAt,
+          updatedAt: ws.updatedAt,
+          sortIndex: ws.sortIndex,
+        }));
+    },
+    [organizationId],
   );
-};
 
-/**
- * Custom hook for real-time workspace sync by ID.
- */
 export const useWorkspace = (workspaceId?: string) => {
-  const result = useLiveQuery((q) => {
-    let query = q.from({ ws: workspaceCollection });
-    if (workspaceId) {
-      query = query.where(({ ws }) => eq(ws.id, workspaceId));
-    }
-    return query.select(({ ws }) => ({
-      id: ws.id,
-      organizationId: ws.organizationId,
-      createdByUserId: ws.createdByUserId,
-      name: ws.name,
-      createdAt: ws.createdAt,
-      updatedAt: ws.updatedAt,
-    }));
-  }, [workspaceId]);
+  const result = useLiveQuery(
+    (q) => {
+      if (!workspaceId || !isInitialized()) return undefined;
+      const query = q.from({ ws: getWorkspaces() }).where(({ ws }) => eq(ws.id, workspaceId));
+      return query.select(({ ws }) => ({
+        id: ws.id,
+        organizationId: ws.organizationId,
+        createdByUserId: ws.createdByUserId,
+        name: ws.name,
+        createdAt: ws.createdAt,
+        updatedAt: ws.updatedAt,
+      }));
+    },
+    [workspaceId],
+  );
   return { ...result, data: result.data?.[0] };
 };
 
 /**
- * Custom hook for real-time forms sync filtered by workspace ID.
+ * The query-backed formListings collection already filters by org membership server-side.
  */
-export const useFormsForWorkspace = (workspaceId?: string) => {
-  return useLiveQuery((q) => {
-    let query = q.from({ form: formCollection });
-    if (workspaceId) {
-      query = query.where(({ form }) => eq(form.workspaceId, workspaceId));
-    }
-    // Only fetch forms that are not archived
-    query = query.where(({ form }) => or(eq(form.status, "draft"), eq(form.status, "published")));
-
-    return query.select(({ form }) => ({
-      id: form.id,
-      title: form.title,
-      workspaceId: form.workspaceId,
-      status: form.status,
-      updatedAt: form.updatedAt,
-    }));
-  }, [workspaceId]);
-};
-
-/**
- * Custom hook for real-time forms sync.
- */
-export const useForms = () => {
-  return useLiveQuery((q) =>
-    q
-      .from({ form: formCollection })
-      .where(({ form }) => or(eq(form.status, "draft"), eq(form.status, "published")))
+export const useOrgForms = (_organizationId?: string) =>
+  useLiveQuery((q) => {
+    if (!isInitialized()) return undefined;
+    return q
+      .from({ form: getFormListings() })
       .select(({ form }) => ({
         id: form.id,
         title: form.title,
@@ -83,126 +65,157 @@ export const useForms = () => {
         status: form.status,
         updatedAt: form.updatedAt,
         icon: form.icon,
-      })),
-  );
-};
+        customization: form.customization,
+        sortIndex: form.sortIndex,
+      }))
+      .orderBy(({ form }) => form.updatedAt, "desc");
+  }, []);
 
 /**
- * Custom hook for real-time form sync by ID.
+ * Queries the unified formListings collection and enriches with full
+ * detail (content, settings, etc.) on demand via a TanStack Query.
  */
 export const useForm = (formId?: string) => {
-  return useLiveQuery((q) => {
-    if (!formId) return null as any;
-    return q.from({ form: formCollection }).where(({ form }) => eq(form.id, formId));
-  }, [formId]);
-};
-
-/**
- * Custom hook for real-time local form draft sync by ID.
- */
-export const useLocalForm = (formId?: string) => {
-  return useLiveQuery((q) => {
-    if (!formId) return null as any;
-    return q.from({ doc: localFormCollection }).where(({ doc }) => eq(doc.id, formId));
-  }, [formId]);
-};
-
-/**
- * Custom hook for real-time favorites sync for current user.
- */
-const useFavorites = (userId?: string) => {
-  return useLiveQuery((q) => {
-    let query = q.from({ fav: favoriteCollection });
-    if (userId) {
-      query = query.where(({ fav }) => eq(fav.userId, userId));
-    }
-    return query.select(({ fav }) => ({
-      id: fav.id,
-      userId: fav.userId,
-      formId: fav.formId,
-      createdAt: fav.createdAt,
-    }));
-  }, [userId]);
-};
-
-/**
- * Check if a specific form is favorited by the user.
- */
-export const useIsFavorite = (userId?: string, formId?: string) => {
-  const { data: favorites } = useFavorites(userId);
-  return useMemo(() => {
-    if (!userId || !formId || !favorites) return false;
-    return favorites.some((f) => f.formId === formId);
-  }, [favorites, userId, formId]);
-};
-
-/**
- * Get user's favorite forms with full form data.
- */
-export const useFavoriteForms = (userId?: string) => {
-  const { data: favorites } = useFavorites(userId);
-  const { data: allForms } = useForms();
-
-  return useMemo(() => {
-    if (!favorites || !allForms) return [];
-    const favoriteIds = new Set(favorites.map((f) => f.formId));
-    return allForms.filter((form) => favoriteIds.has(form.id));
-  }, [favorites, allForms]);
-};
-
-/**
- * Custom hook for archived (trashed) forms with deletedAt field.
- */
-export const useArchivedForms = () => {
-  return useLiveQuery((q) =>
-    q
-      .from({ form: formCollection })
-      .where(({ form }) => eq(form.status, "archived"))
-      .select(({ form }) => ({
-        id: form.id,
-        title: form.title,
-        workspaceId: form.workspaceId,
-        status: form.status,
-        updatedAt: form.updatedAt,
-        deletedAt: form.deletedAt,
-      })),
-  );
-};
-
-/**
- * Custom hook for real-time form settings sync by formId.
- * Returns the first matching settings doc (one-to-one with form).
- */
-export const useFormSettings = (formId?: string) => {
   const result = useLiveQuery(
     (q) => {
-      if (!formId) return null as any;
-      return q
-        .from({ s: formSettingsCollection })
-        .where(({ s }) => eq(s.formId, formId));
+      if (!formId || !isInitialized()) return undefined;
+      return q.from({ form: getFormListings() }).where(({ form }) => eq(form.id, formId));
     },
     [formId],
   );
-  return { ...result, data: result.data?.[0] ?? null };
+
+  const needsEnrichment = !!formId && isInitialized() && result.data?.[0]?.content === undefined;
+  useQuery({
+    queryKey: ["form-enrich", formId],
+    queryFn: () => enrichFormDetail(formId as string),
+    enabled: needsEnrichment,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+
+  return result;
+};
+
+export const useLocalForm = (formId?: string) =>
+  useLiveQuery(
+    (q) => {
+      if (!formId) return undefined;
+      return q.from({ doc: localFormCollection }).where(({ doc }) => eq(doc.id, formId));
+    },
+    [formId],
+  );
+
+export const useFavorites = (userId?: string) =>
+  useLiveQuery(
+    (q) => {
+      if (!userId || !isInitialized()) return undefined;
+      return q
+        .from({ fav: getFavorites() })
+        .where(({ fav }) => eq(fav.userId, userId))
+        .select(({ fav }) => ({
+          id: fav.id,
+          userId: fav.userId,
+          formId: fav.formId,
+          sortIndex: fav.sortIndex,
+          createdAt: fav.createdAt,
+        }));
+    },
+    [userId],
+  );
+
+export const useIsFavorite = (userId?: string, formId?: string) => {
+  const { data } = useLiveQuery(
+    (q) => {
+      if (!userId || !formId || !isInitialized()) return undefined;
+      return q
+        .from({ fav: getFavorites() })
+        .where(({ fav }) => eq(fav.userId, userId))
+        .where(({ fav }) => eq(fav.formId, formId))
+        .select(({ fav }) => ({ id: fav.id }));
+    },
+    [userId, formId],
+  );
+  return data !== undefined && data.length > 0;
 };
 
 /**
- * Custom hook for real-time submission counts by formId.
- * Returns a Map<formId, count> for efficient lookups.
+ * Fetches favorites and form listings separately and combines them.
  */
-export const useSubmissionCounts = () => {
-  const { data: submissions } = useLiveQuery((q) =>
-    q.from({ sub: submissionCollection }).select(({ sub }) => ({
-      formId: sub.formId,
-    })),
-  );
+export const useFavoriteForms = (userId?: string) => {
+  const { data: favs } = useFavorites(userId);
+  const { data: allForms } = useLiveQuery((q) => {
+    if (!isInitialized()) return undefined;
+    return q.from({ form: getFormListings() }).select(({ form }) => ({
+      id: form.id,
+      title: form.title,
+      workspaceId: form.workspaceId,
+      status: form.status,
+      updatedAt: form.updatedAt,
+      icon: form.icon,
+      customization: form.customization,
+    }));
+  }, []);
 
   return useMemo(() => {
-    if (!submissions) return new Map<string, number>();
-    const counts = new Map<string, number>();
-    for (const sub of submissions) {
-      counts.set(sub.formId, (counts.get(sub.formId) || 0) + 1);
+    if (!favs || !allForms) return [];
+    const favByFormId = new Map(favs.map((f) => [f.formId, f]));
+    return allForms.flatMap((f) => {
+      const fav = favByFormId.get(f.id);
+      if (!fav) return [];
+      return [
+        {
+          ...f,
+          favoriteId: fav.id,
+          favoriteSortIndex: fav.sortIndex ?? null,
+          favoriteCreatedAt: fav.createdAt,
+        },
+      ];
+    });
+  }, [favs, allForms]);
+};
+
+// Archived listings come from a server fn rather than the formListings
+// collection — `getFormListings` no longer returns archived rows, so the
+// trash dialog fetches its own list on demand. `enabled` keeps the request
+// off the wire until the dialog actually opens.
+export const useArchivedForms = (enabled = true) =>
+  useQuery({ ...archivedFormListingsQueryOptions(), enabled });
+
+export const useSubmissionCounts = () => {
+  const { data: allForms } = useLiveQuery((q) => {
+    if (!isInitialized()) return undefined;
+    return q.from({ form: getFormListings() }).select(({ form }) => ({
+      id: form.id,
+      submissionCount: form.submissionCount,
+    }));
+  }, []);
+
+  // TanStack DB live queries hand back fresh array references on every notification,
+  // so the upstream useMemo would emit a brand-new Map identity even when no count
+  // actually changed. Returning the previous Map reference when contents are
+  // identical lets memoised consumers downstream skip re-rendering entirely.
+  const previousMapRef = useRef<Map<string, number>>(new Map());
+
+  return useMemo(() => {
+    const next = new Map<string, number>();
+    if (allForms) {
+      for (const form of allForms) {
+        if (form.submissionCount > 0) {
+          next.set(form.id, form.submissionCount);
+        }
+      }
     }
-    return counts;
-  }, [submissions]);
+    const previous = previousMapRef.current;
+    if (previous.size === next.size) {
+      let identical = true;
+      for (const [id, count] of next) {
+        if (previous.get(id) !== count) {
+          identical = false;
+          break;
+        }
+      }
+      if (identical) return previous;
+    }
+    previousMapRef.current = next;
+    return next;
+  }, [allForms]);
 };

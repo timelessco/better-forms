@@ -1,0 +1,4 @@
+{
+  "*.{js,jsx,ts,tsx,json,jsonc,css,scss,md,mdx}": ["pnpm exec oxfmt"],
+  "*.{js,jsx,ts,tsx}": ["pnpm exec oxlint --type-aware --fix"]
+}

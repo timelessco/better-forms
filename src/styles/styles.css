@@ -1,0 +1,1053 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "./inter-v.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  ::-webkit-scrollbar {
+    width: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 5px;
+  }
+
+  * {
+    @apply border-border outline-ring/50;
+    text-wrap: pretty;
+    line-height: 115%;
+    letter-spacing: 0.01em;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* When the form-builder editor is themed, propagate its background to html/body
+     so overscroll-bounce reveals the same color instead of the default app bg. */
+  html:has(.bf-themed),
+  body:has(.bf-themed) {
+    background-color: var(--bf-background);
+  }
+
+  /* Hide number input spinners globally */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    text-wrap: balance;
+  }
+
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+
+/* Timeless Serif — opt-in title font, declared with three unicode-range
+   subsets so the browser only downloads the subset whose glyphs are
+   actually rendered. Latin covers standard English/punctuation; latin-ext
+   adds European accents; rest covers Cyrillic/Greek/Vietnamese/symbols. */
+@font-face {
+  font-family: "Timeless Serif";
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+  src: url("/fonts/timeless-serif/timeless-serif-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Timeless Serif";
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+  src: url("/fonts/timeless-serif/timeless-serif-latin-ext.woff2")
+    format("woff2");
+  unicode-range:
+    U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Timeless Serif";
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+  src: url("/fonts/timeless-serif/timeless-serif-rest.woff2") format("woff2");
+  unicode-range:
+    U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F,
+    U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116, U+1F00-1FFF,
+    U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF,
+    U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1,
+    U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329,
+    U+1EA0-1EF9, U+20AB;
+}
+
+/* Timeless Sans — opt-in sans-serif variant. Same three-subset split as
+   Timeless Serif; only the subset matching rendered glyphs is fetched. */
+@font-face {
+  font-family: "Timeless Sans";
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+  src: url("/fonts/timeless-sans/timeless-sans-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Timeless Sans";
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+  src: url("/fonts/timeless-sans/timeless-sans-latin-ext.woff2") format("woff2");
+  unicode-range:
+    U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Timeless Sans";
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+  src: url("/fonts/timeless-sans/timeless-sans-rest.woff2") format("woff2");
+  unicode-range:
+    U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F,
+    U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116, U+1F00-1FFF,
+    U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF,
+    U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1,
+    U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329,
+    U+1EA0-1EF9, U+20AB;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+
+  /* colors */
+	--color-plain: #fff;
+	--color-plain-reverse: #0f0f0f;
+  --stroke-width: 1px;
+	/* Light Gray Shades (from figma variables) */
+	--color-gray-0: #fff;
+	--color-gray-50: #fff;
+	--color-gray-75: #f5f5f5;
+	--color-gray-90: #fff;
+	--color-gray-100: #f5f5f5;
+	--color-gray-200: #ededed;
+	--color-gray-300: #e0e0e0;
+	--color-gray-400: #c7c7c7;
+	--color-gray-500: #999;
+	--color-gray-550: #8c8c8c;
+	--color-gray-600: #7c7c7c;
+	--color-gray-700: #525252;
+	--color-gray-800: #303030;
+	--color-gray-900: #212121;
+	--color-gray-950: #141414;
+	--color-gray-1000: #000;
+
+	/* Light Gray Alpha Shades */
+	--color-gray-alpha-50: rgb(0 0 0 / 3%); /* 3% Black */
+	--color-gray-alpha-100: rgb(0 0 0 / 5%); /* 5% Black */
+	--color-gray-alpha-200: rgb(0 0 0 / 7%); /* 7% Black */
+	--color-gray-alpha-300: rgb(0 0 0 / 12%); /* 12% Black */
+	--color-gray-alpha-400: rgb(0 0 0 / 22%); /* 22% Black */
+	--color-gray-alpha-500: rgb(0 0 0 / 40%); /* 40% Black */
+	--color-gray-alpha-550: rgb(0 0 0 / 45%); /* 45% Black */
+	--color-gray-alpha-600: rgb(0 0 0 / 51%); /* 51% Black */
+	--color-gray-alpha-700: rgb(0 0 0 / 68%); /* 68% Black */
+	--color-gray-alpha-800: rgb(0 0 0 / 82%); /* 82% Black */
+	--color-gray-alpha-900: rgb(0 0 0 / 91%); /* 91% Black */
+	--color-gray-alpha-950: rgb(0 0 0 / 95%); /* 95% Black */
+	--color-gray-alpha-1000: rgb(0 0 0 / 100%); /* 100% Black */
+
+	/* Light Whites Shades */
+	--color-whites-50: rgb(255 255 255 / 10%); /* 10% White */
+	--color-whites-100: rgb(255 255 255 / 18%); /* 18% White */
+	--color-whites-200: rgb(255 255 255 / 27%); /* 27% White */
+	--color-whites-300: rgb(255 255 255 / 36%); /* 36% White */
+	--color-whites-400: rgb(255 255 255 / 45%); /* 45% White */
+	--color-whites-500: rgb(255 255 255 / 54%); /* 54% White */
+	--color-whites-550: rgb(255 255 255 / 59%); /* 59% White */
+	--color-whites-600: rgb(255 255 255 / 63%); /* 63% White */
+	--color-whites-700: rgb(255 255 255 / 72%); /* 72% White */
+	--color-whites-800: rgb(255 255 255 / 81%); /* 81% White */
+	--color-whites-900: rgb(255 255 255 / 90%); /* 90% White */
+	--color-whites-950: rgb(255 255 255 / 95%); /* 95% White */
+	--color-whites-1000: #fff;
+
+	/* Light Blacks Shades */
+	--color-blacks-50: rgb(0 0 0 / 9%); /* 9% Black */
+	--color-blacks-100: rgb(0 0 0 / 18%); /* 18% Black */
+	--color-blacks-200: rgb(0 0 0 / 27%); /* 27% Black */
+	--color-blacks-300: rgb(0 0 0 / 36%); /* 36% Black */
+	--color-blacks-400: rgb(0 0 0 / 45%); /* 45% Black */
+	--color-blacks-500: rgb(0 0 0 / 54%); /* 54% Black */
+	--color-blacks-550: rgb(0 0 0 / 59%); /* 59% Black */
+	--color-blacks-600: rgb(0 0 0 / 63%); /* 63% Black */
+	--color-blacks-700: rgb(0 0 0 / 72%); /* 72% Black */
+	--color-blacks-800: rgb(0 0 0 / 81%); /* 81% Black */
+	--color-blacks-900: rgb(0 0 0 / 90%); /* 90% Black */
+	--color-blacks-950: rgb(0 0 0 / 95%); /* 95% Black */
+	--color-blacks-1000: #000; /* 100% Black */
+
+
+
+
+  /* Shadcn/ui Tokens */
+  --background: var(--color-gray-90);
+  --foreground: var(--color-gray-900);
+  --card: var(--color-gray-50);
+  --card-foreground: var(--color-gray-900);
+  --popover: var(--color-gray-90);
+  --popover-foreground: var(--color-gray-800);
+  --primary: var(--color-gray-950);
+  --primary-foreground: var(--color-gray-90);
+  --secondary: var(--color-gray-100);
+  --secondary-foreground: var(--color-gray-700);
+  --accent: var(--color-gray-alpha-100); 
+  /* var(--color-gray-200); */
+  --accent-foreground: var(--color-foreground);
+  --muted:  var(--color-gray-100);
+  --muted-foreground: var(--color-gray-600);
+  --destructive: #cd2b31;
+  --destructive-foreground: #e03636;
+  --border: var(--color-gray-200);
+  --input: var(--color-gray-300);
+  --ring: var(--color-gray-600);
+  --chart-1: var(--color-blue-400);
+  --chart-2: var(--color-blue-500);
+  --chart-3: var(--color-blue-600);
+  --chart-4: var(--color-blue-700);
+  --chart-5: var(--color-blue-800);
+  --sidebar: var(--color-gray-50);
+  --sidebar-primary: var(--color-gray-90);
+  --sidebar-primary-foreground: var(--color-gray-900);
+  --sidebar-accent: var(--color-gray-100);
+  --sidebar-accent-foreground: var(--color-gray-900);
+  --sidebar-border: var(--color-gray-200);
+  --sidebar-ring: var(--color-gray-600);
+  --sidebar-icon-fill: #E4E4E4;
+  --sidebar-icon-stroke: #212121;
+  --sidebar-icon-inner: var(--color-gray-50);
+  --font-sans: inter-v, inter-v-fallback;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius: 0.625rem;
+  --shadow-x: 0;
+  --shadow-y: 1px;
+  --shadow-blur: 3px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0.1;
+  --shadow-color: oklch(0 0 0);
+  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xss: 0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow: 0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
+  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+   --shadow-3xl:
+    0 0 2px rgba(0, 0, 0, 0.2), 0 2px 7px rgba(0, 0, 0, 0.1),
+    0 0 0 rgba(56, 56, 56, 1);
+  --shadow-4xl: 0 3px 3px rgba(0, 0, 0, 0.05);
+  --shadow-5xl:
+    0 0 1.5px 0 rgba(0, 0, 0, 0.25), 0 0 10px 2px rgba(0, 0, 0, 0.03),
+    0 44px 52px -10px rgba(0, 0, 0, 0.1);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+
+}
+
+.dark {
+
+  --color-plain: #0f0f0f;
+	--color-plain-reverse: #fff;
+
+	/* Dark Gray Shades (from figma variables) */
+	--color-gray-0: #131313;
+	--color-gray-50: #1c1c1c;
+	--color-gray-75: #0d0d0d;
+	--color-gray-90: #2d2d2d;
+	--color-gray-100: #212121;
+	--color-gray-200: #292929;
+	--color-gray-300: #3d3d3d;
+	--color-gray-400: #363636;
+	--color-gray-500: #696969;
+	--color-gray-550: #616161;
+	--color-gray-600: #949494;
+	--color-gray-700: #a6a6a6;
+	--color-gray-800: #afafaf;
+	--color-gray-900: #d1d1d1;
+	--color-gray-950: #f8f8f8;
+	--color-gray-1000: #fff;
+
+	/* Dark Gray Alpha Shades */
+	--color-gray-alpha-50: rgb(255 255 255 / 5%); /* 5% White */
+	--color-gray-alpha-100: rgb(255 255 255 / 8%); /* 8% White */
+	--color-gray-alpha-200: rgb(255 255 255 / 13%); /* 13% White */
+	--color-gray-alpha-300: rgb(255 255 255 / 17%); /* 17% White */
+	--color-gray-alpha-400: rgb(255 255 255 / 22%); /* 22% White */
+	--color-gray-alpha-500: rgb(255 255 255 / 40%); /* 40% White */
+	--color-gray-alpha-550: rgb(255 255 255 / 45%); /* 45% White */
+	--color-gray-alpha-600: rgb(255 255 255 / 51%); /* 51% White */
+	--color-gray-alpha-700: rgb(255 255 255 / 68%); /* 68% White */
+	--color-gray-alpha-800: rgb(255 255 255 / 78%); /* 78% White */
+	--color-gray-alpha-900: rgb(255 255 255 / 91%); /* 91% White */
+	--color-gray-alpha-950: rgb(255 255 255 / 95%); /* 95% White */
+	--color-gray-alpha-1000: rgb(255 255 255 / 100%); /* 100% White */
+
+	/* Dark Whites Shades */
+	--color-whites-50: rgb(0 0 0 / 10%); /* 10% Black */
+	--color-whites-100: rgb(0 0 0 / 18%); /* 18% Black */
+	--color-whites-200: rgb(0 0 0 / 27%); /* 27% Black */
+	--color-whites-300: rgb(0 0 0 / 36%); /* 36% Black */
+	--color-whites-400: rgb(0 0 0 / 45%); /* 45% Black */
+	--color-whites-500: rgb(0 0 0 / 54%); /* 54% Black */
+	--color-whites-550: rgb(0 0 0 / 59%); /* 59% Black */
+	--color-whites-600: rgb(0 0 0 / 63%); /* 63% Black */
+	--color-whites-700: rgb(0 0 0 / 72%); /* 72% Black */
+	--color-whites-800: rgb(0 0 0 / 81%); /* 81% Black */
+	--color-whites-900: rgb(0 0 0 / 90%); /* 90% Black */
+	--color-whites-950: rgb(0 0 0 / 95%); /* 95% Black */
+	--color-whites-1000: #000;
+
+	/* Dark Blacks Shades */
+	--color-blacks-50: rgb(255 255 255 / 9%); /* 9% White */
+	--color-blacks-100: rgb(255 255 255 / 18%); /* 18% White */
+	--color-blacks-200: rgb(255 255 255 / 27%); /* 27% White */
+	--color-blacks-300: rgb(255 255 255 / 36%); /* 36% White */
+	--color-blacks-400: rgb(255 255 255 / 45%); /* 45% White */
+	--color-blacks-500: rgb(255 255 255 / 54%); /* 54% White */
+	--color-blacks-550: rgb(255 255 255 / 59%); /* 59% White */
+	--color-blacks-600: rgb(255 255 255 / 63%); /* 63% White */
+	--color-blacks-700: rgb(255 255 255 / 72%); /* 72% White */
+	--color-blacks-800: rgb(255 255 255 / 81%); /* 81% White */
+	--color-blacks-900: rgb(255 255 255 / 90%); /* 90% White */
+	--color-blacks-950: rgb(255 255 255 / 95%); /* 95% White */
+	--color-blacks-1000: #fff; /* 100% White */
+
+  
+
+  /* Shadcn/ui Tokens */
+  --background: var(--color-gray-0);
+  --card: var(--color-gray-200);
+  --card-foreground: var(--color-gray-950);
+  --popover: var(--color-gray-50);
+  --popover-foreground: var(--color-gray-800);
+  --primary: var(--color-gray-950);
+  --primary-foreground: var(--color-gray-90);
+  --secondary: var(--color-gray-100);
+  --secondary-foreground: var(--color-gray-800);
+  --muted:  var(--color-gray-100);
+  --muted-foreground: var(--color-gray-600);
+  --accent: var(--color-gray-alpha-100); 
+  /* var(--color-gray-200); */
+  --accent-foreground: var(--color-foreground);
+  --accent-active: var(--color-gray-500);
+  --destructive: #cd2b31;
+  --destructive-foreground: #e03636;
+  --border: var(--color-gray-400);
+  --input: var(--color-gray-300);
+  --ring: var(--color-gray-600);
+  --chart-1: var(--color-blue-900);
+  --chart-2: var(--color-blue-800);
+  --chart-3: var(--color-blue-700);
+  --chart-4: var(--color-blue-600);
+  --chart-5: var(--color-blue-500);
+  --sidebar: var(--color-gray-0);
+  --sidebar-foreground: var(--color-gray-800);
+  --sidebar-primary: var(--color-gray-400);
+  --sidebar-primary-foreground: var(--color-gray-50);
+  --sidebar-accent: var(--color-gray-100);
+  --sidebar-accent-foreground: var(--color-gray-950);
+  --sidebar-border: var(--color-gray-200);
+  --sidebar-ring: var(--color-gray-600);
+  --sidebar-icon-fill: #2A2A2A;
+  --sidebar-icon-stroke: #d1d1d1;
+  --sidebar-icon-inner: #2A2A2A;
+  --font-sans: inter-v, inter-v-fallback;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius: 0.625rem;
+  --shadow-x: 0;
+  --shadow-y: 1px;
+  --shadow-blur: 3px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0.1;
+  --shadow-color: oklch(0 0 0);
+  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xss: 0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow: 0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
+  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+  --shadow-3xl:
+    0 0 2px rgba(0, 0, 0, 0.2), 0 2px 7px rgba(0, 0, 0, 0.1),
+    0 0 0 rgba(56, 56, 56, 1);
+  --shadow-4xl: 0 3px 3px rgba(0, 0, 0, 0.05);
+  --shadow-5xl:
+    0 0 1.5px 0 rgba(0, 0, 0, 0.25), 0 0 10px 2px rgba(0, 0, 0, 0.03),
+    0 44px 52px -10px rgba(0, 0, 0, 0.1);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+@theme inline {
+  --tw-leading: 1rem;
+ --tw-font-weight : 450;
+
+  /* Fonts */
+  --font-sans: inter-v, inter-v-fallback;
+
+  /* Variations Fonts */
+  --font-sans--font-variation-settings: "opsz" 20, "wght" var(--tw-font-weight, 450);
+
+  /* Font Weight */
+  --font-sans-weight: var(--tw-font-weight, 420);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+
+  /* Font Weights */
+  --font-weight-thin: 100;
+  --font-weight-extralight: 200;
+  --font-weight-light: 300;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  --font-weight-black: 900;
+  /* Font Variation Settings */
+  --font-variation-420: "wght" 420;
+
+
+  /* Font Size (line-height overrides Tailwind's defaults to match Figma's 115%) */
+  --text-2xs: 0.6875rem; /*11px*/
+  --text-2xs--line-height: 1.15;
+  --text-xs: 0.75rem; /*12px*/
+  --text-xs--line-height: 1.15;
+  --text-sm: 0.8125rem; /*13px*/
+  --text-sm--line-height: 1.15;
+  --text-base: 0.875rem; /*14px*/
+  --text-base--line-height: 1.15;
+  --text-lg: 1rem; /*16px*/
+  --text-lg--line-height: 1.15;
+  --text-xl: 1.125rem; /*18px*/
+  --text-xl--line-height: 1.15;
+  --text-2xl: 1.25rem; /*20px*/
+  --text-2xl--line-height: 1.15;
+  --text-3xl: 1.5rem; /*24px*/
+  --text-3xl--line-height: 1.15;
+  --text-4xl: 1.625rem; /*26px*/
+  --text-4xl--line-height: 1.15;
+  --text-5xl: 1.75rem; /*28px*/
+  --text-5xl--line-height: 1.15;
+  --text-6xl: 2rem; /*32px*/
+  --text-6xl--line-height: 1.15;
+  --text-7xl: 2.5rem; /*40px*/
+  --text-7xl--line-height: 1.15;
+  --text-8xl: 2.75rem; /*44px*/
+  --text-8xl--line-height: 1.15;
+  --text-9xl: 3rem; /*48px*/
+  --text-9xl--line-height: 1.15;
+  --text-10xl: 3.25rem; /*52px*/
+  --text-10xl--line-height: 1.15;
+  --text-11xl: 3.5rem; /*56px*/
+  --text-11xl--line-height: 1.15;
+  --text-12xl: 4rem; /*64px*/
+  --text-12xl--line-height: 1.15;
+  --text-13xl: 4.5rem; /*72px*/
+  --text-13xl--line-height: 1.15;
+  --text-14xl: 5rem; /*80px*/
+  --text-14xl--line-height: 1.15;
+  --text-15xl: 5.5rem; /*88px*/
+  --text-15xl--line-height: 1.15;
+
+  /* Line Height */
+  --leading-tight: 1.15; /*115%*/
+  --leading-normal: 1.5; /*150%*/
+
+  /* Letter Spacing */
+  --tracking-0: 0em;
+  --tracking-tight: 0.005em;
+  --tracking-1: 0.01em;
+  --tracking-2: 0.015em;
+  --tracking-3: 0.0175em;
+  --tracking-4: 0.02em;
+  --tracking-5: 0.03em;
+  --tracking-6: 0.04em;
+  --tracking-7: 0.05em;
+  --tracking-8: 0.06em;
+  --tracking-9: 0.07em;
+  --tracking-10: 0.08em;
+  --tracking-11: 0.09em;
+  --tracking-12: 0.1em;
+  --tracking-13: 0.11em;
+  --tracking-14: 0.12em;
+  --tracking-15: 0.14em;
+  --tracking-16: 0.16em;
+  --tracking-17: 0.2em;
+  --tracking-18: 0.2375em;
+  --tracking-19: 0.26em;
+
+  /* Radius */
+  --radius-xs: 0.25rem; /* 4px */
+  --radius-sm: 0.3125rem; /* 5px */
+  --radius-md: 0.375rem; /* 6px */
+  --radius-xmd: 0.4375rem; /* 7px */
+  --radius-lg: 0.5rem; /* 8px */
+  --radius-xlg: 0.5625rem; /* 9px */
+  --radius-xl: 0.625rem; /* 10px */
+  --radius-2xl: 0.75rem; /* 12px */
+  --radius-3xl: 0.875rem; /* 14px */
+  --radius-4xl: 1rem; /* 16px */
+  --radius-5xl: 1.25rem; /* 20px */
+  --radius-6xl: 6.25rem; /* 100px */
+
+   /* bf-token */
+   --bf-handle-idle: rgba(255, 255, 255, 0.55);
+   --bf-handle-active: rgba(255, 255, 255, 0.85);
+}
+
+
+@utility optimize-legibility {
+  text-rendering: optimizelegibility;
+}
+
+@utility inter-display {
+  font-optical-sizing: auto;
+}
+
+/* Figma elevation tokens — shadow-only outlines.
+   `sm` for input controls (Input/Textarea/Checkbox/DatePicker/MultiSelect
+   etc.); `lg` for menus / small popovers; `xl` for wide popovers, dialogs,
+   and the country dropdown. See
+   https://www.figma.com/design/Z5Bkur0wjruaEYo5NlTcsR/system-flat for the
+   source recipes. Consumers that want dark-mode behavior add their own
+   `dark:shadow-none` after the utility — the bare utility is the bare
+   shadow, no dark variant baked in. */
+@utility elevation-sm {
+  box-shadow:
+    0 0 1px 0 rgba(0, 0, 0, 0.54),
+    0 1px 1px 0 rgba(0, 0, 0, 0.06);
+}
+
+@utility elevation-lg {
+  box-shadow:
+    0 0 0.5px 0 rgba(0, 0, 0, 0.19),
+    0 1px 1px 0 rgba(0, 0, 0, 0.07),
+    0 6px 7.5px 0 rgba(0, 0, 0, 0.11);
+}
+
+@utility elevation-xl {
+  box-shadow:
+    0 0 1px 0 rgba(0, 0, 0, 0.2),
+    0 0 10px 2px rgba(0, 0, 0, 0.04),
+    0 24px 30px -8px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes drop-line-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Vertical glow that travels bottom→top inside an overflow:hidden track.
+   Used by the version-history sidebar timeline. Exit offset must match
+   the glow element's height (h-32 = 8rem) so it fully clears the track. */
+@keyframes timeline-glow-up {
+  0% {
+    top: 100%;
+  }
+  100% {
+    top: calc(0% - 8rem);
+  }
+}
+
+@utility font-case {
+  font-feature-settings: "case";
+}
+
+/* Canonical text-input box used by Input/Email/Number/Link/Textarea/Time/
+   Phone/FileUpload field widgets. Matches the editor's form-field-node
+   spec from Figma (gray/50 fill, 8px radius, hairline drop shadow) in both
+   light and dark. Uses !important to override the underlying <Input>
+   component's cva variants (bg-card, dark:border, etc.), since this utility
+   is the canonical form-field style.
+
+   The fill is driven by --form-input-bg with a gray/50 fallback; .bf-themed
+   binds it to --bf-input so the customize-sidebar Input token actually
+   reaches every input widget. */
+@utility form-input {
+  @apply w-full text-foreground placeholder:text-muted-foreground/50;
+  background-color: var(--form-input-bg, var(--color-gray-50)) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.54), 0 1px 1px rgba(0, 0, 0, 0.06) !important;
+  border: 0 !important;
+}
+
+@utility form-input-error {
+  @apply ring-1 ring-destructive;
+}
+
+@layer utilities {
+  .font-normal {
+    font-weight: 450;
+  }
+}
+
+
+/* Bridge rules: map --bf-* customization tokens to standard shadcn vars.
+  We must also override --color-* (Tailwind v4 theme tokens) because they are
+   resolved at :root level and inherited as computed values — overriding --background
+   on a nested element does NOT update the inherited --color-background. */
+.bf-themed {
+  --background: var(--bf-background);
+  --foreground: var(--bf-foreground);
+  --card: var(--bf-card);
+  --card-foreground: var(--bf-card-foreground);
+  --popover: var(--bf-popover);
+  --popover-foreground: var(--bf-popover-foreground);
+  --primary: var(--bf-primary);
+  --primary-foreground: var(--bf-primary-foreground);
+  --secondary: var(--bf-secondary);
+  --secondary-foreground: var(--bf-secondary-foreground);
+  --muted: var(--bf-muted);
+  --muted-foreground: var(--bf-muted-foreground);
+  --accent: var(--bf-accent);
+  --accent-foreground: var(--bf-accent-foreground);
+  --destructive: var(--bf-destructive);
+  --destructive-foreground: var(--bf-destructive-foreground);
+  --border: var(--bf-border);
+  --input: var(--bf-input);
+  --ring: var(--bf-ring);
+  --radius: var(--bf-radius);
+  --radius-sm: calc(var(--bf-radius) - 4px);
+  --radius-md: calc(var(--bf-radius) - 2px);
+  --radius-lg: var(--bf-radius);
+  --radius-xl: calc(var(--bf-radius) + 4px);
+
+  /* Tailwind v4 --color-* overrides (needed for bg-background, text-foreground, etc.) */
+  --color-background: var(--bf-background);
+  --color-foreground: var(--bf-foreground);
+  --color-card: var(--bf-card);
+  --color-card-foreground: var(--bf-card-foreground);
+  --color-primary: var(--bf-primary);
+  --color-primary-foreground: var(--bf-primary-foreground);
+  --color-secondary: var(--bf-secondary);
+  --color-secondary-foreground: var(--bf-secondary-foreground);
+  --color-muted: var(--bf-muted);
+  --color-muted-foreground: var(--bf-muted-foreground);
+  --color-accent: var(--bf-accent);
+  --color-accent-foreground: var(--bf-accent-foreground);
+  --color-destructive: var(--bf-destructive);
+  --color-destructive-foreground: var(--bf-destructive-foreground);
+  --color-border: var(--bf-border);
+  --color-input: var(--bf-input);
+  --color-ring: var(--bf-ring);
+
+  --font-sans: var(
+    --bf-font,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif
+  );
+  font-family: var(--font-sans);
+  color: var(--bf-foreground, #09090b);
+}
+
+/* Layout bridge: consume --bf-* layout vars on data-attribute targets.
+   Fallback values match the Tailwind defaults so overrides are safe when vars are unset. */
+.bf-themed [data-bf-form-container] {
+  max-width: var(--bf-page-width);
+  margin-inline: auto;
+}
+
+/* Editor content area: set --editor-px so cover buttons can break out of padding.
+   The editor uses sm:px-[max(64px,calc(50%-350px))] for a ~700px content area. */
+@media (width >= 640px) {
+  .group\/editor {
+    --editor-px: max(64px, calc(50% - 350px));
+  }
+}
+
+/* Override the padding-based centering when page width is set. */
+.bf-themed .group\/editor {
+  --editor-px: max(64px, calc(50% - var(--bf-page-width, 700px) / 2));
+  padding-left: var(--editor-px);
+  padding-right: var(--editor-px);
+}
+
+.bf-themed [data-bf-cover] {
+  height: var(--bf-cover-height);
+}
+
+/* Logo/icon positioning: half overlapping cover, half below.
+   Uses fixed 100px reference for positioning so icon stays centered
+   regardless of --bf-logo-width changes. */
+.bf-themed [data-bf-logo-container="true"] {
+  margin-top: -50px;
+}
+
+.bf-themed [data-bf-logo-emoji-container="true"] {
+  margin-top: -50px;
+}
+
+/* Logo image sizing */
+.bf-themed [data-bf-logo] {
+  width: var(--bf-logo-width);
+  height: var(--bf-logo-width);
+}
+
+/* Icon picker logo: fixed 100px container keeps icon position stable.
+   The accent circle inside scales with --bf-logo-width, icon SVG stays fixed at 48px. */
+.bf-themed [data-bf-logo-icon] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 100px;
+}
+
+.bf-themed [data-bf-logo-icon] > div {
+  width: max(48px, var(--bf-logo-width)) !important;
+  height: max(48px, var(--bf-logo-width)) !important;
+}
+
+/* Keep the icon SVG at fixed size regardless of circle size */
+.bf-themed [data-bf-logo-icon] > div > svg {
+  width: 48px !important;
+  height: 48px !important;
+}
+
+/* Hide accent circle background when logo width is 0 — icon still shows */
+.bf-themed [data-bf-logo-icon="minimal"] > div {
+  background-color: transparent !important;
+}
+
+/* Input width: editor input nodes */
+.bf-themed [data-bf-input] {
+  max-width: var(--bf-input-width);
+}
+
+/* Input fill: drive the form-input utility from the Input token so all
+   text-input widgets (Input/Email/Number/Link/Textarea/Time/Date/Phone/
+   FileUpload) honor the customize-sidebar Input color. */
+.bf-themed {
+  --form-input-bg: var(--bf-input);
+}
+
+/* Components that bypass the form-input utility (phone input parts,
+   unchecked checkbox surfaces) get the same Input token via [data-bf-
+   input-fill] markers in their JSX, plus the existing data-slot the
+   checkbox primitive ships with. Multi-choice option letter badges
+   already consume --form-input-bg via the bg-[var(...)] arbitrary value.
+   Note: the [data-slot="checkbox"]:not([data-checked]) selector is
+   coupled to base-ui's internal attributes — verify these selectors
+   still match when upgrading @base-ui/react. */
+.bf-themed [data-bf-input-fill],
+.bf-themed [data-slot="checkbox"]:not([data-checked]) {
+  background-color: var(--bf-input) !important;
+}
+
+/* Popup surfaces inside themed forms — date-picker calendar, multi-select
+   dropdown, etc. — bypass `--bf-popover` (which derives from the base
+   preset, typically white) and route through `--bf-input` so popups feel
+   like an extension of the input/trigger they expand from. The
+   `--color-popover` override is needed for Tailwind v4's bg-popover utility,
+   which resolves through the @theme color scale rather than the raw token. */
+.bf-themed {
+  --popover: var(--bf-input);
+  --color-popover: var(--bf-input);
+}
+
+/* Typography bridge */
+.bf-themed {
+  font-size: var(--bf-font-size);
+}
+
+/* Override global * { letter-spacing: 0.01em } inside themed forms */
+.bf-themed,
+.bf-themed * {
+  letter-spacing: var(--bf-letter-spacing);
+}
+
+/* Header is excluded from body typography — revert to base layer defaults */
+.bf-themed [data-bf-header],
+.bf-themed [data-bf-header] * {
+  letter-spacing: revert-layer;
+}
+
+/* Title textarea (editor) and title h1 (preview) get their own controls.
+   Fallbacks match the Figma default: Timeless Serif, 48px, -0.03em spacing. */
+.bf-themed [data-bf-header] textarea,
+.bf-themed [data-bf-title] {
+  font-family: var(--bf-title-font, "Timeless Serif", ui-serif, Georgia, serif);
+  font-size: var(--bf-title-font-size);
+  letter-spacing: var(--bf-title-letter-spacing);
+  font-style: var(--bf-title-font-style, normal);
+}
+
+/* Font-size: editor blocks (inputs, labels, buttons, textareas, paragraphs — NOT headings/header) */
+.bf-themed [data-slate-editor] {
+  font-size: var(--bf-font-size);
+}
+
+.bf-themed [data-slate-editor] [data-slate-node="element"]:not(h1, h2, h3, h4, h5, h6):not([data-bf-header]),
+.bf-themed [data-slate-editor] [data-slate-node="element"]:not(h1, h2, h3, h4, h5, h6):not([data-bf-header]) > * {
+  font-size: inherit;
+}
+
+/* Font-size: preview form content (NOT headings) */
+.bf-themed [data-bf-field-list] *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6),
+.bf-themed [data-bf-form-container] > :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) {
+  font-size: var(--bf-font-size);
+}
+
+/* PlateStatic content manages its own font-sizes via node components.
+   Override the field-list font-size rule for all slate-editor descendants
+   so headings, lists, paragraphs, etc. render at correct sizes. */
+.bf-themed [data-bf-field-list] [data-slate-editor] *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6),
+.bf-themed [data-bf-form-container] [data-slate-editor] *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) {
+  font-size: inherit;
+}
+
+/* Spacing tokens — adjust these to experiment with the form layout:
+   - --bf-block-margin: visible gap between any two block selections
+   - --bf-field-gap:    margin around labels (= gap between fields)
+   The bleed amount used to extend label selections is derived from these
+   two: bleed = field-gap − block-margin (so the residual visible gap
+   between selections stays equal to --bf-block-margin). */
+:root {
+  --bf-block-margin: 24px;
+  --bf-field-gap: 4px;
+}
+
+.slate-blockWrapper:not(:has(> [data-bf-chrome])),
+[data-bf-field-list] > [data-slate-node="element"]:not([data-bf-chrome]),
+[data-bf-field-list] > [data-bf-input] {
+  margin-bottom: var(--bf-block-margin) !important;
+}
+
+/* Public-form label spacing mirrors the editor's label block exactly.
+   Using MARGIN (not padding) so it vertical-collapses through the
+   transparent [data-bf-input] wrapper:
+   - Label's margin-top collapses into the wrapper's margin-top, giving the
+     first field 4px breathing room above without an explicit wrapper rule.
+   - Label's margin-bottom = label↔input gap inside the wrapper (4px).
+   - Wrapper's margin-bottom (--bf-block-margin) collapses with the next
+     wrapper's margin-top (4px from its label) to MAX(24, 4) = 24px between
+     fields — identical to the editor. */
+[data-bf-field-list] [data-bf-field-label] {
+  margin-top: var(--bf-field-gap) !important;
+  margin-bottom: var(--bf-field-gap) !important;
+}
+
+/* An option block immediately preceded by another option block — pull it
+   up to collapse the visible block-margin between consecutive options
+   down to --bf-field-gap. The first option in a group still gets the full
+   block-margin above it (clean gap from the form label), and the last
+   option still gets the full block-margin below it (clean gap to the
+   next block). */
+[data-bf-input="true"]:has(> .slate-blockWrapper > .slate-formOptionItem)
+  + [data-bf-input="true"]:has(> .slate-blockWrapper > .slate-formOptionItem) {
+  margin-top: calc(var(--bf-field-gap) - var(--bf-block-margin)) !important;
+}
+
+/* Label wrappers carry both top and bottom field-gap margin. Vertical margin
+   collapsing between adjacent block siblings means:
+   - prev field's bottom + label's top → max = field-gap (after-field gap)
+   - label's bottom → label↔first-input gap = field-gap
+   So spacing emerges naturally from labels alone, without tagging every
+   "field-end" block. Non-label blocks keep the block-margin default. */
+.slate-blockWrapper:has(> .slate-formLabel),
+[data-bf-field-list] > .slate-formLabel {
+  margin-top: var(--bf-field-gap) !important;
+  margin-bottom: var(--bf-field-gap) !important;
+}
+
+/* Static-text spacing — single source of truth across editor + preview.
+   Both contexts get the same margin values; the SELECTOR target differs
+   per context (editor sets margin on .slate-blockWrapper, preview sets
+   it on the element itself), but the VALUES live in one rule so they
+   can't drift.
+
+   Why not put margins on the h1/h2/p element itself? In the editor,
+   .slate-blockWrapper is `display: flow-root`, which traps the inner
+   element's margins inside its BFC — they'd render as internal space
+   at the top of the wrapper instead of an inter-wrapper gap. Targeting
+   the wrapper sidesteps that.
+
+   Paragraphs / blockquotes: symmetric tight margin so adjacent body copy
+   reads as one block. Also covers dynamic labels (text directly above an
+   input — see ALLOWED_LABEL_TYPES in form-field-constants.ts). */
+/* Match by Plate's slate-<type> CLASS rather than by HTML tag — the editor's
+   ParagraphElement renders as a default <div> (not <p>), so a tag-based
+   selector would miss it and the wrapper would fall back to the default
+   24px block-margin (creating a visible gap when a paragraph sits between
+   a label and an input). The .slate-p / .slate-h{1,2,3} class is set by
+   Plate on the rendered element regardless of underlying tag. */
+:not([data-bf-chrome]):not([data-bf-input]):has(> .slate-blockWrapper > .slate-p) > .slate-blockWrapper,
+:not([data-bf-chrome]):not([data-bf-input]):has(> .slate-blockWrapper > .slate-blockquote) > .slate-blockWrapper,
+[data-bf-field-list] .slate-p[data-slate-node="element"],
+[data-bf-field-list] .slate-blockquote[data-slate-node="element"] {
+  margin-top: var(--bf-field-gap) !important;
+  margin-bottom: var(--bf-field-gap) !important;
+}
+
+/* Headings: block-margin above (section break) + tight below
+   (binds to what they introduce). Notion-style asymmetry.
+   Preview-side uses DESCENDANT not direct-child: in the editor-internal
+   preview, StaticContentBlock wraps Plate nodes in another PlateStatic
+   container, so headings aren't direct children of [data-bf-field-list]. */
+:not([data-bf-chrome]):not([data-bf-input]):has(> .slate-blockWrapper > .slate-h1) > .slate-blockWrapper,
+:not([data-bf-chrome]):not([data-bf-input]):has(> .slate-blockWrapper > .slate-h2) > .slate-blockWrapper,
+:not([data-bf-chrome]):not([data-bf-input]):has(> .slate-blockWrapper > .slate-h3) > .slate-blockWrapper,
+[data-bf-field-list] .slate-h1[data-slate-node="element"],
+[data-bf-field-list] .slate-h2[data-slate-node="element"],
+[data-bf-field-list] .slate-h3[data-slate-node="element"] {
+  margin-top: var(--bf-block-margin) !important;
+  margin-bottom: var(--bf-field-gap) !important;
+}
+
+/* Label's BlockSelection bleeds (field-gap − block-margin) into each margin
+   so consecutive selections (prev field → label, label → input) end up with
+   a uniform residual = block-margin visible gap, matching non-label blocks.
+   Clamped with min(0px, …) so when block-margin >= field-gap the bleed never
+   pushes the selection box *inward* (which collapses it on small labels and
+   makes the selection rectangle invisible). */
+.slate-blockWrapper:has(> .slate-formLabel) [data-slot="block-selection"],
+[data-bf-field-list] > .slate-formLabel [data-slot="block-selection"] {
+  top: min(0px, calc(-1 * (var(--bf-field-gap) - var(--bf-block-margin)))) !important;
+  bottom: min(0px, calc(-1 * (var(--bf-field-gap) - var(--bf-block-margin)))) !important;
+}
+
+/* View Transition: preview mode tab switching */
+::view-transition-old(preview-content),
+::view-transition-new(preview-content) {
+  animation-duration: 200ms;
+  animation-timing-function: ease-out;
+}
+
+/* View Transition: public-form theme toggle. Smooths the light↔dark
+   flip — dozens of CSS variables swap at once, so the default instant
+   apply is visually harsh. The crossfade animates the snapshot of the
+   whole viewport. Both old/new layers fade simultaneously (no slide). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
+/* Card elevated shadow - raw box-shadow bypasses Tailwind's color-mix processing */
+.shadow-card-elevated {
+  box-shadow:
+    0 64px 74px 0 rgba(0, 0, 0, 0.08),
+    0 18px 35px 0 rgba(0, 0, 0, 0.04),
+    0 8.5px 25px 0 rgba(0, 0, 0, 0.03),
+    0 4.5px 18px 0 rgba(0, 0, 0, 0.02),
+    0 2px 9.5px 0 rgba(0, 0, 0, 0.01);
+}

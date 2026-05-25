@@ -1,49 +1,35 @@
-// ============================================================================
-// Analytics Types
-// ============================================================================
-
 export type DeviceType = "desktop" | "tablet" | "mobile";
 
 export type BrowserType = "Chrome" | "Firefox" | "Safari" | "Edge" | "Opera" | "Other";
 
 export type OSType = "Windows" | "macOS" | "iOS" | "Android" | "Linux" | "Other";
 
-// ============================================================================
-// Form Visit Interface
-// ============================================================================
 export interface FormVisit {
   id: string;
   formId: string;
 
-  // Anonymous tracking
   visitorHash: string;
   sessionId: string;
 
-  // Source attribution
   referrer: string | null;
   utmSource: string | null;
   utmMedium: string | null;
   utmCampaign: string | null;
 
-  // Device metadata
   deviceType: DeviceType | null;
   browser: string | null;
   browserVersion: string | null;
   os: string | null;
   osVersion: string | null;
 
-  // Geolocation
   country: string | null;
-  countryName: string | null;
   city: string | null;
   region: string | null;
 
-  // Timing
   visitStartedAt: Date;
   visitEndedAt: Date | null;
   durationMs: number | null;
 
-  // Interaction
   didStartForm: boolean;
   didSubmit: boolean;
   submissionId: string | null;
@@ -52,9 +38,6 @@ export interface FormVisit {
   updatedAt: Date;
 }
 
-// ============================================================================
-// Form Question Progress Interface
-// ============================================================================
 export interface FormQuestionProgress {
   id: string;
   formId: string;
@@ -73,15 +56,11 @@ export interface FormQuestionProgress {
   createdAt: Date;
 }
 
-// ============================================================================
-// Form Analytics Daily Interface
-// ============================================================================
 export interface FormAnalyticsDaily {
   id: string;
   formId: string;
   date: string; // 'YYYY-MM-DD'
 
-  // Core metrics
   totalVisits: number;
   uniqueVisitors: number;
   totalSubmissions: number;
@@ -89,27 +68,9 @@ export interface FormAnalyticsDaily {
   avgDurationMs: number | null;
   medianDurationMs: number | null;
 
-  // Device breakdown
-  deviceDesktop: number;
-  deviceMobile: number;
-  deviceTablet: number;
-
-  // Browser breakdown
-  browserChrome: number;
-  browserFirefox: number;
-  browserSafari: number;
-  browserEdge: number;
-  browserOther: number;
-
-  // OS breakdown
-  osWindows: number;
-  osMacos: number;
-  osIos: number;
-  osAndroid: number;
-  osLinux: number;
-  osOther: number;
-
-  // Flexible breakdowns
+  deviceBreakdown: CountBreakdown;
+  browserBreakdown: CountBreakdown;
+  osBreakdown: CountBreakdown;
   countryBreakdown: CountBreakdown;
   cityBreakdown: CountBreakdown;
   sourceBreakdown: CountBreakdown;
@@ -118,9 +79,6 @@ export interface FormAnalyticsDaily {
   updatedAt: Date;
 }
 
-// ============================================================================
-// Form Dropoff Daily Interface
-// ============================================================================
 export interface FormDropoffDaily {
   id: string;
   formId: string;
@@ -139,28 +97,20 @@ export interface FormDropoffDaily {
   updatedAt: Date;
 }
 
-// ============================================================================
-// Breakdown Types
-// ============================================================================
 export interface CountBreakdown {
   [key: string]: number;
 }
 
-// ============================================================================
-// Dashboard Metrics Types
-// ============================================================================
 export interface FormInsightsMetrics {
   startDate: string;
   endDate: string;
 
-  // Core metrics
   totalVisits: number;
   uniqueVisitors: number;
   totalSubmissions: number;
   uniqueRespondents: number;
   avgVisitDurationMs: number;
 
-  // Breakdowns
   sources: CountBreakdown;
   devices: CountBreakdown;
   countries: CountBreakdown;
@@ -168,7 +118,6 @@ export interface FormInsightsMetrics {
   browsers: CountBreakdown;
   operatingSystems: CountBreakdown;
 
-  // Time series data for charts
   dailyData: {
     date: string;
     visits: number;
@@ -177,32 +126,33 @@ export interface FormInsightsMetrics {
   }[];
 }
 
+export interface QuestionDropoffRow {
+  questionId: string;
+  questionIndex: number;
+  questionLabel?: string;
+  stepId: string | null;
+  stepIndex: number | null;
+  viewCount: number;
+  startCount: number;
+  completeCount: number;
+  dropoffCount: number;
+  terminalDropoffCount: number;
+  dropoffRate: number; // 0-100
+  completionRate: number; // 0-100
+}
+
 export interface QuestionDropoffMetrics {
   formId: string;
   startDate: string;
   endDate: string;
 
-  questions: {
-    questionId: string;
-    questionIndex: number;
-    questionLabel?: string;
-    viewCount: number;
-    startCount: number;
-    completeCount: number;
-    dropoffCount: number;
-    dropoffRate: number; // 0-100
-    completionRate: number; // 0-100
-  }[];
+  questions: QuestionDropoffRow[];
 
-  // Overall funnel
   totalStarted: number;
   totalCompleted: number;
   overallCompletionRate: number;
 }
 
-// ============================================================================
-// Time Range Filter
-// ============================================================================
 export type TimeRangeFilter =
   | "last_24_hours"
   | "last_7_days"

@@ -2,8 +2,9 @@ import { useDraggable, useDropLine } from "@platejs/dnd";
 import { setColumns } from "@platejs/layout";
 import { ResizableProvider } from "@platejs/resizable";
 import { BlockSelectionPlugin } from "@platejs/selection/react";
-import { useComposedRef } from "@udecode/cn";
-import { GripHorizontal, type LucideProps, Trash2Icon } from "lucide-react";
+import { useComposedRefs } from "@/lib/compose-refs";
+import { GripHorizontalIcon, Trash2Icon } from "@/components/ui/icons";
+import type { LucideProps } from "@/components/ui/icons";
 import type { TColumnElement } from "platejs";
 import { PathApi } from "platejs";
 import type { PlateElementProps } from "platejs/react";
@@ -48,7 +49,7 @@ export const ColumnElement = withHOC(
           <div
             ref={handleRef}
             className={cn(
-              "-translate-x-1/2 -translate-y-1/2 absolute top-2 left-1/2 z-50",
+              "absolute top-2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
               "pointer-events-auto flex items-center",
               "opacity-0 transition-opacity group-hover/column:opacity-100",
             )}
@@ -59,13 +60,13 @@ export const ColumnElement = withHOC(
 
         <PlateElement
           {...props}
-          ref={useComposedRef(props.ref, previewRef)}
+          ref={useComposedRefs(props.ref, previewRef)}
           className="h-full px-2 pt-2 group-first/column:pl-0 group-last/column:pr-0"
         >
           <div
             className={cn(
               "relative h-full border border-transparent p-1.5",
-              !readOnly && "rounded-lg border-border border-dashed",
+              !readOnly && "rounded-lg border-dashed border-border",
               isDragging && "opacity-50",
             )}
           >
@@ -79,20 +80,17 @@ export const ColumnElement = withHOC(
   },
 );
 
+const handleGripClick = (event: React.MouseEvent) => {
+  event.stopPropagation();
+  event.preventDefault();
+};
+
 const ColumnDragHandle = React.memo(function ColumnDragHandle() {
   return (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Button variant="ghost" className="!px-1 h-5">
-            <GripHorizontal
-              className="text-muted-foreground"
-              onClick={(event) => {
-                event.stopPropagation();
-                event.preventDefault();
-              }}
-            />
-          </Button>
+        <TooltipTrigger render={<Button variant="ghost" className="h-5 !px-1" />}>
+          <GripHorizontalIcon className="text-muted-foreground" onClick={handleGripClick} />
         </TooltipTrigger>
 
         <TooltipContent>Drag to move column</TooltipContent>
@@ -101,7 +99,7 @@ const ColumnDragHandle = React.memo(function ColumnDragHandle() {
   );
 });
 
-function DropLine() {
+const DropLine = () => {
   const { dropLine } = useDropLine({ orientation: "horizontal" });
 
   if (!dropLine) return null;
@@ -110,74 +108,73 @@ function DropLine() {
     <div
       className={cn(
         "slate-dropLine",
-        "absolute bg-brand/50",
-        dropLine === "left" && "group-first/column:-left-1 inset-y-0 left-[-10.5px] w-1",
-        dropLine === "right" && "group-last/column:-right-1 inset-y-0 right-[-11px] w-1",
+        "bg-brand/50 absolute",
+        dropLine === "left" && "inset-y-0 left-[-10.5px] w-1 group-first/column:-left-1",
+        dropLine === "right" && "inset-y-0 right-[-11px] w-1 group-last/column:-right-1",
       )}
     />
   );
-}
+};
 
-export function ColumnGroupElement(props: PlateElementProps) {
-  return (
-    <PlateElement className="mb-2" {...props}>
-      <ColumnFloatingToolbar>
-        <div className="flex size-full rounded">{props.children}</div>
-      </ColumnFloatingToolbar>
-    </PlateElement>
-  );
-}
+export const ColumnGroupElement = (props: PlateElementProps) => (
+  <PlateElement className="mb-2" {...props}>
+    <ColumnFloatingToolbar>
+      <div className="flex size-full rounded">{props.children}</div>
+    </ColumnFloatingToolbar>
+  </PlateElement>
+);
 
-function ColumnFloatingToolbar({ children }: React.PropsWithChildren) {
+const ColumnFloatingToolbar = ({ children }: React.PropsWithChildren) => {
   const editor = useEditorRef();
   const readOnly = useReadOnly();
   const element = useElement<TColumnElement>();
   const { props: buttonProps } = useRemoveNodeButton({ element });
   const selected = useSelected();
-  const isCollapsed = useEditorSelector((editor) => editor.api.isCollapsed(), []);
+  const isCollapsed = useEditorSelector((ed) => ed.api.isCollapsed(), []);
   const isFocusedLast = useFocusedLast();
 
   const open = isFocusedLast && !readOnly && selected && isCollapsed;
 
-  const onColumnChange = (widths: string[]) => {
-    setColumns(editor, {
-      at: element,
-      widths,
-    });
-  };
+  const onColumnChange = React.useCallback(
+    (widths: string[]) => {
+      setColumns(editor, {
+        at: element,
+        widths,
+      });
+    },
+    [editor, element],
+  );
+
+  const handleDouble = React.useCallback(() => onColumnChange(["50%", "50%"]), [onColumnChange]);
+  const handleTriple = React.useCallback(
+    () => onColumnChange(["33%", "33%", "33%"]),
+    [onColumnChange],
+  );
+  const handleRightSide = React.useCallback(() => onColumnChange(["70%", "30%"]), [onColumnChange]);
+  const handleLeftSide = React.useCallback(() => onColumnChange(["30%", "70%"]), [onColumnChange]);
+  const handleDoubleSide = React.useCallback(
+    () => onColumnChange(["25%", "50%", "25%"]),
+    [onColumnChange],
+  );
 
   return (
     <Popover open={open} modal={false}>
       <PopoverAnchor>{children}</PopoverAnchor>
-      <PopoverContent
-        className="w-auto border"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        align="center"
-        side="top"
-        sideOffset={10}
-      >
+      <PopoverContent className="w-auto border p-2.5" align="center" side="top" sideOffset={10}>
         <div className="box-content flex h-8 items-center">
-          <Button variant="ghost" className="size-8" onClick={() => onColumnChange(["50%", "50%"])}>
+          <Button variant="ghost" className="size-8" onClick={handleDouble}>
             <DoubleColumnOutlined />
           </Button>
-          <Button
-            variant="ghost"
-            className="size-8"
-            onClick={() => onColumnChange(["33%", "33%", "33%"])}
-          >
+          <Button variant="ghost" className="size-8" onClick={handleTriple}>
             <ThreeColumnOutlined />
           </Button>
-          <Button variant="ghost" className="size-8" onClick={() => onColumnChange(["70%", "30%"])}>
+          <Button variant="ghost" className="size-8" onClick={handleRightSide}>
             <RightSideDoubleColumnOutlined />
           </Button>
-          <Button variant="ghost" className="size-8" onClick={() => onColumnChange(["30%", "70%"])}>
+          <Button variant="ghost" className="size-8" onClick={handleLeftSide}>
             <LeftSideDoubleColumnOutlined />
           </Button>
-          <Button
-            variant="ghost"
-            className="size-8"
-            onClick={() => onColumnChange(["25%", "50%", "25%"])}
-          >
+          <Button variant="ghost" className="size-8" onClick={handleDoubleSide}>
             <DoubleSideDoubleColumnOutlined />
           </Button>
 
@@ -189,7 +186,7 @@ function ColumnFloatingToolbar({ children }: React.PropsWithChildren) {
       </PopoverContent>
     </Popover>
   );
-}
+};
 
 const DoubleColumnOutlined = (props: LucideProps) => (
   <svg
@@ -203,7 +200,7 @@ const DoubleColumnOutlined = (props: LucideProps) => (
     <title>Two column layout</title>
     <path
       clipRule="evenodd"
-      d="M8.5 3H13V13H8.5V3ZM7.5 2H8.5H13C13.5523 2 14 2.44772 14 3V13C14 13.5523 13.5523 14 13 14H8.5H7.5H3C2.44772 14 2 13.5523 2 13V3C2 2.44772 2.44772 2 3 2H7.5ZM7.5 13H3L3 3H7.5V13Z"
+      d="M8.5 3H13V13H8.5V3ZM7.5 2H8.5H13C13.55 2 14 2.45 14 3V13C14 13.55 13.55 14 13 14H8.5H7.5H3C2.45 14 2 13.55 2 13V3C2 2.45 2.45 2 3 2H7.5ZM7.5 13H3L3 3H7.5V13Z"
       fill="currentColor"
       fillRule="evenodd"
     />
@@ -222,7 +219,7 @@ const ThreeColumnOutlined = (props: LucideProps) => (
     <title>Three column layout</title>
     <path
       clipRule="evenodd"
-      d="M9.25 3H6.75V13H9.25V3ZM9.25 2H6.75H5.75H3C2.44772 2 2 2.44772 2 3V13C2 13.5523 2.44772 14 3 14H5.75H6.75H9.25H10.25H13C13.5523 14 14 13.5523 14 13V3C14 2.44772 13.5523 2 13 2H10.25H9.25ZM10.25 3V13H13V3H10.25ZM3 13H5.75V3H3L3 13Z"
+      d="M9.25 3H6.75V13H9.25V3ZM9.25 2H6.75H5.75H3C2.45 2 2 2.45 2 3V13C2 13.55 2.45 14 3 14H5.75H6.75H9.25H10.25H13C13.55 14 14 13.55 14 13V3C14 2.45 13.55 2 13 2H10.25H9.25ZM10.25 3V13H13V3H10.25ZM3 13H5.75V3H3L3 13Z"
       fill="currentColor"
       fillRule="evenodd"
     />
@@ -241,7 +238,7 @@ const RightSideDoubleColumnOutlined = (props: LucideProps) => (
     <title>Right side wider columns layout</title>
     <path
       clipRule="evenodd"
-      d="M11.25 3H13V13H11.25V3ZM10.25 2H11.25H13C13.5523 2 14 2.44772 14 3V13C14 13.5523 13.5523 14 13 14H11.25H10.25H3C2.44772 14 2 13.5523 2 13V3C2 2.44772 2.44772 2 3 2H10.25ZM10.25 13H3L3 3H10.25V13Z"
+      d="M11.25 3H13V13H11.25V3ZM10.25 2H11.25H13C13.55 2 14 2.45 14 3V13C14 13.55 13.55 14 13 14H11.25H10.25H3C2.45 14 2 13.55 2 13V3C2 2.45 2.45 2 3 2H10.25ZM10.25 13H3L3 3H10.25V13Z"
       fill="currentColor"
       fillRule="evenodd"
     />
@@ -260,7 +257,7 @@ const LeftSideDoubleColumnOutlined = (props: LucideProps) => (
     <title>Left side wider columns layout</title>
     <path
       clipRule="evenodd"
-      d="M5.75 3H13V13H5.75V3ZM4.75 2H5.75H13C13.5523 2 14 2.44772 14 3V13C14 13.5523 13.5523 14 13 14H5.75H4.75H3C2.44772 14 2 13.5523 2 13V3C2 2.44772 2.44772 2 3 2H4.75ZM4.75 13H3L3 3H4.75V13Z"
+      d="M5.75 3H13V13H5.75V3ZM4.75 2H5.75H13C13.55 2 14 2.45 14 3V13C14 13.55 13.55 14 13 14H5.75H4.75H3C2.45 14 2 13.55 2 13V3C2 2.45 2.45 2 3 2H4.75ZM4.75 13H3L3 3H4.75V13Z"
       fill="currentColor"
       fillRule="evenodd"
     />
@@ -279,7 +276,7 @@ const DoubleSideDoubleColumnOutlined = (props: LucideProps) => (
     <title>Balanced three column layout</title>
     <path
       clipRule="evenodd"
-      d="M10.25 3H5.75V13H10.25V3ZM10.25 2H5.75H4.75H3C2.44772 2 2 2.44772 2 3V13C2 13.5523 2.44772 14 3 14H4.75H5.75H10.25H11.25H13C13.5523 14 14 13.5523 14 13V3C14 2.44772 13.5523 2 13 2H11.25H10.25ZM11.25 3V13H13V3H11.25ZM3 13H4.75V3H3L3 13Z"
+      d="M10.25 3H5.75V13H10.25V3ZM10.25 2H5.75H4.75H3C2.45 2 2 2.45 2 3V13C2 13.55 2.45 14 3 14H4.75H5.75H10.25H11.25H13C13.55 14 14 13.55 14 13V3C14 2.45 13.55 2 13 2H11.25H10.25ZM11.25 3V13H13V3H11.25ZM3 13H4.75V3H3L3 13Z"
       fill="currentColor"
       fillRule="evenodd"
     />

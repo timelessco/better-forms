@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "skills": {
+    "grill-me": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "computedHash": "e02446c0912decc73472ab3392af040fac223fb93b46fd101bce27686d717136"
+    },
+    "improve-codebase-architecture": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "computedHash": "76d07c4c0bebc162cc76ca7494bfe7a90e279f35832f7ce6dfc4ce16518fd560"
+    },
+    "shadcn": {
+      "source": "shadcn/ui",
+      "sourceType": "github",
+      "computedHash": "507f011a70e8b3ae242bdc0bb5b39fd91a1d4049a0f3c281991ccf84973d591c"
+    },
+    "tailwind-design-system": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "computedHash": "d0e4d2ba5a99cdc6e264d3927d1d81e85e79f551c8e246fa0a86123217eaad94"
+    },
+    "tanstack-hotkeys": {
+      "source": "git@github.com:timelessco/skills.git",
+      "sourceType": "git",
+      "computedHash": "9eb60aa351b3f1c7af3567816427ceb13f91e9ba568fc7624ca0c91ca9657841"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "3462ec83f862abb2d532953df33a4dbf87f4616849da5d4b5cc7c13601aaf997"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
+    },
+    "write-a-prd": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "computedHash": "d03d51db8cfd3dd5c27f9b8e1ffe61686391fdbd62bf4cb2f47db7e62ee68cd2"
+    }
+  }
+}

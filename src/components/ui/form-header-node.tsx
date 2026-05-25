@@ -1,53 +1,82 @@
-import { useEmojiDropdownMenuState } from "@platejs/emoji/react";
-import { ImageIcon, Settings, Smile, Upload, X } from "lucide-react";
-import { useState } from "react";
+import { ImageIcon, CircleUserRoundIcon, SettingsIcon, Trash2Icon } from "@/components/ui/icons";
+import { IconPickerContent, IconPickerPreview } from "@/components/icon-picker";
+import { Activity, useCallback, useEffect, useRef, useState } from "react";
 import type { PlateElementProps } from "platejs/react";
 import { PlateElement, useEditorRef } from "platejs/react";
-import AvatarUpload from "@/components/file-upload/avatar-upload";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { EmojiPicker } from "@/components/ui/emoji-toolbar-button";
+import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
 import { createFormButtonNode } from "@/components/ui/form-button-node";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCustomizeSidebar } from "@/hooks/use-customize-sidebar";
+import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEditorTheme } from "@/contexts/editor-theme-context";
+import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import { useFileUpload } from "@/hooks/use-file-upload";
-import { cn } from "@/lib/utils";
+import {
+  ImageCrop,
+  ImageCropContent,
+  ImageCropApply,
+  ImageCropReset,
+} from "@/components/ui/image-crop";
+import type { FormHeaderElementData } from "@/lib/form-schema/form-header-factory";
+import { THEME_COLORS } from "@/lib/theme/theme-presets";
+import { DEFAULT_ICON } from "@/lib/config/app-config";
+import { cn, isValidUrl } from "@/lib/utils";
+export {
+  createFormHeaderNode,
+  type FormHeaderElementData,
+} from "@/lib/form-schema/form-header-factory";
 
-function isEmoji(str: string): boolean {
-  if (!str) return false;
-  const emojiRange = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u;
-  return str.length <= 4 && emojiRange.test(str);
-}
+// Hoisted to module scope to avoid re-computing on every render
+const ACCENT_COLORS = Object.values(THEME_COLORS).map((t) => t.primary);
+const PRIMARY_TO_THEME_NAME = new Map(
+  Object.entries(THEME_COLORS).map(([name, t]) => [t.primary, name]),
+);
 
-export interface FormHeaderElementData {
-  type: "formHeader";
-  id?: string;
-  title: string;
-  icon: string | null;
-  cover: string | null;
-  children: [{ text: "" }];
-}
+const COVER_GALLERY = [
+  {
+    src: "https://images.unsplash.com/photo-1604076850742-4c7221f3101b?w=800&q=80&tint=true",
+    label: "Abstract mesh",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1574169208507-84376144848b?w=800&q=80&tint=true",
+    label: "Abstract gradient",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=800&q=80&tint=true",
+    label: "Abstract geometric",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80&tint=true",
+    label: "Abstract liquid",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?w=800&q=80&tint=true",
+    label: "3D shapes",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80&tint=true",
+    label: "Gradient curves",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=800&q=80&tint=true",
+    label: "Geometric waves",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=800&q=80&tint=true",
+    label: "Abstract paint",
+  },
+] as const;
 
-export function createFormHeaderNode(
-  data: Partial<Omit<FormHeaderElementData, "type" | "children">> = {},
-): FormHeaderElementData {
-  return {
-    type: "formHeader",
-    title: data.title ?? "",
-    icon: data.icon ?? null,
-    cover: data.cover ?? null,
-    children: [{ text: "" }],
-  };
-}
-
-function CoverUpload({ onFileChange }: { onFileChange: (url: string) => void }) {
+const CoverUpload = ({
+  currentCover,
+  onUpload,
+  onCancel,
+}: {
+  currentCover: string | null;
+  onUpload: (url: string) => void;
+  onCancel: () => void;
+}) => {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [
     { isDragging, errors },
     { handleDragEnter, handleDragLeave, handleDragOver, handleDrop, openFileDialog, getInputProps },
@@ -57,399 +86,925 @@ function CoverUpload({ onFileChange }: { onFileChange: (url: string) => void }) 
     accept: "image/*",
     multiple: false,
     onFilesChange: (files) => {
-      if (files[0]?.preview) {
-        onFileChange(files[0].preview);
+      if (files[0]?.file) {
+        setPreviewUrl(URL.createObjectURL(files[0].file as File));
       }
     },
   });
 
-  return (
-    <div className="flex flex-col gap-4">
-      <button
-        className={cn(
-          "group/cover-upload relative h-32 w-full cursor-pointer overflow-hidden rounded-md border-2 border-dashed transition-colors flex items-center justify-center",
-          isDragging
-            ? "border-primary bg-primary/5"
-            : "border-muted-foreground/25 hover:border-muted-foreground/20 hover:bg-muted/50",
-        )}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        onClick={openFileDialog}
-        type="button"
-      >
-        <input {...getInputProps()} className="sr-only" />
-        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-          <Upload className="h-8 w-8" />
-          <span className="text-sm font-medium">Upload cover image</span>
-          <span className="text-xs">Max 5MB</span>
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            setPreviewUrl(URL.createObjectURL(file));
+          }
+          return;
+        }
+      }
+    };
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    },
+    [previewUrl],
+  );
+
+  const resetState = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+  };
+
+  if (previewUrl) {
+    return (
+      <div className="flex flex-col">
+        <div className="flex flex-col items-center justify-center py-4">
+          <p className="mb-3 text-xs text-muted-foreground">Preview</p>
+          <div className="overflow-hidden rounded-lg border border-border shadow-sm">
+            <img
+              src={previewUrl}
+              alt="Preview"
+              width={260}
+              height={120}
+              className="max-h-[120px] max-w-[260px] object-cover"
+            />
+          </div>
         </div>
-      </button>
-      {errors.length > 0 && <div className="text-destructive text-sm">{errors[0]}</div>}
+
+        {errors.length > 0 && (
+          <p className="pb-2 text-center text-xs text-destructive">{errors[0]}</p>
+        )}
+
+        <div className="flex items-center justify-between pt-1 pb-3">
+          <Button variant="ghost" size="sm" onClick={resetState}>
+            Back
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => {
+              onUpload(previewUrl);
+              resetState();
+            }}
+          >
+            Save
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col">
+      <div className="py-4">
+        {currentCover && !currentCover.startsWith("#") ? (
+          <button
+            type="button"
+            className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-muted-foreground/25 py-4 transition-all hover:border-muted-foreground/40 hover:bg-muted/50"
+            onClick={openFileDialog}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+          >
+            <input {...getInputProps()} className="sr-only" />
+            <img
+              src={currentCover}
+              alt="Current cover"
+              width={200}
+              height={80}
+              className="max-h-[80px] max-w-[200px] rounded-lg object-cover"
+            />
+            <span className="text-xs text-muted-foreground">Click to replace</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={cn(
+              "flex h-24 w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-dashed transition-all",
+              isDragging
+                ? "border-primary bg-primary/5"
+                : "border-muted-foreground/25 hover:border-muted-foreground/40 hover:bg-muted/50",
+            )}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onClick={openFileDialog}
+          >
+            <input {...getInputProps()} className="sr-only" />
+            <ImageIcon className="size-5 text-muted-foreground/60" />
+            <span className="text-sm text-muted-foreground">Upload an image</span>
+          </button>
+        )}
+      </div>
+
+      <p className="pb-3 text-center text-xs text-muted-foreground/60">
+        or {PASTE_HINT} to paste an image or link
+      </p>
+
+      {errors.length > 0 && (
+        <p className="pb-2 text-center text-xs text-destructive">{errors[0]}</p>
+      )}
+
+      <div className="flex items-center justify-between border-t border-border pt-1 pb-3">
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
     </div>
   );
-}
+};
 
-export function FormHeaderElement(props: PlateElementProps) {
+const IS_MAC = typeof navigator !== "undefined" && /mac/i.test(navigator.userAgent);
+const PASTE_HINT = IS_MAC ? "\u2318+V" : "Ctrl+V";
+
+const IconUploadTab = ({
+  currentIcon,
+  onUpload,
+  onCancel,
+}: {
+  currentIcon: string | null;
+  onUpload: (url: string) => void;
+  onCancel: () => void;
+}) => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value is read in JSX to gate the crop dialog
+  const [showCrop, setShowCrop] = useState(false);
+  const [
+    { isDragging, errors },
+    { handleDragEnter, handleDragLeave, handleDragOver, handleDrop, openFileDialog, getInputProps },
+  ] = useFileUpload({
+    maxFiles: 1,
+    maxSize: 5 * 1024 * 1024,
+    accept: "image/*",
+    multiple: false,
+    onFilesChange: (files) => {
+      if (files[0]?.file) {
+        const file = files[0].file as File;
+        setSelectedFile(file);
+        setPreviewUrl(URL.createObjectURL(file));
+      }
+    },
+  });
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            setSelectedFile(file);
+            setPreviewUrl(URL.createObjectURL(file));
+          }
+          return;
+        }
+      }
+    };
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    },
+    [previewUrl],
+  );
+  const resetState = () => {
+    setSelectedFile(null);
+    setShowCrop(false);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+  };
+
+  if (showCrop && selectedFile) {
+    return (
+      <div className="flex w-[310px] flex-col px-3">
+        <ImageCrop
+          file={selectedFile}
+          aspect={1}
+          onCrop={(croppedImage) => {
+            onUpload(croppedImage);
+            resetState();
+          }}
+        >
+          <div className="flex items-center justify-center overflow-hidden py-3">
+            <ImageCropContent className="max-h-[250px] max-w-full rounded-lg" />
+          </div>
+          <div className="flex items-center justify-between pt-1 pb-3">
+            <ImageCropReset render={<Button variant="ghost" size="sm" />}>Reset</ImageCropReset>
+            <ImageCropApply render={<Button variant="default" size="sm" />}>Save</ImageCropApply>
+          </div>
+        </ImageCrop>
+      </div>
+    );
+  }
+
+  if (selectedFile && previewUrl) {
+    return (
+      <div className="flex w-[310px] flex-col px-3">
+        <div className="flex flex-col items-center justify-center py-4">
+          <p className="mb-3 text-xs text-muted-foreground">Preview</p>
+          <div className="overflow-hidden rounded-lg border border-border shadow-sm">
+            <img
+              src={previewUrl}
+              alt="Preview"
+              width={180}
+              height={180}
+              className="max-h-[180px] max-w-[180px] object-contain"
+            />
+          </div>
+        </div>
+
+        {errors.length > 0 && (
+          <p className="pb-2 text-center text-xs text-destructive">{errors[0]}</p>
+        )}
+
+        <div className="flex items-center justify-between pt-1 pb-3">
+          <Button variant="ghost" size="sm" onClick={resetState}>
+            Back
+          </Button>
+          <Button variant="default" size="sm" onClick={() => setShowCrop(true)}>
+            Save
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex w-[310px] flex-col px-3">
+      <div className="py-4">
+        {currentIcon ? (
+          <button
+            type="button"
+            className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-muted-foreground/25 py-4 transition-all hover:border-muted-foreground/40 hover:bg-muted/50"
+            onClick={openFileDialog}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+          >
+            <input {...getInputProps()} className="sr-only" />
+            <img
+              src={currentIcon}
+              alt="Current icon"
+              width={80}
+              height={80}
+              className="max-h-[80px] max-w-[80px] rounded-lg object-contain"
+            />
+            <span className="text-xs text-muted-foreground">Click to replace</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={cn(
+              "flex h-24 w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-dashed transition-all",
+              isDragging
+                ? "border-primary bg-primary/5"
+                : "border-muted-foreground/25 hover:border-muted-foreground/40 hover:bg-muted/50",
+            )}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onClick={openFileDialog}
+          >
+            <input {...getInputProps()} className="sr-only" />
+            <ImageIcon className="size-5 text-muted-foreground/60" />
+            <span className="text-sm text-muted-foreground">Upload an image</span>
+          </button>
+        )}
+      </div>
+
+      <p className="pb-3 text-center text-xs text-muted-foreground/60">
+        or {PASTE_HINT} to paste an image or link
+      </p>
+
+      {errors.length > 0 && (
+        <p className="pb-2 text-center text-xs text-destructive">{errors[0]}</p>
+      )}
+
+      <div className="flex items-center justify-between border-t border-border pt-1 pb-3">
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const iconTabs = [
+  { value: "icon", label: "Icon" },
+  { value: "upload", label: "Upload" },
+] as const;
+
+const IconTabBar = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
+  const items = iconTabs;
+  const activeIndex = items.findIndex((t) => t.value === value);
+  const count = items.length;
+  const pillLeft = `calc(${(activeIndex / count) * 100}% + 3px)`;
+  const pillWidth = `calc(${100 / count}% - ${6 / count}px)`;
+
+  return (
+    <div className="relative flex flex-1 rounded-[10px] bg-secondary p-[3px]">
+      <div
+        className="absolute top-[3px] bottom-[3px] z-0 rounded-[8px] bg-white shadow-[0px_0px_1.5px_0px_rgba(0,0,0,0.16),0px_2px_5px_0px_rgba(0,0,0,0.14)] transition-[left,width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] dark:bg-background"
+        style={{ left: pillLeft, width: pillWidth }}
+      />
+      {items.map((tab) => (
+        <button
+          key={tab.value}
+          type="button"
+          onClick={() => onChange(tab.value)}
+          className={cn(
+            "relative z-10 h-7 flex-1 rounded-[8px] text-center text-sm transition-colors",
+            value === tab.value ? "text-foreground" : "text-muted-foreground",
+          )}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+export const FormHeaderElement = (props: PlateElementProps) => {
   const { element, children } = props;
   const editor = useEditorRef();
-  const { toggle: toggleCustomize } = useCustomizeSidebar();
+  const {
+    hasCustomization,
+    themeVars,
+    customization: editorCustomization,
+    updateThemeColor,
+  } = useEditorTheme();
+  const { activeSidebar, closeSidebar, openCustomize } = useEditorSidebar();
+  const toggleCustomize = useCallback(() => {
+    if (activeSidebar === "customize") {
+      closeSidebar();
+    } else {
+      openCustomize();
+    }
+  }, [activeSidebar, closeSidebar, openCustomize]);
 
   const title = (element.title as string) || "";
   const icon = (element.icon as string | null) || null;
+  const iconColor = (element.iconColor as string | null) || null;
   const cover = (element.cover as string | null) || null;
 
   const hasCover = !!cover;
   const hasLogo = !!icon;
 
-  const updateHeader = (updates: Partial<FormHeaderElementData>) => {
-    const path = editor.api.findPath(element);
-    if (path) {
-      editor.tf.setNodes(updates, { at: path });
-    }
-  };
+  const updateHeader = useCallback(
+    (updates: Partial<FormHeaderElementData>) => {
+      const path = editor.api.findPath(element);
+      if (path) {
+        editor.tf.setNodes(updates, { at: path });
+      }
+    },
+    [editor, element],
+  );
 
-  const handleTitleChange = (newTitle: string) => {
-    updateHeader({ title: newTitle });
-  };
+  const titleRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleIconChange = (newIcon: string | null) => {
-    updateHeader({ icon: newIcon });
-  };
+  const autoResizeTitle = useCallback(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    /* eslint-disable react-doctor/js-batch-dom-css -- auto-resize needs write→read→write to measure scrollHeight */
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+    /* eslint-enable react-doctor/js-batch-dom-css */
+  }, []);
 
-  const handleCoverChange = (newCover: string | null) => {
-    updateHeader({ cover: newCover });
-  };
+  const titleFontSize = editorCustomization?.titleFontSize;
+  const titleFont = editorCustomization?.titleFont;
 
-  const handleAddCover = () => handleCoverChange("#FFE4E1");
+  useEffect(() => {
+    autoResizeTitle();
+  }, [title, titleFontSize, titleFont, autoResizeTitle]);
+
+  const handleTitleChange = useCallback(
+    (newTitle: string) => {
+      updateHeader({ title: newTitle });
+    },
+    [updateHeader],
+  );
+
+  const handleIconChange = useCallback(
+    (newIcon: string | null) => {
+      updateHeader({ icon: newIcon });
+    },
+    [updateHeader],
+  );
+
+  const handleIconColorChange = useCallback(
+    (newColor: string) => {
+      updateHeader({ iconColor: newColor });
+    },
+    [updateHeader],
+  );
+
+  const handleCoverChange = useCallback(
+    (newCover: string | null) => {
+      updateHeader({ cover: newCover });
+    },
+    [updateHeader],
+  );
+
+  const handleAddCover = useCallback(
+    () =>
+      handleCoverChange(
+        "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=800&q=80&tint=true",
+      ),
+    [handleCoverChange],
+  );
+
+  const accentColors = hasCustomization ? ACCENT_COLORS : undefined;
+  const activeThemeColorName = editorCustomization?.themeColor || "zinc";
+  const activeAccentColor =
+    THEME_COLORS[activeThemeColorName]?.primary || THEME_COLORS.zinc.primary;
+  const isLogoMinimal =
+    hasCustomization &&
+    editorCustomization?.logoWidth &&
+    Number.parseInt(editorCustomization.logoWidth) <= 0;
+
+  const logoCircleSize =
+    hasCustomization && editorCustomization?.logoWidth
+      ? String(Math.max(48, Number.parseInt(editorCustomization.logoWidth)))
+      : "100";
 
   const [iconPopoverOpen, setIconPopoverOpen] = useState(false);
-  const {
-    emojiPickerState,
-    isOpen: emojiIsOpen,
-    setIsOpen: setEmojiIsOpen,
-  } = useEmojiDropdownMenuState();
+  const [iconTab, setIconTab] = useState("icon");
+  // Lazy-mount Upload tab on first activation, then keep its tree alive via
+  // <Activity> so drag-state and any in-flight upload survive Icon ↔ Upload
+  // tab switches.
+  const [openedUploadTab, setOpenedUploadTab] = useState(false);
+  if (iconTab === "upload" && !openedUploadTab) setOpenedUploadTab(true);
+  const [coverPopoverOpen, setCoverPopoverOpen] = useState(false);
 
   return (
-    <PlateElement {...props}>
-      <div contentEditable={false} className="group relative w-full flex flex-col mb-4 select-none">
+    <PlateElement
+      {...props}
+      attributes={{ ...props.attributes, "data-bf-header": "", "data-bf-chrome": "" }}
+    >
+      <div
+        contentEditable={false}
+        className="group relative mb-4 flex w-full flex-col rounded-none select-none"
+      >
         {hasCover && (
-          <>
-            <div className="relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] h-[120px] sm:h-[200px] group/cover bg-muted/20">
-              {cover && !cover.startsWith("#") ? (
-                <img
-                  src={cover}
-                  alt="Cover"
-                  className="w-full h-full object-cover border-0 rounded-none"
-                />
-              ) : (
-                <div
-                  className="w-full h-full"
-                  style={{
-                    backgroundColor: cover?.startsWith("#") ? cover : "#FFE4E1",
-                  }}
-                />
-              )}
-            </div>
-            <div className="absolute top-2 right-4 flex gap-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="bg-white/80 hover:bg-white text-xs h-7"
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    Change cover
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Cover Image</DialogTitle>
-                  </DialogHeader>
-                  <Tabs defaultValue="gallery" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="gallery">Gallery</TabsTrigger>
-                      <TabsTrigger value="upload">Upload</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="gallery" className="grid grid-cols-4 gap-2 pt-4">
-                      <button
-                        type="button"
-                        onClick={() => handleCoverChange("#FFE4E1")}
-                        className="h-16 bg-[#FFE4E1] rounded cursor-pointer hover:ring-2 ring-primary transition-all"
-                        aria-label="Pink color"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleCoverChange(
-                            "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80",
-                          )
-                        }
-                        className="h-16 bg-blue-100 rounded cursor-pointer hover:ring-2 ring-primary overflow-hidden transition-all"
-                        aria-label="Blue gradient"
-                      >
-                        <img
-                          src="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80"
-                          alt="Blue gradient"
-                          className="w-full h-full object-cover"
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleCoverChange(
-                            "https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80",
-                          )
-                        }
-                        className="h-16 bg-purple-100 rounded cursor-pointer hover:ring-2 ring-primary overflow-hidden transition-all"
-                        aria-label="Purple gradient"
-                      >
-                        <img
-                          src="https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80"
-                          alt="Purple gradient"
-                          className="w-full h-full object-cover"
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleCoverChange(
-                            "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=800&q=80",
-                          )
-                        }
-                        className="h-16 bg-green-100 rounded cursor-pointer hover:ring-2 ring-primary overflow-hidden transition-all"
-                        aria-label="Green gradient"
-                      >
-                        <img
-                          src="https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=800&q=80"
-                          alt="Green gradient"
-                          className="w-full h-full object-cover"
-                        />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleCoverChange(null)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        className="col-span-4 mt-2 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors py-2 border rounded-md hover:bg-muted/50"
-                      >
-                        <X className="h-4 w-4" /> Remove cover
-                      </button>
-                    </TabsContent>
-                    <TabsContent value="upload" className="pt-4">
-                      <CoverUpload onFileChange={handleCoverChange} />
-                      <button
-                        type="button"
-                        onClick={() => handleCoverChange(null)}
-                        onMouseDown={(e) => e.preventDefault()}
-                        className="w-full mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-destructive transition-colors py-2 border rounded-md hover:bg-muted/50"
-                      >
-                        <X className="h-4 w-4" /> Remove cover
-                      </button>
-                    </TabsContent>
-                  </Tabs>
-                </DialogContent>
-              </Dialog>
-
-              <Button
-                variant="secondary"
-                size="sm"
-                className="bg-white/80 hover:bg-white text-xs h-7 text-muted-foreground hover:text-destructive"
-                onClick={() => handleCoverChange(null)}
-                onMouseDown={(e) => e.preventDefault()}
-              >
-                Remove
-              </Button>
-            </div>
-          </>
+          <HeaderCoverSection
+            cover={cover}
+            coverPopoverOpen={coverPopoverOpen}
+            onCoverPopoverOpenChange={setCoverPopoverOpen}
+            onCoverChange={handleCoverChange}
+          />
         )}
-
-        <div className={cn("relative w-full flex flex-col")}>
+        <div className={cn("relative flex w-full flex-col")}>
           <div className="w-full">
             <Popover open={iconPopoverOpen} onOpenChange={setIconPopoverOpen}>
               {hasLogo && (
                 <div
-                  className={cn(
-                    "relative z-10 mb-1",
-                    hasCover ? "-mt-[40px] sm:-mt-[50px]" : "mt-4 sm:mt-6",
-                  )}
+                  className={cn("relative z-10 mb-1", hasCover ? "-mt-[50px]" : "mt-4 sm:mt-6")}
+                  data-bf-logo-emoji-container={
+                    hasCover && icon && !isValidUrl(icon) ? "true" : undefined
+                  }
+                  data-bf-logo-container={hasCover && icon && isValidUrl(icon) ? "true" : undefined}
                 >
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="cursor-pointer transition-colors"
-                      onMouseDown={(e) => e.preventDefault()}
-                    >
-                      {icon && icon !== "default-icon" ? (
-                        isEmoji(icon) ? (
-                          <span
-                            className="text-[80px] sm:text-[100px] leading-none inline-block"
-                            role="img"
-                            aria-label="Form icon"
-                          >
-                            {icon}
-                          </span>
-                        ) : (
-                          <img
-                            src={icon}
-                            alt="Logo"
-                            className="w-[100px] h-[100px] sm:w-[120px] sm:h-[120px] rounded-md object-cover"
-                          />
-                        )
+                  <PopoverTrigger
+                    render={
+                      <button
+                        type="button"
+                        className="cursor-pointer transition-colors"
+                        onMouseDown={(e) => e.preventDefault()}
+                        aria-label="Change icon"
+                      />
+                    }
+                  >
+                    {icon && icon !== DEFAULT_ICON ? (
+                      isValidUrl(icon) ? (
+                        <img
+                          src={icon}
+                          alt="Logo"
+                          width={120}
+                          height={120}
+                          className="size-[100px] rounded-md object-cover sm:h-[120px] sm:w-[120px]"
+                          data-bf-logo
+                        />
                       ) : (
-                        <span
-                          className="text-[80px] sm:text-[100px] leading-none inline-block"
-                          role="img"
-                          aria-label="Form icon"
-                        >
-                          📄
+                        <span data-bf-logo-icon={isLogoMinimal ? "minimal" : ""}>
+                          <IconPickerPreview
+                            icon={icon}
+                            iconColor={hasCustomization ? undefined : iconColor || undefined}
+                            useThemeColor={hasCustomization || !iconColor}
+                            iconSize="48"
+                            size={logoCircleSize}
+                          />
                         </span>
-                      )}
-                    </button>
+                      )
+                    ) : (
+                      <span data-bf-logo-icon={isLogoMinimal ? "minimal" : ""}>
+                        <IconPickerPreview
+                          icon={null}
+                          iconColor={undefined}
+                          useThemeColor
+                          iconSize="48"
+                          size={logoCircleSize}
+                        />
+                      </span>
+                    )}
                   </PopoverTrigger>
                 </div>
               )}
 
               <div
                 className={cn(
-                  "flex gap-1 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+                  "mb-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100",
                   !hasCover && !hasLogo && "mt-8 sm:mt-12",
                   hasCover && !hasLogo && "mt-4",
                   !hasCover && hasLogo && "mt-0",
                 )}
               >
                 {!hasLogo && (
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-6 px-2 text-xs hover:bg-muted"
-                      onMouseDown={(e) => e.preventDefault()}
-                    >
-                      <Smile className="mr-1.5 h-3.5 w-3.5" />
-                      Add icon
-                    </Button>
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        prefix={<CircleUserRoundIcon />}
+                        onMouseDown={(e) => e.preventDefault()}
+                      />
+                    }
+                  >
+                    Add icon
                   </PopoverTrigger>
                 )}
                 {!hasCover && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-muted-foreground h-6 px-2 text-xs hover:bg-muted"
                     onClick={handleAddCover}
+                    prefix={<ImageIcon />}
                     onMouseDown={(e) => e.preventDefault()}
                   >
-                    <ImageIcon className="mr-1.5 h-3.5 w-3.5" />
                     Add cover
                   </Button>
                 )}
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-muted-foreground h-6 px-2 text-xs hover:bg-muted"
                   onClick={toggleCustomize}
                   onMouseDown={(e) => e.preventDefault()}
                 >
-                  <Settings className="mr-1.5 h-3.5 w-3.5" />
+                  <SettingsIcon />
                   Customize
                 </Button>
               </div>
 
-              <PopoverContent align="start" side="bottom" className="w-auto p-0">
-                <Tabs defaultValue="emoji" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 rounded-b-none">
-                    <TabsTrigger value="emoji">Emoji</TabsTrigger>
-                    <TabsTrigger value="upload">Upload</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="emoji" className="mt-0">
-                    <EmojiPicker
-                      {...emojiPickerState}
-                      isOpen={emojiIsOpen}
-                      setIsOpen={setEmojiIsOpen}
-                      onSelectEmoji={(emoji) => {
-                        handleIconChange(emoji.skins[0].native);
-                        setIconPopoverOpen(false);
-                      }}
-                    />
-                  </TabsContent>
-                  <TabsContent value="upload" className="p-4 flex flex-col items-center">
-                    <AvatarUpload
-                      onFileChange={(file) => {
-                        if (file?.preview) {
-                          handleIconChange(file.preview);
-                          setIconPopoverOpen(false);
-                        }
-                      }}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        handleIconChange(null);
-                        setIconPopoverOpen(false);
-                      }}
-                      onMouseDown={(e) => e.preventDefault()}
-                      className="mt-4 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      Remove icon
-                    </Button>
-                  </TabsContent>
-                </Tabs>
-              </PopoverContent>
+              <HeaderIconPopoverContent
+                icon={icon}
+                iconColor={iconColor}
+                iconTab={iconTab}
+                openedUploadTab={openedUploadTab}
+                onIconTabChange={setIconTab}
+                onIconChange={handleIconChange}
+                onIconColorChange={handleIconColorChange}
+                onClose={() => setIconPopoverOpen(false)}
+                hasCustomization={hasCustomization}
+                themeVars={themeVars}
+                themeMode={editorCustomization?.mode}
+                activeAccentColor={activeAccentColor}
+                accentColors={accentColors}
+                updateThemeColor={updateThemeColor}
+              />
             </Popover>
 
-            <div className="relative group/title">
-              <input
-                type="text"
-                className="w-full text-4xl sm:text-9xl font-serif font-light -tracking-5 leading-tight border-none outline-none bg-transparent placeholder:text-muted-foreground/50 placeholder:font-light py-1 sm:py-2 h-auto select-text placeholder:font-serif"
-                placeholder="Create your form."
-                value={title}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    // Check if onboarding content is present (by type)
-                    const secondBlock = editor.children[1] as any;
-                    const isOnboarding = secondBlock?.type === "onboardingContent";
-
-                    if (isOnboarding) {
-                      // Clear to empty state: header + empty paragraph + submit button
-                      const currentHeader = editor.children[0];
-                      const emptyContent = [
-                        currentHeader,
-                        { type: "p", children: [{ text: "" }] },
-                        createFormButtonNode("submit"),
-                      ];
-                      editor.tf.init({
-                        value: emptyContent as any,
-                      });
-                      // Move cursor to first paragraph
-                      const firstBlockPath = [1];
-                      const startPoint = (editor.api as any).edges(firstBlockPath)?.[0];
-                      if (startPoint) {
-                        editor.tf.select(startPoint);
-                        editor.tf.focus();
-                      }
-                    } else {
-                      // Normal behavior: move focus to first block
-                      const firstBlockPath = [1];
-                      const startPoint = (editor.api as any).edges(firstBlockPath)?.[0];
-                      if (startPoint) {
-                        editor.tf.select(startPoint);
-                        editor.tf.focus();
-                      }
-                    }
-                  }
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-              />
-            </div>
+            <HeaderTitleTextarea
+              ref={titleRef}
+              title={title}
+              onTitleChange={handleTitleChange}
+              onAutoResize={autoResizeTitle}
+              editor={editor}
+            />
           </div>
         </div>
       </div>
       {children}
     </PlateElement>
   );
+};
+
+interface HeaderCoverSectionProps {
+  cover: string;
+  coverPopoverOpen: boolean;
+  onCoverPopoverOpenChange: (open: boolean) => void;
+  onCoverChange: (cover: string | null) => void;
 }
+
+const HeaderCoverSection = ({
+  cover,
+  coverPopoverOpen,
+  onCoverPopoverOpenChange,
+  onCoverChange,
+}: HeaderCoverSectionProps) => (
+  <>
+    <div
+      className="group/cover relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] h-[120px] w-screen bg-muted/20 sm:h-[200px]"
+      data-bf-cover
+    >
+      {cover && !cover.startsWith("#") ? (
+        <>
+          {cover.includes("tint=true") && (
+            <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
+          )}
+          <img
+            src={cover}
+            alt="Cover"
+            width={800}
+            height={200}
+            className={cn(
+              "size-full border-0 object-cover",
+              cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
+            )}
+          />
+        </>
+      ) : (
+        <div
+          className="size-full"
+          style={{
+            backgroundColor: cover?.startsWith("#") ? cover : "#FFE4E1",
+          }}
+        />
+      )}
+    </div>
+    <Popover open={coverPopoverOpen} onOpenChange={onCoverPopoverOpenChange}>
+      <div
+        className="absolute top-2 z-30 opacity-0 transition-opacity group-hover:opacity-100"
+        style={{ right: "calc(var(--editor-px, 64px) * -1 + 16px)" }}
+      >
+        <ButtonGroup className="rounded-lg bg-background/80 shadow-lg backdrop-blur-sm dark:bg-muted/60">
+          <PopoverTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-none rounded-l-lg border-none text-xs text-foreground/80 hover:bg-secondary hover:text-foreground"
+                onMouseDown={(e) => e.preventDefault()}
+              />
+            }
+          >
+            Change
+          </PopoverTrigger>
+          <ButtonGroupSeparator className="bg-border" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-none rounded-r-lg border-none text-xs text-foreground/80 hover:bg-secondary hover:text-foreground"
+            onClick={() => onCoverChange(null)}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            Remove
+          </Button>
+        </ButtonGroup>
+      </div>
+
+      <PopoverContent align="end" side="bottom" className="w-[310px] p-0" sideOffset={8}>
+        <Tabs defaultValue="gallery" className="w-full">
+          <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+            <TabsList className="w-full">
+              <TabsTrigger value="gallery">Gallery</TabsTrigger>
+              <TabsTrigger value="upload">Upload</TabsTrigger>
+              <TabsIndicator />
+            </TabsList>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => {
+                onCoverChange(null);
+                onCoverPopoverOpenChange(false);
+              }}
+              onMouseDown={(e) => e.preventDefault()}
+              aria-label="Remove cover"
+            >
+              <Trash2Icon />
+            </Button>
+          </div>
+
+          <TabsContent value="gallery" className="mt-0 px-3 pb-3">
+            <p className="mt-1 mb-2 text-xs text-muted-foreground">Abstract</p>
+            <div className="grid grid-cols-3 gap-2">
+              {COVER_GALLERY.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    onCoverChange(item.src);
+                    onCoverPopoverOpenChange(false);
+                  }}
+                  className="relative h-16 cursor-pointer overflow-hidden rounded-lg bg-muted ring-primary ring-offset-1 ring-offset-background transition-all hover:scale-[1.02] hover:ring-2"
+                  aria-label={item.label}
+                >
+                  <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
+                  <img
+                    src={item.src}
+                    alt={item.label}
+                    width={200}
+                    height={64}
+                    className="relative z-0 size-full object-cover brightness-60 grayscale"
+                  />
+                </button>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="upload" className="mt-0 px-3 pb-3">
+            <CoverUpload
+              currentCover={cover}
+              onUpload={(url) => {
+                onCoverChange(url);
+                onCoverPopoverOpenChange(false);
+              }}
+              onCancel={() => onCoverPopoverOpenChange(false)}
+            />
+          </TabsContent>
+        </Tabs>
+      </PopoverContent>
+    </Popover>
+  </>
+);
+
+interface HeaderTitleTextareaProps {
+  ref: React.Ref<HTMLTextAreaElement>;
+  title: string;
+  onTitleChange: (value: string) => void;
+  onAutoResize: () => void;
+  editor: ReturnType<typeof useEditorRef>;
+}
+
+const HeaderTitleTextarea = ({
+  ref,
+  title,
+  onTitleChange,
+  onAutoResize,
+  editor,
+}: HeaderTitleTextareaProps) => {
+  const moveToFirstBlock = useCallback(() => {
+    const firstBlockPath = [1];
+    // eslint-disable-next-line typescript-eslint/no-explicit-any
+    const startPoint = (editor.api as any).edges(firstBlockPath)?.[0];
+    if (startPoint) {
+      editor.tf.select(startPoint);
+      editor.tf.focus();
+    }
+  }, [editor]);
+
+  return (
+    <div className="group/title relative">
+      <textarea
+        ref={ref}
+        rows={1}
+        aria-label="Form title"
+        className="h-auto w-full resize-none overflow-hidden border-none bg-transparent py-1 font-['Timeless_Serif'] text-[48px] leading-tight font-[252] tracking-[-1.44px] text-foreground outline-none select-text placeholder:font-['Timeless_Serif'] placeholder:text-foreground/50 sm:py-2"
+        placeholder="Create your form."
+        value={title}
+        onChange={(e) => onTitleChange(e.target.value)}
+        onFocus={onAutoResize}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
+            e.preventDefault();
+            moveToFirstBlock();
+            return;
+          }
+          if (e.key === "Enter") {
+            e.preventDefault();
+            const secondBlock = editor.children[1] as { type?: string };
+            const isOnboarding = secondBlock?.type === "onboardingContent";
+            if (isOnboarding) {
+              const currentHeader = editor.children[0];
+              const emptyContent = [
+                currentHeader,
+                { type: "p", children: [{ text: "" }] },
+                createFormButtonNode("submit"),
+              ];
+              editor.tf.init({
+                // eslint-disable-next-line typescript-eslint/no-explicit-any
+                value: emptyContent as any,
+              });
+            }
+            moveToFirstBlock();
+          }
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+};
+
+interface HeaderIconPopoverContentProps {
+  icon: string | null;
+  iconColor: string | null;
+  iconTab: string;
+  openedUploadTab: boolean;
+  onIconTabChange: (tab: string) => void;
+  onIconChange: (icon: string | null) => void;
+  onIconColorChange: (color: string) => void;
+  onClose: () => void;
+  hasCustomization: boolean;
+  themeVars: React.CSSProperties;
+  themeMode: string | undefined;
+  activeAccentColor: string;
+  accentColors: string[] | undefined;
+  updateThemeColor: ((themeColor: string) => void) | undefined;
+}
+
+const HeaderIconPopoverContent = ({
+  icon,
+  iconColor,
+  iconTab,
+  openedUploadTab,
+  onIconTabChange,
+  onIconChange,
+  onIconColorChange,
+  onClose,
+  hasCustomization,
+  themeVars,
+  themeMode,
+  activeAccentColor,
+  accentColors,
+  updateThemeColor,
+}: HeaderIconPopoverContentProps) => (
+  <PopoverContent
+    align="start"
+    side="bottom"
+    keepMounted
+    className={cn(
+      "w-[310px] p-0",
+      hasCustomization && "bf-themed",
+      hasCustomization && themeMode === "dark" && "dark",
+    )}
+    style={hasCustomization ? themeVars : undefined}
+  >
+    <div className="w-full">
+      <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+        <IconTabBar value={iconTab} onChange={onIconTabChange} />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          onClick={() => {
+            onIconChange(null);
+            onClose();
+          }}
+          onMouseDown={(e) => e.preventDefault()}
+          aria-label="Remove icon"
+        >
+          <Trash2Icon />
+        </Button>
+      </div>
+      <Activity mode={iconTab === "icon" ? "visible" : "hidden"}>
+        <IconPickerContent
+          iconValue={icon && icon !== DEFAULT_ICON && !isValidUrl(icon) ? icon : null}
+          iconColor={hasCustomization ? activeAccentColor : iconColor || "#000000"}
+          onIconChange={(newIcon) => {
+            onIconChange(newIcon);
+            onClose();
+          }}
+          onColorChange={(color) => {
+            if (hasCustomization && updateThemeColor) {
+              const themeName = PRIMARY_TO_THEME_NAME.get(color);
+              if (themeName) updateThemeColor(themeName);
+            } else {
+              onIconColorChange(color);
+            }
+          }}
+          colors={accentColors}
+        />
+      </Activity>
+      {openedUploadTab && (
+        <Activity mode={iconTab === "upload" ? "visible" : "hidden"}>
+          <IconUploadTab
+            currentIcon={icon && isValidUrl(icon) ? icon : null}
+            onUpload={(url) => {
+              onIconChange(url);
+              onClose();
+            }}
+            onCancel={onClose}
+          />
+        </Activity>
+      )}
+    </div>
+  </PopoverContent>
+);

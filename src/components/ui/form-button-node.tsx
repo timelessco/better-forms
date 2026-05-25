@@ -1,23 +1,9 @@
-import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
-import type { PlateEditor, PlateElementProps } from "platejs/react";
-import { PlateElement, useEditorRef } from "platejs/react";
+import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, SettingsIcon } from "@/components/ui/icons";
+import type { PlateElementProps } from "platejs/react";
+import { PlateElement, useEditorRef, useEditorSelector } from "platejs/react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-/**
- * Checks if the editor contains any pageBreak elements (multi-page form)
- */
-function hasPageBreaks(editor: PlateEditor): boolean {
-  return editor.children.some(
-    (node) =>
-      (node as { type?: string }).type === "pageBreak" ||
-      (Array.isArray((node as { children?: unknown[] }).children) &&
-        (node as { children: Array<{ type?: string }> }).children.some(
-          (child) => child.type === "pageBreak",
-        )),
-  );
-}
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,7 +18,7 @@ export interface FormButtonElementData {
   children: [{ text: string }];
 }
 
-export function createFormButtonNode(role: ButtonRole, text?: string): FormButtonElementData {
+export const createFormButtonNode = (role: ButtonRole, text?: string): FormButtonElementData => {
   const defaultText = role === "next" ? "Next" : role === "previous" ? "Previous" : "Submit";
   return {
     type: "formButton",
@@ -40,9 +26,9 @@ export function createFormButtonNode(role: ButtonRole, text?: string): FormButto
     label: text ?? defaultText,
     children: [{ text: "" }],
   };
-}
+};
 
-function getPlaceholderForRole(role: ButtonRole): string {
+const getPlaceholderForRole = (role: ButtonRole): string => {
   switch (role) {
     case "next":
       return "Next";
@@ -53,26 +39,24 @@ function getPlaceholderForRole(role: ButtonRole): string {
     default:
       return "Button";
   }
-}
+};
 
-/**
- * Extracts text content from a node's children
- */
-function extractTextFromChildren(children: Array<{ text?: string }>): string {
+const extractTextFromChildren = (children: Array<{ text?: string }>): string => {
   if (!Array.isArray(children)) return "";
   return children.map((child) => child.text || "").join("");
-}
+};
 
-export function FormButtonElement({ className, children, ...props }: PlateElementProps) {
+export const FormButtonElement = ({ children, ...props }: PlateElementProps) => {
   const { element } = props;
   const editor = useEditorRef();
   const buttonRole = (element.buttonRole as ButtonRole) ?? "submit";
   const placeholder = getPlaceholderForRole(buttonRole);
 
   const isPrevious = buttonRole === "previous";
-  const isMultiPage = hasPageBreaks(editor);
-  // Submit button floats left for single-page forms, right for multi-page
-  const isSubmitOnSinglePage = buttonRole === "submit" && !isMultiPage;
+  const isMultiStep = useEditorSelector(
+    (ed) => ed.children.some((node) => (node as { type?: string }).type === "pageBreak"),
+    [],
+  );
   const [isOpen, setIsOpen] = React.useState(false);
 
   // Get label from element property (fallback to children for backwards compat)
@@ -83,77 +67,110 @@ export function FormButtonElement({ className, children, ...props }: PlateElemen
   // Local state for input - prevents re-render on every keystroke
   const [inputValue, setInputValue] = React.useState(label);
 
-  // Get display text (use placeholder if empty)
   const displayText = label.trim() || placeholder;
 
-  // Handle label change - uses setNodes on element property (reactive)
-  const handleLabelChange = (newLabel: string) => {
-    const path = editor.api.findPath(element);
-    if (path) {
-      editor.tf.setNodes({ label: newLabel }, { at: path });
-    }
-  };
+  const handleLabelChange = React.useCallback(
+    (newLabel: string) => {
+      const path = editor.api.findPath(element);
+      if (path) {
+        editor.tf.setNodes({ label: newLabel }, { at: path });
+      }
+    },
+    [editor, element],
+  );
 
-  // Save and close popover
-  const saveAndClose = () => {
+  const saveAndClose = React.useCallback(() => {
     handleLabelChange(inputValue);
     setIsOpen(false);
-  };
+  }, [handleLabelChange, inputValue]);
 
   const buttonLabelId = React.useId();
 
-  // Gear icon component
+  const handlePopoverOpenChange = React.useCallback(
+    (open: boolean) => {
+      if (open) setInputValue(label);
+      setIsOpen(open);
+    },
+    [label],
+  );
+
+  const handleGearMouseDown = React.useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleGearClick = React.useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsOpen(true);
+  }, []);
+
+  const handlePopoverMouseDown = React.useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
+  const handleInputChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+  }, []);
+
+  const handleInputBlur = React.useCallback(() => {
+    handleLabelChange(inputValue);
+  }, [handleLabelChange, inputValue]);
+
+  const handleInputKeyDown = React.useCallback(
+    (e: React.KeyboardEvent) => {
+      e.stopPropagation();
+      if (e.key === "Enter") {
+        e.preventDefault();
+        saveAndClose();
+      }
+    },
+    [saveAndClose],
+  );
+
+  const handleInputMouseDown = React.useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
+  const handleInputClick = React.useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
   const GearIcon = (
-    <Popover
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (open) setInputValue(label); // Initialize input when opening
-        setIsOpen(open);
-      }}
-    >
-      <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="h-7 w-7 opacity-0 group-hover:opacity-100"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsOpen(true);
-          }}
-        >
-          <Settings className="h-4 w-4 text-muted-foreground" />
-        </Button>
+    <Popover open={isOpen} onOpenChange={handlePopoverOpenChange}>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-7 opacity-0 group-hover:opacity-100"
+            aria-label="Button settings"
+            onMouseDown={handleGearMouseDown}
+            onClick={handleGearClick}
+          />
+        }
+      >
+        <SettingsIcon className="size-4 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent
-        className="w-64 p-4 border"
+        className="w-64 border p-4"
         side={isPrevious ? "right" : "left"}
         align="start"
-        onMouseDown={(e) => e.stopPropagation()}
+        onMouseDown={handlePopoverMouseDown}
       >
         <div className="space-y-2">
-          <Label htmlFor={buttonLabelId} className="text-sm font-medium">
+          <Label htmlFor={buttonLabelId} className="text-sm">
             Button label
           </Label>
           <Input
             id={buttonLabelId}
             value={inputValue}
             placeholder={placeholder}
-            onChange={(e) => setInputValue(e.target.value)}
-            onBlur={() => handleLabelChange(inputValue)}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === "Enter") {
-                e.preventDefault();
-                saveAndClose();
-              }
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
+            onChange={handleInputChange}
+            onBlur={handleInputBlur}
+            onKeyDown={handleInputKeyDown}
+            onMouseDown={handleInputMouseDown}
+            onClick={handleInputClick}
           />
         </div>
       </PopoverContent>
@@ -162,44 +179,41 @@ export function FormButtonElement({ className, children, ...props }: PlateElemen
 
   return (
     <PlateElement
-      className={cn(
-        "m-0 px-0 py-1",
-        // Previous floats left, Submit on single-page floats left, otherwise floats right
-        isPrevious || isSubmitOnSinglePage ? "float-left clear-none" : "float-right clear-none",
-        className,
-      )}
+      className={cn("m-0 px-0", isPrevious ? "float-left" : "flex overflow-hidden")}
       {...props}
+      attributes={{ ...props.attributes, "data-bf-chrome": "" }}
     >
       {/* Hidden children to maintain Slate structure */}
       <span className="hidden">{children}</span>
       {/* Non-editable button visual - onMouseDown prevents cursor placement */}
       <div
-        className="inline-flex items-center gap-1 group"
+        className={cn(
+          "group inline-flex items-center gap-1 py-2.5",
+          !isPrevious && isMultiStep && "ml-auto",
+        )}
         contentEditable={false}
         role="presentation"
         aria-hidden="true"
-        onMouseDown={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        }}
+        onMouseDown={handleGearMouseDown}
       >
-        {/* Gear icon on left when button floats right (so button touches right edge) */}
-        {!(isPrevious || isSubmitOnSinglePage) && GearIcon}
+        {/* Gear icon on left when button is right-aligned (so button touches right edge) */}
+        {!isPrevious && isMultiStep && GearIcon}
         <span
           className={cn(
-            "inline-flex h-9 min-w-[100px] items-center justify-center rounded-md px-4 py-2 text-sm font-medium shadow transition-colors cursor-default select-none",
+            "inline-flex h-8 cursor-default items-center justify-center gap-1.5 rounded-lg px-2.5 text-sm transition-colors select-none",
             isPrevious
-              ? "bg-secondary text-secondary-foreground"
+              ? "border border-input bg-background text-foreground shadow-xs"
               : "bg-primary text-primary-foreground",
           )}
         >
-          {isPrevious && <ChevronLeft className="h-4 w-4" />}
+          {isPrevious && <ChevronLeftIcon className="size-4" />}
           <span>{displayText}</span>
-          {buttonRole === "next" && <ChevronRight className="h-4 w-4" />}
+          {buttonRole === "submit" && <CheckIcon className="size-4" />}
+          {buttonRole === "next" && <ChevronRightIcon className="size-4" />}
         </span>
-        {/* Gear icon on right when button floats left (so button touches left edge) */}
-        {(isPrevious || isSubmitOnSinglePage) && GearIcon}
+        {/* Gear icon on right when button is left-aligned (so button touches left edge) */}
+        {(isPrevious || !isMultiStep) && GearIcon}
       </div>
     </PlateElement>
   );
-}
+};

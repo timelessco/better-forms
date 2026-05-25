@@ -1,49 +1,44 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useDebouncedCallback } from "@tanstack/react-pacer";
+import { useCallback } from "react";
 
 const STORAGE_KEY_PREFIX = "betterforms_";
 const DEBOUNCE_MS = 500;
 
-export function useFormPersistence(formId: string, enabled: boolean) {
+export const useFormPersistence = (formId: string, enabled: boolean) => {
   const storageKey = `${STORAGE_KEY_PREFIX}${formId}`;
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Load initial data from localStorage
   const loadSavedData = useCallback((): Record<string, unknown> | null => {
     if (!enabled) return null;
     if (typeof window === "undefined") return null;
 
     try {
       const saved = localStorage.getItem(storageKey);
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return parsed as Record<string, unknown>;
+        }
+      } catch {}
+      return null;
     } catch {
       return null;
     }
   }, [storageKey, enabled]);
 
-  // Save data to localStorage (debounced)
-  const saveData = useCallback(
+  const saveData = useDebouncedCallback(
     (data: Record<string, unknown>) => {
-      if (!enabled) return;
       if (typeof window === "undefined") return;
 
-      // Clear existing debounce
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(data));
+      } catch {
+        // Storage quota exceeded or unavailable - silently fail
       }
-
-      // Debounce the save
-      debounceRef.current = setTimeout(() => {
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(data));
-        } catch {
-          // Storage quota exceeded or unavailable - silently fail
-        }
-      }, DEBOUNCE_MS);
     },
-    [storageKey, enabled],
+    { wait: DEBOUNCE_MS, enabled },
   );
 
-  // Clear saved data (on successful submission)
   const clearSavedData = useCallback(() => {
     if (typeof window === "undefined") return;
 
@@ -54,14 +49,5 @@ export function useFormPersistence(formId: string, enabled: boolean) {
     }
   }, [storageKey]);
 
-  // Cleanup debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, []);
-
   return { loadSavedData, saveData, clearSavedData };
-}
+};

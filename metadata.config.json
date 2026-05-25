@@ -1,0 +1,14 @@
+{
+  "title": "Reform",
+  "tagline": "A modern form builder application that lets you create, customize, and share beautiful forms with a rich text editor experience. Built with a real-time local-first architecture for instant responsiveness.",
+  "colors": {
+    "background": "#0f0f0f",
+    "foreground": "#ffffff",
+    "accent": "#888888"
+  },
+  "logo": "./public/logo.svg",
+  "faviconSrc": "./public/logo.svg",
+  "outputDir": "public/metadata",
+  "font": "Inter",
+  "url": "https://better-forms-mu.vercel.app"
+}

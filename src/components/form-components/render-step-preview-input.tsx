@@ -1,248 +1,106 @@
-import { ChevronRightIcon } from "lucide-react";
-import { useState } from "react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
+import { createContext, lazy, Suspense } from "react";
+
 import type { AppForm } from "@/hooks/use-form-builder";
-import type { TransformedElement } from "@/lib/transform-plate-to-form";
+import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
+import { FieldSkeleton } from "./field-skeleton";
+import {
+  FieldLabelText,
+  GROUP_FIELD_TYPES,
+  fieldLabelId,
+  getFieldLabelProps,
+} from "./fields/shared";
+import type { FieldType } from "./fields/shared";
+
+// Editor preview supplies an eager (static-import) renderer here to avoid the
+// lazy-chunk flash when stepping between pages. Live form leaves it null and
+// keeps code-splitting.
+export const PreviewRendererContext = createContext<React.ComponentType<{
+  element: PlateFormField;
+  form: AppForm;
+}> | null>(null);
+
+// One chunk per field type. A form that only uses Input + Textarea pulls only
+// those two chunks — PhoneInput, DatePicker, MultiSelect, useFileUpload, etc.
+// stay out of the critical path.
+const FIELD_RENDERERS: Record<
+  FieldType,
+  React.LazyExoticComponent<React.ComponentType<{ element: never; form: AppForm }>>
+> = {
+  Input: lazy(() => import("./fields/InputField")),
+  Textarea: lazy(() => import("./fields/TextareaField")),
+  Email: lazy(() => import("./fields/EmailField")),
+  Phone: lazy(() => import("./fields/PhoneField")),
+  Number: lazy(() => import("./fields/NumberField")),
+  Link: lazy(() => import("./fields/LinkField")),
+  Date: lazy(() => import("./fields/DateField")),
+  Time: lazy(() => import("./fields/TimeField")),
+  FileUpload: lazy(() => import("./fields/FileUploadField")),
+  Checkbox: lazy(() => import("./fields/CheckboxField")),
+  MultiChoice: lazy(() => import("./fields/MultiChoiceField")),
+  MultiSelect: lazy(() => import("./fields/MultiSelectField")),
+  Ranking: lazy(() => import("./fields/RankingField")),
+} as const;
 
 interface RenderStepPreviewInputProps {
-  element: TransformedElement;
+  element: PlateFormField;
   form: AppForm;
 }
 
-/**
- * Extracts error message from Zod/TanStack Form error object
- */
-function extractErrorMessage(error: unknown): string {
-  if (!error) return "Invalid value";
-
-  if (Array.isArray(error)) {
-    return extractErrorMessage(error[0]);
-  }
-
-  if (typeof error === "object" && error !== null) {
-    if ("message" in error && typeof error.message === "string") {
-      return error.message;
-    }
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  return "Invalid value";
-}
-
-/**
- * Toggle renderer component with its own open/closed state
- */
-function ToggleRenderer({
-  title,
-  items,
-  form,
+export const PreviewInputShell = ({
+  element,
+  children,
 }: {
-  title: string;
-  items: TransformedElement[];
-  form: AppForm;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-
+  element: PlateFormField;
+  children: React.ReactNode;
+}) => {
+  const { label, required, labelType } = getFieldLabelProps(element);
+  // Group fields (Checkbox/MultiChoice/Ranking) render N controls and have no
+  // single labelable input — wrap them in role=group with aria-labelledby
+  // pointing at the visible label/heading id. For all other field types the
+  // standard `<label htmlFor>` / heading + `aria-labelledby` wiring handles
+  // accessibility (the field component itself reads it via element.name).
+  const isGroup = "fieldType" in element && GROUP_FIELD_TYPES.has(element.fieldType);
+  const groupAriaProps =
+    isGroup && label
+      ? { role: "group" as const, "aria-labelledby": fieldLabelId(element.name) }
+      : {};
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="my-2">
-      <CollapsibleTrigger className="flex items-center gap-2 w-full text-left hover:bg-muted/50 rounded-md p-2 -ml-2 transition-colors">
-        <ChevronRightIcon
-          className={`h-4 w-4 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
-        />
-        <span className="font-medium">{title}</span>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="pl-6 space-y-2">
-        {items.map((child) => (
-          <RenderStepPreviewInput key={child.id} element={child} form={form} />
-        ))}
-      </CollapsibleContent>
-    </Collapsible>
+    <div data-bf-input="true" data-bf-standalone={label ? undefined : "true"} {...groupAriaProps}>
+      <FieldLabelText
+        text={label}
+        labelType={labelType}
+        htmlFor={element.name}
+        required={required}
+        asGroupLabel={isGroup}
+      />
+      {children}
+    </div>
   );
-}
+};
 
-/**
- * Renders a single element in the step form.
- * Handles static elements and form fields (Input, Textarea).
- * Buttons are handled separately in StepForm.
- */
-export function RenderStepPreviewInput({ element, form }: RenderStepPreviewInputProps) {
-  // Static elements
-  if ("static" in element && element.static) {
-    switch (element.fieldType) {
-      case "H1":
-        return <h1 className="text-3xl font-bold mt-6 mb-4">{element.content}</h1>;
-      case "H2":
-        return <h2 className="text-2xl font-semibold mt-5 mb-3">{element.content}</h2>;
-      case "H3":
-        return <h3 className="text-xl font-medium mt-4 mb-2">{element.content}</h3>;
-      case "Separator":
-        return <Separator className="my-4" />;
-      case "EmptyBlock":
-        return <div className="h-6" aria-hidden="true" />;
-      case "FieldDescription":
-        return <p className="text-muted-foreground text-sm my-2">{element.content}</p>;
-      case "UnorderedList":
-        return (
-          <ul className="my-2 ml-6 space-y-1 list-disc">
-            {element.items.map((item, idx) => (
-              <li key={`${element.id}-${idx}`} className="text-sm pl-1">
-                {item}
-              </li>
-            ))}
-          </ul>
-        );
-      case "OrderedList":
-        return (
-          <ol className="my-2 ml-6 space-y-1 list-decimal">
-            {element.items.map((item, idx) => (
-              <li key={`${element.id}-${idx}`} className="text-sm pl-1">
-                {item}
-              </li>
-            ))}
-          </ol>
-        );
-      case "Toggle":
-        return <ToggleRenderer title={element.title} items={element.children} form={form} />;
-      case "Table":
-        return (
-          <div className="my-4 border rounded-md overflow-hidden">
-            <Table>
-              {element.rows.some((row) => row.isHeader) && (
-                <TableHeader>
-                  {element.rows
-                    .filter((row) => row.isHeader)
-                    .map((row, rowIdx) => (
-                      <TableRow key={`${element.id}-header-${rowIdx}`}>
-                        {row.cells.map((cell, cellIdx) => (
-                          <TableHead key={`${element.id}-header-${rowIdx}-${cellIdx}`}>
-                            {cell}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                </TableHeader>
-              )}
-              <TableBody>
-                {element.rows
-                  .filter((row) => !row.isHeader)
-                  .map((row, rowIdx) => (
-                    <TableRow key={`${element.id}-row-${rowIdx}`}>
-                      {row.cells.map((cell, cellIdx) => (
-                        <TableCell key={`${element.id}-row-${rowIdx}-${cellIdx}`}>{cell}</TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
-          </div>
-        );
-      case "Callout":
-        return (
-          <div className="my-4 bg-muted rounded-lg p-4 flex gap-3 items-start">
-            {element.emoji && (
-              <span className="text-xl shrink-0" role="img" aria-hidden="true">
-                {element.emoji}
-              </span>
-            )}
-            <p className="text-sm">{element.content}</p>
-          </div>
-        );
-      default:
-        return null;
-    }
-  }
+// Just the field input (lazy-loaded) with no label/wrapper. Used by the RSC
+// flow where the server-rendered composite already provides the surrounding
+// `<div data-bf-input>` + label.
+export const RenderFieldComponent = ({ element, form }: RenderStepPreviewInputProps) => {
+  if (element.fieldType === "Button") return null;
+  const Component = FIELD_RENDERERS[element.fieldType as FieldType];
+  if (!Component) return null;
+  return (
+    <Suspense fallback={<FieldSkeleton fieldType={element.fieldType as FieldType} />}>
+      <Component element={element as never} form={form} />
+    </Suspense>
+  );
+};
 
-  // Form field: Textarea
-  if (element.fieldType === "Textarea") {
-    // element is now narrowed to Textarea type
-    return (
-      <form.AppField name={element.name}>
-        {(f) => {
-          const hasErrors = f.state.meta.errors.length > 0 && f.state.meta.isTouched;
-          const errorMessage = hasErrors ? extractErrorMessage(f.state.meta.errors[0]) : "";
-
-          return (
-            <div className="space-y-2">
-              <Label htmlFor={element.name}>
-                {element.label}
-                {element.required && <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-muted text-xs text-red-500 leading-none ml-2">*</span>}
-              </Label>
-              <Textarea
-                id={element.name}
-                name={element.name}
-                placeholder={element.placeholder}
-                value={(f.state.value as string | undefined) ?? ""}
-                onChange={(e) => f.handleChange(e.target.value)}
-                onBlur={f.handleBlur}
-                minLength={element.minLength}
-                maxLength={element.maxLength}
-                aria-invalid={hasErrors}
-                className={cn(
-                  "max-w-md min-h-24 rounded-lg border-0 bg-white pl-[10px] pr-[8px] shadow-form-input placeholder:text-muted-foreground/50 dark:bg-input/30",
-                  hasErrors && "ring-destructive/20 ring-[3px]",
-                )}
-              />
-              {hasErrors && <p className="text-sm text-destructive">{errorMessage}</p>}
-            </div>
-          );
-        }}
-      </form.AppField>
-    );
-  }
-
-  // Form field: Input
-  if (element.fieldType === "Input") {
-    // element is now narrowed to Input type
-    return (
-      <form.AppField name={element.name}>
-        {(f) => {
-          const hasErrors = f.state.meta.errors.length > 0 && f.state.meta.isTouched;
-          const errorMessage = hasErrors ? extractErrorMessage(f.state.meta.errors[0]) : "";
-
-          return (
-            <div className="space-y-2">
-              <Label htmlFor={element.name}>
-                {element.label}
-                {element.required && <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-muted text-xs text-red-500 leading-none ml-2">*</span>}
-              </Label>
-              <Input
-                id={element.name}
-                name={element.name}
-                placeholder={element.placeholder}
-                value={(f.state.value as string | undefined) ?? ""}
-                onChange={(e) => f.handleChange(e.target.value)}
-                onBlur={f.handleBlur}
-                minLength={element.minLength}
-                maxLength={element.maxLength}
-                aria-invalid={hasErrors}
-                className={cn(
-                  "max-w-md rounded-lg border-0 bg-white pl-[10px] pr-[8px] shadow-form-input placeholder:text-muted-foreground/50 dark:bg-input/30",
-                  hasErrors && "ring-destructive/20 ring-[3px]",
-                )}
-              />
-              {hasErrors && <p className="text-sm text-destructive">{errorMessage}</p>}
-            </div>
-          );
-        }}
-      </form.AppField>
-    );
-  }
-
-  return null;
-}
+export const RenderStepPreviewInput = ({ element, form }: RenderStepPreviewInputProps) => {
+  if (element.fieldType === "Button") return null;
+  const Component = FIELD_RENDERERS[element.fieldType as FieldType];
+  if (!Component) return null;
+  return (
+    <PreviewInputShell element={element}>
+      <Suspense fallback={<FieldSkeleton fieldType={element.fieldType as FieldType} />}>
+        <Component element={element as never} form={form} />
+      </Suspense>
+    </PreviewInputShell>
+  );
+};

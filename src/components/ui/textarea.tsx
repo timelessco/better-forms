@@ -1,18 +1,14 @@
-import type * as React from "react";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
-  return (
-    <textarea
-      data-slot="textarea"
-      className={cn(
-        "border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-export { Textarea };
+export const Textarea = ({ className, ...props }: React.ComponentProps<"textarea">) => (
+  <textarea
+    data-slot="textarea"
+    className={cn(
+      "relative flex field-sizing-content min-h-16 w-full cursor-text rounded-[var(--radius-lg)] border-0 bg-card px-[10px] py-2 pr-[8px] text-sm caret-current elevation-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:ring-1 aria-invalid:ring-destructive dark:disabled:bg-input/80",
+      className,
+    )}
+    {...props}
+  />
+);

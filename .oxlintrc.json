@@ -1,52 +1,78 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "react-hooks", "typescript", "jsx-a11y", "import", "unicorn", "promise"],
+  "plugins": [
+    "react",
+    "react-hooks",
+    "react-perf",
+    "typescript",
+    "jsx-a11y",
+    "import",
+    "unicorn",
+    "promise",
+    "node",
+    "oxc",
+    "jsdoc"
+  ],
+  "jsPlugins": ["@tanstack/eslint-plugin-query"],
   "categories": {
-    "correctness": "error",
-    "suspicious": "warn",
+    "correctness": "off",
+    "suspicious": "off",
     "pedantic": "off",
     "style": "off",
     "restriction": "off"
   },
   "rules": {
-    // General
-    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
     "no-console": "off",
+    "no-duplicate-imports": ["error", { "allowSeparateTypeImports": true }],
+    "func-style": ["error", "expression", { "allowArrowFunctions": true }],
+    "arrow-body-style": ["error", "as-needed"],
 
-    // React 19 - no need for React import
     "react/react-in-jsx-scope": "off",
-    "react/jsx-uses-react": "off",
-
-    // React hooks
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "warn",
 
-    // TypeScript - useful rules
     "typescript/no-explicit-any": "warn",
     "typescript/no-non-null-assertion": "warn",
     "typescript/prefer-ts-expect-error": "warn",
+    "typescript/no-floating-promises": "warn",
+    "typescript/unbound-method": "warn",
 
-    // Import
     "import/no-duplicates": "error",
     "import/no-self-import": "error",
     "import/no-cycle": "warn",
+    "import/consistent-type-specifier-style": ["error", "prefer-top-level"],
 
-    // Unicorn - useful subset
     "unicorn/no-null": "off",
-    "unicorn/prevent-abbreviations": "off",
     "unicorn/filename-case": "off",
     "unicorn/no-array-for-each": "off",
     "unicorn/no-useless-undefined": "off",
 
-    // Promise
     "promise/no-nesting": "warn",
     "promise/no-return-wrap": "error",
+    "promise/always-return": "off",
 
-    // JSX a11y - relax some strict rules
     "jsx-a11y/no-autofocus": "off",
     "jsx-a11y/click-events-have-key-events": "warn",
     "jsx-a11y/no-static-element-interactions": "warn",
-    "jsx-a11y/anchor-is-valid": "off"
+    "jsx-a11y/anchor-is-valid": "off",
+
+    "react-perf/jsx-no-new-function-as-prop": "off",
+    "react-perf/jsx-no-new-object-as-prop": "off",
+    "react-perf/jsx-no-new-array-as-prop": "off",
+
+    "@tanstack/query/exhaustive-deps": "warn",
+    "@tanstack/query/no-rest-destructuring": "warn",
+    "@tanstack/query/stable-query-client": "error",
+    "@tanstack/query/no-void-query-fn": "warn",
+    "@tanstack/query/no-unstable-deps": "warn"
   },
   "settings": {
     "jsx-a11y": {
@@ -59,7 +85,12 @@
     },
     "react": {
       "formComponents": [],
-      "linkComponents": [{ "name": "Link", "linkAttribute": "to" }],
+      "linkComponents": [
+        {
+          "name": "Link",
+          "linkAttribute": "to"
+        }
+      ],
       "version": "19.0"
     }
   },
@@ -76,7 +107,8 @@
     "**/node_modules/**",
     "**/.output/**",
     "**/dist/**",
-    "**/public/**"
+    "**/public/**",
+    "**/evilcharts/**"
   ],
   "overrides": [
     {
@@ -88,7 +120,22 @@
       "rules": {
         "vitest/no-disabled-tests": "warn",
         "vitest/no-focused-tests": "error",
-        "vitest/expect-expect": "warn"
+        "vitest/expect-expect": "warn",
+        "typescript/no-floating-promises": "off",
+        "typescript/unbound-method": "off"
+      }
+    },
+    {
+      "files": ["src/collections/query/**/*.ts"],
+      "rules": {
+        "@tanstack/query/exhaustive-deps": "off"
+      }
+    },
+    {
+      "files": ["**/routeTree.gen.ts"],
+      "rules": {
+        "unicorn/filename-case": "off",
+        "unicorn/no-abusive-eslint-disable": "off"
       }
     }
   ]

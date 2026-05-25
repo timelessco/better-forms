@@ -1,17 +1,14 @@
+import { APP_NAME } from "@/lib/config/app-config";
+import { Calculator, MessageSquare, MousePointer2, Split, Zap } from "lucide-react";
 import {
-  Calculator,
-  CreditCard,
-  EyeOff,
-  FileText,
-  HelpCircle,
-  Layout,
-  Link as LinkIcon,
-  MessageSquare,
-  MousePointer2,
-  Sparkles,
-  Split,
-  Zap,
-} from "lucide-react";
+  CreditCardIcon,
+  EyeOffLucideIcon,
+  FileTextIcon,
+  HelpCircleIcon,
+  LayoutIcon,
+  LinkIcon,
+  SparklesIcon,
+} from "@/components/ui/icons";
 import type { PlateElementProps } from "platejs/react";
 import { PlateElement } from "platejs/react";
 import { useState } from "react";
@@ -23,14 +20,12 @@ export interface OnboardingContentElementData {
   children: [{ text: "" }];
 }
 
-export function createOnboardingContentNode(): OnboardingContentElementData {
-  return {
-    type: "onboardingContent",
-    children: [{ text: "" }],
-  };
-}
+export const createOnboardingContentNode = (): OnboardingContentElementData => ({
+  type: "onboardingContent",
+  children: [{ text: "" }],
+});
 
-function OnboardingItem({
+const OnboardingItem = ({
   icon: Icon,
   label,
   href = "#",
@@ -38,100 +33,97 @@ function OnboardingItem({
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   href?: string;
-}) {
-  return (
-    <a
-      href={href}
-      className="flex items-center gap-3 text-muted-foreground/70 hover:text-foreground transition-colors group text-sm font-medium py-0.5"
-    >
-      <Icon className="h-4 w-4 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" />
-      <span>{label}</span>
-    </a>
-  );
-}
+}) => (
+  <a
+    href={href}
+    className="group flex items-center gap-3 py-0.5 text-sm text-muted-foreground/70 transition-colors hover:text-foreground"
+  >
+    <Icon className="size-4 shrink-0 opacity-70 transition-opacity group-hover:opacity-100" />
+    <span>{label}</span>
+  </a>
+);
 
-export function OnboardingContentElement(props: PlateElementProps) {
+export const OnboardingContentElement = (props: PlateElementProps) => {
   const { children } = props;
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
 
   return (
     <PlateElement {...props}>
       <div contentEditable={false} className="select-none">
-        <div className="max-w-[700px] mx-auto pt-8 pb-16 px-4 sm:px-16">
+        <div className="mx-auto max-w-[700px] px-4 pt-8 pb-16 sm:px-16">
           {/* Landing Hero Section */}
-          <div className="flex flex-col items-center text-center mb-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background border border-border text-sm text-muted-foreground mb-4">
-              <Sparkles className="h-4 w-4" />
+          <div className="mb-10 flex flex-col items-center text-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground">
+              <SparklesIcon className="size-4" />
               <span>The next generation of forms</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2 tracking-tight">
+            <h2 className="mb-2 text-2xl font-semibold text-foreground sm:text-3xl">
               Beautiful forms, building itself.
             </h2>
           </div>
 
           <div className="space-y-8">
             <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-3 text-muted-foreground/60 text-lg">
-                <FileText className="h-5 w-5" />
+              <div className="flex items-center gap-3 text-lg text-muted-foreground/60">
+                <FileTextIcon className="size-5" />
                 <span>
-                  Press <span className="font-medium text-foreground/80">Enter</span> to start from
-                  scratch
+                  Press <span className="text-foreground/80">Enter</span> to start from scratch
                 </span>
               </div>
 
               <Button
                 variant="outline"
-                className="w-fit h-10 px-4 gap-2 text-muted-foreground border-muted-foreground/20 hover:border-muted-foreground/40 hover:bg-muted/50 rounded-lg shadow-sm"
+                className="h-10 w-fit gap-2 rounded-lg border-muted-foreground/20 px-4 text-muted-foreground shadow-sm hover:border-muted-foreground/40 hover:bg-muted/50"
                 onClick={() => setTemplateModalOpen(true)}
                 onMouseDown={(e) => e.preventDefault()}
               >
-                <Layout className="h-4 w-4" />
+                <LayoutIcon className="size-4" />
                 Use a template
               </Button>
             </div>
 
-            <div className="py-6 space-y-1">
-              <p className="text-lg text-muted-foreground/80 leading-relaxed">
-                BetterForms is a form builder that{" "}
-                <span className="text-fuchsia-500 font-semibold px-1">works like a doc</span>.
+            <div className="space-y-1 py-6">
+              <p className="text-lg text-muted-foreground/80">
+                {APP_NAME} is a form builder that{" "}
+                <span className="px-1 font-semibold text-fuchsia-500">works like a doc</span>.
               </p>
-              <p className="text-lg text-muted-foreground/80 leading-relaxed">
+              <p className="text-lg text-muted-foreground/80">
                 Just type{" "}
-                <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">
+                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm text-foreground">
                   /
-                </code>{" "}
+                </code>
                 to insert form blocks and{" "}
-                <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-fuchsia-500">
+                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm text-fuchsia-500">
                   @
-                </code>{" "}
+                </code>
                 to mention question answers.
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-16 pt-8">
               <div className="space-y-5">
-                <h3 className="text-sm font-bold text-foreground tracking-wider uppercase">
+                <h3 className="text-sm font-semibold tracking-wider text-foreground uppercase">
                   Get started
                 </h3>
                 <div className="flex flex-col gap-3">
                   <OnboardingItem icon={MousePointer2} label="Create your first form" />
-                  <OnboardingItem icon={Layout} label="Get started with templates" />
+                  <OnboardingItem icon={LayoutIcon} label="Get started with templates" />
                   <OnboardingItem icon={LinkIcon} label="Embed your form" />
-                  <OnboardingItem icon={HelpCircle} label="Help center" />
-                  <OnboardingItem icon={Zap} label="Learn about BetterForms Pro" />
+                  <OnboardingItem icon={HelpCircleIcon} label="Help center" />
+                  <OnboardingItem icon={Zap} label={`Learn about ${APP_NAME} Pro`} />
                 </div>
               </div>
 
               <div className="space-y-5">
-                <h3 className="text-sm font-bold text-foreground tracking-wider uppercase">
+                <h3 className="text-sm font-semibold tracking-wider text-foreground uppercase">
                   How-to guides
                 </h3>
                 <div className="flex flex-col gap-3">
                   <OnboardingItem icon={Split} label="Conditional logic" />
                   <OnboardingItem icon={Calculator} label="Calculator" />
-                  <OnboardingItem icon={EyeOff} label="Hidden fields" />
+                  <OnboardingItem icon={EyeOffLucideIcon} label="Hidden fields" />
                   <OnboardingItem icon={MessageSquare} label="Mentions" />
-                  <OnboardingItem icon={CreditCard} label="Collect payments" />
+                  <OnboardingItem icon={CreditCardIcon} label="Collect payments" />
                 </div>
               </div>
             </div>
@@ -146,9 +138,9 @@ export function OnboardingContentElement(props: PlateElementProps) {
             <DialogTitle>Templates</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col items-center py-12 text-muted-foreground">
-            <Layout className="h-12 w-12 mb-4 opacity-50" />
-            <p className="text-lg font-medium">Coming soon</p>
-            <p className="text-sm mt-2">We're working on some great templates for you.</p>
+            <LayoutIcon className="mb-4 size-12 opacity-50" />
+            <p className="text-lg">Coming soon</p>
+            <p className="mt-2 text-sm">We're working on some great templates for you.</p>
           </div>
         </DialogContent>
       </Dialog>
@@ -156,4 +148,4 @@ export function OnboardingContentElement(props: PlateElementProps) {
       {children}
     </PlateElement>
   );
-}
+};

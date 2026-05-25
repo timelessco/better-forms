@@ -9,53 +9,42 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VerifyEmailRouteImport } from './routes/verify-email'
-import { Route as SignupRouteImport } from './routes/signup'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as CreateRouteImport } from './routes/create'
+import { Route as RscTestRouteImport } from './routes/rsc-test'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as SlugRouteImport } from './routes/$slug'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as FormsFormIdRouteImport } from './routes/forms/$formId'
-import { Route as DemoSplatRouteImport } from './routes/demo.$'
-import { Route as ApiElectricRouteImport } from './routes/api/electric'
+import { Route as LoginIndexRouteImport } from './routes/login/index'
+import { Route as LoginEmailRouteImport } from './routes/login/email'
+import { Route as FormsShortIdRouteImport } from './routes/forms/$shortId'
+import { Route as FFormIdRouteImport } from './routes/f/$formId'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedAcceptInviteRouteImport } from './routes/_authenticated/accept-invite'
-import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
-import { Route as FormsI8nFormIdRouteImport } from './routes/forms/$i8n.$formId'
+import { Route as ApiTrackVisitEndRouteImport } from './routes/api/track/visit-end'
+import { Route as ApiIconsNameRouteImport } from './routes/api/icons/$name'
+import { Route as ApiCronPurgeArchivedFormsRouteImport } from './routes/api/cron/purge-archived-forms'
+import { Route as ApiCronAggregateAnalyticsRouteImport } from './routes/api/cron/aggregate-analytics'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
-import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings/notifications'
-import { Route as AuthenticatedSettingsMyAccountRouteImport } from './routes/_authenticated/settings/my-account'
-import { Route as AuthenticatedSettingsMembersRouteImport } from './routes/_authenticated/settings/members'
-import { Route as AuthenticatedSettingsBillingRouteImport } from './routes/_authenticated/settings/billing'
-import { Route as AuthenticatedSettingsApiKeysRouteImport } from './routes/_authenticated/settings/api-keys'
+import { Route as ApiAiFormGenerateRouteImport } from './routes/api/ai/form-generate'
 import { Route as AuthenticatedWorkspaceWorkspaceIdRouteRouteImport } from './routes/_authenticated/workspace/$workspaceId/route'
+import { Route as ApiOgShortIdHashRouteImport } from './routes/api/og/$shortId/$hash'
+import { Route as ApiFormsShortIdMetaRouteImport } from './routes/api/forms/$shortId/meta'
 import { Route as AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteImport } from './routes/_authenticated/workspace/$workspaceId/form-builder/$formId/route'
 import { Route as AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSubmissionsRouteImport } from './routes/_authenticated/workspace/$workspaceId/form-builder/$formId/submissions'
 import { Route as AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRouteImport } from './routes/_authenticated/workspace/$workspaceId/form-builder/$formId/settings'
+import { Route as AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRouteImport } from './routes/_authenticated/workspace/$workspaceId/form-builder/$formId/insights'
 import { Route as AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRouteImport } from './routes/_authenticated/workspace/$workspaceId/form-builder/$formId/edit'
 
-const VerifyEmailRoute = VerifyEmailRouteImport.update({
-  id: '/verify-email',
-  path: '/verify-email',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CreateRoute = CreateRouteImport.update({
-  id: '/create',
-  path: '/create',
+const RscTestRoute = RscTestRouteImport.update({
+  id: '/rsc-test',
+  path: '/rsc-test',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SlugRoute = SlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -63,19 +52,24 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FormsFormIdRoute = FormsFormIdRouteImport.update({
-  id: '/forms/$formId',
-  path: '/forms/$formId',
+const LoginIndexRoute = LoginIndexRouteImport.update({
+  id: '/login/',
+  path: '/login/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DemoSplatRoute = DemoSplatRouteImport.update({
-  id: '/demo/$',
-  path: '/demo/$',
+const LoginEmailRoute = LoginEmailRouteImport.update({
+  id: '/login/email',
+  path: '/login/email',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiElectricRoute = ApiElectricRouteImport.update({
-  id: '/api/electric',
-  path: '/api/electric',
+const FormsShortIdRoute = FormsShortIdRouteImport.update({
+  id: '/forms/$shortId',
+  path: '/forms/$shortId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FFormIdRoute = FFormIdRouteImport.update({
+  id: '/f/$formId',
+  path: '/f/$formId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -83,64 +77,54 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedAcceptInviteRoute =
-  AuthenticatedAcceptInviteRouteImport.update({
-    id: '/accept-invite',
-    path: '/accept-invite',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedSettingsRouteRoute =
-  AuthenticatedSettingsRouteRouteImport.update({
-    id: '/settings',
-    path: '/settings',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const FormsI8nFormIdRoute = FormsI8nFormIdRouteImport.update({
-  id: '/forms/$i8n/$formId',
-  path: '/forms/$i8n/$formId',
+const ApiTrackVisitEndRoute = ApiTrackVisitEndRouteImport.update({
+  id: '/api/track/visit-end',
+  path: '/api/track/visit-end',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiIconsNameRoute = ApiIconsNameRouteImport.update({
+  id: '/api/icons/$name',
+  path: '/api/icons/$name',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronPurgeArchivedFormsRoute =
+  ApiCronPurgeArchivedFormsRouteImport.update({
+    id: '/api/cron/purge-archived-forms',
+    path: '/api/cron/purge-archived-forms',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiCronAggregateAnalyticsRoute =
+  ApiCronAggregateAnalyticsRouteImport.update({
+    id: '/api/cron/aggregate-analytics',
+    path: '/api/cron/aggregate-analytics',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedSettingsNotificationsRoute =
-  AuthenticatedSettingsNotificationsRouteImport.update({
-    id: '/notifications',
-    path: '/notifications',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
-const AuthenticatedSettingsMyAccountRoute =
-  AuthenticatedSettingsMyAccountRouteImport.update({
-    id: '/my-account',
-    path: '/my-account',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
-const AuthenticatedSettingsMembersRoute =
-  AuthenticatedSettingsMembersRouteImport.update({
-    id: '/members',
-    path: '/members',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
-const AuthenticatedSettingsBillingRoute =
-  AuthenticatedSettingsBillingRouteImport.update({
-    id: '/billing',
-    path: '/billing',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
-const AuthenticatedSettingsApiKeysRoute =
-  AuthenticatedSettingsApiKeysRouteImport.update({
-    id: '/api-keys',
-    path: '/api-keys',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
+const ApiAiFormGenerateRoute = ApiAiFormGenerateRouteImport.update({
+  id: '/api/ai/form-generate',
+  path: '/api/ai/form-generate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedWorkspaceWorkspaceIdRouteRoute =
   AuthenticatedWorkspaceWorkspaceIdRouteRouteImport.update({
     id: '/workspace/$workspaceId',
     path: '/workspace/$workspaceId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const ApiOgShortIdHashRoute = ApiOgShortIdHashRouteImport.update({
+  id: '/api/og/$shortId/$hash',
+  path: '/api/og/$shortId/$hash',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFormsShortIdMetaRoute = ApiFormsShortIdMetaRouteImport.update({
+  id: '/api/forms/$shortId/meta',
+  path: '/api/forms/$shortId/meta',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRoute =
   AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteImport.update({
     id: '/form-builder/$formId',
@@ -163,6 +147,13 @@ const AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRoute =
     getParentRoute: () =>
       AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRoute,
   } as any)
+const AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute =
+  AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRouteImport.update({
+    id: '/insights',
+    path: '/insights',
+    getParentRoute: () =>
+      AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRoute,
+  } as any)
 const AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute =
   AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRouteImport.update({
     id: '/edit',
@@ -173,78 +164,75 @@ const AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/create': typeof CreateRoute
-  '/login': typeof LoginRoute
-  '/signup': typeof SignupRoute
-  '/verify-email': typeof VerifyEmailRoute
-  '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
-  '/accept-invite': typeof AuthenticatedAcceptInviteRoute
+  '/$slug': typeof SlugRoute
+  '/rsc-test': typeof RscTestRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/api/electric': typeof ApiElectricRoute
-  '/demo/$': typeof DemoSplatRoute
-  '/forms/$formId': typeof FormsFormIdRoute
+  '/f/$formId': typeof FFormIdRoute
+  '/forms/$shortId': typeof FormsShortIdRoute
+  '/login/email': typeof LoginEmailRoute
+  '/login/': typeof LoginIndexRoute
   '/workspace/$workspaceId': typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
-  '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
-  '/settings/billing': typeof AuthenticatedSettingsBillingRoute
-  '/settings/members': typeof AuthenticatedSettingsMembersRoute
-  '/settings/my-account': typeof AuthenticatedSettingsMyAccountRoute
-  '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/api/ai/form-generate': typeof ApiAiFormGenerateRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/forms/$i8n/$formId': typeof FormsI8nFormIdRoute
+  '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
+  '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
+  '/api/icons/$name': typeof ApiIconsNameRoute
+  '/api/track/visit-end': typeof ApiTrackVisitEndRoute
+  '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
+  '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
   '/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
   '/workspace/$workspaceId/form-builder/$formId/edit': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute
+  '/workspace/$workspaceId/form-builder/$formId/insights': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute
   '/workspace/$workspaceId/form-builder/$formId/settings': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRoute
   '/workspace/$workspaceId/form-builder/$formId/submissions': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSubmissionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/create': typeof CreateRoute
-  '/login': typeof LoginRoute
-  '/signup': typeof SignupRoute
-  '/verify-email': typeof VerifyEmailRoute
-  '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
-  '/accept-invite': typeof AuthenticatedAcceptInviteRoute
+  '/$slug': typeof SlugRoute
+  '/rsc-test': typeof RscTestRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/api/electric': typeof ApiElectricRoute
-  '/demo/$': typeof DemoSplatRoute
-  '/forms/$formId': typeof FormsFormIdRoute
+  '/f/$formId': typeof FFormIdRoute
+  '/forms/$shortId': typeof FormsShortIdRoute
+  '/login/email': typeof LoginEmailRoute
+  '/login': typeof LoginIndexRoute
   '/workspace/$workspaceId': typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
-  '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
-  '/settings/billing': typeof AuthenticatedSettingsBillingRoute
-  '/settings/members': typeof AuthenticatedSettingsMembersRoute
-  '/settings/my-account': typeof AuthenticatedSettingsMyAccountRoute
-  '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/api/ai/form-generate': typeof ApiAiFormGenerateRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/forms/$i8n/$formId': typeof FormsI8nFormIdRoute
+  '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
+  '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
+  '/api/icons/$name': typeof ApiIconsNameRoute
+  '/api/track/visit-end': typeof ApiTrackVisitEndRoute
+  '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
+  '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
   '/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
   '/workspace/$workspaceId/form-builder/$formId/edit': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute
+  '/workspace/$workspaceId/form-builder/$formId/insights': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute
   '/workspace/$workspaceId/form-builder/$formId/settings': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRoute
   '/workspace/$workspaceId/form-builder/$formId/submissions': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSubmissionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$slug': typeof SlugRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
-  '/create': typeof CreateRoute
-  '/login': typeof LoginRoute
-  '/signup': typeof SignupRoute
-  '/verify-email': typeof VerifyEmailRoute
-  '/_authenticated/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
-  '/_authenticated/accept-invite': typeof AuthenticatedAcceptInviteRoute
+  '/rsc-test': typeof RscTestRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/api/electric': typeof ApiElectricRoute
-  '/demo/$': typeof DemoSplatRoute
-  '/forms/$formId': typeof FormsFormIdRoute
+  '/f/$formId': typeof FFormIdRoute
+  '/forms/$shortId': typeof FormsShortIdRoute
+  '/login/email': typeof LoginEmailRoute
+  '/login/': typeof LoginIndexRoute
   '/_authenticated/workspace/$workspaceId': typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
-  '/_authenticated/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
-  '/_authenticated/settings/billing': typeof AuthenticatedSettingsBillingRoute
-  '/_authenticated/settings/members': typeof AuthenticatedSettingsMembersRoute
-  '/_authenticated/settings/my-account': typeof AuthenticatedSettingsMyAccountRoute
-  '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/api/ai/form-generate': typeof ApiAiFormGenerateRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/forms/$i8n/$formId': typeof FormsI8nFormIdRoute
+  '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
+  '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
+  '/api/icons/$name': typeof ApiIconsNameRoute
+  '/api/track/visit-end': typeof ApiTrackVisitEndRoute
+  '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
+  '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
   '/_authenticated/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
   '/_authenticated/workspace/$workspaceId/form-builder/$formId/edit': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute
+  '/_authenticated/workspace/$workspaceId/form-builder/$formId/insights': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute
   '/_authenticated/workspace/$workspaceId/form-builder/$formId/settings': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRoute
   '/_authenticated/workspace/$workspaceId/form-builder/$formId/submissions': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSubmissionsRoute
 }
@@ -252,123 +240,104 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/create'
-    | '/login'
-    | '/signup'
-    | '/verify-email'
-    | '/settings'
-    | '/accept-invite'
+    | '/$slug'
+    | '/rsc-test'
     | '/dashboard'
-    | '/api/electric'
-    | '/demo/$'
-    | '/forms/$formId'
+    | '/f/$formId'
+    | '/forms/$shortId'
+    | '/login/email'
+    | '/login/'
     | '/workspace/$workspaceId'
-    | '/settings/api-keys'
-    | '/settings/billing'
-    | '/settings/members'
-    | '/settings/my-account'
-    | '/settings/notifications'
+    | '/api/ai/form-generate'
     | '/api/auth/$'
-    | '/forms/$i8n/$formId'
+    | '/api/cron/aggregate-analytics'
+    | '/api/cron/purge-archived-forms'
+    | '/api/icons/$name'
+    | '/api/track/visit-end'
+    | '/api/forms/$shortId/meta'
+    | '/api/og/$shortId/$hash'
     | '/workspace/$workspaceId/form-builder/$formId'
     | '/workspace/$workspaceId/form-builder/$formId/edit'
+    | '/workspace/$workspaceId/form-builder/$formId/insights'
     | '/workspace/$workspaceId/form-builder/$formId/settings'
     | '/workspace/$workspaceId/form-builder/$formId/submissions'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/create'
-    | '/login'
-    | '/signup'
-    | '/verify-email'
-    | '/settings'
-    | '/accept-invite'
+    | '/$slug'
+    | '/rsc-test'
     | '/dashboard'
-    | '/api/electric'
-    | '/demo/$'
-    | '/forms/$formId'
+    | '/f/$formId'
+    | '/forms/$shortId'
+    | '/login/email'
+    | '/login'
     | '/workspace/$workspaceId'
-    | '/settings/api-keys'
-    | '/settings/billing'
-    | '/settings/members'
-    | '/settings/my-account'
-    | '/settings/notifications'
+    | '/api/ai/form-generate'
     | '/api/auth/$'
-    | '/forms/$i8n/$formId'
+    | '/api/cron/aggregate-analytics'
+    | '/api/cron/purge-archived-forms'
+    | '/api/icons/$name'
+    | '/api/track/visit-end'
+    | '/api/forms/$shortId/meta'
+    | '/api/og/$shortId/$hash'
     | '/workspace/$workspaceId/form-builder/$formId'
     | '/workspace/$workspaceId/form-builder/$formId/edit'
+    | '/workspace/$workspaceId/form-builder/$formId/insights'
     | '/workspace/$workspaceId/form-builder/$formId/settings'
     | '/workspace/$workspaceId/form-builder/$formId/submissions'
   id:
     | '__root__'
     | '/'
+    | '/$slug'
     | '/_authenticated'
-    | '/create'
-    | '/login'
-    | '/signup'
-    | '/verify-email'
-    | '/_authenticated/settings'
-    | '/_authenticated/accept-invite'
+    | '/rsc-test'
     | '/_authenticated/dashboard'
-    | '/api/electric'
-    | '/demo/$'
-    | '/forms/$formId'
+    | '/f/$formId'
+    | '/forms/$shortId'
+    | '/login/email'
+    | '/login/'
     | '/_authenticated/workspace/$workspaceId'
-    | '/_authenticated/settings/api-keys'
-    | '/_authenticated/settings/billing'
-    | '/_authenticated/settings/members'
-    | '/_authenticated/settings/my-account'
-    | '/_authenticated/settings/notifications'
+    | '/api/ai/form-generate'
     | '/api/auth/$'
-    | '/forms/$i8n/$formId'
+    | '/api/cron/aggregate-analytics'
+    | '/api/cron/purge-archived-forms'
+    | '/api/icons/$name'
+    | '/api/track/visit-end'
+    | '/api/forms/$shortId/meta'
+    | '/api/og/$shortId/$hash'
     | '/_authenticated/workspace/$workspaceId/form-builder/$formId'
     | '/_authenticated/workspace/$workspaceId/form-builder/$formId/edit'
+    | '/_authenticated/workspace/$workspaceId/form-builder/$formId/insights'
     | '/_authenticated/workspace/$workspaceId/form-builder/$formId/settings'
     | '/_authenticated/workspace/$workspaceId/form-builder/$formId/submissions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SlugRoute: typeof SlugRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
-  CreateRoute: typeof CreateRoute
-  LoginRoute: typeof LoginRoute
-  SignupRoute: typeof SignupRoute
-  VerifyEmailRoute: typeof VerifyEmailRoute
-  ApiElectricRoute: typeof ApiElectricRoute
-  DemoSplatRoute: typeof DemoSplatRoute
-  FormsFormIdRoute: typeof FormsFormIdRoute
+  RscTestRoute: typeof RscTestRoute
+  FFormIdRoute: typeof FFormIdRoute
+  FormsShortIdRoute: typeof FormsShortIdRoute
+  LoginEmailRoute: typeof LoginEmailRoute
+  LoginIndexRoute: typeof LoginIndexRoute
+  ApiAiFormGenerateRoute: typeof ApiAiFormGenerateRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
-  FormsI8nFormIdRoute: typeof FormsI8nFormIdRoute
+  ApiCronAggregateAnalyticsRoute: typeof ApiCronAggregateAnalyticsRoute
+  ApiCronPurgeArchivedFormsRoute: typeof ApiCronPurgeArchivedFormsRoute
+  ApiIconsNameRoute: typeof ApiIconsNameRoute
+  ApiTrackVisitEndRoute: typeof ApiTrackVisitEndRoute
+  ApiFormsShortIdMetaRoute: typeof ApiFormsShortIdMetaRoute
+  ApiOgShortIdHashRoute: typeof ApiOgShortIdHashRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/verify-email': {
-      id: '/verify-email'
-      path: '/verify-email'
-      fullPath: '/verify-email'
-      preLoaderRoute: typeof VerifyEmailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/create': {
-      id: '/create'
-      path: '/create'
-      fullPath: '/create'
-      preLoaderRoute: typeof CreateRouteImport
+    '/rsc-test': {
+      id: '/rsc-test'
+      path: '/rsc-test'
+      fullPath: '/rsc-test'
+      preLoaderRoute: typeof RscTestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -378,6 +347,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$slug': {
+      id: '/$slug'
+      path: '/$slug'
+      fullPath: '/$slug'
+      preLoaderRoute: typeof SlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -385,25 +361,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/forms/$formId': {
-      id: '/forms/$formId'
-      path: '/forms/$formId'
-      fullPath: '/forms/$formId'
-      preLoaderRoute: typeof FormsFormIdRouteImport
+    '/login/': {
+      id: '/login/'
+      path: '/login'
+      fullPath: '/login/'
+      preLoaderRoute: typeof LoginIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/demo/$': {
-      id: '/demo/$'
-      path: '/demo/$'
-      fullPath: '/demo/$'
-      preLoaderRoute: typeof DemoSplatRouteImport
+    '/login/email': {
+      id: '/login/email'
+      path: '/login/email'
+      fullPath: '/login/email'
+      preLoaderRoute: typeof LoginEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/electric': {
-      id: '/api/electric'
-      path: '/api/electric'
-      fullPath: '/api/electric'
-      preLoaderRoute: typeof ApiElectricRouteImport
+    '/forms/$shortId': {
+      id: '/forms/$shortId'
+      path: '/forms/$shortId'
+      fullPath: '/forms/$shortId'
+      preLoaderRoute: typeof FormsShortIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/$formId': {
+      id: '/f/$formId'
+      path: '/f/$formId'
+      fullPath: '/f/$formId'
+      preLoaderRoute: typeof FFormIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dashboard': {
@@ -413,25 +396,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/accept-invite': {
-      id: '/_authenticated/accept-invite'
-      path: '/accept-invite'
-      fullPath: '/accept-invite'
-      preLoaderRoute: typeof AuthenticatedAcceptInviteRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/api/track/visit-end': {
+      id: '/api/track/visit-end'
+      path: '/api/track/visit-end'
+      fullPath: '/api/track/visit-end'
+      preLoaderRoute: typeof ApiTrackVisitEndRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/api/icons/$name': {
+      id: '/api/icons/$name'
+      path: '/api/icons/$name'
+      fullPath: '/api/icons/$name'
+      preLoaderRoute: typeof ApiIconsNameRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/forms/$i8n/$formId': {
-      id: '/forms/$i8n/$formId'
-      path: '/forms/$i8n/$formId'
-      fullPath: '/forms/$i8n/$formId'
-      preLoaderRoute: typeof FormsI8nFormIdRouteImport
+    '/api/cron/purge-archived-forms': {
+      id: '/api/cron/purge-archived-forms'
+      path: '/api/cron/purge-archived-forms'
+      fullPath: '/api/cron/purge-archived-forms'
+      preLoaderRoute: typeof ApiCronPurgeArchivedFormsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/aggregate-analytics': {
+      id: '/api/cron/aggregate-analytics'
+      path: '/api/cron/aggregate-analytics'
+      fullPath: '/api/cron/aggregate-analytics'
+      preLoaderRoute: typeof ApiCronAggregateAnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -441,40 +431,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/settings/notifications': {
-      id: '/_authenticated/settings/notifications'
-      path: '/notifications'
-      fullPath: '/settings/notifications'
-      preLoaderRoute: typeof AuthenticatedSettingsNotificationsRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
-    '/_authenticated/settings/my-account': {
-      id: '/_authenticated/settings/my-account'
-      path: '/my-account'
-      fullPath: '/settings/my-account'
-      preLoaderRoute: typeof AuthenticatedSettingsMyAccountRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
-    '/_authenticated/settings/members': {
-      id: '/_authenticated/settings/members'
-      path: '/members'
-      fullPath: '/settings/members'
-      preLoaderRoute: typeof AuthenticatedSettingsMembersRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
-    '/_authenticated/settings/billing': {
-      id: '/_authenticated/settings/billing'
-      path: '/billing'
-      fullPath: '/settings/billing'
-      preLoaderRoute: typeof AuthenticatedSettingsBillingRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
-    '/_authenticated/settings/api-keys': {
-      id: '/_authenticated/settings/api-keys'
-      path: '/api-keys'
-      fullPath: '/settings/api-keys'
-      preLoaderRoute: typeof AuthenticatedSettingsApiKeysRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    '/api/ai/form-generate': {
+      id: '/api/ai/form-generate'
+      path: '/api/ai/form-generate'
+      fullPath: '/api/ai/form-generate'
+      preLoaderRoute: typeof ApiAiFormGenerateRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/workspace/$workspaceId': {
       id: '/_authenticated/workspace/$workspaceId'
@@ -482,6 +444,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/workspace/$workspaceId'
       preLoaderRoute: typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/og/$shortId/$hash': {
+      id: '/api/og/$shortId/$hash'
+      path: '/api/og/$shortId/$hash'
+      fullPath: '/api/og/$shortId/$hash'
+      preLoaderRoute: typeof ApiOgShortIdHashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/forms/$shortId/meta': {
+      id: '/api/forms/$shortId/meta'
+      path: '/api/forms/$shortId/meta'
+      fullPath: '/api/forms/$shortId/meta'
+      preLoaderRoute: typeof ApiFormsShortIdMetaRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/workspace/$workspaceId/form-builder/$formId': {
       id: '/_authenticated/workspace/$workspaceId/form-builder/$formId'
@@ -504,6 +480,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRouteImport
       parentRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRoute
     }
+    '/_authenticated/workspace/$workspaceId/form-builder/$formId/insights': {
+      id: '/_authenticated/workspace/$workspaceId/form-builder/$formId/insights'
+      path: '/insights'
+      fullPath: '/workspace/$workspaceId/form-builder/$formId/insights'
+      preLoaderRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRouteImport
+      parentRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRoute
+    }
     '/_authenticated/workspace/$workspaceId/form-builder/$formId/edit': {
       id: '/_authenticated/workspace/$workspaceId/form-builder/$formId/edit'
       path: '/edit'
@@ -514,31 +497,9 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AuthenticatedSettingsRouteRouteChildren {
-  AuthenticatedSettingsApiKeysRoute: typeof AuthenticatedSettingsApiKeysRoute
-  AuthenticatedSettingsBillingRoute: typeof AuthenticatedSettingsBillingRoute
-  AuthenticatedSettingsMembersRoute: typeof AuthenticatedSettingsMembersRoute
-  AuthenticatedSettingsMyAccountRoute: typeof AuthenticatedSettingsMyAccountRoute
-  AuthenticatedSettingsNotificationsRoute: typeof AuthenticatedSettingsNotificationsRoute
-}
-
-const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
-  {
-    AuthenticatedSettingsApiKeysRoute: AuthenticatedSettingsApiKeysRoute,
-    AuthenticatedSettingsBillingRoute: AuthenticatedSettingsBillingRoute,
-    AuthenticatedSettingsMembersRoute: AuthenticatedSettingsMembersRoute,
-    AuthenticatedSettingsMyAccountRoute: AuthenticatedSettingsMyAccountRoute,
-    AuthenticatedSettingsNotificationsRoute:
-      AuthenticatedSettingsNotificationsRoute,
-  }
-
-const AuthenticatedSettingsRouteRouteWithChildren =
-  AuthenticatedSettingsRouteRoute._addFileChildren(
-    AuthenticatedSettingsRouteRouteChildren,
-  )
-
 interface AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteChildren {
   AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute
+  AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute
   AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRoute
   AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSubmissionsRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSubmissionsRoute
 }
@@ -547,6 +508,8 @@ const AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteChildren: Auth
   {
     AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute:
       AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute,
+    AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute:
+      AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute,
     AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRoute:
       AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRoute,
     AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSubmissionsRoute:
@@ -574,15 +537,11 @@ const AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren =
   )
 
 interface AuthenticatedRouteChildren {
-  AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
-  AuthenticatedAcceptInviteRoute: typeof AuthenticatedAcceptInviteRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedWorkspaceWorkspaceIdRouteRoute: typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
-  AuthenticatedAcceptInviteRoute: AuthenticatedAcceptInviteRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedWorkspaceWorkspaceIdRouteRoute:
     AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren,
@@ -594,16 +553,21 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SlugRoute: SlugRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
-  CreateRoute: CreateRoute,
-  LoginRoute: LoginRoute,
-  SignupRoute: SignupRoute,
-  VerifyEmailRoute: VerifyEmailRoute,
-  ApiElectricRoute: ApiElectricRoute,
-  DemoSplatRoute: DemoSplatRoute,
-  FormsFormIdRoute: FormsFormIdRoute,
+  RscTestRoute: RscTestRoute,
+  FFormIdRoute: FFormIdRoute,
+  FormsShortIdRoute: FormsShortIdRoute,
+  LoginEmailRoute: LoginEmailRoute,
+  LoginIndexRoute: LoginIndexRoute,
+  ApiAiFormGenerateRoute: ApiAiFormGenerateRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
-  FormsI8nFormIdRoute: FormsI8nFormIdRoute,
+  ApiCronAggregateAnalyticsRoute: ApiCronAggregateAnalyticsRoute,
+  ApiCronPurgeArchivedFormsRoute: ApiCronPurgeArchivedFormsRoute,
+  ApiIconsNameRoute: ApiIconsNameRoute,
+  ApiTrackVisitEndRoute: ApiTrackVisitEndRoute,
+  ApiFormsShortIdMetaRoute: ApiFormsShortIdMetaRoute,
+  ApiOgShortIdHashRoute: ApiOgShortIdHashRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

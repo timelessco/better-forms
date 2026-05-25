@@ -4,12 +4,17 @@ import { ResizableProvider, useResizableValue } from "@platejs/resizable";
 import type { TImageElement } from "platejs";
 import type { PlateElementProps } from "platejs/react";
 import { PlateElement, withHOC } from "platejs/react";
+import type React from "react";
 
 import { cn } from "@/lib/utils";
 
 import { Caption, CaptionTextarea } from "./caption";
 import { MediaToolbar } from "./media-toolbar";
 import { mediaResizeHandleVariants, Resizable, ResizeHandle } from "./resize-handle";
+
+const preventDefaultFocus = (e: React.FocusEvent) => {
+  e.preventDefault();
+};
 
 export const ImageElement = withHOC(
   ResizableProvider,
@@ -57,9 +62,7 @@ export const ImageElement = withHOC(
             <Caption style={{ width }} align={align}>
               <CaptionTextarea
                 readOnly={readOnly}
-                onFocus={(e) => {
-                  e.preventDefault();
-                }}
+                onFocus={preventDefaultFocus}
                 placeholder="Write a caption..."
               />
             </Caption>
