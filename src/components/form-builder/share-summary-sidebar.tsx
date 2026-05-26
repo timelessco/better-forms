@@ -234,6 +234,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
               codeDialogOpen={codeDialogOpen}
               setCodeDialogOpen={setCodeDialogOpen}
               selectedDomainName={selectedDomainName}
+              customization={doc.customization as Record<string, string> | null}
             />
           )}
         </div>
@@ -400,6 +401,7 @@ interface PublishedShareBodyProps {
   codeDialogOpen: boolean;
   setCodeDialogOpen: (open: boolean) => void;
   selectedDomainName: string | undefined;
+  customization?: Record<string, string> | null;
 }
 
 const PublishedShareBody = ({
@@ -419,6 +421,7 @@ const PublishedShareBody = ({
   codeDialogOpen,
   setCodeDialogOpen,
   selectedDomainName,
+  customization,
 }: PublishedShareBodyProps) => (
   <form.Subscribe selector={selectValues}>
     {(values: ReturnType<typeof searchToFormValues>) => {
@@ -433,6 +436,7 @@ const PublishedShareBody = ({
             darkOverlay={options.popup.overlay === "dark"}
             emojiIcon={options.popup.emojiIcon}
             alignLeft={options.display.alignment === "left"}
+            customization={customization}
           />
 
           <SidebarSection label="Customise" className="pb-2.75" action={<></>}>

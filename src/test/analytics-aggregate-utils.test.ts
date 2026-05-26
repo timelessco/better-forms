@@ -34,6 +34,9 @@ const makeVisit = (overrides: Partial<RawVisit> & { id: string }): RawVisit => {
     didStartForm: false,
     didSubmit: false,
     submissionId: null,
+    lcpMs: null,
+    inpMs: null,
+    cls: null,
     createdAt: baseTimestamp,
     updatedAt: baseTimestamp,
     ...rest,
@@ -183,6 +186,21 @@ describe("buildDailyAnalyticsRows", () => {
       direct: 1,
       twitter: 1,
     });
+  });
+
+  it("builds Core Web Vitals histograms from non-null samples", () => {
+    const visits = [
+      makeVisit({ id: "v1", lcpMs: 2000, inpMs: 150, cls: 0.04 }),
+      makeVisit({ id: "v2", lcpMs: 2100, inpMs: null, cls: null }),
+      makeVisit({ id: "v3", lcpMs: null, inpMs: null, cls: null }),
+    ];
+    const [row] = buildDailyAnalyticsRows(visits, dateKey, now);
+    // LCP 2000 & 2100 both floor to the 2000 bucket (width 250).
+    expect(row.lcpHistogram).toStrictEqual({ "2000": 2 });
+    // INP only v1 (150) is non-null -> bucket 150.
+    expect(row.inpHistogram).toStrictEqual({ "150": 1 });
+    // CLS only v1 (0.04) is non-null -> bucket 0.025 (0.04/0.025 = 1.6).
+    expect(row.clsHistogram).toStrictEqual({ "0.025": 1 });
   });
 });
 

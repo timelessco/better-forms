@@ -5,6 +5,8 @@ import { XIcon } from "@/components/ui/icons";
 import { SPRITE_PATH } from "@/lib/config/app-config";
 import { cn, isValidUrl } from "@/lib/utils";
 import type { EmbedType } from "@/hooks/use-editor-sidebar";
+import { useResolvedTheme } from "@/components/theme-provider";
+import { useFormCustomization } from "@/hooks/use-form-customization";
 
 interface EmbedPreviewMockupProps {
   embedType: EmbedType;
@@ -12,6 +14,7 @@ interface EmbedPreviewMockupProps {
   darkOverlay?: boolean;
   emojiIcon?: string;
   alignLeft?: boolean;
+  customization?: Record<string, string> | null;
 }
 
 const MORPH_SPRING = { type: "spring" as const, stiffness: 400, damping: 30 };
@@ -144,9 +147,15 @@ export const EmbedPreviewMockup = ({
   darkOverlay = false,
   emojiIcon = "👋",
   alignLeft = false,
+  customization: rawCustomization,
 }: EmbedPreviewMockupProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
+  const resolvedAppTheme = useResolvedTheme();
+  const { themeVars, hasCustomization } = useFormCustomization(
+    rawCustomization ? { customization: rawCustomization } : null,
+    resolvedAppTheme,
+  );
   const [isPopupExpanded, setIsPopupExpanded] = useState(false);
   const hasAnimated = useRef(false);
   const isResizing = useRef(false);
@@ -288,7 +297,9 @@ export const EmbedPreviewMockup = ({
             className={cn(
               "absolute z-20 overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.04)]",
               isPopup && !isPopupExpanded ? "bg-primary text-primary-foreground" : "bg-input",
+              isPopup && !isPopupExpanded && hasCustomization && "bf-themed",
             )}
+            style={isPopup && !isPopupExpanded && hasCustomization ? themeVars : undefined}
             animate={target}
             transition={transition}
             onAnimationComplete={handleAnimationComplete}
@@ -348,8 +359,17 @@ export const EmbedPreviewMockup = ({
           <button
             type="button"
             aria-label="Open popup preview"
-            className="absolute z-20 size-[28px] cursor-pointer rounded-full bg-[#e0e0e0] p-0 shadow-[0_2px_10px_rgba(0,0,0,0.04)] dark:bg-card"
-            style={{ left: bubblePos.left, top: bubblePos.top }}
+            className={cn(
+              "absolute z-20 size-[28px] cursor-pointer rounded-full p-0 shadow-[0_2px_10px_rgba(0,0,0,0.04)]",
+              hasCustomization
+                ? "bf-themed bg-primary text-primary-foreground"
+                : "bg-[#e0e0e0] dark:bg-card",
+            )}
+            style={{
+              left: bubblePos.left,
+              top: bubblePos.top,
+              ...(hasCustomization ? themeVars : undefined),
+            }}
             onMouseEnter={handleBubbleMouseEnter}
             onClick={handleBubbleClick}
           />

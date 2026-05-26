@@ -4,6 +4,8 @@ import type {
   formQuestionProgress,
   formVisits,
 } from "@/db/schema";
+import { resolveSource } from "./source";
+import { buildHistogram } from "./vitals";
 
 type RawVisit = typeof formVisits.$inferSelect;
 type RawProgress = typeof formQuestionProgress.$inferSelect;
@@ -86,6 +88,11 @@ export const buildDailyAnalyticsRows = (
     const cityBreakdown: Record<string, number> = {};
     const sourceBreakdown: Record<string, number> = {};
 
+    // Non-null Core Web Vitals samples for this form's day.
+    const lcpSamples: number[] = [];
+    const inpSamples: number[] = [];
+    const clsSamples: number[] = [];
+
     for (const visit of group) {
       uniqueVisitorHashes.add(visit.visitorHash);
 
@@ -98,13 +105,23 @@ export const buildDailyAnalyticsRows = (
         durations.push(visit.durationMs);
       }
 
+      if (visit.lcpMs !== null && visit.lcpMs !== undefined) {
+        lcpSamples.push(visit.lcpMs);
+      }
+      if (visit.inpMs !== null && visit.inpMs !== undefined) {
+        inpSamples.push(visit.inpMs);
+      }
+      if (visit.cls !== null && visit.cls !== undefined) {
+        clsSamples.push(visit.cls);
+      }
+
       bumpKey(deviceBreakdown, visit.deviceType);
       bumpKey(browserBreakdown, visit.browser ?? "Other");
       bumpKey(osBreakdown, visit.os ?? "Other");
       bumpKey(countryBreakdown, visit.country);
       bumpKey(cityBreakdown, visit.city);
 
-      const sourceKey = visit.utmSource ?? "direct";
+      const sourceKey = resolveSource({ utmSource: visit.utmSource, referrer: visit.referrer });
       sourceBreakdown[sourceKey] = (sourceBreakdown[sourceKey] ?? 0) + 1;
     }
 
@@ -124,6 +141,9 @@ export const buildDailyAnalyticsRows = (
       countryBreakdown,
       cityBreakdown,
       sourceBreakdown,
+      lcpHistogram: buildHistogram("lcp", lcpSamples),
+      inpHistogram: buildHistogram("inp", inpSamples),
+      clsHistogram: buildHistogram("cls", clsSamples),
       createdAt: now,
       updatedAt: now,
     });

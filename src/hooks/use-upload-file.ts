@@ -1,4 +1,5 @@
 import * as React from "react";
+import { parseError } from "@/lib/errors/parse";
 import { toast } from "sonner";
 import { uploadEditorMedia } from "@/lib/server-fn/uploads";
 
@@ -67,9 +68,21 @@ export const useUploadFile = ({ onUploadComplete, onUploadError }: UseUploadFile
       onUploadComplete?.(uploaded);
       return uploaded;
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Something went wrong, please try again later.";
-      toast.error(message);
+      const parsed = parseError(error);
+      const message = parsed.message || "Something went wrong, please try again later.";
+      // For known upload error codes, append the structured `fix` hint when
+      // available so the user gets a clear next step (e.g. "Try a file under
+      // 10 MB.") in the toast description.
+      const knownUploadCode =
+        parsed.code === "uploads/too-large" ||
+        parsed.code === "uploads/mime-not-allowed" ||
+        parsed.code === "uploads/rate-limited" ||
+        parsed.code === "uploads/empty-file";
+      if (knownUploadCode && parsed.fix) {
+        toast.error(message, { description: parsed.fix });
+      } else {
+        toast.error(message);
+      }
       onUploadError?.(error);
       return undefined;
     } finally {

@@ -128,7 +128,7 @@ export const Route = createFileRoute("/api/ai/form-generate")({
               const userAgent =
                 typeof sessionData.userAgent === "string" ? sessionData.userAgent : null;
               identifyUser(log, session, {
-                fields: ["name", "emailVerified"],
+                fields: ["emailVerified"],
                 session: false,
                 extend: () => ({
                   ...((ipAddress || userAgent) && {
@@ -170,13 +170,21 @@ export const Route = createFileRoute("/api/ai/form-generate")({
             limit: quota.limit,
           });
           if (!quota.allowed) {
+            // Wire-compatible with `parseError(err).code` on the client. The
+            // AI SDK's `useObject` doesn't route through ofetch, so it
+            // serializes the response body into Error.message as a string.
+            // `code` is included here so a client-side `JSON.parse(msg)`
+            // can branch on the stable identifier instead of substring
+            // matching `error: AI_DAILY_LIMIT_ERROR` (kept for back-compat).
             return new Response(
               JSON.stringify({
+                code: "quota/ai-daily-limit",
                 error: AI_DAILY_LIMIT_ERROR,
                 used: quota.used,
                 limit: quota.limit,
                 plan: quota.plan,
                 message: `Daily AI limit reached (${quota.used}/${quota.limit}). Upgrade to Pro for unlimited generations.`,
+                fix: "Upgrade to Pro for unlimited generations",
               }),
               { status: 429, headers: { "Content-Type": "application/json" } },
             );
@@ -225,7 +233,7 @@ export const Route = createFileRoute("/api/ai/form-generate")({
           ? `${basePrompt}\n\n${contextParts.join("\n\n")}`
           : basePrompt;
 
-        const modelMessages = await Promise.resolve(convertToModelMessages(messages));
+        const modelMessages = await convertToModelMessages(messages);
 
         // ── Theme mode: tool-call (one-shot, non-streaming) ─────────────────
         // Theme is atomic — no benefit to streaming, and tool-call gives the

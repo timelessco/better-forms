@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { and, asc, desc, eq, ne } from "drizzle-orm";
+import { createError } from "@/lib/errors/create";
 import { z } from "zod";
 import {
   formNotificationPreferences,
@@ -10,6 +11,7 @@ import {
 } from "@/db/schema";
 import { db } from "@/db";
 import { authMiddleware } from "@/lib/auth/middleware";
+import type { ErrorCode } from "@/lib/errors/codes";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm } from "./auth-helpers.server";
 
@@ -101,7 +103,14 @@ export const getFormInAppNotificationPreference = createServerFn({ method: "GET"
       .limit(1);
 
     if (!form) {
-      throw new Error("Form not found");
+      throw createError({
+        code: "forms/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Form not found",
+        why: "No form row matched the provided ID after auth passed",
+        fix: "Check the form ID — it may have been deleted",
+        internal: { formId: data.formId },
+      });
     }
 
     const isOwner = form.createdByUserId === userId;
@@ -153,11 +162,25 @@ export const setFormInAppNotificationPreference = createServerFn({ method: "POST
       .limit(1);
 
     if (!form) {
-      throw new Error("Form not found");
+      throw createError({
+        code: "forms/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Form not found",
+        why: "No form row matched the provided ID after auth passed",
+        fix: "Check the form ID — it may have been deleted",
+        internal: { formId: data.formId },
+      });
     }
 
     if (form.createdByUserId !== userId) {
-      throw new Error("Only the form owner can manage in-app notifications");
+      throw createError({
+        code: "notifications/forbidden" satisfies ErrorCode,
+        status: 403,
+        message: "Only the form owner can manage in-app notifications",
+        why: "User is a workspace member but not the form's creator",
+        fix: "Ask the form owner to change this setting",
+        internal: { formId: data.formId, userId, createdByUserId: form.createdByUserId },
+      });
     }
 
     const now = new Date();

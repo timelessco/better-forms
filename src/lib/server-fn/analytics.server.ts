@@ -19,13 +19,18 @@ import { isBotUserAgent } from "@/lib/analytics/bot-filter";
 import { PER_QUESTION_ANALYTICS_CUT_TS } from "@/lib/analytics/cut-date";
 import { filterByCutDate, mergeDropoffMetrics } from "@/lib/analytics/merge-dropoff";
 import { mergeInsightsMetrics } from "@/lib/analytics/merge-metrics";
+import { buildVitalsMetrics } from "@/lib/analytics/merge-vitals";
 import { parseUserAgent } from "@/lib/analytics/parse-user-agent";
 import { resolveTimeRange, splitTodayVsPast, toDateKey } from "@/lib/analytics/time-range";
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { authForm } from "@/lib/server-fn/auth-helpers.server";
 import { isServerPlan } from "@/lib/server-fn/plan-helpers";
 import { getOrgPlanWithPolarSync } from "@/lib/server-fn/plan-helpers.server";
-import type { FormInsightsMetrics, QuestionDropoffMetrics } from "@/types/analytics";
+import type {
+  FormInsightsMetrics,
+  FormVitalsMetrics,
+  QuestionDropoffMetrics,
+} from "@/types/analytics";
 
 export type RecordFormVisitInput = {
   formId: string;
@@ -44,6 +49,9 @@ export type UpdateFormVisitInput = {
   submissionId?: string | null;
   visitEndedAt?: string | null;
   durationMs?: number | null;
+  lcpMs?: number | null;
+  inpMs?: number | null;
+  cls?: number | null;
 };
 
 export type RecordQuestionProgressInput = {
@@ -162,6 +170,15 @@ export const updateFormVisitImpl = async (data: UpdateFormVisitInput): Promise<{
   if (data.durationMs !== undefined) {
     updates.durationMs = data.durationMs;
   }
+  if (data.lcpMs !== undefined) {
+    updates.lcpMs = data.lcpMs;
+  }
+  if (data.inpMs !== undefined) {
+    updates.inpMs = data.inpMs;
+  }
+  if (data.cls !== undefined) {
+    updates.cls = data.cls;
+  }
 
   await db.update(formVisits).set(updates).where(eq(formVisits.id, data.visitId));
   return { ok: true };
@@ -267,6 +284,111 @@ export const getFormInsightsImpl = async (
     endDate: data.endDate ?? toDateKey(range.end),
     days: range.days,
     todayKey: split.todayStart ? toDateKey(split.todayStart) : null,
+  });
+};
+
+/**
+ * Day keys for the period immediately preceding `rangeDays` (same length),
+ * used to compute "vs prior period" deltas. The prior window is always fully
+ * in the past, so it reads entirely from aggregated daily rows.
+ */
+const priorDayKeys = (rangeDays: string[]): string[] => {
+  const firstKey = rangeDays[0];
+  if (!firstKey) {
+    return [];
+  }
+  const firstDay = new Date(`${firstKey}T00:00:00.000Z`);
+  const keys: string[] = [];
+  for (let offset = rangeDays.length; offset >= 1; offset--) {
+    keys.push(toDateKey(new Date(firstDay.getTime() - offset * MS_PER_DAY)));
+  }
+  return keys;
+};
+
+export const getFormVitalsImpl = async (
+  data: InsightsFilterInput,
+  context: { session: { user: { id: string } } },
+  orgId: string,
+): Promise<FormVitalsMetrics> => {
+  await authForm(data.formId, context.session.user.id, orgId);
+
+  const now = new Date();
+  const range = resolveTimeRange(
+    { filter: data.filter, startDate: data.startDate, endDate: data.endDate },
+    now,
+  );
+  const split = splitTodayVsPast(range, now);
+  const startDate = data.startDate ?? toDateKey(range.start);
+  const endDate = data.endDate ?? toDateKey(range.end);
+
+  const enabled = await isAnalyticsEnabled(data.formId);
+  if (!enabled) {
+    return buildVitalsMetrics({
+      dailyRows: [],
+      todayRawRows: [],
+      priorDailyRows: [],
+      days: range.days,
+      todayKey: split.todayStart ? toDateKey(split.todayStart) : null,
+      startDate,
+      endDate,
+    });
+  }
+
+  const dailyVitalsColumns = {
+    date: formAnalyticsDaily.date,
+    lcpHistogram: formAnalyticsDaily.lcpHistogram,
+    inpHistogram: formAnalyticsDaily.inpHistogram,
+    clsHistogram: formAnalyticsDaily.clsHistogram,
+  };
+
+  const dailyRows =
+    split.pastDays.length > 0
+      ? await db
+          .select(dailyVitalsColumns)
+          .from(formAnalyticsDaily)
+          .where(
+            and(
+              eq(formAnalyticsDaily.formId, data.formId),
+              inArray(formAnalyticsDaily.date, split.pastDays),
+            ),
+          )
+      : [];
+
+  const todayRawRows = split.rawStart
+    ? await db
+        .select({ lcpMs: formVisits.lcpMs, inpMs: formVisits.inpMs, cls: formVisits.cls })
+        .from(formVisits)
+        .where(
+          and(
+            eq(formVisits.formId, data.formId),
+            gte(formVisits.visitStartedAt, split.rawStart),
+            lte(formVisits.visitStartedAt, range.end),
+          ),
+        )
+    : [];
+
+  const priorDays = priorDayKeys(range.days);
+  const priorDailyRows =
+    priorDays.length > 0
+      ? await db
+          .select(dailyVitalsColumns)
+          .from(formAnalyticsDaily)
+          .where(
+            and(
+              eq(formAnalyticsDaily.formId, data.formId),
+              inArray(formAnalyticsDaily.date, priorDays),
+            ),
+          )
+      : [];
+
+  return buildVitalsMetrics({
+    dailyRows,
+    todayRawRows,
+    priorDailyRows,
+    days: range.days,
+    todayKey: split.todayStart ? toDateKey(split.todayStart) : null,
+    startDate,
+    endDate,
   });
 };
 

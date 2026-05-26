@@ -1,4 +1,5 @@
 import { bumpKey } from "@/lib/analytics/aggregate-utils";
+import { resolveSource } from "@/lib/analytics/source";
 import type { formAnalyticsDaily, formVisits } from "@/db/schema";
 import type { CountBreakdown, FormInsightsMetrics } from "@/types/analytics";
 
@@ -132,7 +133,7 @@ const aggregateRawRows = (rows: RawVisitRow[]): RawAggregate => {
     bumpKey(devices, row.deviceType);
     bumpKey(countries, row.country);
     bumpKey(cities, row.city);
-    bumpKey(sources, row.utmSource);
+    bumpKey(sources, resolveSource({ utmSource: row.utmSource, referrer: row.referrer }));
     bumpKey(browsers, bucketBrowser(row.browser));
     bumpKey(operatingSystems, bucketOs(row.os));
   }

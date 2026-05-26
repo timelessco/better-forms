@@ -1,6 +1,6 @@
-import { createIsomorphicFn } from "@tanstack/react-start";
 import { clsx } from "clsx";
 import type { ClassValue } from "clsx";
+import { log } from "evlog";
 import { twMerge } from "tailwind-merge";
 
 export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
@@ -35,15 +35,28 @@ export const isValidUrl = (str: string): boolean => {
   }
 };
 
-export const logger = createIsomorphicFn()
-  .client((...args: unknown[]) => {
-    if (!import.meta.env.PROD) {
-      console.log("[Client Log] :", ...args);
-    }
-  })
-  .server((...args: unknown[]) => {
-    if (process.env.NODE_ENV === "production") return;
-    console.log("[Server Log] :", ...args);
-  });
+// Diagnostic helper — routes through evlog's debug level. The actual
+// `log.debug(...)` call expressions below are removed from production
+// builds by `evlog/vite`'s default `strip: ['debug']` AST transform, so in
+// prod this function is effectively `() => {}`. Don't remove that strip
+// without re-adding an `import.meta.env.PROD` guard, or these 45+ call
+// sites will start flooding production logs.
+// Inputs:
+//   logger("[tag]")           → { tag: "[tag]" }
+//   logger("[tag]", data)     → { tag: "[tag]", data }
+//   logger("[tag]", a, b, c)  → { tag: "[tag]", data: [a, b, c] }
+//   logger({ ... })           → passes the object through directly
+export const logger = (...args: unknown[]): void => {
+  if (args.length === 0) return;
+  const [first, ...rest] = args;
+  if (typeof first === "string") {
+    log.debug({
+      tag: first,
+      ...(rest.length > 0 && { data: rest.length === 1 ? rest[0] : rest }),
+    });
+    return;
+  }
+  log.debug(first as Record<string, unknown>);
+};
 
 export const isNullable = (value: unknown): value is null | undefined => value == null;

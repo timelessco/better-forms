@@ -1,3 +1,5 @@
+import type { VitalRating } from "@/lib/analytics/vitals";
+
 export type DeviceType = "desktop" | "tablet" | "mobile";
 
 export type BrowserType = "Chrome" | "Firefox" | "Safari" | "Edge" | "Opera" | "Other";
@@ -33,6 +35,11 @@ export interface FormVisit {
   didStartForm: boolean;
   didSubmit: boolean;
   submissionId: string | null;
+
+  // Core Web Vitals for this session (RUM, nullable — finalize on page-hide).
+  lcpMs: number | null;
+  inpMs: number | null;
+  cls: number | null;
 
   createdAt: Date;
   updatedAt: Date;
@@ -74,6 +81,11 @@ export interface FormAnalyticsDaily {
   countryBreakdown: CountBreakdown;
   cityBreakdown: CountBreakdown;
   sourceBreakdown: CountBreakdown;
+
+  // Per-day Core Web Vitals distributions (bucket label -> sample count).
+  lcpHistogram: CountBreakdown;
+  inpHistogram: CountBreakdown;
+  clsHistogram: CountBreakdown;
 
   createdAt: Date;
   updatedAt: Date;
@@ -151,6 +163,37 @@ export interface QuestionDropoffMetrics {
   totalStarted: number;
   totalCompleted: number;
   overallCompletionRate: number;
+}
+
+/** Per-metric Core Web Vitals summary over a time range. */
+export interface VitalMetricSummary {
+  /** 75th-percentile value (ms for lcp/inp, unitless for cls), null if no samples. */
+  p75: number | null;
+  rating: VitalRating | null;
+  sampleCount: number;
+  /**
+   * Change vs the immediately-preceding period of equal length (current − prior).
+   * For all three metrics a negative delta is an improvement. Null when either
+   * period lacks samples.
+   */
+  deltaVsPrev: number | null;
+}
+
+export interface FormVitalsMetrics {
+  startDate: string;
+  endDate: string;
+
+  lcp: VitalMetricSummary;
+  inp: VitalMetricSummary;
+  cls: VitalMetricSummary;
+
+  /** Per-day p75 series for the trend chart; missing days resolve to null. */
+  series: {
+    date: string;
+    lcpP75: number | null;
+    inpP75: number | null;
+    clsP75: number | null;
+  }[];
 }
 
 export type TimeRangeFilter =

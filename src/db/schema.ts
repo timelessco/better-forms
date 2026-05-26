@@ -6,6 +6,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  real,
   serial,
   text,
   timestamp,
@@ -436,6 +437,12 @@ export const formVisits = pgTable(
     didSubmit: boolean().notNull().default(false),
     submissionId: text().references(() => submissions.id, { onDelete: "set null" }),
 
+    // Core Web Vitals (RUM, one sample per session). Nullable: finalize on
+    // page-hide and may be absent (e.g. no interaction => no INP).
+    lcpMs: integer(),
+    inpMs: integer(),
+    cls: real(),
+
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -516,6 +523,11 @@ export const formAnalyticsDaily = pgTable(
     countryBreakdown: jsonb().$type<Record<string, number>>().notNull().default({}),
     cityBreakdown: jsonb().$type<Record<string, number>>().notNull().default({}),
     sourceBreakdown: jsonb().$type<Record<string, number>>().notNull().default({}),
+
+    // Core Web Vitals distributions: bucket label -> sample count (see lib/analytics/vitals).
+    lcpHistogram: jsonb("lcp_histogram").$type<Record<string, number>>().notNull().default({}),
+    inpHistogram: jsonb("inp_histogram").$type<Record<string, number>>().notNull().default({}),
+    clsHistogram: jsonb("cls_histogram").$type<Record<string, number>>().notNull().default({}),
 
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

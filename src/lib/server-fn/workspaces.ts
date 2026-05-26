@@ -16,7 +16,9 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { purgeFormCacheBatch } from "@/lib/server-fn/cdn-cache";
 import { createServerFn } from "@tanstack/react-start";
 import { and, count, eq, inArray } from "drizzle-orm";
+import { createError } from "@/lib/errors/create";
 import { z } from "zod";
+import type { ErrorCode } from "@/lib/errors/codes";
 import { getActiveOrgId } from "./auth-helpers";
 import { authWorkspace } from "./auth-helpers.server";
 
@@ -120,7 +122,14 @@ export const deleteWorkspace = createServerFn({ method: "POST" })
       .from(workspaces)
       .where(eq(workspaces.organizationId, orgId));
     if (total <= 1) {
-      throw new Error("Cannot delete the last workspace. You must have at least one workspace.");
+      throw createError({
+        code: "workspaces/cannot-delete-last" satisfies ErrorCode,
+        status: 422,
+        message: "Cannot delete the last workspace. You must have at least one workspace.",
+        why: "Deleting the last workspace would leave the org with nowhere to create forms",
+        fix: "Create another workspace first, then delete this one",
+        internal: { orgId, workspaceId: data.id },
+      });
     }
 
     const result = await db.transaction(async (tx) => {

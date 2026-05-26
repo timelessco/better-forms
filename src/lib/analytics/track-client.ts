@@ -21,6 +21,11 @@ type UpdateVisitArgs = {
   submissionId?: string | null;
   visitEndedAt?: string | null;
   durationMs?: number | null;
+  // Core Web Vitals for the session, sent on the unload beacon. Each is
+  // optional/null — a metric may never finalize (e.g. no interaction => no INP).
+  lcpMs?: number | null;
+  inpMs?: number | null;
+  cls?: number | null;
 };
 
 type QuestionProgressArgs = {
@@ -86,6 +91,9 @@ export const fireUpdateVisitBeacon = (args: UpdateVisitArgs): void => {
         visitId: args.visitId,
         visitEndedAt: args.visitEndedAt,
         durationMs: args.durationMs,
+        lcpMs: args.lcpMs,
+        inpMs: args.inpMs,
+        cls: args.cls,
       }),
     ],
     { type: "text/plain" },

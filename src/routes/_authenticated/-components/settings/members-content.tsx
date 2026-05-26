@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { parseError } from "@/lib/errors/parse";
 import { ClockIcon, MailIcon, PlusIcon, Trash2Icon, XIcon } from "@/components/ui/icons";
 import { useId } from "react";
 import { toast } from "sonner";
@@ -35,7 +36,7 @@ export const MembersContent = () => {
         toast.success("Invitation sent successfully");
       },
       onError: (error) => {
-        toast.error(error.message || "Failed to send invitation");
+        toast.error(parseError(error).message || "Failed to send invitation");
       },
     }),
   );
@@ -49,7 +50,7 @@ export const MembersContent = () => {
         toast.success("Invitation cancelled");
       },
       onError: (error) => {
-        toast.error(error.message || "Failed to cancel invitation");
+        toast.error(parseError(error).message || "Failed to cancel invitation");
       },
     }),
   );
