@@ -1,5 +1,17 @@
-import { pgTable, text, serial, jsonb, timestamp, integer, boolean, index, uniqueIndex, unique, check } from 'drizzle-orm/pg-core';
-import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  text,
+  serial,
+  jsonb,
+  timestamp,
+  integer,
+  boolean,
+  index,
+  uniqueIndex,
+  unique,
+  check,
+} from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const account = pgTable("account", {
