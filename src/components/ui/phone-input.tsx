@@ -1,11 +1,13 @@
 /* eslint-disable eslint/func-style, eslint-plugin-react/jsx-no-constructed-context-values */
 import { Combobox as ComboboxPrimitive } from "@base-ui/react";
+import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { createContext, use, useMemo, useState } from "react";
 import * as BasePhoneInput from "react-phone-number-input";
 
 import { useMounted } from "@/hooks/use-mounted";
 import { useReanchorThemeProps } from "@/hooks/use-form-theme";
+import { getVisitorCountry } from "@/lib/server-fn/geo";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +30,35 @@ const getBrowserDefaultCountry = (): BasePhoneInput.Country | undefined => {
   if (typeof navigator === "undefined") return undefined;
   const region = navigator.language.split(/[-_]/)[1]?.toUpperCase();
   return region && BasePhoneInput.isSupportedCountry(region) ? region : undefined;
+};
+
+/**
+ * Resolve the initial country for the phone field, preferring the
+ * Respondent's actual location over their browser UI language:
+ *   1. an explicit `defaultCountry` prop, if supplied;
+ *   2. Vercel edge geo-IP (`x-vercel-ip-country`), read once and shared
+ *      across every PhoneInput via the `visitor-country` query;
+ *   3. the browser locale's region — but ONLY after the geo query settles
+ *      with no usable result (local dev / non-Vercel), so we never flash a
+ *      locale-derived country (e.g. US for an `en-US` browser) before geo
+ *      resolves and reformat an autofilled number under the wrong country.
+ */
+const useResolvedDefaultCountry = (
+  override: BasePhoneInput.Country | undefined,
+): BasePhoneInput.Country | undefined => {
+  const mounted = useMounted();
+  const { data: geoCountry, isPending: geoPending } = useQuery({
+    queryKey: ["visitor-country"],
+    queryFn: () => getVisitorCountry(),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  if (override) return override;
+  if (geoCountry && BasePhoneInput.isSupportedCountry(geoCountry)) return geoCountry;
+  return mounted && !geoPending ? getBrowserDefaultCountry() : undefined;
 };
 
 type PhoneInputSize = "sm" | "default" | "lg";
@@ -65,10 +96,10 @@ function PhoneInput({
 }: PhoneInputProps) {
   const phoneInputSize = variant || "default";
   // `defaultCountry` is read once on mount by react-phone-number-input, so
-  // we wait for hydration before deriving from `navigator.language` and key
-  // the underlying component so it remounts with the resolved value.
-  const mounted = useMounted();
-  const defaultCountry = defaultCountryProp ?? (mounted ? getBrowserDefaultCountry() : undefined);
+  // we resolve it after hydration (geo-IP first, browser locale as a settled
+  // fallback) and key the underlying component so it remounts with the
+  // resolved value.
+  const defaultCountry = useResolvedDefaultCountry(defaultCountryProp);
   return (
     <PhoneInputContext.Provider
       value={{ variant: phoneInputSize, popupClassName, scrollAreaClassName }}
