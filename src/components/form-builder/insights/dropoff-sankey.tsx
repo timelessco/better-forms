@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ComposedChart, ResponsiveContainer, useChartHeight, useChartWidth } from "recharts";
 
@@ -300,16 +300,18 @@ const FunnelChart = ({ segments }: FunnelChartProps) => {
               <FunnelPaths segments={segments} onHoverChange={setHover} />
             </ComposedChart>
           </ResponsiveContainer>
-          {hover && hovered && (
-            <FunnelHoverCard
-              segment={hovered}
-              index={hover.index}
-              x={hover.x}
-              y={hover.y}
-              chartWidth={hover.chartWidth}
-              chartHeight={hover.chartHeight}
-            />
-          )}
+          <AnimatePresence>
+            {hover && hovered && (
+              <FunnelHoverCard
+                key="funnel-hover"
+                segment={hovered}
+                x={hover.x}
+                y={hover.y}
+                chartWidth={hover.chartWidth}
+                chartHeight={hover.chartHeight}
+              />
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
@@ -318,7 +320,6 @@ const FunnelChart = ({ segments }: FunnelChartProps) => {
 
 interface FunnelHoverCardProps {
   segment: FunnelSegment;
-  index: number;
   x: number;
   y: number;
   chartWidth: number;
@@ -327,14 +328,21 @@ interface FunnelHoverCardProps {
 
 const CURSOR_OFFSET = 16;
 
-const FunnelHoverCard = ({
-  segment,
-  index,
-  x,
-  y,
-  chartWidth,
-  chartHeight,
-}: FunnelHoverCardProps) => {
+// One metric row, matching an EvilCharts ChartTooltipContent line:
+// muted label on the left, mono tabular value on the right.
+const FunnelStatRow = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex flex-1 items-center justify-between gap-4 leading-none">
+    <span className="text-muted-foreground">{label}</span>
+    <span className="font-mono font-medium text-foreground tabular-nums">{value}</span>
+  </div>
+);
+
+// Mirrors the EvilCharts ChartTooltipContent surface (used by "Visits over
+// time") — same container, header, typography and fade — so the two charts'
+// floating cards read identically. The component itself can't be reused
+// directly: it depends on the Recharts <ChartContainer> context + payload,
+// which this hand-drawn SVG funnel doesn't have.
+const FunnelHoverCard = ({ segment, x, y, chartWidth, chartHeight }: FunnelHoverCardProps) => {
   // Flip the card across the cursor when it would overflow the chart on the
   // right or bottom — keeps the tooltip inside the visible viewport on the
   // last column / bottom of the chart without measuring the card itself.
@@ -346,41 +354,28 @@ const FunnelHoverCard = ({
   ].join(" ");
 
   return (
-    <div
-      className="pointer-events-none absolute z-10 min-w-[180px] rounded-lg border border-border bg-popover px-3 py-2 elevation-sm"
-      style={{
-        left: x + CURSOR_OFFSET,
-        top: y + CURSOR_OFFSET,
-        transform,
-      }}
+    <motion.div
+      className="pointer-events-none absolute z-10 grid min-w-32 items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl"
+      style={{ left: x + CURSOR_OFFSET, top: y + CURSOR_OFFSET, transform }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
     >
-      <div className="mb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-        Step {index + 1}
-      </div>
-      <div className="truncate text-[13px] font-medium text-foreground" title={segment.label}>
+      <div className="truncate font-medium text-foreground" title={segment.label}>
         {segment.label}
       </div>
-      <div className="mt-1 flex items-baseline justify-between gap-3 text-[13px]">
-        <span className="text-muted-foreground">Count</span>
-        <span className="font-semibold text-foreground tabular-nums">
-          {numberFormatter.format(segment.count)}
-        </span>
+      <div className="grid gap-1.5">
+        <FunnelStatRow label="Count" value={numberFormatter.format(segment.count)} />
+        <FunnelStatRow label="Retention" value={`${Math.round(segment.retention * 100)}%`} />
+        {segment.stepDrop !== null && (
+          <FunnelStatRow
+            label="Drop vs. previous"
+            value={`−${Math.round(segment.stepDrop * 100)}%`}
+          />
+        )}
       </div>
-      <div className="flex items-baseline justify-between gap-3 text-[13px]">
-        <span className="text-muted-foreground">Retention</span>
-        <span className="font-semibold text-foreground tabular-nums">
-          {Math.round(segment.retention * 100)}%
-        </span>
-      </div>
-      {segment.stepDrop !== null && (
-        <div className="flex items-baseline justify-between gap-3 text-[13px]">
-          <span className="text-muted-foreground">Drop vs. previous</span>
-          <span className="font-semibold text-foreground tabular-nums">
-            −{Math.round(segment.stepDrop * 100)}%
-          </span>
-        </div>
-      )}
-    </div>
+    </motion.div>
   );
 };
 
