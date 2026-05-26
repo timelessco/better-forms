@@ -1,4 +1,5 @@
 import { ThemedFormIcon } from "@/components/icon-picker";
+import { IconSwap } from "@/components/transitions/icon-swap";
 import { SidebarItem } from "@/components/sidebar-item";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -185,7 +186,11 @@ export const WorkspaceItemMinimal = ({
                 void handleCreateForm();
               }}
             >
-              {isCreatingForm ? <Loader2Icon className="animate-spin" /> : <PlusIcon />}
+              <IconSwap
+                state={isCreatingForm ? "b" : "a"}
+                iconA={<PlusIcon />}
+                iconB={<Loader2Icon className="animate-spin" />}
+              />
             </Button>
             <DropdownMenu onOpenChange={handlePopoverOpenChange}>
               <DropdownMenuTrigger

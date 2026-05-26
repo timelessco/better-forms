@@ -1,4 +1,5 @@
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { TextSwap } from "@/components/transitions/text-swap";
 import { Input } from "@/components/ui/input";
 import { StyleNumberInput } from "@/components/ui/style-controls";
 import { Switch } from "@/components/ui/switch";
@@ -699,7 +700,10 @@ const ProSection = ({
               saveLiveSettings().catch((err) => console.error("[LiveSettings] Save failed:", err));
             }}
           >
-            {isSaving ? "Saving…" : "Save"}
+            {(() => {
+              const label = isSaving ? "Saving…" : "Save";
+              return <TextSwap key={label}>{label}</TextSwap>;
+            })()}
           </Button>
         </div>
       </div>

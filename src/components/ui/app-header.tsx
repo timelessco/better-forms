@@ -27,6 +27,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { IconSwap } from "@/components/transitions/icon-swap";
+import { TextSwap } from "@/components/transitions/text-swap";
 import { toggleFavoriteLocal, updateFormStatus } from "@/collections";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import { discardChanges, publishForm, useHasUnpublishedChanges } from "@/hooks/use-form-versions";
@@ -846,11 +848,11 @@ const FormBuilderHeaderActions = ({
               />
             }
           >
-            {isDiscarding ? (
-              <Loader2Icon className="size-4 animate-spin text-gray-700" strokeWidth={2} />
-            ) : (
-              <RotateCcwIcon className="size-4 text-gray-700" strokeWidth={2} />
-            )}
+            <IconSwap
+              state={isDiscarding ? "b" : "a"}
+              iconA={<RotateCcwIcon className="size-4 text-gray-700" strokeWidth={2} />}
+              iconB={<Loader2Icon className="size-4 animate-spin text-gray-700" strokeWidth={2} />}
+            />
           </TooltipTrigger>
           <TooltipContent>
             <p>Reset to last published version</p>
@@ -902,11 +904,11 @@ const FormBuilderHeaderActions = ({
                     />
                   }
                 >
-                  {previewMode ? (
-                    <EyeOffIcon className="text-gray-700" />
-                  ) : (
-                    <EyeIcon className="text-gray-700" />
-                  )}
+                  <IconSwap
+                    state={previewMode ? "b" : "a"}
+                    iconA={<EyeIcon className="text-gray-700" />}
+                    iconB={<EyeOffIcon className="text-gray-700" />}
+                  />
                 </TooltipTrigger>
                 <TooltipContent side="bottom" align="end">
                   <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
@@ -994,9 +996,9 @@ const FormBuilderHeaderActions = ({
                   {isPublishing ? (
                     <Loader2Icon className="size-4 animate-spin" />
                   ) : savedDocs?.[0]?.status === "published" && !hasUnpublishedChanges ? (
-                    "Published"
+                    <TextSwap key="Published">Published</TextSwap>
                   ) : (
-                    "Publish"
+                    <TextSwap key="Publish">Publish</TextSwap>
                   )}
                 </TooltipTrigger>
                 <TooltipContent side="bottom" align="end">

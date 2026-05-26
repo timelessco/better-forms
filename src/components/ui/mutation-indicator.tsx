@@ -1,5 +1,7 @@
 import { useMutationState } from "@tanstack/react-query";
 
+import { NumberPopIn } from "@/components/transitions/number-pop-in";
+
 /**
  * Dev-only indicator showing pending mutations.
  * Positioned in top-left corner.
@@ -26,7 +28,8 @@ export const MutationIndicator = () => {
       className="bg-plain-reverse text-plain fixed top-1 left-1 z-50 flex items-center gap-1.5 rounded-full px-2.5 py-2 text-xs"
     >
       <span className="bg-plain size-4 animate-pulse rounded-full" />
-      Saving {pendingMutations.length}...
+      Saving <NumberPopIn value={pendingMutations.length} />
+      ...
     </div>
   );
 };

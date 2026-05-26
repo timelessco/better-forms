@@ -36,6 +36,34 @@ const {
   useFormContext,
 } = createFormHookContexts();
 
+// Duration (ms) of the t-input-shake keyframe — keep in sync with the
+// --shake-dur-* tokens in transitions.css (80*2 + 60*2 = 280ms), plus a small
+// buffer before stripping the class so the animation always completes.
+const SHAKE_CLEANUP_MS = 320;
+
+/**
+ * Replay the error shake on every invalid field inside this form. Runs on a
+ * failed submit (validation blocks the submit but marks fields touched, so they
+ * now carry `aria-invalid="true"`). Deferred one frame so React has flushed the
+ * aria-invalid state onto the DOM before we query for it.
+ */
+const shakeInvalidFields = (formEl: HTMLFormElement) => {
+  requestAnimationFrame(() => {
+    const invalid = Array.from(formEl.querySelectorAll<HTMLElement>('[aria-invalid="true"]'));
+    // A field group (<f.Field>) and its inner control can both report invalid.
+    // Shake only the outermost so each field jolts once, not twice.
+    const outermost = invalid.filter(
+      (el) => !invalid.some((other) => other !== el && other.contains(el)),
+    );
+    for (const fieldEl of outermost) {
+      fieldEl.classList.remove("t-shake");
+      void fieldEl.offsetWidth; // force reflow so the keyframe restarts
+      fieldEl.classList.add("t-shake");
+      setTimeout(() => fieldEl.classList.remove("t-shake"), SHAKE_CLEANUP_MS);
+    }
+  });
+};
+
 const Form = ({
   children,
   className,
@@ -50,7 +78,11 @@ const Form = ({
     (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       e.stopPropagation();
-      void form.handleSubmit();
+      // Capture synchronously — React reuses the event object after the handler.
+      const formEl = e.currentTarget;
+      void form.handleSubmit().then(() => {
+        shakeInvalidFields(formEl);
+      });
     },
     [form],
   );

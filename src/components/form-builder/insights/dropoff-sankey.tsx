@@ -6,6 +6,7 @@ import type { ComponentProps } from "react";
 import { ChartContainer } from "@/components/evilcharts/ui/chart";
 import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 import { ChartTooltip, ChartTooltipContent } from "@/components/evilcharts/ui/tooltip";
+import { NumberPopIn } from "@/components/transitions/number-pop-in";
 import { numberFormatter } from "@/lib/analytics/format";
 import { rollupToSteps } from "@/lib/analytics/step-rollup";
 import type { StepDropoffMetrics } from "@/lib/analytics/step-rollup";
@@ -262,8 +263,8 @@ const FunnelChart = ({ segments }: FunnelChartProps) => {
                 {seg.label}
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-semibold text-foreground tabular-nums">
-                  {numberFormatter.format(seg.count)}
+                <span className="text-2xl font-semibold text-foreground">
+                  <NumberPopIn value={numberFormatter.format(seg.count)} className="tabular-nums" />
                 </span>
                 {seg.stepDrop !== null && seg.stepDrop > 0 && (
                   <span className="text-[11px] text-muted-foreground tabular-nums">

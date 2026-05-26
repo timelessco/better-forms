@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "./inter-v.css";
+@import "./transitions.css";
 
 @custom-variant dark (&:is(.dark *));
 

@@ -8,6 +8,7 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } fro
 import { useFormGenStream } from "@/components/editor/hooks/use-form-gen-stream";
 import { AIInputPlugin, hideAIInput } from "@/components/editor/plugins/ai-input-base";
 import type { AIInputState } from "@/components/editor/plugins/ai-input-base";
+import { IconSwap } from "@/components/transitions/icon-swap";
 import { Button } from "@/components/ui/button";
 import { CheckIcon, ImageIcon, Loader2Icon, SparklesIcon, XIcon } from "@/components/ui/icons";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -466,26 +467,19 @@ const PromptInputRow = ({
       <ImageIcon />
     </Button>
 
-    {isLoading ? (
-      <Button
-        variant="secondary"
-        size="icon-xs"
-        onClick={handleStop}
-        className="rounded-full"
-        aria-label="Stop generation"
-      >
-        <Loader2Icon className="animate-spin" />
-      </Button>
-    ) : (
-      <Button
-        size="icon-xs"
-        onClick={handleSubmit}
-        disabled={!input.trim() && attachedImagesCount === 0}
-        className="rounded-full"
-        aria-label="Submit prompt"
-      >
-        <ArrowUpIcon strokeWidth={2.5} />
-      </Button>
-    )}
+    <Button
+      variant={isLoading ? "secondary" : "default"}
+      size="icon-xs"
+      onClick={isLoading ? handleStop : handleSubmit}
+      disabled={!isLoading && !input.trim() && attachedImagesCount === 0}
+      className="rounded-full"
+      aria-label={isLoading ? "Stop generation" : "Submit prompt"}
+    >
+      <IconSwap
+        state={isLoading ? "b" : "a"}
+        iconA={<ArrowUpIcon strokeWidth={2.5} />}
+        iconB={<Loader2Icon className="animate-spin" />}
+      />
+    </Button>
   </div>
 );

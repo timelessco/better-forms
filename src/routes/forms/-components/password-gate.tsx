@@ -32,9 +32,25 @@ export const PasswordGate = ({ formId, children }: PasswordGateProps) => {
     passwordInputRef.current?.focus();
   }, []);
 
+  const triggerShake = useCallback(() => {
+    // Defer to the next frame so the class lands AFTER React flushes the
+    // setError re-render — otherwise the recomputed className overwrites the
+    // class attribute and strips the shake before it plays. `t-shake` is the
+    // animation-only shake helper (see transitions.css).
+    requestAnimationFrame(() => {
+      const input = passwordInputRef.current;
+      if (!input) return;
+      input.classList.remove("t-shake");
+      void input.offsetWidth;
+      input.classList.add("t-shake");
+      setTimeout(() => input.classList.remove("t-shake"), 320);
+    });
+  }, []);
+
   const handleUnlock = useCallback(async () => {
     if (!password.trim()) {
       setError(t("pleaseEnterPassword"));
+      triggerShake();
       return;
     }
 
@@ -55,12 +71,14 @@ export const PasswordGate = ({ formId, children }: PasswordGateProps) => {
           setUnlocked(true);
         } else {
           setError(t("incorrectPassword"));
+          triggerShake();
         }
       } catch {
         setError(t("somethingWentWrong"));
+        triggerShake();
       }
     });
-  }, [formId, password, t]);
+  }, [formId, password, t, triggerShake]);
 
   if (unlocked) {
     return <>{children}</>;

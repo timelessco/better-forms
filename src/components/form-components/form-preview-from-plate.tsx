@@ -19,28 +19,10 @@ import { DEFAULT_ICON } from "@/lib/config/app-config";
 import { cn, DEFAULT_ICON_NAME, isHexColor, isValidUrl } from "@/lib/utils";
 import type { PublicFormSettings } from "@/types/form-settings";
 import { IconPickerPreview } from "@/components/icon-picker";
+import { SuccessCheck } from "@/components/transitions/success-check";
 import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
 import type { Value } from "platejs";
 import { useEffect, useMemo, useRef, useState } from "react";
-
-const SuccessCheckmarkIcon = (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="32"
-    height="32"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="text-green-600"
-  >
-    <title>Success checkmark</title>
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-    <polyline points="22 4 12 14.01 9 11.01" />
-  </svg>
-);
 
 const NoContentPlaceholderIcon = (
   <svg
@@ -377,7 +359,7 @@ const DefaultThankYou = ({ onReset, shareUrl }: { onReset?: () => void; shareUrl
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-green-100">
-        {SuccessCheckmarkIcon}
+        <SuccessCheck size={32} className="text-green-600" />
       </div>
       <h2 className="mb-2 text-2xl font-semibold">{t("thankYou")}</h2>
       <p className="mb-6 text-muted-foreground">{t("responseSubmitted")}</p>

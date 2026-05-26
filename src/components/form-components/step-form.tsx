@@ -1,4 +1,5 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
+import { TextSwap } from "@/components/transitions/text-swap";
 import { use, useMemo, useRef, useState } from "react";
 import { useFocusFirstField } from "@/hooks/use-focus-first-field";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -245,7 +246,10 @@ export const StepForm = ({
               className="h-9 gap-1.5 rounded-lg px-4"
               disabled={isSubmitting}
             >
-              {isSubmitting ? t("submitting") : isLastStep ? t("submit") : t("next")}
+              {(() => {
+                const label = isSubmitting ? t("submitting") : isLastStep ? t("submit") : t("next");
+                return <TextSwap key={label}>{label}</TextSwap>;
+              })()}
             </Button>
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               press{" "}
@@ -389,7 +393,10 @@ const RenderStepButton = ({
       className="h-8 gap-1.5 rounded-lg px-2.5"
       disabled={isSubmitting}
     >
-      {isSubmitting ? t("submitting") : buttonText}
+      {(() => {
+        const label = isSubmitting ? t("submitting") : buttonText;
+        return <TextSwap key={label}>{label}</TextSwap>;
+      })()}
     </Button>
   );
   return grouped ? (

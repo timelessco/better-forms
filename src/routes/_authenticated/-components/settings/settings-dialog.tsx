@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { TextSwap } from "@/components/transitions/text-swap";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { SettingsTab } from "@/hooks/use-settings-dialog";
 import { useSettingsDialog } from "@/hooks/use-settings-dialog";
@@ -119,7 +120,7 @@ export const SettingsDialog = () => {
         >
           <div className="px-5 pt-5 pb-5 md:px-12.25 md:pt-8 md:pb-8">
             <DialogTitle className="mb-4 text-xl font-semibold text-foreground">
-              {tabTitles[activeTab]}
+              <TextSwap key={tabTitles[activeTab]}>{tabTitles[activeTab]}</TextSwap>
             </DialogTitle>
             <TabPanels activeTab={activeTab} />
           </div>
