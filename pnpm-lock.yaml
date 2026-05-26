@@ -239,6 +239,9 @@ importers:
       input-otp:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      libphonenumber-js:
+        specifier: 1.13.1
+        version: 1.13.1
       lowlight:
         specifier: ^3.3.0
         version: 3.3.0

@@ -1,6 +1,7 @@
 /* eslint-disable eslint/func-style, eslint-plugin-react/jsx-no-constructed-context-values */
 import { Combobox as ComboboxPrimitive } from "@base-ui/react";
 import { useQuery } from "@tanstack/react-query";
+import phoneExamples from "libphonenumber-js/mobile/examples";
 import { Search } from "lucide-react";
 import { createContext, use, useMemo, useState } from "react";
 import * as BasePhoneInput from "react-phone-number-input";
@@ -61,6 +62,23 @@ const useResolvedDefaultCountry = (
   return mounted && !geoPending ? getBrowserDefaultCountry() : undefined;
 };
 
+/**
+ * A country-appropriate example number to use as the field placeholder, in
+ * NATIONAL format — mirroring what the Respondent types (the calling code
+ * lives in the country selector, not the input). e.g. `IN` → "081234 56789",
+ * `US` → "(201) 555-0123". Falls back to `undefined` for unknown countries so
+ * the caller can use its own placeholder. Formatting reuses
+ * react-phone-number-input's already-loaded metadata, so only the small
+ * example-numbers map is added to the bundle.
+ */
+const getExamplePlaceholder = (country: BasePhoneInput.Country): string | undefined => {
+  const nationalNumber = phoneExamples[country];
+  if (!nationalNumber || !BasePhoneInput.isSupportedCountry(country)) return undefined;
+  const e164 =
+    `+${BasePhoneInput.getCountryCallingCode(country)}${nationalNumber}` as BasePhoneInput.Value;
+  return BasePhoneInput.formatPhoneNumber(e164) || undefined;
+};
+
 type PhoneInputSize = "sm" | "default" | "lg";
 
 const PhoneInputContext = createContext<{
@@ -90,7 +108,9 @@ function PhoneInput({
   popupClassName,
   scrollAreaClassName,
   onChange,
+  onCountryChange,
   value,
+  placeholder,
   defaultCountry: defaultCountryProp,
   ...props
 }: PhoneInputProps) {
@@ -100,6 +120,17 @@ function PhoneInput({
   // fallback) and key the underlying component so it remounts with the
   // resolved value.
   const defaultCountry = useResolvedDefaultCountry(defaultCountryProp);
+  // Track the country actually shown in the selector (changes when the
+  // Respondent picks a different one, or when an entered value implies one)
+  // so the placeholder example always matches it.
+  const [selectedCountry, setSelectedCountry] = useState<BasePhoneInput.Country | undefined>(
+    undefined,
+  );
+  const activeCountry = selectedCountry ?? defaultCountry;
+  const examplePlaceholder = useMemo(
+    () => (activeCountry ? getExamplePlaceholder(activeCountry) : undefined),
+    [activeCountry],
+  );
   return (
     <PhoneInputContext.Provider
       value={{ variant: phoneInputSize, popupClassName, scrollAreaClassName }}
@@ -129,7 +160,12 @@ function PhoneInput({
         smartCaret={false}
         value={value || undefined}
         defaultCountry={defaultCountry}
+        placeholder={examplePlaceholder ?? placeholder}
         onChange={(next) => onChange?.(next || ("" as BasePhoneInput.Value))}
+        onCountryChange={(country) => {
+          setSelectedCountry(country ?? undefined);
+          onCountryChange?.(country);
+        }}
         {...props}
       />
     </PhoneInputContext.Provider>
