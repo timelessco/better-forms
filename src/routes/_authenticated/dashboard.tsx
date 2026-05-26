@@ -61,12 +61,17 @@ import { hasLocalDataToSync, syncLocalDataToCloud } from "@/db/sync";
 import { getLeadingSortIndex, sortByManualOrder } from "@/lib/sort-utils";
 import { cn, parseTimestampAsUTC } from "@/lib/utils";
 import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
-import { createFileRoute, Link, useLoaderData, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { orgDataForLayoutQueryOptions } from "@/lib/server-fn/org";
 import { parseError } from "@/lib/errors/parse";
 import { formatDistanceToNow } from "date-fns";
 import { generateKeyBetween } from "fractional-indexing";
 import { FolderPlus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { IconSwap } from "@/components/transitions/icon-swap";
+import { NumberPopIn } from "@/components/transitions/number-pop-in";
+import { TextSwap } from "@/components/transitions/text-swap";
 import { toast } from "sonner";
 const FORMS_PER_PAGE = 10;
 
@@ -107,13 +112,8 @@ const DashboardFilters = ({
           )}
         >
           <span>{option.label}</span>
-          <span
-            className={cn(
-              "tabular-nums",
-              isActive ? "text-background/70" : "text-muted-foreground/60",
-            )}
-          >
-            {count}
+          <span className={cn(isActive ? "text-background/70" : "text-muted-foreground/60")}>
+            <NumberPopIn value={count} className="tabular-nums" />
           </span>
         </button>
       );
@@ -221,7 +221,10 @@ const useLocalDataSync = (
 const DashboardPage = () => {
   const navigate = useNavigate();
   const duplicateFormFn = useDuplicateForm();
-  const activeOrg = useLoaderData({ from: "/_authenticated", select: (d) => d.activeOrg });
+  const { data: activeOrg } = useQuery({
+    ...orgDataForLayoutQueryOptions(),
+    select: (d) => d.activeOrg,
+  });
   const [isCreating, setIsCreating] = useState(false);
   const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
@@ -673,14 +676,16 @@ const DashboardHeader = ({
   const topWorkspace = orderedWorkspaces[0];
   const hasMultipleWorkspaces = orgWorkspacesCount > 1;
 
+  const subtitleString = isLoading
+    ? "Loading..."
+    : `${orgFormsCount} form${orgFormsCount !== 1 ? "s" : ""} across ${orgWorkspacesCount} workspace${orgWorkspacesCount !== 1 ? "s" : ""}`;
+
   return (
     <div className="mb-8 flex items-center justify-between">
       <div>
         <h1 className="text-2xl font-semibold">Home</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {isLoading
-            ? "Loading..."
-            : `${orgFormsCount} form${orgFormsCount !== 1 ? "s" : ""} across ${orgWorkspacesCount} workspace${orgWorkspacesCount !== 1 ? "s" : ""}`}
+          <TextSwap key={subtitleString}>{subtitleString}</TextSwap>
         </p>
       </div>
       <div className="flex items-center gap-3">
@@ -1064,11 +1069,11 @@ const FormListItem = ({
                   />
                 }
               >
-                {duplicatingFormId === form.id ? (
-                  <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
-                ) : (
-                  <CopyIcon className="size-4 text-muted-foreground" />
-                )}
+                <IconSwap
+                  state={duplicatingFormId === form.id ? "b" : "a"}
+                  iconA={<CopyIcon className="size-4 text-muted-foreground" />}
+                  iconB={<Loader2Icon className="size-4 animate-spin text-muted-foreground" />}
+                />
               </TooltipTrigger>
               <TooltipContent>Duplicate</TooltipContent>
             </Tooltip>

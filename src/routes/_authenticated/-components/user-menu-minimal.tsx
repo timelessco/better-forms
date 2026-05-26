@@ -1,10 +1,12 @@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useResolvedTheme, useTheme } from "@/components/theme-provider";
+import { IconSwap } from "@/components/transitions/icon-swap";
 import { auth, useSession } from "@/lib/auth/auth-client";
 import { settingsDialogStore } from "@/hooks/use-settings-dialog";
 import { cn } from "@/lib/utils";
-import { useMutation } from "@tanstack/react-query";
-import { useLoaderData, useRouter } from "@tanstack/react-router";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
+import { orgDataForLayoutQueryOptions } from "@/lib/server-fn/org";
 import {
   ChevronDownIcon,
   LogOutIcon,
@@ -43,7 +45,10 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
   useHotkey(HOTKEYS.TOGGLE_THEME, () => toggleTheme(), { ignoreInputs: true });
 
   const { data: session } = useSession();
-  const activeOrg = useLoaderData({ from: "/_authenticated", select: (d) => d.activeOrg });
+  const { data: activeOrg } = useQuery({
+    ...orgDataForLayoutQueryOptions(),
+    select: (d) => d.activeOrg,
+  });
   const displayName = activeOrg?.name ?? session?.user?.name ?? "User";
 
   const signOutMutation = useMutation(
@@ -162,7 +167,15 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
                   onClick={item.action}
                   className="inline-flex h-[26px] cursor-pointer items-center gap-1.5 overflow-hidden rounded-lg px-2 py-[5.5px] text-[13px] text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
-                  <Icon className={menuItemIconClass} />
+                  {item.key === "theme" ? (
+                    <IconSwap
+                      state={resolvedTheme === "dark" ? "a" : "b"}
+                      iconA={<SunIcon className={menuItemIconClass} />}
+                      iconB={<MoonIcon className={menuItemIconClass} />}
+                    />
+                  ) : (
+                    <Icon className={menuItemIconClass} />
+                  )}
                   <span className="flex-1 text-left">{item.label}</span>
                   {"shortcut" in item && item.shortcut ? (
                     <kbd className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded border border-border bg-secondary px-1 font-mono text-[10px] font-medium text-muted-foreground">

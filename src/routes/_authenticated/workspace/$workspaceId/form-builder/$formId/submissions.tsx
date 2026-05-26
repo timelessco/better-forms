@@ -24,7 +24,13 @@ import {
   getEditableFields,
   transformPlateStateToFormElements,
 } from "@/lib/editor/transform-plate-to-form";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  infiniteQueryOptions,
+  queryOptions,
+  useQueryClient,
+  useSuspenseInfiniteQuery,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type {
   Cell,
@@ -39,6 +45,8 @@ import { createAppColumnHelper, SelectionCheckbox, useAppTable } from "@/compone
 import type { DataGridApi, DataGridFeatures } from "@/components/ui/data-grid";
 
 import { ChevronDownIcon, FilterIcon, Trash2Icon, XIcon } from "@/components/ui/icons";
+import { NumberPopIn } from "@/components/transitions/number-pop-in";
+import { TextSwap } from "@/components/transitions/text-swap";
 import { Columns, Download, ExternalLink, FileText, Paperclip, Search } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { Value } from "platejs";
@@ -457,6 +465,29 @@ const buildSubmissionColumns = ({
   return { columns: baseColumns, fieldCounts: counts };
 };
 
+// Shared query definitions so the route loader and the component can't drift
+// on key / queryFn / fetch options.
+const submissionsBootstrapQueryOptions = (formId: string) =>
+  queryOptions({
+    queryKey: ["submissionsBootstrap", formId],
+    queryFn: () => getSubmissionsBootstrap({ data: { formId } }),
+    staleTime: 1000 * 60 * 10,
+  });
+
+const submissionsInfiniteQueryOptions = (formId: string) =>
+  infiniteQueryOptions({
+    queryKey: ["submissions", formId],
+    queryFn: ({ pageParam }: { pageParam: SubmissionCursor | undefined }) =>
+      getPaginatedSubmissionsPage(formId, pageParam),
+    initialPageParam: undefined as SubmissionCursor | undefined,
+    getNextPageParam: (lastPage) => lastPage?.nextCursor,
+    // Submissions are an inbox — keep them fresh on tab refocus. Explicit 0
+    // overrides the global 60s QueryClient default, which would otherwise
+    // suppress the refetchOnWindowFocus below within the first minute.
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
+
 const SubmissionsPage = () => {
   const { formId } = Route.useParams();
   const queryClient = useQueryClient();
@@ -483,12 +514,11 @@ const SubmissionsPage = () => {
   );
   const handleClearSelection = useCallback(() => setRowSelection({}), []);
 
-  // Bootstrap: published form content + total count + historical field labels (1 round-trip)
-  const { data: bootstrapData } = useQuery({
-    queryKey: ["submissionsBootstrap", formId],
-    queryFn: () => getSubmissionsBootstrap({ data: { formId } }),
-    staleTime: 1000 * 60 * 10,
-  });
+  // Bootstrap: published form content + total count + historical field labels (1 round-trip).
+  // The loader awaits ensureQueryData for both queries below, so the cache is
+  // always primed by the time this (data-only SSR) component mounts — suspense
+  // resolves immediately and the route's pendingComponent covers initial load.
+  const { data: bootstrapData } = useSuspenseQuery(submissionsBootstrapQueryOptions(formId));
   const publishedContent = bootstrapData?.form?.content;
   const totalCount = bootstrapData?.totalCount ?? 0;
   const historicalLabels = bootstrapData?.fieldLabels ?? EMPTY_LABELS;
@@ -498,15 +528,7 @@ const SubmissionsPage = () => {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isLoading: isLoadingSubmissions,
-  } = useInfiniteQuery({
-    queryKey: ["submissions", formId],
-    queryFn: async ({ pageParam }: { pageParam: SubmissionCursor | undefined }) =>
-      getPaginatedSubmissionsPage(formId, pageParam),
-    initialPageParam: undefined as SubmissionCursor | undefined,
-    getNextPageParam: (lastPage) => lastPage?.nextCursor,
-    refetchOnWindowFocus: true,
-  });
+  } = useSuspenseInfiniteQuery(submissionsInfiniteQueryOptions(formId));
 
   const allSubmissions: SerializedSubmission[] = useMemo(
     () => submissionsData?.pages?.flatMap((page) => page?.submissions ?? []) ?? [],
@@ -673,7 +695,9 @@ const SubmissionsPage = () => {
 
           <table.DataGrid
             recordCount={totalCount}
-            isLoading={isLoadingSubmissions}
+            // Initial load is handled by the route's pendingComponent via suspense;
+            // the grid always has data by the time it renders.
+            isLoading={false}
             tableLayout={{
               dense: true,
               columnsResizable: true,
@@ -895,8 +919,10 @@ const SubmissionsToolbar = ({
               />
             }
           >
-            {activeLabel}
-            <span className="opacity-60">{activeCount}</span>
+            <TextSwap key={activeLabel}>{activeLabel}</TextSwap>
+            <span className="opacity-60">
+              <NumberPopIn value={activeCount} />
+            </span>
             <ChevronDownIcon className="size-2.5 shrink-0 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-36">
@@ -1101,16 +1127,10 @@ export const Route = createFileRoute(
   loader: async ({ context, params }) => {
     await Promise.all([
       context.queryClient.ensureQueryData({
-        queryKey: ["submissionsBootstrap", params.formId],
-        queryFn: () => getSubmissionsBootstrap({ data: { formId: params.formId } }),
+        ...submissionsBootstrapQueryOptions(params.formId),
         revalidateIfStale: true,
       }),
-      context.queryClient.ensureInfiniteQueryData({
-        queryKey: ["submissions", params.formId],
-        queryFn: () => getPaginatedSubmissionsPage(params.formId, undefined),
-        initialPageParam: undefined as SubmissionCursor | undefined,
-        getNextPageParam: (lastPage: PaginatedSubmissionsPage) => lastPage.nextCursor,
-      }),
+      context.queryClient.ensureInfiniteQueryData(submissionsInfiniteQueryOptions(params.formId)),
     ]);
   },
   staleTime: 30_000,

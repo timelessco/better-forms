@@ -50,6 +50,7 @@ export const createVersionListCollection = (config: VersionListCollectionConfig)
       queryFn: async () => queryFn(),
       queryClient,
       getKey: (item): string | number => item.id,
+      staleTime: 1000 * 60 * 5, // 5 minutes — matches the route loader's prefetch
     }),
   );
 };

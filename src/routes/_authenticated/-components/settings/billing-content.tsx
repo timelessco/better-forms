@@ -3,7 +3,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authClient } from "@/lib/auth/auth-client";
-import { useLoaderData } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { orgDataForLayoutQueryOptions } from "@/lib/server-fn/org";
 import { Loader2Icon } from "@/components/ui/icons";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { openOrgBillingPortal } from "@/lib/server-fn/billing";
@@ -27,7 +28,10 @@ const tierActionVariant = (action: TierAction): ButtonVariant => {
 };
 
 export const BillingContent = () => {
-  const activeOrg = useLoaderData({ from: "/_authenticated", select: (d) => d.activeOrg });
+  const { data: activeOrg } = useQuery({
+    ...orgDataForLayoutQueryOptions(),
+    select: (d) => d.activeOrg,
+  });
 
   const {
     isPro: isProPlan,

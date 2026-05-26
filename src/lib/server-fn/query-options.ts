@@ -7,13 +7,14 @@
  * initialise.
  *
  * WARNING: The `queryKey` values here MUST exactly match the keys in
- *   - src/db-collections/workspace-query.collection.ts  ("workspaces-with-forms")
- *   - src/db-collections/form-listing-query.collection.ts ("form-listings", "favorites")
+ *   - src/collections/query/workspace.ts     ("workspaces-with-forms")
+ *   - src/collections/query/form-listing.ts  ("form-listings", "favorites")
  * Changing a key in one place without updating the other will cause a
  * cache miss and an unnecessary network round-trip.
  */
 
 import { queryOptions } from "@tanstack/react-query";
+import type { WorkspaceSummary } from "@/collections/query/workspace";
 import { getFormListings } from "@/lib/server-fn/forms";
 import { getFavorites } from "@/lib/server-fn/favorites";
 import { getWorkspaces } from "@/lib/server-fn/workspaces";
@@ -21,16 +22,25 @@ import { getWorkspaces } from "@/lib/server-fn/workspaces";
 const FIVE_MINUTES = 1000 * 60 * 5;
 
 /**
- * Prefetch-friendly query options for workspaces with an empty `forms` array.
- * The collection will merge real form data once it loads.
+ * Fetches workspaces with an empty `forms` array. `WorkspaceSummary.forms` is
+ * vestigial — nothing reads it. The sidebar's per-workspace form list comes
+ * from the separate form-listings collection (joined by `form.workspaceId`),
+ * and heavy form content is enriched on demand (see `useForm`/`enrichFormDetail`).
+ * Keeping workspaces lightweight here is the intended optimization.
+ *
+ * Shared by the prefetch options below and the workspaces collection's injected
+ * queryFn (in `_authenticated.tsx`) so the two definitions can't drift.
  */
+export const fetchWorkspacesWithEmptyForms = async (): Promise<WorkspaceSummary[]> => {
+  const result = await getWorkspaces();
+  return result.workspaces.map((ws) => ({ ...ws, forms: [] }));
+};
+
+/** Prefetch-friendly query options for the workspaces collection. */
 export const workspacesCollectionQueryOptions = () =>
   queryOptions({
     queryKey: ["workspaces-with-forms"] as const,
-    queryFn: async () => {
-      const result = await getWorkspaces();
-      return result.workspaces.map((ws) => ({ ...ws, forms: [] as const }));
-    },
+    queryFn: fetchWorkspacesWithEmptyForms,
     staleTime: FIVE_MINUTES,
   });
 

@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
@@ -240,6 +241,19 @@ export const getFormVersions = createServerFn({ method: "GET" })
         },
       })),
     };
+  });
+
+/**
+ * Query options for a form's version list. Single source of truth for the
+ * `["form-versions", formId]` key + fetcher, shared by route loaders. Mirrors
+ * the queryFn injected into the version-list collection (`getVersionList` in
+ * `_authenticated.tsx`), which also returns `getFormVersions(...).versions`.
+ */
+export const getFormVersionsQueryOption = (formId: string) =>
+  queryOptions({
+    queryKey: ["form-versions", formId] as const,
+    queryFn: () => getFormVersions({ data: { formId } }).then((r) => r.versions),
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
 export const getFormVersionContent = createServerFn({ method: "GET" })

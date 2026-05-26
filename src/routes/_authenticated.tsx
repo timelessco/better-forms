@@ -1,4 +1,5 @@
 import { ThemedFormIcon } from "@/components/icon-picker/icon-picker-preview";
+import { NumberPopIn } from "@/components/transitions/number-pop-in";
 import { SidebarItem } from "@/components/sidebar-item";
 import {
   AlertDialog,
@@ -134,12 +135,12 @@ import {
   workspacesCollectionQueryOptions,
   formListingsCollectionQueryOptions,
   favoritesCollectionQueryOptions,
+  fetchWorkspacesWithEmptyForms,
 } from "@/lib/server-fn/query-options";
 import { getSubmissionsCount } from "@/lib/server-fn/submissions";
 import {
   createWorkspace,
   deleteWorkspace,
-  getWorkspaces,
   reorderWorkspace,
   updateWorkspace,
 } from "@/lib/server-fn/workspaces";
@@ -296,18 +297,9 @@ const initCollectionsOnClient = createClientOnlyFn((queryClient: QueryClient) =>
   if (isCollectionsInitialized()) return;
 
   initCollections(queryClient, {
-    getWorkspacesWithForms: async () => {
-      const result = await getWorkspaces();
-      return {
-        workspaces: result.workspaces.map(
-          // oxlint-disable-next-line typescript-eslint/no-explicit-any -- server type bridge
-          (ws: any) => ({
-            ...ws,
-            forms: [],
-          }),
-        ),
-      };
-    },
+    getWorkspacesWithForms: async () => ({
+      workspaces: await fetchWorkspacesWithEmptyForms(),
+    }),
     getFormListings: () => getFormListingsServer(),
     getFormDetail: async (formId: string) => {
       const { getFormbyIdQueryOption } = await import("@/lib/server-fn/forms");
@@ -541,7 +533,13 @@ const AppSidebar = () => {
   const [trashDialogOpen, setTrashDialogOpen] = useState(false);
   const [paletteSearch, setPaletteSearch] = useState("");
 
-  const activeOrg = Route.useLoaderData({ select: (d) => d.activeOrg });
+  // Subscribe to the org query the loader primed (instead of reading loader
+  // data) so it stays active: refetches on focus/reconnect, reacts to
+  // invalidation, and isn't garbage-collected while on screen.
+  const { data: activeOrg } = useQuery({
+    ...orgDataForLayoutQueryOptions(),
+    select: (d) => d.activeOrg,
+  });
   const { data: workspacesData } = useOrgWorkspaces(activeOrg?.id);
   const { data: formsData } = useOrgForms(activeOrg?.id);
   const { unreadSubmissionCount } = useSubmissionNotifications({ poll: true });
@@ -630,7 +628,7 @@ const AppSidebar = () => {
                       >
                         {pendingCount > 0 && (
                           <span className="w-4 shrink-0 rounded-full bg-primary py-0.5 text-center text-[10px] font-semibold text-primary-foreground tabular-nums">
-                            {pendingCount}
+                            <NumberPopIn value={pendingCount} />
                           </span>
                         )}
                       </SidebarItem>

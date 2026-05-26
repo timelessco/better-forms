@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { InputGroup, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
-import { useSession } from "@/lib/auth/auth-client";
+import { auth, useSession } from "@/lib/auth/auth-client";
 import { DOMAIN_LIMITS } from "@/lib/config/plan-config";
 import { getDnsInstructions } from "@/lib/dns-instructions";
 import {
@@ -141,13 +141,10 @@ export const DomainsContent = () => {
 
   const orgId = session?.session?.activeOrganizationId as string | undefined;
 
+  // Shares the cache + invalidation with MembersContent (same auth query key)
+  // so member mutations elsewhere keep this owner check fresh.
   const { data: membersData } = useQuery({
-    queryKey: ["org-members-for-domains"],
-    queryFn: async () => {
-      const { authClient } = await import("@/lib/auth/auth-client");
-      const result = await authClient.organization.listMembers();
-      return result.data;
-    },
+    ...auth.organization.listMembers.queryOptions(),
     enabled: !!orgId,
   });
 
