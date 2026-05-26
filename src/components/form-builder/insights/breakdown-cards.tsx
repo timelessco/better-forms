@@ -1,4 +1,3 @@
-import { EvilBarChart } from "@/components/evilcharts/charts/bar-chart";
 import { EvilPieChart } from "@/components/evilcharts/charts/pie-chart";
 import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +9,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Facebook,
+  Github,
+  Globe,
+  Instagram,
+  Link2,
+  Linkedin,
+  Slack,
+  Twitter,
+  Youtube,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { numberFormatter } from "@/lib/analytics/format";
 import type { CountBreakdown, FormInsightsMetrics } from "@/types/analytics";
 
@@ -33,25 +44,46 @@ const PALETTE: string[] = [
   "oklch(0.6 0.2 305)", // purple
 ];
 
-const TOP_N_SOURCES = 5;
+const MAX_TABLE_ROWS = 10;
+
+// Country breakdown keys are ISO-3166 alpha-2 codes (e.g. "IN", "NL").
+const REGION_CODE_RE = /^[A-Za-z]{2}$/;
+const REGIONAL_INDICATOR_BASE = 0x1f1e6; // 🇦
+const ASCII_A = 65;
+const countryDisplayNames =
+  typeof Intl !== "undefined" && "DisplayNames" in Intl
+    ? new Intl.DisplayNames(undefined, { type: "region" })
+    : null;
+
+/** Flag emoji for a 2-letter country code, or "" for non-region keys. */
+const countryFlag = (code: string): string => {
+  if (!REGION_CODE_RE.test(code)) {
+    return "";
+  }
+  return String.fromCodePoint(
+    ...[...code.toUpperCase()].map((ch) => REGIONAL_INDICATOR_BASE + ch.charCodeAt(0) - ASCII_A),
+  );
+};
+
+/** Localized country name for a code (falls back to the raw key). */
+const countryLabel = (code: string): string => {
+  if (!REGION_CODE_RE.test(code)) {
+    return code;
+  }
+  try {
+    return countryDisplayNames?.of(code.toUpperCase()) ?? code;
+  } catch {
+    return code;
+  }
+};
+
+const titleCase = (value: string): string =>
+  value.length === 0 ? value : value.charAt(0).toUpperCase() + value.slice(1);
 
 const breakdownToArray = (breakdown: CountBreakdown): BreakdownDatum[] =>
   Object.entries(breakdown)
     .flatMap(([name, value]) => (value > 0 ? [{ name, value }] : []))
     .sort((a, b) => b.value - a.value);
-
-const collapseToTopN = (entries: BreakdownDatum[], topN: number): BreakdownDatum[] => {
-  if (entries.length <= topN) {
-    return entries;
-  }
-  const top = entries.slice(0, topN);
-  const rest = entries.slice(topN);
-  const otherTotal = rest.reduce((sum, entry) => sum + entry.value, 0);
-  if (otherTotal <= 0) {
-    return top;
-  }
-  return [...top, { name: "Other", value: otherTotal }];
-};
 
 // Each slice in a pie chart needs its own ChartConfig key so EvilPieChart can resolve --color-{name}-0.
 const buildPerSliceConfig = (entries: BreakdownDatum[]): ChartConfig => {
@@ -65,16 +97,6 @@ const buildPerSliceConfig = (entries: BreakdownDatum[]): ChartConfig => {
   });
   return config;
 };
-
-const barChartConfig = {
-  value: {
-    label: "Visits",
-    colors: {
-      light: ["var(--chart-1)"],
-      dark: ["var(--chart-1)"],
-    },
-  },
-} satisfies ChartConfig;
 
 interface EmptyMessageProps {
   height?: number;
@@ -116,50 +138,34 @@ const PieBreakdown = ({ data }: PieBreakdownProps) => {
   );
 };
 
-interface SourcesBarProps {
+interface BreakdownTableProps {
   data: BreakdownDatum[];
+  /** Header for the label column, e.g. "Country" or "Source". */
+  columnLabel: string;
+  /** Custom renderer for a row's name cell (e.g. flag + country name). */
+  renderName?: (name: string) => React.ReactNode;
 }
 
-const SourcesBar = ({ data }: SourcesBarProps) => {
+const BreakdownTable = ({ data, columnLabel, renderName }: BreakdownTableProps) => {
   if (data.length === 0) {
     return <EmptyMessage height={200} />;
   }
-  return (
-    <EvilBarChart
-      className="h-[200px] w-full"
-      chartConfig={barChartConfig}
-      data={data}
-      xDataKey="name"
-      yDataKey="value"
-      layout="horizontal"
-      barVariant="gradient"
-      hideLegend
-    />
-  );
-};
-
-interface CountriesTableProps {
-  data: BreakdownDatum[];
-}
-
-const CountriesTable = ({ data }: CountriesTableProps) => {
-  if (data.length === 0) {
-    return <EmptyMessage height={200} />;
-  }
-  const top = data.slice(0, 10);
+  const top = data.slice(0, MAX_TABLE_ROWS);
   return (
     <div className="max-h-[220px] overflow-y-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Country</TableHead>
+            <TableHead>{columnLabel}</TableHead>
             <TableHead className="text-right">Visits</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {top.map((entry) => (
             <TableRow key={entry.name}>
-              <TableCell className="font-medium">{entry.name}</TableCell>
+              <TableCell className="font-medium">
+                {renderName ? renderName(entry.name) : entry.name}
+              </TableCell>
               <TableCell className="text-right tabular-nums">
                 {numberFormatter.format(entry.value)}
               </TableCell>
@@ -171,9 +177,44 @@ const CountriesTable = ({ data }: CountriesTableProps) => {
   );
 };
 
+const renderCountryName = (code: string): React.ReactNode => {
+  const flag = countryFlag(code);
+  return (
+    <span className="flex items-center gap-2">
+      {flag ? (
+        <span aria-hidden="true" className="text-base leading-none">
+          {flag}
+        </span>
+      ) : null}
+      <span className="truncate">{countryLabel(code)}</span>
+    </span>
+  );
+};
+
+// lucide ships brand marks for these; everything else gets a neutral fallback.
+const SOURCE_ICONS: Record<string, LucideIcon> = {
+  twitter: Twitter,
+  facebook: Facebook,
+  linkedin: Linkedin,
+  instagram: Instagram,
+  youtube: Youtube,
+  github: Github,
+  slack: Slack,
+};
+
+const renderSourceName = (name: string): React.ReactNode => {
+  const Icon = SOURCE_ICONS[name] ?? (name === "direct" ? Globe : Link2);
+  return (
+    <span className="flex items-center gap-2">
+      <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <span className="truncate">{titleCase(name)}</span>
+    </span>
+  );
+};
+
 export const BreakdownCards = ({ metrics }: BreakdownCardsProps) => {
   const devices = breakdownToArray(metrics.devices);
-  const sources = collapseToTopN(breakdownToArray(metrics.sources), TOP_N_SOURCES);
+  const sources = breakdownToArray(metrics.sources);
   const countries = breakdownToArray(metrics.countries);
   const browsers = breakdownToArray(metrics.browsers);
 
@@ -192,7 +233,7 @@ export const BreakdownCards = ({ metrics }: BreakdownCardsProps) => {
           <CardTitle>Sources</CardTitle>
         </CardHeader>
         <CardContent>
-          <SourcesBar data={sources} />
+          <BreakdownTable data={sources} columnLabel="Source" renderName={renderSourceName} />
         </CardContent>
       </Card>
       <Card className="bg-transparent ring-0">
@@ -200,7 +241,7 @@ export const BreakdownCards = ({ metrics }: BreakdownCardsProps) => {
           <CardTitle>Countries</CardTitle>
         </CardHeader>
         <CardContent>
-          <CountriesTable data={countries} />
+          <BreakdownTable data={countries} columnLabel="Country" renderName={renderCountryName} />
         </CardContent>
       </Card>
       <Card className="bg-transparent ring-0">

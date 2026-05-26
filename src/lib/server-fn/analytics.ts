@@ -6,7 +6,11 @@ import type {
   InsightsAvailability,
   RecordQuestionProgressBatchInput,
 } from "@/lib/server-fn/analytics.server";
-import type { FormInsightsMetrics, QuestionDropoffMetrics } from "@/types/analytics";
+import type {
+  FormInsightsMetrics,
+  FormVitalsMetrics,
+  QuestionDropoffMetrics,
+} from "@/types/analytics";
 
 // All DB-touching logic lives in `analytics.server.ts`. Each handler below
 // dynamically imports it inside the handler body, which TanStack Start
@@ -32,6 +36,9 @@ export const recordFormVisit = createServerFn({ method: "POST" })
 
 const MAX_DURATION_MS = 86_400_000; // 24h cap as a spam guard for client-supplied values
 
+const MAX_VITAL_MS = 3_600_000; // 1h — generous spam guard for client-reported vitals
+const MAX_CLS = 100;
+
 const updateVisitInputSchema = z.object({
   visitId: z.uuid(),
   didStartForm: z.boolean().optional(),
@@ -39,6 +46,9 @@ const updateVisitInputSchema = z.object({
   submissionId: z.uuid().nullish(),
   visitEndedAt: z.iso.datetime().nullish(),
   durationMs: z.number().int().nonnegative().max(MAX_DURATION_MS).nullish(),
+  lcpMs: z.number().int().nonnegative().max(MAX_VITAL_MS).nullish(),
+  inpMs: z.number().int().nonnegative().max(MAX_VITAL_MS).nullish(),
+  cls: z.number().nonnegative().max(MAX_CLS).nullish(),
 });
 
 export const updateFormVisit = createServerFn({ method: "POST" })
@@ -113,6 +123,14 @@ export const getFormDropoff = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<QuestionDropoffMetrics> => {
     const { getFormDropoffImpl } = await import("./analytics.server");
     return getFormDropoffImpl(data, context, getActiveOrgId(context.session));
+  });
+
+export const getFormVitals = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(insightsFilterInputSchema)
+  .handler(async ({ data, context }): Promise<FormVitalsMetrics> => {
+    const { getFormVitalsImpl } = await import("./analytics.server");
+    return getFormVitalsImpl(data, context, getActiveOrgId(context.session));
   });
 
 export const getInsightsAvailability = createServerFn({ method: "POST" })

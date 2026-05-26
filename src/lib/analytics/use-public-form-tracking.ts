@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from "react";
+import { onCLS, onINP, onLCP } from "web-vitals";
 import {
   fireRecordVisit,
   fireUpdateVisitBeacon,
   flushQuestionProgressBuffer,
 } from "./track-client";
 import { getOrCreateSessionId, getOrCreateVisitorHash } from "./visitor-id";
+
+interface SessionVitals {
+  lcpMs?: number;
+  inpMs?: number;
+  cls?: number;
+}
 
 interface PublicFormTracking {
   visitId: string | null;
@@ -24,6 +31,7 @@ export const usePublicFormTracking = ({ formId, enabled = true }: Args): PublicF
 
   const visitIdRef = useRef<string | null>(null);
   const startedAtRef = useRef<number>(0);
+  const vitalsRef = useRef<SessionVitals>({});
 
   // NOTE: in dev StrictMode this fires twice and creates two visit rows.
   // Production single-mount makes this a non-issue; the cron aggregation
@@ -40,6 +48,22 @@ export const usePublicFormTracking = ({ formId, enabled = true }: Args): PublicF
     const session = getOrCreateSessionId();
     setVisitorHash(hash);
     startedAtRef.current = Date.now();
+
+    // Core Web Vitals (RUM): web-vitals reports each metric once it finalizes
+    // (LCP on first interaction/hide, INP/CLS on visibilitychange→hidden, which
+    // fires before the pagehide beacon below). We stash values in a ref and ship
+    // whatever's present on the unload beacon — a metric that never finalizes is
+    // simply omitted. Uses PerformanceObserver buffering, so late registration
+    // here still captures earlier entries.
+    onLCP((metric) => {
+      vitalsRef.current.lcpMs = Math.round(metric.value);
+    });
+    onINP((metric) => {
+      vitalsRef.current.inpMs = Math.round(metric.value);
+    });
+    onCLS((metric) => {
+      vitalsRef.current.cls = metric.value;
+    });
 
     const params = new URLSearchParams(window.location.search);
 
@@ -72,6 +96,9 @@ export const usePublicFormTracking = ({ formId, enabled = true }: Args): PublicF
         visitId: id,
         visitEndedAt: new Date().toISOString(),
         durationMs: Math.min(Date.now() - startedAtRef.current, MAX_DURATION_MS),
+        lcpMs: vitalsRef.current.lcpMs,
+        inpMs: vitalsRef.current.inpMs,
+        cls: vitalsRef.current.cls,
       });
     };
     window.addEventListener("beforeunload", onUnload);
