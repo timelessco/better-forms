@@ -9,6 +9,7 @@ import * as BasePhoneInput from "react-phone-number-input";
 import { useMounted } from "@/hooks/use-mounted";
 import { useReanchorThemeProps } from "@/hooks/use-form-theme";
 import { getVisitorCountry } from "@/lib/server-fn/geo";
+import { getTimezoneCountry } from "@/lib/timezone-country";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,12 +38,15 @@ const getBrowserDefaultCountry = (): BasePhoneInput.Country | undefined => {
  * Resolve the initial country for the phone field, preferring the
  * Respondent's actual location over their browser UI language:
  *   1. an explicit `defaultCountry` prop, if supplied;
- *   2. Vercel edge geo-IP (`x-vercel-ip-country`), read once and shared
- *      across every PhoneInput via the `visitor-country` query;
- *   3. the browser locale's region — but ONLY after the geo query settles
- *      with no usable result (local dev / non-Vercel), so we never flash a
- *      locale-derived country (e.g. US for an `en-US` browser) before geo
- *      resolves and reformat an autofilled number under the wrong country.
+ *   2. Vercel edge geo-IP (`x-vercel-ip-country`) — authoritative, but only
+ *      available after a client round-trip (the public form HTML is shared /
+ *      CDN-cached, so geo can't be baked into the first paint);
+ *   3. the browser timezone — a synchronous, location-based guess that makes
+ *      the first paint correct for most visitors (e.g. `Asia/Kolkata` → `IN`),
+ *      then geo-IP confirms/overrides it;
+ *   4. the browser locale's region — last resort, and only once the geo query
+ *      has settled with no result, so an `en-US` browser doesn't flash a US
+ *      country before geo/timezone resolve.
  */
 const useResolvedDefaultCountry = (
   override: BasePhoneInput.Country | undefined,
@@ -59,7 +63,14 @@ const useResolvedDefaultCountry = (
 
   if (override) return override;
   if (geoCountry && BasePhoneInput.isSupportedCountry(geoCountry)) return geoCountry;
-  return mounted && !geoPending ? getBrowserDefaultCountry() : undefined;
+  // Browser APIs (timezone / locale) only exist client-side; stay undefined
+  // through SSR and the first hydration render to avoid a mismatch.
+  if (!mounted) return undefined;
+  const timezoneCountry = getTimezoneCountry();
+  if (timezoneCountry && BasePhoneInput.isSupportedCountry(timezoneCountry)) {
+    return timezoneCountry;
+  }
+  return geoPending ? undefined : getBrowserDefaultCountry();
 };
 
 /**
