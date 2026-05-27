@@ -195,9 +195,8 @@ export const removeDomain = createServerFn({ method: "POST" })
       // Continue with DB cleanup even if Vercel fails
     }
 
-    // Clear customDomainId on all forms and delete domain atomically.
-    // Capture the ever-published forms whose canonical URL just changed so
-    // we can purge their CDN tags after commit.
+    // Clear customDomainId on all forms + delete domain atomically; capture ever-published
+    // forms (canonical URL changed) to purge CDN tags post-commit.
     const everPublished = await db.transaction(async (tx) => {
       const affected = await tx
         .update(forms)
@@ -315,8 +314,7 @@ export const updateDomainMeta = createServerFn({ method: "POST" })
         .set({ ...updateFields, updatedAt: new Date() })
         .where(eq(customDomains.id, domainId))
         .returning();
-      // Same transaction so a concurrent assignFormDomain can't slip a form
-      // in between the meta UPDATE and the bound-forms read.
+      // Same transaction so a concurrent assignFormDomain can't slip a form between meta UPDATE and read.
       const bound = await tx
         .select({ id: forms.id })
         .from(forms)
@@ -324,8 +322,7 @@ export const updateDomainMeta = createServerFn({ method: "POST" })
       return { updated: updatedRow, boundFormIds: bound.map((f) => f.id) };
     });
 
-    // siteTitle / faviconUrl / ogImageUrl land in the rendered <head> of
-    // every bound form's public response.
+    // siteTitle/faviconUrl/ogImageUrl land in every bound form's rendered <head>.
     await purgeFormCacheBatch(boundFormIds);
 
     return serializeDomain(updated);

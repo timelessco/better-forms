@@ -66,10 +66,7 @@ export const generateEmbedUrl = (
   if (options.display.title === "hidden") params.append("hideTitle", "true");
   if (options.display.background === "transparent") params.append("transparent", "true");
   if (options.display.alignment === "left") params.append("align", "left");
-  // Note: "Made with Reform" branding is a server-controlled Pro feature. It
-  // cannot be toggled via the embed URL or script data-attributes — the source
-  // of truth is the form's own `settings.branding` column, managed from the
-  // Settings panel.
+  // "Made with Reform" branding is server-controlled Pro; not toggleable via URL/data-attrs. Source of truth: form's `settings.branding`.
   if (options.display.dynamicHeight) params.append("dynamicHeight", "true");
   if (options.display.dynamicWidth) params.append("dynamicWidth", "true");
   const queryString = params.toString();

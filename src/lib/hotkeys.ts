@@ -19,9 +19,8 @@ export const HOTKEYS = {
   DISMISS_SIDEBARS: "Mod+.",
   // Dashboard — scoped
   DASHBOARD_SELECT_ALL: "Mod+A",
-  // Mac laptops emit Backspace for the labeled "Delete" key; full keyboards
-  // emit Delete for the forward-delete key. Call sites bind both via
-  // `useHotkeys`; this constant is the primary used in tooltips/labels.
+  // Mac laptops emit Backspace for "Delete"; full keyboards emit Delete. Call
+  // sites bind both; this is the primary shown in tooltips/labels.
   DASHBOARD_DELETE: "Backspace",
   DASHBOARD_CLEAR_SELECTION: "Escape",
   // Submissions page — scoped

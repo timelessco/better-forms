@@ -9,20 +9,10 @@ import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
-// `?inline` returns the bundled, hashed CSS as a string at build time.
-// We inject it ourselves via a single <style> in RootDocument so we have
-// full control over the head — specifically, NO `<link rel="stylesheet">`
-// gets emitted via HeadContent's manifest path. Side-effect imports
-// + `server.build.inlineCss: true` produced BOTH an inline style and
-// a render-blocking link for the same content (Lighthouse flagged 70ms
-// savings); this path emits inline only.
+// `?inline` = build-time CSS string, injected via single <style> in RootDocument so HeadContent emits no render-blocking <link>. (Side-effect import + inlineCss emitted both; Lighthouse −70ms.)
 import styles from "../styles/styles.css?inline";
 
-// Lazy: sonner is ~14 kB gz and the public form never fires a toast.
-// Static `import { toast } from "sonner"` calls still pull sonner into
-// their own route chunks (auth/login/builder) — lazying the Toaster
-// MOUNT just keeps the library out of the root entry chunk, which
-// loads on every page.
+// Lazy: sonner ~14kB gz, public form never toasts. Static `toast` imports still chunk it (auth/login/builder); lazy Toaster mount just keeps it out of the always-loaded root chunk.
 const Toaster = lazy(() => import("@/components/ui/sonner").then((m) => ({ default: m.Toaster })));
 
 const LazyDevtools = lazy(() =>
@@ -36,10 +26,7 @@ interface MyRouterContext {
 
 const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("vite-ui-theme");if(t==="dark"||(!t&&matchMedia("(prefers-color-scheme:dark)").matches)){document.documentElement.classList.add("dark");document.documentElement.style.colorScheme="dark"}}catch(e){}})()`;
 
-// iOS Safari zooms into inputs with font-size < 16px on focus. Forcing
-// maximum-scale=1.0 on iOS only suppresses that zoom while preserving
-// pinch-to-zoom everywhere else. A MutationObserver re-applies the
-// attribute if TanStack rewrites the viewport meta during navigation.
+// iOS Safari zooms inputs <16px on focus; maximum-scale=1.0 (iOS only) suppresses that, keeps pinch-zoom elsewhere. MutationObserver re-applies if TanStack rewrites viewport meta on nav.
 const IOS_AUTOZOOM_FIX_SCRIPT = `(function(){if(window.__iosAutozoomFixApplied)return;var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);if(!isIOS)return;window.__iosAutozoomFixApplied=true;var applying=false;var apply=function(){var m=document.querySelector('meta[name=viewport]');if(!m)return;var c=m.getAttribute('content')||'';if(c.indexOf('maximum-scale=1.0')!==-1)return;applying=true;if(/maximum-scale=[\\d.]+/.test(c)){m.setAttribute('content',c.replace(/maximum-scale=[\\d.]+/,'maximum-scale=1.0'))}else{m.setAttribute('content',c+', maximum-scale=1.0')}applying=false};apply();new MutationObserver(function(ms){if(applying)return;for(var i=0;i<ms.length;i++){var x=ms[i];if((x.type==='attributes'&&x.target.nodeName==='META')||x.type==='childList'){apply();return}}}).observe(document.head,{childList:true,subtree:true,attributes:true,attributeFilter:['content']})})()`;
 
 const APP_STYLE_PROP = { __html: styles } as const;
@@ -47,9 +34,7 @@ const APP_STYLE_PROP = { __html: styles } as const;
 const RootDocument = ({ children }: { children: React.ReactNode }) => (
   <html lang="en" suppressHydrationWarning>
     <head>
-      {/* App CSS — bundled CSS string from `styles.css?inline` (build-time,
-          not user input). Single source of truth so HeadContent doesn't
-          also emit a render-blocking <link> for the same content. */}
+      {/* App CSS from `styles.css?inline` (build-time, no user input). Single source — HeadContent emits no render-blocking <link>. */}
       {/** biome-ignore lint/security/noDangerouslySetInnerHtml: build-time CSS string, identical security posture to the theme init script below */}
       {/* eslint-disable-next-line react/no-danger -- build-time CSS bundle, no user input */}
       <style dangerouslySetInnerHTML={APP_STYLE_PROP} />
@@ -99,8 +84,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       ...seo(),
     ],
     links: [
-      // App CSS is inlined into RootDocument (see `styles.css?inline` above);
-      // no <link rel="stylesheet"> needed here.
+      // App CSS inlined in RootDocument (styles.css?inline) — no <link> here.
       { rel: "icon", type: "image/svg+xml", href: "/metadata/favicon.svg" },
       { rel: "icon", href: "/metadata/favicon.ico" },
       { rel: "apple-touch-icon", href: "/metadata/apple-touch-icon.png" },

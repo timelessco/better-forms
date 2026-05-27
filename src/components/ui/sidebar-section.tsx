@@ -12,14 +12,9 @@ import { createContext, use } from "react";
 const SECTION_VALUE = "section";
 
 /**
- * Counter consumed by SidebarSection to re-key its inner Accordion.
- * The right-sidebar host (`PersistentSidebars`) bumps this each time a sidebar
- * transitions hidden→visible — so reopening a sidebar resets every section
- * back to its `initialOpen` default while form state and scroll position
- * (which live above this Accordion) survive untouched.
- *
- * Default `0` — uses outside this provider (e.g. left workspace sidebar) never
- * change and never re-key.
+ * Counter that re-keys SidebarSection's Accordion. PersistentSidebars bumps it on each
+ * hidden→visible transition, so reopening resets sections to initialOpen while form state and
+ * scroll (above this Accordion) survive. Default 0 — uses outside this provider never re-key.
  */
 const SidebarSectionResetContext = createContext(0);
 export const SidebarSectionResetProvider = SidebarSectionResetContext.Provider;

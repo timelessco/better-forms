@@ -11,10 +11,7 @@ import {
 import { FONT_MAP, getGoogleFontUrl } from "./font-registry";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "./customization-defaults";
 
-/**
- * Layout fields that map to --bf-* layout CSS variables.
- * These apply to both editor (layout only) and preview/public (full theme).
- */
+/** Layout fields → --bf-* CSS vars. Apply to editor (layout only) + preview/public (full theme). */
 const LAYOUT_FIELDS: Record<string, string> = {
   pageWidth: "--bf-page-width",
   coverHeight: "--bf-cover-height",
@@ -31,9 +28,7 @@ const LAYOUT_FIELDS: Record<string, string> = {
 const migratePageWidth = (value: string): string =>
   value.endsWith("vw") ? value.replace(/vw$/, "%") : value;
 
-/**
- * All shadcn token names that can be overridden via --bf-* prefix.
- */
+/** shadcn token names overridable via --bf-* prefix. */
 export const TOKEN_NAMES = [
   "background",
   "foreground",
@@ -56,17 +51,8 @@ export const TOKEN_NAMES = [
   "ring",
 ] as const;
 
-/**
- * Resolves the full set of design tokens from a customization record.
- *
- * Resolution cascade:
- * 1. Read preset name (default: "default")
- * 2. Get base tokens from BASE_COLORS
- * 3. Get theme tokens from THEME_COLORS
- * 4. Derive secondary = muted, destructive = constant
- * 5. Apply font + radius
- * 6. Apply any individual token overrides (advanced Pro keys)
- */
+/** Resolve design tokens from a customization record. Cascade: preset → BASE_COLORS
+ * → THEME_COLORS → derive secondary=muted/destructive=const → font+radius → Pro token overrides. */
 const resolveTokens = (customization: Record<string, string>): Record<string, string> => {
   const presetName = customization.preset || "vega";
   const style = STYLES[presetName] ?? STYLES.vega;
@@ -111,13 +97,10 @@ const resolveTokens = (customization: Record<string, string>): Record<string, st
     }
   }
 
-  // Card coherence: when the user overrides `background` (or `foreground`)
-  // but not card tokens, sync card to the page surface so inline themed
-  // cards read as one cohesive sheet with the form.
-  // Popover is intentionally NOT synced — portaled popups (date picker,
-  // multi-select dropdown, country picker) should keep a distinct surface
-  // tone from the page so they read as a layer above the form, not as
-  // an invisible patch of the same background.
+  // Card coherence: override bg/fg but not card → sync card to page surface so
+  // inline cards read as one sheet with the form.
+  // Popover NOT synced — portaled popups (date picker, multi-select, country picker)
+  // keep a distinct tone so they read as a layer above, not an invisible patch.
   const userOverrodeBg = Boolean(customization[`${mode}:background`] || customization.background);
   const userOverrodeFg = Boolean(customization[`${mode}:foreground`] || customization.foreground);
   const explicitCard = customization[`${mode}:card`] || customization.card;
@@ -133,10 +116,8 @@ const resolveTokens = (customization: Record<string, string>): Record<string, st
   return tokens;
 };
 
-/**
- * Mode-dependent token entries — colors that change between light and dark.
- * Pass pre-resolved tokens to avoid re-running `resolveTokens` per call.
- */
+/** Mode-dependent token entries (colors that change light↔dark). Pass pre-resolved
+ * tokens to avoid re-running resolveTokens. */
 const buildColorTokenEntries = (tokens: Record<string, string>): [string, string][] => {
   const entries: [string, string][] = [];
   for (const tokenName of TOKEN_NAMES) {
@@ -148,10 +129,7 @@ const buildColorTokenEntries = (tokens: Record<string, string>): [string, string
   return entries;
 };
 
-/**
- * Mode-independent entries — font, radius, spacing, title font, layout vars.
- * Same regardless of light/dark mode.
- */
+/** Mode-independent entries (font, radius, spacing, title font, layout vars). */
 const buildModeAgnosticEntries = (
   customization: Record<string, string>,
   tokens: Record<string, string>,
@@ -186,21 +164,15 @@ const buildModeAgnosticEntries = (
   return entries;
 };
 
-/**
- * Builds --bf-* CSS variable entries from resolved tokens + layout fields.
- * Combines mode-dependent and mode-agnostic entries — used by getThemeStyleVars
- * (inline style object) where a single mode is required.
- */
+/** --bf-* entries from resolved tokens + layout (mode-dependent + mode-agnostic).
+ * Used by getThemeStyleVars where a single mode is required. */
 const buildThemeVarEntries = (customization: Record<string, string>): [string, string][] => {
   const tokens = resolveTokens(customization);
   return [...buildColorTokenEntries(tokens), ...buildModeAgnosticEntries(customization, tokens)];
 };
 
-/**
- * Returns a React style object with CSS custom properties for the full theme.
- * Apply to a `.bf-themed` container; the bridge rules in styles.css map
- * --bf-* to standard shadcn vars within scope.
- */
+/** React style object of CSS custom props for the full theme. Apply to a `.bf-themed`
+ * container; styles.css bridge rules map --bf-* to shadcn vars in scope. */
 export const getThemeStyleVars = (
   customization: Record<string, string> | null | undefined,
 ): CSSProperties => {
@@ -223,11 +195,8 @@ const applyLogoMinimalFlag = (
   }
 };
 
-/**
- * Generates a `<style>` body that sets CSS custom properties on `.bf-themed`.
- * Used for public form SSR injection. The property-consuming bridge rules
- * live in styles.css and are loaded with the page.
- */
+/** `<style>` body setting CSS custom props on `.bf-themed`, for public-form SSR
+ * injection. Consuming bridge rules live in styles.css. */
 export const generateThemeCss = (
   customization: Record<string, string> | null | undefined,
 ): string => {
@@ -254,10 +223,9 @@ const formatCssBlock = (selector: string, entries: [string, string][]): string =
   return `${selector} {\n${lines}\n}`;
 };
 
-// Use this instead of generateThemeCss for SSR injection so the form doesn't
-// flash when the viewer's theme differs from the server-rendered default —
-// both sets are emitted and the root html `.dark`/`.light` class picks one
-// purely in CSS, no hydration regeneration needed.
+// Prefer over generateThemeCss for SSR: avoids flash when viewer theme ≠ server
+// default. Emits both sets; root `.dark`/`.light` class picks one in pure CSS,
+// no hydration regen.
 export const generateDualThemeCss = (
   customization: Record<string, string> | null | undefined,
 ): string => {
@@ -294,9 +262,7 @@ export const generateDualThemeCss = (
   return css;
 };
 
-/**
- * Returns the Google Fonts CSS API URL for the font in customization, or null if self-hosted.
- */
+/** Google Fonts CSS API URL for customization's font, or null if self-hosted. */
 export const getGoogleFontLinkUrl = (
   customization: Record<string, string> | null | undefined,
 ): string | null => {
@@ -315,14 +281,11 @@ export const GOOGLE_FONTS_PRECONNECTS = [
 type MediaPreconnect = { rel: "preconnect"; href: string; crossOrigin: "anonymous" };
 
 /**
- * Preconnect hints for media hosts a public form may reference. Always
- * includes images.unsplash.com (common cover/template source). Each absolute
- * URL passed in contributes its origin; relative URLs (e.g. /_vercel/image
- * proxied blob assets) are skipped because same-origin needs no hint.
- *
- * Returned origins are deduplicated and emitted with `crossorigin="anonymous"`
- * — images and SVGs are fetched without credentials, and matching CORS mode
- * is required for the preconnected socket to be reused.
+ * Preconnect hints for media hosts a form may reference. Always includes
+ * images.unsplash.com. Absolute URLs contribute their origin; relative URLs
+ * (e.g. /_vercel/image) skipped (same-origin needs no hint).
+ * Deduped, emitted crossorigin="anonymous" — media fetched without credentials,
+ * matching CORS mode required to reuse the preconnected socket.
  */
 export const getMediaPreconnects = (...urls: (string | null | undefined)[]): MediaPreconnect[] => {
   const origins = new Set<string>(["https://images.unsplash.com"]);
@@ -334,7 +297,7 @@ export const getMediaPreconnects = (...urls: (string | null | undefined)[]): Med
         origins.add(u.origin);
       }
     } catch {
-      // relative URLs and malformed input — skip
+      // relative URLs / malformed input — skip
     }
   }
   return [...origins].map((href) => ({

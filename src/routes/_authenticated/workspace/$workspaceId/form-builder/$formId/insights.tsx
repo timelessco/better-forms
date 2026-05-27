@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/form-builder/insights/empty-state";
 import { MetricsRow } from "@/components/form-builder/insights/metrics-row";
 import { TimeRangeSelector } from "@/components/form-builder/insights/time-range-selector";
 import { TimeSeriesChart } from "@/components/form-builder/insights/time-series-chart";
-import { Badge } from "@/components/ui/badge";
+import { WebVitalsCard } from "@/components/form-builder/insights/web-vitals-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCwIcon } from "@/components/ui/icons";
@@ -22,10 +22,12 @@ import {
   insightsAvailabilityKey,
   insightsKey,
   invalidateInsightsQueries,
+  vitalsKey,
 } from "@/lib/analytics/insights-query-keys";
 import {
   getFormDropoff,
   getFormInsights,
+  getFormVitals,
   getInsightsAvailability,
 } from "@/lib/server-fn/analytics";
 import { setFormAnalytics } from "@/lib/server-fn/forms";
@@ -34,13 +36,68 @@ import { settingsDialogStore } from "@/hooks/use-settings-dialog";
 
 const DEFAULT_FILTER: TimeRangeFilter = "last_30_days";
 
+// Time range is a cross-form preference — persist so it restores next visit, not resets to default.
+const TIME_RANGE_STORAGE_KEY = "reform:insights-time-range";
+
+const TIME_RANGE_FILTERS: readonly TimeRangeFilter[] = [
+  "last_24_hours",
+  "last_7_days",
+  "last_30_days",
+  "last_90_days",
+  "custom",
+];
+
+interface StoredTimeRange {
+  filter: TimeRangeFilter;
+  startDate?: string;
+  endDate?: string;
+}
+
+const readStoredRange = (): StoredTimeRange | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(TIME_RANGE_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<StoredTimeRange>;
+    if (!parsed.filter || !TIME_RANGE_FILTERS.includes(parsed.filter)) {
+      return null;
+    }
+    // A custom range is only valid with both endpoints; otherwise fall back.
+    if (parsed.filter === "custom" && !(parsed.startDate && parsed.endDate)) {
+      return null;
+    }
+    return { filter: parsed.filter, startDate: parsed.startDate, endDate: parsed.endDate };
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredRange = (range: StoredTimeRange): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(TIME_RANGE_STORAGE_KEY, JSON.stringify(range));
+  } catch {
+    // Best-effort: ignore quota / privacy-mode write failures.
+  }
+};
+
 const InsightsPage = () => {
   const { formId, workspaceId } = Route.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<TimeRangeFilter>(DEFAULT_FILTER);
-  const [startDate, setStartDate] = useState<string | undefined>(undefined);
-  const [endDate, setEndDate] = useState<string | undefined>(undefined);
+  const [filter, setFilter] = useState<TimeRangeFilter>(
+    () => readStoredRange()?.filter ?? DEFAULT_FILTER,
+  );
+  const [startDate, setStartDate] = useState<string | undefined>(
+    () => readStoredRange()?.startDate,
+  );
+  const [endDate, setEndDate] = useState<string | undefined>(() => readStoredRange()?.endDate);
 
   const insightsQuery = useQuery({
     queryKey: [...insightsKey(formId), filter, startDate, endDate],
@@ -58,9 +115,15 @@ const InsightsPage = () => {
     staleTime: 0,
   });
 
-  // Cheap, time-range-independent. Drives the empty-state branch.
-  // Mutations invalidate this key explicitly, so the dashboard doesn't need
-  // per-focus refetching to stay correct after a flip.
+  const vitalsQuery = useQuery({
+    queryKey: [...vitalsKey(formId), filter, startDate, endDate],
+    queryFn: () => getFormVitals({ data: { formId, filter, startDate, endDate } }),
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
+    staleTime: 0,
+  });
+
+  // Cheap, time-range-independent — drives empty-state branch. Mutations invalidate this key, so no per-focus refetch needed.
   const availabilityQuery = useQuery({
     queryKey: insightsAvailabilityKey(formId),
     queryFn: () => getInsightsAvailability({ data: { formId } }),
@@ -68,10 +131,14 @@ const InsightsPage = () => {
   });
 
   const isRefetching =
-    insightsQuery.isFetching || dropoffQuery.isFetching || availabilityQuery.isFetching;
+    insightsQuery.isFetching ||
+    dropoffQuery.isFetching ||
+    vitalsQuery.isFetching ||
+    availabilityQuery.isFetching;
   const handleRefresh = () => {
     void insightsQuery.refetch();
     void dropoffQuery.refetch();
+    void vitalsQuery.refetch();
     void availabilityQuery.refetch();
   };
 
@@ -102,6 +169,7 @@ const InsightsPage = () => {
     setFilter(next.filter);
     setStartDate(next.startDate);
     setEndDate(next.endDate);
+    writeStoredRange(next);
   };
 
   if (insightsQuery.isPending || dropoffQuery.isPending || availabilityQuery.isPending) {
@@ -168,20 +236,16 @@ const InsightsPage = () => {
               <TimeSeriesChart dailyData={metrics.dailyData} />
             </CardContent>
           </Card>
+          {vitalsQuery.data ? <WebVitalsCard vitals={vitalsQuery.data} /> : null}
           <Card className="bg-transparent ring-0">
             <CardHeader>
               <CardTitle>Drop-off funnel</CardTitle>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="funnel">
+              <Tabs defaultValue="flow">
                 <TabsList className="mb-4">
+                  <TabsTrigger value="flow">Flow</TabsTrigger>
                   <TabsTrigger value="funnel">Funnel</TabsTrigger>
-                  <TabsTrigger value="flow">
-                    Flow
-                    <Badge variant="secondary" className="ml-1">
-                      experimental
-                    </Badge>
-                  </TabsTrigger>
                   <TabsIndicator />
                 </TabsList>
                 <TabsContent value="funnel">

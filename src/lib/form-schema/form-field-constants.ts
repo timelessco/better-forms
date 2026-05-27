@@ -29,9 +29,8 @@ export const INPUT_TYPE_TO_FIELD_TYPE: Record<string, string> = {
   formFileUpload: "FileUpload",
 };
 
-// `required` is owned by the input node. The editor's LabelRequiredBadge
-// toggles it on the next-sibling input from the formLabel, and the preview
-// and validation must read from the same source so the two stay in sync.
+// `required` lives on the input node (LabelRequiredBadge toggles the next-sibling
+// input). Preview + validation read the same source to stay in sync.
 export const resolveRequired = (
   inputNode: Record<string, unknown>,
   _labelNode: Record<string, unknown> | null,
@@ -45,12 +44,8 @@ export const VARIANT_TO_FIELD_TYPE: Record<string, string> = {
   ranking: "Ranking",
 };
 
-/**
- * `formNumber` stores numeric bounds on the node as `minValue` / `maxValue`
- * (distinct from text fields' `minLength` / `maxLength` character counts) plus
- * an `allowDecimals` flag. Surface them so both the published form and the
- * preview schema can enforce the same limits.
- */
+/** `formNumber` bounds: `minValue`/`maxValue` (not text's `minLength`/`maxLength`
+ * char counts) + `allowDecimals`. Surfaced so published form + preview match. */
 export const extractNumberFields = (
   node: Record<string, unknown>,
 ): { min?: number; max?: number; allowDecimals?: boolean } => ({

@@ -3,7 +3,7 @@ import type { QuestionDropoffMetrics } from "@/types/analytics";
 
 export interface SankeyGraphNode {
   name: string;
-  // 'step' nodes correspond to a form Step. 'exit' is the terminal drop-off sink.
+  // 'step' = form Step; 'exit' = terminal drop-off sink.
   kind: "step" | "exit";
 }
 
@@ -11,8 +11,7 @@ export interface SankeyGraphLink {
   source: number;
   target: number;
   value: number;
-  // 'flow' links connect consecutive Step nodes. 'dropoff' links connect a Step
-  // node to the terminal 'exit' sink.
+  // 'flow' = consecutive Steps; 'dropoff' = Step → 'exit' sink.
   kind: "flow" | "dropoff";
 }
 
@@ -31,13 +30,10 @@ const stepLabelFromId = (stepId: string, stepIndex: number): string => {
   return `Step ${stepIndex + 1}`;
 };
 
-// Transforms per-Question drop-off metrics into the nodes/links shape that
-// Recharts' <Sankey> requires. Each Step becomes a node; consecutive Steps are
-// connected by a 'flow' link valued at the next Step's view count (a view fires
-// on Step mount, so next.viewCount == "started Step N+1 after completing Step N").
-// Every Step also gets a 'dropoff' link to a shared terminal 'exit' sink valued
-// at its terminalDropoffCount. Links with value 0 are dropped so Recharts
-// doesn't render hairline noise.
+// Per-Question metrics → Recharts <Sankey> nodes/links. Step = node; 'flow' link
+// valued at next.viewCount (view fires on Step mount = "reached Step N+1");
+// 'dropoff' link Step → shared 'exit' sink valued at terminalDropoffCount.
+// Drops value-0 links (Recharts hairline noise).
 export const buildSankeyGraph = (dropoff: QuestionDropoffMetrics): SankeyGraph => {
   const steps = rollupToSteps(dropoff.questions);
   if (steps.length === 0) {

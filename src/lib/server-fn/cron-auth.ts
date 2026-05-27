@@ -1,14 +1,8 @@
 import { getRequestHeaders } from "@tanstack/react-start/server";
 
-/**
- * True when the request is a Vercel cron invocation or carries the shared
- * CRON_SECRET bearer token. Must be called within an active request scope.
- *
- * Uses `getRequestHeaders()` (plural). The singular `getRequestHeader()`
- * silently returned falsy for cron-injected headers, causing every Vercel-
- * scheduled invocation to 403 — the daily rollup hadn't run since the May 6
- * refactor that introduced it.
- */
+/** True for a Vercel cron invocation or a request with the CRON_SECRET bearer token. Must run in
+ * an active request scope. Uses getRequestHeaders() (plural): the singular returned falsy for
+ * cron-injected headers, 403'ing every scheduled invocation (rollup dead since the May 6 refactor). */
 export const isCronAuthorized = (): boolean => {
   const headers = getRequestHeaders();
   if (headers.get("x-vercel-cron")) return true;

@@ -2,8 +2,7 @@ import * as React from "react";
 import { useAsRef } from "@/hooks/use-as-ref";
 import { useFormPersistence } from "@/hooks/use-form-persistence";
 
-/** Subset of tracking state produced by `usePublicFormTracking`, before the
- * form-preview component augments it with `formId` + `mode`. */
+/** Tracking state from `usePublicFormTracking`, before form-preview adds `formId` + `mode`. */
 export interface TrackingBase {
   visitId: string | null;
   visitorHash: string;
@@ -103,13 +102,10 @@ interface StepFormProviderProps {
   formId?: string;
   /** Enable auto-save to localStorage */
   saveAnswersForLater?: boolean;
-  /** Rehydration payload for resuming a server-side draft. Takes precedence
-   * over saveAnswersForLater's localStorage cache. Caller should remount the
-   * provider (via `key`) to apply these once a draft is fetched. */
+  /** Server-draft rehydration payload; takes precedence over the localStorage cache. Remount provider via `key` to apply once fetched. */
   initialFormData?: Record<string, unknown>;
   initialCurrentStep?: number;
-  /** Analytics tracking handle. Pass `null` (or omit) to disable tracking — e.g.
-   * builder previews where no `visitId` exists. */
+  /** Analytics tracking handle. `null`/omit disables tracking (e.g. builder previews, no `visitId`). */
   tracking?: PublicFormTracking | null;
 }
 

@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { publicCorsHeaders } from "@/lib/config/embed-cors";
-// Bundle sprite contents into the server function. Vercel's serverless runtime
-// does not expose `public/` on the function filesystem, so reading by path
-// fails at runtime. `?raw` inlines the file as a string at build time.
+// `?raw` inlines sprite at build time — Vercel functions have no `public/` to read at runtime.
 import spriteSvg from "../../../../public/sprite.svg?raw";
 
 const CORS_HEADERS = {
@@ -14,16 +12,12 @@ const CORS_HEADERS = {
 // Validate up-front so no user input ever flows into the RegExp constructor.
 const NAME_RE = /^[a-z0-9-]{1,64}$/i;
 
-// Bound the symbol cache so an attacker scanning names can't grow it
-// indefinitely. 2× the real icon count is more than enough headroom.
+// Bound symbol cache — name-scanning attacker can't grow it unbounded. 2× icon count is ample.
 const MAX_CACHE_SIZE = 1024;
 
 const symbolCache = new Map<string, string>();
 
-// Defensive scrub: even though sprite.svg is a trusted build artifact, strip
-// any <script> elements and on* event handlers before caching. If someone ever
-// rewires this SVG into a context that executes scripts (e.g. innerHTML or
-// <object>), we stay safe.
+// Defensive scrub: strip <script>/on* handlers before caching — safe even if SVG later lands in a script-executing context (innerHTML, <object>).
 const sanitizeSvgFragment = (fragment: string): string =>
   fragment
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -37,11 +31,7 @@ const extractSymbol = (sprite: string, name: string): string | null => {
   const match = sprite.match(re);
   if (!match) return null;
   const inner = sanitizeSvgFragment(match[1]);
-  // Dual-purpose output: the outer <svg> renders directly (e.g. via <img>),
-  // and the inner <symbol> is addressable via `#${name}` for external
-  // `<use href="/api/icons/${name}.svg#${name}">`. `fill="currentColor"` must
-  // live on the <symbol> itself — outer <svg> attributes don't cascade across
-  // a cross-document `<use>` reference, so without it the icon paints blank.
+  // Dual-purpose: outer <svg> renders via <img>; inner <symbol> addressable via #name for cross-doc <use>. fill="currentColor" must be on the <symbol> — <svg> attrs don't cascade across cross-doc <use>, else blank.
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><symbol id="${name}" viewBox="0 0 24 24" fill="currentColor">${inner}</symbol><use href="#${name}" fill="currentColor"/></svg>`;
   if (symbolCache.size >= MAX_CACHE_SIZE) symbolCache.clear();
   symbolCache.set(name, svg);

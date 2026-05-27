@@ -10,15 +10,11 @@ import {
 import type { GestureLock, VelocitySample } from "@/lib/swipe-gesture";
 
 /**
- * Right-anchored mobile drawer for the editor sidebars (Share, Settings,
- * Customize, Version History).
- *
- * Differs from the left drawer in two ways:
- *   - No open-from-anywhere gesture. The right sidebars are opened via
- *     explicit buttons — swipe-left-from-right-edge would collide with iOS's
- *     forward-navigation swipe and with horizontal scrollers inside the
- *     editor (tables etc).
- *   - Drag-to-close is scoped to the drawer element itself, not document.
+ * Right-anchored mobile drawer for editor sidebars (Share, Settings, Customize, Version History).
+ * Differs from the left drawer:
+ *   - No open-from-anywhere — opened via buttons; edge swipe would collide with iOS forward-nav
+ *     and editor horizontal scrollers (tables).
+ *   - Drag-to-close scoped to the drawer element, not document.
  */
 
 const CLOSE_VELOCITY_THRESHOLD = 500;
@@ -55,14 +51,11 @@ export const MobileRightDrawer = ({
 }: MobileRightDrawerProps) => {
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const widthRef = useRef<number>(0);
-  // Start off-screen when mounted closed so the first paint doesn't flash at
-  // the open position while we wait for the layout effect to measure width.
+  // Start off-screen when closed so first paint doesn't flash open before width is measured.
   const x = useMotionValue(open ? 0 : 9999);
   const gestureRef = useRef<GestureState>(freshGesture());
 
-  // Keep `widthRef` and `x` in sync with the drawer's rendered size — covers
-  // both the initial measurement and later viewport changes (rotation,
-  // resize, DevTools responsive mode).
+  // Sync widthRef/x with rendered size — initial measure plus later viewport changes (rotation, resize).
   useLayoutEffect(() => {
     const el = drawerRef.current;
     if (!el) return;

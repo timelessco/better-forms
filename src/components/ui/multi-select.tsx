@@ -48,13 +48,10 @@ export const MultiSelect = ({
 
   const selectedOptions = options.filter((opt) => value.includes(opt.value));
 
-  // PopoverContent portals to document.body, so it loses the .bf-themed
-  // CSS-var context. Re-anchor the theme on the popup.
+  // PopoverContent portals to body, losing .bf-themed CSS vars — re-anchor theme on the popup.
   const themeReanchor = useReanchorThemeProps();
 
-  // Arrow-key roving focus across the options. Tab/Shift+Tab still work
-  // (native DOM order); this adds the standard listbox-style ArrowUp/Down +
-  // Home/End for keyboard users who expect a Combobox-like UX.
+  // Roving focus across options: adds listbox-style ArrowUp/Down + Home/End; Tab still works natively.
   const handleOptionsKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
     const buttons = Array.from(
@@ -79,10 +76,8 @@ export const MultiSelect = ({
     }
   };
 
-  // Outer trigger must NOT be a <button> — it contains inner "remove tag"
-  // buttons, and nested interactive elements are invalid HTML / cause
-  // React hydration errors. A div with role=button preserves a11y without
-  // the nesting violation.
+  // Outer trigger can't be a <button> — it holds inner "remove tag" buttons (nested interactive =
+  // invalid HTML / hydration errors). div with role=button keeps a11y without the nesting.
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger

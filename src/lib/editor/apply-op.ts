@@ -52,8 +52,8 @@ export type ApplyContext = {
   initialPathRef: { current: number[] };
   /** Whether any op has been applied yet; first op uses initialPath, rest use tail */
   firstOpRef: { current: boolean };
-  /** Edit mode: keep inserting sequentially at the original selection position
-   *  rather than always appending to the end. Set when replacing a selection. */
+  /** Edit mode: insert sequentially at the original selection, not appended to end.
+   *  Set when replacing a selection. */
   editMode: boolean;
   /** Create mode: form started empty. Used to refuse leading page-breaks. */
   createMode: boolean;
@@ -65,8 +65,7 @@ export type ApplyContext = {
   insertedCountRef: { current: number };
   /** Set to true once a thank-you page-break has been applied */
   thankYouEmittedRef: { current: boolean };
-  /** Set to true after the first add-field or add-section is applied.
-   *  Used to refuse leading add-page-break in create mode. */
+  /** Set after first add-field/add-section. Refuses leading add-page-break in create mode. */
   firstContentSeenRef: { current: boolean };
 };
 
@@ -76,11 +75,8 @@ const pathNext = (path: number[]): number[] => {
   return next;
 };
 
-/**
- * Compute the next insertion path by inspecting current editor state.
- * Insert just before the trailing Submit button if present, otherwise at the end.
- * This is self-healing against normalization injecting nav buttons between our inserts.
- */
+/** Next insertion path: just before trailing Submit button, else at end.
+ * Self-healing against normalization injecting nav buttons between inserts. */
 const computeInsertPath = (ctx: ApplyContext): number[] => {
   if (ctx.firstOpRef.current) {
     ctx.firstOpRef.current = false;
@@ -162,8 +158,8 @@ const applySetHeader = (op: SetHeaderOp, ctx: ApplyContext): AppliedOp | null =>
 const applySetTheme = (op: SetThemeOp, ctx: ApplyContext): AppliedOp | null => {
   if (!ctx.formId) return null;
 
-  // Fire-and-forget dynamic import; the op is considered applied synchronously
-  // so we can return immediately and avoid race conditions in the apply loop.
+  // Fire-and-forget dynamic import; op counts as applied synchronously
+  // (return now, avoid apply-loop races).
   void (async () => {
     const collectionsModule = await import("@/collections");
     const localModule = await import("@/collections/local/form");
@@ -216,8 +212,8 @@ const applyReplaceField = (op: ReplaceFieldOp, ctx: ApplyContext): AppliedOp | n
 
   const updates: Record<string, unknown> = {};
   if (op.placeholder) updates.placeholder = op.placeholder;
-  // Note: label/fieldType/options changes require structural edits beyond setNodes.
-  // For now, only placeholder is live-patchable; caller handles structural replace.
+  // label/fieldType/options need structural edits beyond setNodes; only placeholder
+  // is live-patchable, caller handles structural replace.
 
   if (Object.keys(updates).length > 0) {
     ctx.editor.tf.setNodes(updates, { at: path });
@@ -227,14 +223,13 @@ const applyReplaceField = (op: ReplaceFieldOp, ctx: ApplyContext): AppliedOp | n
 };
 
 export const applyOp = (op: Op, ctx: ApplyContext): AppliedOp | null => {
-  // Defense: after the thank-you page-break, only allow ops that build the thank-you message
-  // body (sections, fields). Block another page-break or whole new form structures.
+  // Defense: after thank-you page-break, only allow body ops (sections/fields);
+  // block another page-break or new form structures.
   if (ctx.thankYouEmittedRef.current && op.type === "add-page-break") {
     return null;
   }
 
-  // Defense: in CREATE mode, refuse a leading add-page-break (no content yet).
-  // The first page is implicit; a leading break wastes Page 1.
+  // Defense: CREATE mode refuses leading add-page-break (first page implicit, break wastes Page 1).
   if (op.type === "add-page-break" && ctx.createMode && !ctx.firstContentSeenRef.current) {
     return null;
   }
@@ -257,11 +252,8 @@ export const applyOp = (op: Op, ctx: ApplyContext): AppliedOp | null => {
   }
 };
 
-/**
- * Read the node at a path, or null if the path is out of bounds.
- * Used to validate that a previously-stored path still points to the expected node
- * before mutating — normalization may have shifted nodes around.
- */
+/** Node at path, or null if out of bounds. Validates a stored path still points to
+ * the expected node before mutating (normalization may have shifted nodes). */
 const nodeAt = (editor: PlateEditor, path: number[]): Record<string, unknown> | null => {
   if (path.length !== 1) return null;
   const idx = path[0];
@@ -274,8 +266,8 @@ export const liveUpdateOp = (op: Op, prev: AppliedOp, editor: PlateEditor): Appl
     if (op.label && op.label !== prev.snapshot.label) {
       const labelPath = prev.path;
       const stored = nodeAt(editor, labelPath);
-      // Only mutate if the path still points to our formLabel node.
-      // If normalization shifted it, we silently skip — snapshot still updates so we don't loop.
+      // Mutate only if path still points to our formLabel; if shifted, skip silently
+      // (snapshot still updates, so we don't loop).
       if (stored?.type === "formLabel") {
         editor.tf.setNodes(
           { required: op.required ?? prev.snapshot.required ?? false },
@@ -328,9 +320,7 @@ export const liveUpdateOp = (op: Op, prev: AppliedOp, editor: PlateEditor): Appl
   return prev;
 };
 
-/**
- * Returns true if this op can still be live-updated (non-structural changes only).
- */
+/** True if op is still live-updatable (non-structural changes only). */
 export const canLiveUpdate = (op: Op, prev: AppliedOp): boolean => {
   if (op.type === "add-field" && prev.kind === "add-field") {
     return op.label !== prev.snapshot.label || op.required !== prev.snapshot.required;

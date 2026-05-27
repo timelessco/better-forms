@@ -33,9 +33,7 @@ const resolveIconDisplay = (emojiIcon: string | undefined): IconDisplay => {
   const icon = (emojiIcon || "").trim();
   if (!icon) return null;
   if (isValidUrl(icon)) return { type: "image", value: icon };
-  // Short strings (e.g. 👋) are emoji; longer strings are sprite names. The
-  // sprite has more icons than `iconMap`, so don't gate on `iconMap.has` —
-  // any name that exists in the sprite will resolve via the cross-doc <use>.
+  // Short strings = emoji; longer = sprite names. Sprite has more than `iconMap`, so don't gate on `iconMap.has`.
   if (icon.length <= 4) return { type: "emoji", value: icon };
   return { type: "sprite", value: icon };
 };
@@ -127,7 +125,7 @@ const getCornerPos = (position: string, cw: number, ch: number, w: number, h: nu
   }
 };
 
-// Get the bubble position (always in the corner, even when popup is expanded at center)
+// Bubble position; always in corner, even when popup expands at center.
 const getBubblePos = (position: string, cw: number, ch: number) => {
   const size = 28;
   switch (position) {
@@ -352,9 +350,7 @@ export const EmbedPreviewMockup = ({
           </motion.div>
         )}
 
-        {/* Fallback bubble for forms without a resolvable icon. Sits at the
-            same corner as the morphing target so the visual stays consistent.
-            Only renders when the icon overlay would otherwise be empty. */}
+        {/* Fallback bubble when no resolvable icon; same corner as morph target. Renders only if icon overlay would be empty. */}
         {isPopup && !isPopupExpanded && !popupIconDisplay && bubblePos && (
           <button
             type="button"

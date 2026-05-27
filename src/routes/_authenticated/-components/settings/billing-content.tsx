@@ -3,7 +3,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authClient } from "@/lib/auth/auth-client";
-import { useLoaderData } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { orgDataForLayoutQueryOptions } from "@/lib/server-fn/org";
 import { Loader2Icon } from "@/components/ui/icons";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { openOrgBillingPortal } from "@/lib/server-fn/billing";
@@ -18,8 +19,7 @@ const tierActionLabel = (currentPlan: Plan, tier: Plan): TierAction => {
   return PLAN_RANK[tier] > PLAN_RANK[currentPlan] ? "Upgrade" : "Downgrade";
 };
 
-// Visual weight follows action: Upgrade is the CTA (filled), Downgrade is
-// a soft secondary (ghost), Current is shown as a disabled outline marker.
+// Weight by action: Upgrade=CTA (filled), Downgrade=ghost, Current=disabled outline.
 const tierActionVariant = (action: TierAction): ButtonVariant => {
   if (action === "Upgrade") return "default";
   if (action === "Current") return "outline";
@@ -27,7 +27,10 @@ const tierActionVariant = (action: TierAction): ButtonVariant => {
 };
 
 export const BillingContent = () => {
-  const activeOrg = useLoaderData({ from: "/_authenticated", select: (d) => d.activeOrg });
+  const { data: activeOrg } = useQuery({
+    ...orgDataForLayoutQueryOptions(),
+    select: (d) => d.activeOrg,
+  });
 
   const {
     isPro: isProPlan,
@@ -63,9 +66,7 @@ export const BillingContent = () => {
         toast.error("Please select an organization first");
         return;
       }
-      // Polar's checkout creates a *new* subscription and rejects customers
-      // who already have an active one. Route existing paid customers through
-      // the customer portal, which supports plan switching with proration.
+      // Polar checkout creates a *new* sub, rejects active customers. Route paid users to portal (plan switch with proration).
       if (!isFreePlan) {
         await handleOpenPortal();
         return;

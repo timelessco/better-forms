@@ -23,8 +23,7 @@ describe("vercelDomains.remove", () => {
   });
 
   it("calls project-domain detach AND account-level domain delete", async () => {
-    // Each call needs a fresh Response — bodies are consumed once. Sharing a
-    // single Response across both fetch calls would throw "Body unusable".
+    // Fresh Response per call — bodies consumed once; sharing one throws "Body unusable".
     fetchMock.mockResolvedValueOnce(jsonResponse({})).mockResolvedValueOnce(jsonResponse({}));
 
     await vercelDomains.remove("acme.com");

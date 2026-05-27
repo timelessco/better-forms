@@ -1,11 +1,8 @@
 import { useMutationState } from "@tanstack/react-query";
 
-/**
- * Dev-only indicator showing pending mutations.
- * Positioned in top-left corner.
- *
- * Uses useMutationState from TanStack Query v5 to track all pending mutations.
- */
+import { NumberPopIn } from "@/components/transitions/number-pop-in";
+
+/** Dev-only top-left indicator of pending mutations (via useMutationState). */
 export const MutationIndicator = () => {
   const pendingMutations = useMutationState({
     filters: { status: "pending" },
@@ -26,7 +23,8 @@ export const MutationIndicator = () => {
       className="bg-plain-reverse text-plain fixed top-1 left-1 z-50 flex items-center gap-1.5 rounded-full px-2.5 py-2 text-xs"
     >
       <span className="bg-plain size-4 animate-pulse rounded-full" />
-      Saving {pendingMutations.length}...
+      Saving <NumberPopIn value={pendingMutations.length} />
+      ...
     </div>
   );
 };

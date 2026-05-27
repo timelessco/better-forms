@@ -7,8 +7,7 @@ import type { ServerPlan } from "@/lib/server-fn/plan-helpers";
 import { generateShortId } from "@/lib/short-id";
 import { defaultFormSettings } from "@/types/form-settings";
 
-/** Map a `forms` row → the `FormListing` shape used by the client collection.
- *  Used by tests that fabricate listings from raw DB rows. */
+/** Map a `forms` row → `FormListing`, for tests that fabricate listings from raw DB rows. */
 export const toFormListing = (
   form: typeof schema.forms.$inferSelect,
   opts: { submissionCount?: number } = {},
@@ -114,14 +113,7 @@ export const createTestForm = async (workspaceId: string, creatorId: string) => 
   return form;
 };
 
-// better-auth's deleteUser only removes the `user` row. The `member` table
-// has no FK to user/org (src/db/schema.ts:32-42), so member rows linger and
-// the auto-provisioned org (databaseHooks.user.create.after in
-// src/lib/auth/auth.ts:72-104) is never torn down. Walking the graph by
-// userId catches every tenant the user owns or belongs to: cascading from
-// the organization sweeps workspaces, forms, submissions, etc. via the
-// existing FK chain, and explicit member/order deletes mop up the FK-less
-// rows.
+// deleteUser only drops the `user` row; `member` has no FK (schema.ts:32-42) so member rows + auto-provisioned org (auth.ts:72-104) linger. Walk by userId: org cascade sweeps workspaces/forms/etc; explicit member/order deletes mop up FK-less rows.
 export const cleanupTestUser = async (userId: string) => {
   const orgRows = await db
     .select({ organizationId: schema.member.organizationId })
@@ -132,8 +124,7 @@ export const cleanupTestUser = async (userId: string) => {
   if (orgIds.length > 0) {
     await db.delete(schema.organization).where(inArray(schema.organization.id, orgIds));
   }
-  // Member + user_workspace_order rows have no FK cascade — clear them
-  // explicitly so deleteUser leaves a clean trail.
+  // member + user_workspace_order have no FK cascade — clear explicitly.
   await db.delete(schema.member).where(eq(schema.member.userId, userId));
   await db.delete(schema.userWorkspaceOrder).where(eq(schema.userWorkspaceOrder.userId, userId));
 
@@ -142,8 +133,7 @@ export const cleanupTestUser = async (userId: string) => {
 };
 
 export const cleanupTestOrg = async (orgId: string) => {
-  // Same shape as cleanupTestUser: drop members first (no FK cascade), then
-  // the org itself which cascades workspaces/forms/etc.
+  // Like cleanupTestUser: drop members first (no FK cascade), then org (cascades workspaces/forms/etc).
   await db.delete(schema.member).where(eq(schema.member.organizationId, orgId));
   const t = await getTestUtils();
   await t.deleteOrganization(orgId);

@@ -135,8 +135,7 @@ const CustomDomainFormIdRoute = () => {
 export const Route = createFileRoute("/f/$formId")({
   validateSearch: zodValidator(
     z.object({
-      // No `.default()` — would 307-redirect bare URLs to a canonical form
-      // with all defaults appended, breaking link-preview crawlers.
+      // No `.default()` — would 307-redirect bare URLs to defaults-appended canonical, breaking link-preview crawlers.
       transparentBackground: z.boolean().optional(),
       transparent: z.coerce.boolean().optional(),
       popup: z.coerce.boolean().optional(),

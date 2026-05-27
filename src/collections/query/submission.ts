@@ -13,7 +13,6 @@ type SubmissionSummaryCollectionConfig = {
   queryFn: () => Promise<{ total: number }>;
 };
 
-/** Lightweight submission count for dashboard/card surfaces */
 export const createSubmissionSummaryCollection = (config: SubmissionSummaryCollectionConfig) => {
   const { queryClient, formId, queryFn } = config;
 
@@ -26,7 +25,7 @@ export const createSubmissionSummaryCollection = (config: SubmissionSummaryColle
       },
       queryClient,
       getKey: (item): string | number => item.formId,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
     }),
   );
 };

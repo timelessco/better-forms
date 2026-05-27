@@ -1,10 +1,6 @@
 /**
- * Option B: analytics writers run unconditionally; the `forms.analytics`
- * toggle gates DISPLAY only. Flipping the toggle on later surfaces
- * historical data instead of starting from zero.
- *
- * This file pins that contract — if anyone re-adds an `isAnalyticsEnabled`
- * guard to the recorders, or removes it from the readers, these tests fail.
+ * Option B: writers run unconditionally; `forms.analytics` gates DISPLAY only (toggling on later surfaces history, not zero).
+ * Pins the contract — fails if a guard is re-added to recorders or removed from readers.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
@@ -28,9 +24,7 @@ import {
   setOrgPlan,
 } from "@/test/helpers";
 
-// recordFormVisitImpl reads the active request's headers (user-agent, ip-country)
-// via TanStack Start's server-only helper. In a unit test there's no real
-// request, so stub the module to return a fixed Headers object.
+// recordFormVisitImpl reads request headers via server-only helper; no real request in unit tests, so stub fixed Headers.
 vi.mock<typeof import("@tanstack/react-start/server")>(
   import("@tanstack/react-start/server"),
   async (importOriginal) => {
@@ -151,8 +145,7 @@ describe("analytics Option B contract", () => {
   describe("insights reader gates on the toggle", () => {
     it("hides recorded data while analytics is disabled", async () => {
       const form = await seedForm(false);
-      // Real visit row in the DB — proves the reader gates on the toggle,
-      // not on absence of data.
+      // Real visit row — proves the reader gates on the toggle, not on absent data.
       await recordVisit(form.id, "v-hidden");
 
       const metrics = await getFormInsightsImpl(
@@ -170,8 +163,7 @@ describe("analytics Option B contract", () => {
       const form = await seedForm(false);
       await recordVisit(form.id, "v-historical");
 
-      // Phase 2 — flip live analytics on (the row that `setFormAnalytics`
-      // writes to from the share sidebar / "Enable analytics" button).
+      // Phase 2 — flip live analytics on (the row `setFormAnalytics` writes from the share sidebar).
       await db
         .update(formSettings)
         .set({ settings: { ...defaultFormSettings, analytics: true } })

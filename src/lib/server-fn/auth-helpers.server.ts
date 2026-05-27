@@ -4,11 +4,7 @@ import { forms, member, workspaces } from "@/db/schema";
 import { db } from "@/db";
 import type { ErrorCode } from "@/lib/errors/codes";
 
-/**
- * Authorize access to a workspace.
- * Checks if the workspace belongs to the user's active organization
- * and the user is a member of that organization.
- */
+/** Authorize workspace access: workspace in user's active org AND user is a member. */
 export const authWorkspace = async (
   workspaceId: string,
   userId: string,
@@ -44,11 +40,7 @@ export const authWorkspace = async (
   return { workspace: workspace[0] };
 };
 
-/**
- * Authorize access to a form.
- * Checks if the form's workspace belongs to the user's active organization
- * and the user is a member of that organization.
- */
+/** Authorize form access: form's workspace in user's active org AND user is a member. */
 export const authForm = async (formId: string, userId: string, organizationId: string) => {
   const memberSubquery = db
     .select({ id: member.id })
@@ -81,13 +73,9 @@ export const authForm = async (formId: string, userId: string, organizationId: s
   return { form: form[0] };
 };
 
-/**
- * Authorize bulk access to forms. Returns the subset of `formIds` that the
- * user is allowed to operate on (forms whose workspace belongs to the active
- * org). The caller decides whether to error on partial matches or proceed
- * with whatever was authorized — bulk handlers typically want to throw if
- * anything is missing so a single bad id doesn't silently drop affected rows.
- */
+/** Bulk form authz: returns the authorized subset of formIds (workspace in active org). Caller
+ * decides on partial matches — bulk handlers usually throw if any missing so a bad id doesn't
+ * silently drop affected rows. */
 export const authFormsBulk = async (formIds: string[], userId: string, organizationId: string) => {
   if (formIds.length === 0) return { formIds: [] as string[] };
 

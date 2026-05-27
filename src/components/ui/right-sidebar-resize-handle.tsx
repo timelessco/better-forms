@@ -55,9 +55,7 @@ export const RightSidebarResizeHandle = ({
     setSidebarWidth(RIGHT_SIDEBAR_WIDTH_DEFAULT);
   }, [setSidebarWidth]);
 
-  // Track the latest sidebarWidth in a ref so the callback doesn't depend on it
-  // and we can compute the next width without using the previous state value
-  // (the parent setter is wrapped in useCallback and accepts only a number).
+  // Latest sidebarWidth in a ref so the callback doesn't depend on it (parent setter takes a number, not an updater).
   const sidebarWidthRef = useRef(sidebarWidth);
   sidebarWidthRef.current = sidebarWidth;
 

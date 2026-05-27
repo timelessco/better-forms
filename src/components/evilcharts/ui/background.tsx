@@ -3,12 +3,7 @@
 import { ZIndexLayer } from "recharts";
 import { useId } from "react";
 
-/**
- * To add a new variant:
- * 1. Add its name to the BackgroundVariant union type below
- * 2. Create a pattern component with PatternProps
- * 3. Register it in PATTERN_MAP
- */
+/** New variant: add to BackgroundVariant union, make a PatternProps component, register in PATTERN_MAP. */
 export type BackgroundVariant =
   | "dots"
   | "grid"
@@ -190,10 +185,7 @@ const PATTERN_MAP: Record<BackgroundVariant, React.FC<PatternProps>> = {
   "wiggle-lines": WiggleLinesPattern,
 };
 
-/**
- * Usage: Place <ChartBackground variant="dots" /> inside any Recharts chart component.
- * ZIndexLayer with zIndex={-1} ensures the background renders behind all chart content.
- */
+/** Place <ChartBackground variant="dots" /> in a Recharts chart; zIndex={-1} keeps it behind chart content. */
 interface ChartBackgroundProps {
   variant: BackgroundVariant;
 }

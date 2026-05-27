@@ -165,8 +165,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                   </Avatar>
                 </div>
 
-                {/* Content — sizes match Figma (system-flat / cell): 14px
-                    medium title, 13px regular subtitle, both at leading-[1.15] */}
+                {/* Figma system-flat/cell: 14px medium title, 13px regular subtitle, leading-[1.15]. */}
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <p className="truncate text-sm leading-[1.15] font-medium text-foreground">
                     {publisher.name}
@@ -177,10 +176,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                   </p>
                 </div>
 
-                {/* Suffix: timestamp or menu. Both states share the same
-                    pt-[2px] items-start outer wrapper (per Figma) and a
-                    16px-tall inner box, so flipping selection never
-                    changes the row's height (51px) or visual rhythm. */}
+                {/* Suffix timestamp/menu share pt-[2px] items-start wrapper + 16px inner box so selection never changes row height (51px). */}
                 <div className="inline-flex shrink-0 items-start pt-[2px]">
                   {isSelected ? (
                     <DropdownMenu>

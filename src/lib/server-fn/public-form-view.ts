@@ -19,22 +19,15 @@ import { isServerPlan } from "@/lib/server-fn/plan-helpers";
 import { shortIdSchema } from "@/lib/short-id";
 import { buildPublicFormSettings } from "@/types/form-settings";
 
-/**
- * Public server functions for viewing a form and verifying its password.
- * NO authentication required.
- */
+/** Public form-view + password-verify server functions. NO auth required. */
 
-/**
- * Get a published form by its public Form Short ID.
- * Returns the published version content, not the draft content.
- * Only returns forms with status === "published".
- */
+/** Get a published form by public short id. Returns published version content (not draft);
+ * only status === "published" forms. */
 export const getPublishedFormByShortId = createServerFn({ method: "GET" })
   .inputValidator(z.object({ shortId: shortIdSchema }))
   .handler(async ({ data }) => {
-    // Settings live in the form_settings table now (split from versioning —
-    // see docs/plans/2026-05-04-settings-version-split.md). Editor content
-    // (title, content, icon, cover, customization) still comes from the
+    // Settings live in form_settings now (split from versioning; see
+    // docs/plans/2026-05-04-settings-version-split.md). Editor content still comes from the
     // published version snapshot so changes don't leak before republish.
     const [form] = await db
       .select({
@@ -169,8 +162,7 @@ export const getPublishedFormByShortId = createServerFn({ method: "GET" })
       };
     }
 
-    // Fallback for forms without versions (backward compatibility — shouldn't
-    // happen after backfill migration but kept for safety)
+    // Fallback for versionless forms (shouldn't happen post-backfill; kept for safety).
     return {
       form: {
         id: form.id,
@@ -193,9 +185,7 @@ export const getPublishedFormByShortId = createServerFn({ method: "GET" })
     };
   });
 
-/**
- * Verify a password for a password-protected form.
- */
+/** Verify a password for a password-protected form. */
 export const verifyFormPassword = createServerFn({ method: "POST" })
   .inputValidator(z.object({ formId: z.uuid(), password: z.string() }))
   .handler(async ({ data }) => {

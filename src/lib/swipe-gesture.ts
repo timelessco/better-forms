@@ -1,8 +1,5 @@
-/**
- * Shared primitives for the mobile drawer gestures. Both drawers (left
- * sidebar, right editor panel) do the same direction-lock + velocity-sampling
- * + spring-release dance; keeping the knobs in one place prevents drift.
- */
+/** Shared mobile-drawer gesture primitives (left sidebar + right editor panel):
+ * direction-lock + velocity-sampling + spring-release. One home prevents drift. */
 
 export const DIRECTION_LOCK_THRESHOLD_PX = 8;
 export const VERTICAL_DOMINANCE_RATIO = 1.2;
@@ -32,11 +29,8 @@ export const estimateVelocity = (samples: VelocitySample[]): number => {
   return ((last.x - first.x) / dt) * 1000;
 };
 
-/**
- * Decide whether a touchmove delta is a drawer gesture or a native scroll.
- * Returns `null` while movement is still below the noise threshold — caller
- * should keep waiting for more movement.
- */
+/** Drawer gesture vs native scroll from a touchmove delta. `null` = below noise
+ * threshold, caller waits for more movement. */
 export const classifyDirection = (dx: number, dy: number): "horizontal" | "vertical" | null => {
   if (Math.abs(dx) < DIRECTION_LOCK_THRESHOLD_PX && Math.abs(dy) < DIRECTION_LOCK_THRESHOLD_PX) {
     return null;

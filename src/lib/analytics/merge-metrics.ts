@@ -1,4 +1,5 @@
 import { bumpKey } from "@/lib/analytics/aggregate-utils";
+import { resolveSource } from "@/lib/analytics/source";
 import type { formAnalyticsDaily, formVisits } from "@/db/schema";
 import type { CountBreakdown, FormInsightsMetrics } from "@/types/analytics";
 
@@ -17,8 +18,8 @@ interface MergeArgs {
 const KNOWN_BROWSERS = new Set(["Chrome", "Firefox", "Safari", "Edge"]);
 const KNOWN_OS = new Set(["Windows", "macOS", "iOS", "Android", "Linux"]);
 
-// Mutates `target` in place to avoid O(N × distinct-values) spread-clones in
-// the per-row aggregation loop. Returns `target` for assignment ergonomics.
+// Mutates `target` in place (avoids O(N × distinct) spread-clones per row);
+// returns it for assignment ergonomics.
 const addBreakdowns = (target: CountBreakdown, source: CountBreakdown): CountBreakdown => {
   for (const [key, value] of Object.entries(source)) {
     target[key] = (target[key] ?? 0) + value;
@@ -74,8 +75,7 @@ const aggregateDailyRows = (rows: DailyRow[]): DailyAggregate => {
   const agg = emptyAggregate();
   for (const row of rows) {
     agg.totalVisits += row.totalVisits;
-    // NOTE: summing uniqueVisitors across daily rows over-counts visitors active
-    // on multiple days (counted once per day). Acceptable approximation for v1.
+    // NOTE: summing uniqueVisitors over-counts multi-day visitors (once/day). v1 approximation.
     agg.uniqueVisitors += row.uniqueVisitors;
     agg.totalSubmissions += row.totalSubmissions;
     agg.uniqueRespondents += row.uniqueSubmitters;
@@ -132,7 +132,7 @@ const aggregateRawRows = (rows: RawVisitRow[]): RawAggregate => {
     bumpKey(devices, row.deviceType);
     bumpKey(countries, row.country);
     bumpKey(cities, row.city);
-    bumpKey(sources, row.utmSource);
+    bumpKey(sources, resolveSource({ utmSource: row.utmSource, referrer: row.referrer }));
     bumpKey(browsers, bucketBrowser(row.browser));
     bumpKey(operatingSystems, bucketOs(row.os));
   }
@@ -197,7 +197,7 @@ export const mergeInsightsMetrics = (args: MergeArgs): FormInsightsMetrics => {
   const totalSubmissions = dailyAgg.totalSubmissions + rawAgg.totalSubmissions;
   const uniqueRespondents = dailyAgg.uniqueRespondents + rawAgg.uniqueRespondents;
 
-  // Weighted avg across daily and raw pools
+  // Weighted avg across daily + raw pools
   const totalDurationSum = dailyAgg.durationSumWeighted + rawAgg.durationSum;
   const totalDurationWeight = dailyAgg.durationVisitsWeight + rawAgg.durationCount;
   const avgVisitDurationMs =

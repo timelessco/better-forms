@@ -14,22 +14,15 @@ export type ResolvedOgInputs = {
   themeColorName: string | null;
 };
 
-/**
- * Canonical resolution for the (title, description, icon, theme) pair that
- * feeds both the URL hash and the rendered OG card. The HTML head and the
- * OG route MUST call this with the same effective snapshot — otherwise the
- * hash baked into the URL won't match the hash the route recomputes.
- *
- * Pass the version-snapshot snapshot if available; otherwise the draft
- * snapshot. Both are tried in order so callers don't have to repeat the
- * fallback at every site.
- */
+/** Canonical (title, description, icon, theme) feeding the URL hash + OG card.
+ * HTML head and OG route MUST call this identically or the URL hash won't match
+ * the route's recompute. Tries version snapshot then draft. */
 export const resolveOgInputs = (
   versionSnapshot: FormSnapshotLike | undefined | null,
   draftSnapshot: FormSnapshotLike,
 ): ResolvedOgInputs => {
   const v = versionSnapshot ?? null;
-  // Use `||` so empty-string/null/undefined all collapse identically.
+  // `||` so ""/null/undefined all collapse identically.
   const title = (v?.title || draftSnapshot.title || "Untitled") as string;
   const content = v?.content ?? draftSnapshot.content;
   const description = extractOgDescription(content);

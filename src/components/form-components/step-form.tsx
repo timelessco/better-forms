@@ -1,4 +1,5 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
+import { TextSwap } from "@/components/transitions/text-swap";
 import { use, useMemo, useRef, useState } from "react";
 import { useFocusFirstField } from "@/hooks/use-focus-first-field";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -16,18 +17,13 @@ import { PreviewRendererContext, RenderStepPreviewInput } from "./render-step-pr
 interface StepFormProps {
   stepIndex: number;
   segments: PreviewSegment[];
-  /** Pre-computed Questions in this Step with global question indices. Used
-   * by the per-Question analytics emitters; safe to omit in non-tracking
-   * previews (the emitters no-op when `tracking` is null). */
+  /** Pre-computed Questions w/ global indices for analytics emitters. Omittable in non-tracking previews (emitters no-op when tracking null). */
   questions?: QuestionRef[];
   isLastStep: boolean;
   autoActionButton?: boolean;
 }
 
-/**
- * Individual step form component with its own form instance.
- * Uses StepFormContext for navigation and data accumulation.
- */
+// One step's form instance. Nav + data accumulation via StepFormContext.
 export const StepForm = ({
   stepIndex,
   segments,
@@ -59,29 +55,17 @@ export const StepForm = ({
   const formRef = useRef<HTMLFormElement>(null);
   const [isTextareaFocused, setIsTextareaFocused] = useState(false);
 
-  // Field-by-field shortcuts. Runs in CAPTURE phase so we intercept Enter
-  // before child handlers (e.g. Base UI Checkbox toggling on Enter).
-  // - Enter → advance/submit. Textareas keep native newline unless Cmd/Ctrl
-  //   is held. Navigation buttons (Next/Submit, outside [data-bf-input]) keep
-  //   native Enter. Widget triggers and checkbox/option buttons inside a
-  //   question get Enter→advance; users press Space to interact with those.
-  // - Esc → go back one step. When a popover is open, focus is inside the
-  //   portaled content (outside the form), so this handler doesn't fire and
-  //   the popover gets to close first.
+  // Field-by-field shortcuts, CAPTURE phase (intercept Enter before child handlers e.g. Base UI Checkbox).
+  // Enter → advance/submit; textareas keep newline unless Cmd/Ctrl; nav buttons (outside [data-bf-input]) keep native; in-question widgets advance (Space to interact).
+  // Esc → back one step. Open popover: focus is portaled (outside form), handler doesn't fire, popover closes first.
   const handleFieldByFieldKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
-    // React events bubble through the React tree, so portaled UI (combobox
-    // listbox, popovers rendered with createPortal) still reaches our form
-    // handler. Bail when the DOM target isn't a descendant of the form so
-    // those popups can handle their own Enter/Esc (e.g. selecting a country
-    // in the phone-input combobox).
+    // React events bubble the React tree, so portaled UI (combobox, popovers) still reaches this handler. Bail if target isn't a DOM descendant of form, so popups handle own Enter/Esc (e.g. phone-input country combobox).
     const target = event.target as HTMLElement | null;
     if (target && formRef.current && !formRef.current.contains(target)) return;
 
     if (event.key === "Escape") {
       if (currentStep === 0) return;
-      // Defensive: bail if a popover trigger inside this form is currently
-      // open. Focus should normally be in the popover (portaled), but if it
-      // somehow stays on the trigger we don't want Esc to navigate away.
+      // Defensive: bail if an in-form popover trigger is open — Esc shouldn't navigate away if focus stayed on trigger.
       if (formRef.current?.querySelector('[aria-expanded="true"]')) return;
       event.preventDefault();
       event.stopPropagation();
@@ -101,9 +85,7 @@ export const StepForm = ({
 
     if (isTextarea && !isMetaEnter) return;
 
-    // stopPropagation prevents widget keydown handlers (Base UI PopoverTrigger,
-    // Checkbox, etc.) from also reacting to Enter — otherwise the popover
-    // flashes open for a frame before the next step replaces it.
+    // stopPropagation stops widget keydown handlers (PopoverTrigger, Checkbox) reacting to Enter, else popover flashes open for a frame before next step.
     event.preventDefault();
     event.stopPropagation();
     formRef.current?.requestSubmit();
@@ -116,9 +98,7 @@ export const StepForm = ({
       }
     };
 
-  // Compose form-level onFocus: textarea-state tracking (field-by-field
-  // chrome) plus the per-Question analytics `start` emitter. Focus bubbles
-  // so any input inside the form-tag reaches this handler.
+  // Form-level onFocus: textarea-state tracking + per-Question analytics `start`. Focus bubbles so any input reaches here.
   const handleFormFocus = (event: React.FocusEvent<HTMLFormElement>) => {
     if (autoActionButton) handleTextareaFocusChange(true)(event);
     handleFieldFocus(event);
@@ -126,10 +106,7 @@ export const StepForm = ({
 
   useFocusFirstField(formRef);
 
-  // Fire one `view` event per Question in this Step on mount. No-ops in
-  // builder previews (tracking is null) or before recordFormVisit resolves
-  // (visitId is null). The last Question of the final Step carries the
-  // `wasLastQuestion` flag so the funnel can identify terminal Questions.
+  // Fire one `view` per Question on mount. No-op if tracking null (builder preview) or visitId null (pre-recordFormVisit). Last Question of final Step flags `wasLastQuestion` for funnel terminal detection.
   useMountEffect(() => {
     if (!(tracking?.visitId && tracking.mode)) return;
     const visitId = tracking.visitId;
@@ -245,7 +222,10 @@ export const StepForm = ({
               className="h-9 gap-1.5 rounded-lg px-4"
               disabled={isSubmitting}
             >
-              {isSubmitting ? t("submitting") : isLastStep ? t("submit") : t("next")}
+              {(() => {
+                const label = isSubmitting ? t("submitting") : isLastStep ? t("submit") : t("next");
+                return <TextSwap key={label}>{label}</TextSwap>;
+              })()}
             </Button>
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               press{" "}
@@ -287,11 +267,7 @@ type ButtonField = {
 
 type GroupedSegment = PreviewSegment | { type: "buttonGroup"; buttons: ButtonField[] };
 
-/**
- * Groups segments for rendering, combining all button FieldSegments into a single group.
- * Buttons are collected from anywhere in the step and rendered together at the end,
- * ensuring Previous and Next/Submit always appear on the same row.
- */
+// Collapse all button segments into one group at the end, so Previous + Next/Submit share a row.
 const groupSegmentsForRendering = (segments: PreviewSegment[]): GroupedSegment[] => {
   const result: GroupedSegment[] = [];
   const allButtons: ButtonField[] = [];
@@ -313,10 +289,7 @@ const groupSegmentsForRendering = (segments: PreviewSegment[]): GroupedSegment[]
   return result;
 };
 
-/**
- * Renders button elements for step forms.
- * Previous uses onClick, Next/Submit use type="submit" to trigger form validation.
- */
+// Step-form button. Previous uses onClick; Next/Submit use type="submit" to trigger validation.
 const RenderStepButton = ({
   field,
   isSubmitting,
@@ -389,7 +362,10 @@ const RenderStepButton = ({
       className="h-8 gap-1.5 rounded-lg px-2.5"
       disabled={isSubmitting}
     >
-      {isSubmitting ? t("submitting") : buttonText}
+      {(() => {
+        const label = isSubmitting ? t("submitting") : buttonText;
+        return <TextSwap key={label}>{label}</TextSwap>;
+      })()}
     </Button>
   );
   return grouped ? (

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { matchSorter } from "match-sorter";
+import { NumberPopIn } from "@/components/transitions/number-pop-in";
 
 import { ColorPicker } from "./color-picker";
 import { iconOptions } from "./icon-data";
@@ -181,7 +182,7 @@ const IconPagination = ({
       prev
     </button>
     <span className="text-13 text-foreground">
-      {currentPage}/{pageCount}
+      <NumberPopIn value={currentPage} />/<NumberPopIn value={pageCount} />
     </span>
     <button
       className="text-13 flex items-center rounded-lg px-2 py-[5px] text-foreground hover:bg-muted disabled:opacity-50"

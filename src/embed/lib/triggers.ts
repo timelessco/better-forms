@@ -1,8 +1,3 @@
-/**
- * Reform Popup Embed - Trigger Handlers
- * Handles click events on data-form-id elements and URL hash triggers
- */
-
 import type { EmojiAnimation, PopupOptions } from "./types";
 
 type OpenPopupCallback = (formId: string, options: PopupOptions) => void;
@@ -78,10 +73,7 @@ const parseDataAttributes = (element: HTMLElement): PopupOptions => {
   return options;
 };
 
-/**
- * Parse options from URL hash parameters
- * Format: #form-open=formId&align-left=1&hide-title=1&overlay=1&emoji-text=👋&emoji-animation=wave&auto-close=5000
- */
+/** Parse options from URL hash. Format: #form-open=formId&align-left=1&hide-title=1&overlay=1&emoji-text=👋&emoji-animation=wave&auto-close=5000 */
 const parseHashParams = (
   hash: string,
 ): {

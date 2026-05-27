@@ -1,15 +1,9 @@
-/**
- * Local draft form utilities
- * Manages dynamic UUIDs for local draft forms to avoid ID collisions during sync
- */
+/** Local draft form utilities — dynamic UUIDs to avoid ID collisions during sync. */
 
 const LOCAL_FORM_ID_KEY = "local-draft-form-id";
 const LOCAL_WORKSPACE_ID_KEY = "local-draft-workspace-id";
 
-/**
- * Gets or creates a unique local form ID for this browser session.
- * This ensures each user has a unique form ID, preventing collisions during sync.
- */
+/** Get/create a per-session local form ID — unique per user, prevents sync collisions. */
 export const getLocalFormId = (): string => {
   if (typeof window === "undefined") {
     return crypto.randomUUID();
@@ -39,10 +33,7 @@ export const getLocalWorkspaceId = (): string => {
   return id;
 };
 
-/**
- * Clears local draft IDs after successful sync.
- * Should be called after forms are synced to cloud to allow fresh drafts.
- */
+/** Clear local draft IDs after successful sync, so fresh drafts can start. */
 export const clearLocalDraftIds = (): void => {
   if (typeof window === "undefined") return;
   localStorage.removeItem(LOCAL_FORM_ID_KEY);

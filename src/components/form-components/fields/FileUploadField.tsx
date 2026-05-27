@@ -35,8 +35,7 @@ const UPLOAD_ERROR_MESSAGES: Record<string, string> = {
   "uploads/mime-not-allowed": "This file type isn't allowed.",
   "uploads/too-large": "File is larger than 10 MB.",
   "uploads/empty-file": "File is empty.",
-  // Legacy string codes — server endpoints not yet migrated still emit these
-  // in `message`. Keep for back-compat until the server migration finishes.
+  // Legacy string codes — un-migrated endpoints still emit these in `message`. Back-compat until server migration done.
   rate_limited: "Too many uploads. Please wait a moment and try again.",
   form_not_found: "This form is no longer accepting uploads.",
   file_field_not_found: "Upload field is not configured.",
@@ -66,9 +65,7 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
   const { formId } = useStepForm();
   const draftIdRef = useRef<string>(crypto.randomUUID());
   const [uploadState, setUploadState] = useState<FileUploadState>({ status: "idle" });
-  // Tracks the currently-displayed object URL so we can revoke it on
-  // replacement or unmount. Avoids leaking blob URLs when the user picks
-  // multiple files in a row or navigates away mid-upload.
+  // Current object URL, revoked on replace/unmount — avoids leaking blob URLs across multiple picks or mid-upload navigation.
   const activePreviewRef = useRef<string | null>(null);
 
   useEffect(
@@ -78,10 +75,7 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
     [],
   );
 
-  // Uploads the File binary and swaps it into the field as an UploadedFormFile
-  // (url + metadata). Runs from the field-level `onChange` listener so the
-  // binary never reaches the form submission payload — submissions always
-  // serialize the URL object, not the file bytes.
+  // Upload File binary, swap field to UploadedFormFile (url + metadata). Runs from field onChange so binary never reaches submission payload (serializes URL, not bytes).
   const uploadAndReplace = async (
     picked: File,
     setValue: (next: UploadedFormFile | "") => void,
@@ -91,9 +85,7 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
     if (activePreviewRef.current) URL.revokeObjectURL(activePreviewRef.current);
     activePreviewRef.current = localPreview;
 
-    // Preview mode (no formId): show the picked file in the UI without actually
-    // uploading, and seed a fake UploadedFormFile so the field is non-empty and
-    // the user can advance to the next step.
+    // Preview mode (no formId): show file without uploading, seed fake UploadedFormFile so field is non-empty and user can advance.
     if (!formId) {
       const previewValue: UploadedFormFile = {
         url: localPreview ?? "",
@@ -139,8 +131,8 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
     } catch (err) {
       // Client uploads surface server-side rejections as an opaque BlobError
       // ("Failed to retrieve the client token") — the token route's structured
-      // code/message doesn't cross back. So map any recognized code we do get,
-      // but otherwise show a clean generic message rather than the raw error.
+      // code/message doesn't always cross back. Prefer `code`, fall back to
+      // `message`, then a clean generic message rather than the raw error.
       const parsed = parseError(err);
       const lookupKey = parsed.code ?? parsed.message ?? "";
       const friendly = UPLOAD_ERROR_MESSAGES[lookupKey];
@@ -172,8 +164,7 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
     onFilesChange: (updatedFiles) => {
       const picked = updatedFiles[0]?.file;
       if (picked instanceof File) {
-        // Route the raw File through the field's onChange listener — the
-        // listener is the single place that translates binary -> URL.
+        // Route raw File through field onChange — the one place binary→URL happens.
         form.setFieldValue(element.name, picked);
       }
     },
@@ -208,9 +199,7 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
       name={element.name}
       listeners={{
         onChange: ({ value, fieldApi }) => {
-          // The listener fires for every value change (including the URL
-          // replacement and the reset-to-empty). Only act when we see a raw
-          // File binary — that's the trigger to upload + swap.
+          // Fires on every value change (URL replace, reset-to-empty). Only raw File triggers upload + swap.
           if (value instanceof File) {
             void uploadAndReplace(value, (next) => {
               fieldApi.handleChange(next as never);

@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { InputGroup, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
-import { useSession } from "@/lib/auth/auth-client";
+import { auth, useSession } from "@/lib/auth/auth-client";
 import { DOMAIN_LIMITS } from "@/lib/config/plan-config";
 import { getDnsInstructions } from "@/lib/dns-instructions";
 import {
@@ -98,9 +98,7 @@ export const DomainsContent = () => {
   const domainInputId = useId();
 
   const [newDomain, setNewDomain] = useState("");
-  // Per-domain DNS records (TXT challenge if any + CNAME for routing).
-  // Populated from addDomain / checkDomainStatus / recheckDomainStatus.
-  // Keyed by domain.id so each card renders its own records inline.
+  // Per-domain DNS records (TXT challenge + CNAME) from add/check/recheckDomainStatus, keyed by domain.id for inline render.
   const [dnsRecordsByDomainId, setDnsRecordsByDomainId] = useState<Record<string, DnsRecord[]>>({});
   const clearDnsRecords = useCallback((id: string) => {
     setDnsRecordsByDomainId((prev) => {
@@ -115,9 +113,7 @@ export const DomainsContent = () => {
 
   const cancelDeleteButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Move focus to Cancel when entering confirm-delete state. Without this the
-  // trash button (where focus was) gets unmounted and focus falls back to body —
-  // keyboard users have to tab from the top to reach the confirm controls.
+  // Focus Cancel on confirm-delete — else trash button unmounts, focus drops to body, keyboard users must tab from top.
   // eslint-disable-next-line react-doctor/no-effect-event-handler -- focus restoration must wait for the trash→cancel-button mount swap; can't run inside the click handler
   useEffect(() => {
     if (confirmDeleteId) {
@@ -129,8 +125,7 @@ export const DomainsContent = () => {
     const cancelledId = confirmDeleteId;
     setConfirmDeleteId(null);
     if (!cancelledId) return;
-    // The trash button re-mounts after state flips; restore focus to it so
-    // tab order continues from where the user invoked the confirm.
+    // Trash button re-mounts after state flip; restore focus so tab order continues from the confirm invocation.
     requestAnimationFrame(() => {
       const trashBtn = document.querySelector<HTMLButtonElement>(
         `[data-trash-for="${cancelledId}"]`,
@@ -141,13 +136,9 @@ export const DomainsContent = () => {
 
   const orgId = session?.session?.activeOrganizationId as string | undefined;
 
+  // Shares cache/invalidation with MembersContent (same query key) so member mutations keep this owner check fresh.
   const { data: membersData } = useQuery({
-    queryKey: ["org-members-for-domains"],
-    queryFn: async () => {
-      const { authClient } = await import("@/lib/auth/auth-client");
-      const result = await authClient.organization.listMembers();
-      return result.data;
-    },
+    ...auth.organization.listMembers.queryOptions(),
     enabled: !!orgId,
   });
 
@@ -241,8 +232,7 @@ export const DomainsContent = () => {
     }) => updateDomainMeta({ data }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["org-domains", orgId] });
-      // Don't close the panel — fields save inline (like account-settings),
-      // user keeps the panel open while iterating.
+      // Keep panel open — inline save (like account-settings), user iterates.
       toast.success("Saved");
     },
     onError: (error: unknown) => {
@@ -682,8 +672,7 @@ const DomainConfigPanel = ({
           },
         });
         setUrl(result.url);
-        // Auto-commit the new URL to the domain row so the user doesn't need a
-        // second "Save" click. Mirrors the inline-save pattern in account-settings.
+        // Auto-commit URL to domain row — no second Save click. Mirrors account-settings inline save.
         onUpdateMeta({ domainId: domain.id, [metaField]: result.url });
       } catch (error) {
         toast.error(

@@ -1,11 +1,8 @@
 import type { PreviewSegment } from "@/lib/editor/transform-plate-for-preview";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 
-/**
- * Lightweight per-Question reference used by analytics emitters. Each
- * Question is identified by the Plate Block's `id` (NOT the form-field
- * `name`), so the analytics rows can be joined back to the source Block.
- */
+/** Per-Question ref for analytics. Keyed by Plate Block `id` (NOT field `name`)
+ * so rows join back to the source Block. */
 export type QuestionRef = {
   questionId: string;
   questionType: string;
@@ -14,15 +11,8 @@ export type QuestionRef = {
   stepIndex: number;
 };
 
-/**
- * Walks a flattened step layout and returns the Questions for the requested
- * Step, each carrying its 0-based index across the WHOLE Form (not within
- * the Step). Button fields are excluded — they're navigation controls, not
- * Questions a Respondent answers.
- *
- * Pure function so the analytics path can memoise per-step results instead
- * of re-walking the Plate tree on every render.
- */
+/** Questions for a step; `questionIndex` is 0-based across the WHOLE form, not
+ * the step. Buttons excluded (nav, not Questions). Pure → analytics can memoise. */
 export const extractQuestionsForStep = (
   steps: readonly PreviewSegment[][],
   stepIndex: number,
@@ -55,10 +45,8 @@ export const extractQuestionsForStep = (
   return out;
 };
 
-/**
- * Variant of {@link extractQuestionsForStep} that walks the RSC step shape
- * (`{ fields: PlateFormField[] }[]`) used by the published-form code path.
- */
+/** {@link extractQuestionsForStep} for the RSC step shape
+ * (`{ fields: PlateFormField[] }[]`) on the published-form path. */
 export const extractQuestionsForStepRSC = (
   steps: readonly { fields: PlateFormField[] }[],
   stepIndex: number,
@@ -88,15 +76,9 @@ export const extractQuestionsForStepRSC = (
   return out;
 };
 
-/**
- * Resolves a focused DOM element back to its Question by walking up to the
- * nearest `[data-bf-question-id]` wrapper. Uniform across field types,
- * including those whose focusable element doesn't carry a `name` attribute
- * (Phone, MultiSelect, MultiChoice, Checkbox, Date, FileUpload, Ranking).
- *
- * Returns `null` if the target is outside any Question wrapper or its
- * question id isn't in the lookup map.
- */
+/** Focused element → its Question via nearest `[data-bf-question-id]` wrapper.
+ * Works for fields whose focusable element has no `name` (Phone, MultiSelect,
+ * Date, FileUpload, etc.). `null` if outside a wrapper or id not in the map. */
 export const resolveQuestionFromFocus = (
   target: Element | null,
   questionsById: ReadonlyMap<string, QuestionRef>,

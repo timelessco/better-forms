@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from "react";
+import { onCLS, onINP, onLCP } from "web-vitals";
 import {
   fireRecordVisit,
   fireUpdateVisitBeacon,
   flushQuestionProgressBuffer,
 } from "./track-client";
 import { getOrCreateSessionId, getOrCreateVisitorHash } from "./visitor-id";
+
+interface SessionVitals {
+  lcpMs?: number;
+  inpMs?: number;
+  cls?: number;
+}
 
 interface PublicFormTracking {
   visitId: string | null;
@@ -24,10 +31,10 @@ export const usePublicFormTracking = ({ formId, enabled = true }: Args): PublicF
 
   const visitIdRef = useRef<string | null>(null);
   const startedAtRef = useRef<number>(0);
+  const vitalsRef = useRef<SessionVitals>({});
 
-  // NOTE: in dev StrictMode this fires twice and creates two visit rows.
-  // Production single-mount makes this a non-issue; the cron aggregation
-  // dedupes by visitorHash so analytics counts remain correct.
+  // NOTE: dev StrictMode fires twice → two visit rows. Non-issue in prod
+  // (single mount); cron dedupes by visitorHash so counts stay correct.
   useEffect(() => {
     if (!enabled) {
       return;
@@ -40,6 +47,20 @@ export const usePublicFormTracking = ({ formId, enabled = true }: Args): PublicF
     const session = getOrCreateSessionId();
     setVisitorHash(hash);
     startedAtRef.current = Date.now();
+
+    // CWV (RUM): web-vitals reports each metric once finalized (LCP on first
+    // interaction/hide; INP/CLS on visibilitychange→hidden, before the pagehide
+    // beacon). Stashed in a ref, shipped on the unload beacon (unfinalized omitted).
+    // PerformanceObserver buffering means late registration still captures earlier entries.
+    onLCP((metric) => {
+      vitalsRef.current.lcpMs = Math.round(metric.value);
+    });
+    onINP((metric) => {
+      vitalsRef.current.inpMs = Math.round(metric.value);
+    });
+    onCLS((metric) => {
+      vitalsRef.current.cls = metric.value;
+    });
 
     const params = new URLSearchParams(window.location.search);
 
@@ -61,8 +82,8 @@ export const usePublicFormTracking = ({ formId, enabled = true }: Args): PublicF
     });
 
     const onUnload = () => {
-      // Drain any buffered per-Question events first so the visit-end beacon
-      // doesn't race ahead of (and effectively cancel) their delivery.
+      // Drain buffered per-Question events first so the visit-end beacon
+      // doesn't race ahead of (and cancel) their delivery.
       flushQuestionProgressBuffer();
       const id = visitIdRef.current;
       if (!id) {
@@ -72,6 +93,9 @@ export const usePublicFormTracking = ({ formId, enabled = true }: Args): PublicF
         visitId: id,
         visitEndedAt: new Date().toISOString(),
         durationMs: Math.min(Date.now() - startedAtRef.current, MAX_DURATION_MS),
+        lcpMs: vitalsRef.current.lcpMs,
+        inpMs: vitalsRef.current.inpMs,
+        cls: vitalsRef.current.cls,
       });
     };
     window.addEventListener("beforeunload", onUnload);

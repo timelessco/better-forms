@@ -6,10 +6,7 @@ interface TimeSeriesChartProps {
   dailyData: FormInsightsMetrics["dailyData"];
 }
 
-// Use fixed mid-luminance colors instead of `--chart-N` tokens — those flip
-// to dark `blue-900..blue-500` in dark mode which renders as harsh dark blobs
-// against the dark card bg. These OKLCH values keep the same perceived
-// brightness across themes so the chart blends with the card in both modes.
+// Fixed mid-luminance colors, not `--chart-N` tokens (those flip dark in dark mode → harsh blobs). Hold brightness across themes.
 const chartConfig = {
   visits: {
     label: "Visits",

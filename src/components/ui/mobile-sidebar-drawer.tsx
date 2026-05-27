@@ -10,19 +10,12 @@ import {
 import type { GestureLock, VelocitySample } from "@/lib/swipe-gesture";
 
 /**
- * Left mobile drawer with native-feeling swipe-from-anywhere gestures.
- *
- * Built directly on Motion primitives (not Vaul) to get three behaviors
- * dialog-based drawers can't:
- *   1. Pan starting from anywhere in the viewport — a document-level
- *      touchmove listener with direction-lock claims horizontal-dominant
- *      rightward pans and yields to vertical scrolls.
- *   2. 1:1 finger tracking: the drawer's x-transform is a MotionValue fed
- *      directly by `clientX - startX`. No interpolation during drag.
+ * Left mobile drawer with swipe-from-anywhere gestures. On Motion primitives (not Vaul) for:
+ *   1. Pan from anywhere — document-level touchmove with direction-lock claims horizontal
+ *      rightward pans, yields to vertical scrolls.
+ *   2. 1:1 finger tracking — x-transform is a MotionValue fed `clientX - startX`, no interpolation.
  *   3. Velocity-aware release with spring physics.
- *
- * iOS Safari reserves the first ~18px of the viewport for its back gesture;
- * touchstarts inside that strip are ignored.
+ * iOS Safari reserves the first ~18px for its back gesture; touchstarts there are ignored.
  */
 
 const DRAWER_WIDTH_REM = 18;
@@ -65,8 +58,7 @@ export const MobileSidebarDrawer = ({
   const x = useMotionValue(open ? 0 : -DRAWER_WIDTH_PX);
   const overlayOpacity = useTransform(x, [-DRAWER_WIDTH_PX, 0], [0, 0.5]);
   const gestureRef = useRef<GestureState>(freshGesture());
-  // openRef mirrors the latest `open` prop for use inside long-lived touch
-  // handlers without re-attaching them on each toggle.
+  // Mirror latest `open` for long-lived touch handlers without re-attaching on each toggle.
   const openRef = useRef(open);
   openRef.current = open;
 
@@ -78,9 +70,7 @@ export const MobileSidebarDrawer = ({
   const notifyOpenChange = useEffectEvent((next: boolean) => onOpenChange(next));
 
   useEffect(() => {
-    // `touchmove` is attached lazily (only while a gesture is in flight)
-    // rather than permanently, so passive-scroll optimizations aren't
-    // disabled across the whole page.
+    // touchmove attached lazily (only during a gesture) so passive-scroll isn't disabled page-wide.
     let moveAttached = false;
 
     const attachMove = () => {

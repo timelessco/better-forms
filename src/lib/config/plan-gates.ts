@@ -1,8 +1,7 @@
 import type { ServerPlan } from "@/lib/server-fn/plan-helpers";
 
-// Single source of truth for which Plan unlocks which feature.
-// To gate a new feature: add a key here, then call `planUnlocks(plan, "<key>")`
-// at the gate site. To change a tier: edit the value here.
+// Source of truth: which Plan unlocks which feature. New gate: add a key, call
+// `planUnlocks(plan, "<key>")` at the site. Change a tier: edit the value.
 
 export type FeatureGate =
   | "analytics"
@@ -33,9 +32,8 @@ export const planUnlocks = (plan: ServerPlan, feature: FeatureGate): boolean =>
   PLAN_RANK[plan] >= PLAN_RANK[PLAN_GATES[feature]];
 
 // ─── Plan-scoped quotas ────────────────────────────────────────────────
-// Numeric limits that vary by plan (counts/durations/sizes), not boolean
-// gates. Co-located with PLAN_GATES so the team can edit both in one
-// place. `null` means "no cap".
+// Numeric per-plan limits (not boolean gates). Co-located with PLAN_GATES.
+// `null` = no cap.
 export type PlanQuota = {
   /** Hard cap on AI form-generate calls per org per UTC day. */
   aiGenerationsPerDay: number | null;

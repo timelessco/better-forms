@@ -4,12 +4,9 @@ import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { cn } from "@/lib/utils";
 
 /**
- * Scopes any descendant `PopoverContent` (and components built on top of it,
- * like DatePicker / MultiSelect) to a specific container — used in embed
- * preview so popups portal into the embed frame and collision-detect against
- * its bounds instead of escaping to `document.body` + the viewport.
- *
- * `null` (the default) means "portal to body, use viewport for collisions".
+ * Scopes descendant PopoverContent (and DatePicker/MultiSelect) to a container — used in embed
+ * preview so popups portal into the frame and collide against its bounds, not body/viewport.
+ * null (default) = portal to body, collide against viewport.
  */
 export const PopoverContainerContext = React.createContext<HTMLElement | null>(null);
 

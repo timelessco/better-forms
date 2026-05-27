@@ -77,11 +77,8 @@ const filterSubtypes = (
   return filtered.length > 0 ? filtered : all;
 };
 
-/**
- * Resolves the effective subtypes a field accepts. When the category is "all",
- * returns an empty array (caller falls back to the all-files accept string).
- * When `ids` is empty/undefined, returns every subtype in the category.
- */
+/** Effective accepted subtypes. "all" → `[]` (caller uses all-files accept);
+ * empty/undefined `ids` → every subtype in the category. */
 export const resolveAllowedSubtypes = (
   category: unknown,
   ids: unknown,
@@ -92,11 +89,8 @@ export const resolveAllowedSubtypes = (
   return { category: cat, subtypes: filterSubtypes(cat, idsArray) };
 };
 
-/**
- * HTML `accept` attribute string for the file picker / `useFileUpload` hook.
- * Combines extensions and MIME types so both pre-pick filtering and post-pick
- * validation work.
- */
+/** HTML `accept` string for the picker / `useFileUpload`. Extensions + MIME so
+ * both pre-pick filtering and post-pick validation work. */
 export const buildAcceptString = (category: FileTypeCategory, subtypes: FileSubtype[]): string => {
   if (category === "all") return ALL_FILES_ACCEPT;
   if (subtypes.length === 0) return ALL_FILES_ACCEPT;
@@ -107,9 +101,7 @@ export const buildAcceptString = (category: FileTypeCategory, subtypes: FileSubt
   return tokens.join(",");
 };
 
-/**
- * Human-readable list ("PNG, JPG, GIF") for the upload block placeholder.
- */
+/** Human-readable list ("PNG, JPG, GIF") for the upload placeholder. */
 export const buildPlaceholderLabel = (
   category: FileTypeCategory,
   subtypes: FileSubtype[],

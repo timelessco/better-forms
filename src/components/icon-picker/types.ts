@@ -6,52 +6,28 @@ export type IconOption = {
 };
 
 export type IconPickerProps = {
-  /**
-   * Size of the trigger button icon in px
-   */
+  /** Trigger button icon size, px. */
   buttonIconSize?: number;
-  /**
-   * Current icon color (hex string)
-   */
+  /** Icon color, hex. */
   iconColor: string;
-  /**
-   * Current icon name (from sprite)
-   */
+  /** Icon name from sprite. */
   iconValue: string | null;
-  /**
-   * Called when the user selects a new color
-   */
+  /** Called on color select. */
   onColorChange: (color: string) => void;
-  /**
-   * Called when the user selects a new icon
-   */
+  /** Called on icon select. */
   onIconChange: (icon: string) => void;
 };
 
 export type IconPickerPreviewProps = {
-  /**
-   * Icon color (hex) and icon name
-   */
+  /** Icon name. */
   icon: string | null;
   iconColor: string | undefined;
-  /**
-   * SVG icon size in px
-   */
+  /** SVG icon size, px. */
   iconSize?: string;
-  /**
-   * Outer circle size in px
-   */
+  /** Outer circle size, px. */
   size?: string;
-  /**
-   * When true, uses CSS theme colors (bg-primary / text-primary-foreground)
-   * instead of inline iconColor. iconColor is ignored when this is true.
-   */
+  /** Use CSS theme colors (bg-primary/text-primary-foreground); ignores iconColor. */
   useThemeColor?: boolean;
-  /**
-   * When true, renders the icon via the per-icon API endpoint
-   * (`/api/icons/<name>#<name>`) instead of the shared sprite. Shipping
-   * only the one icon saves ~306 KB on the published form's initial load;
-   * the sprite is still used everywhere else (icon picker, form builder).
-   */
+  /** Render via per-icon endpoint (`/api/icons/<name>#<name>`) not the sprite; saves ~306 KB on published form load. */
   standaloneIcon?: boolean;
 };

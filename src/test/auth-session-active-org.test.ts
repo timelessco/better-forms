@@ -5,14 +5,9 @@ import { db } from "@/db";
 import { auth } from "@/lib/auth/auth";
 import { cleanupTestUser } from "@/test/helpers";
 
-// Validates the `databaseHooks.session.create.before` hook in
-// `src/lib/auth/auth.ts`. When a session is created, the hook must populate
-// `session.activeOrganizationId` from the user's first membership. Without
-// this, the workspace-creation serverFn throws "No active organization" —
-// the original symptom that triggered the orphan-user investigation.
+// Validates `databaseHooks.session.create.before` (auth.ts): populates `session.activeOrganizationId` from first membership. Without it, workspace-creation throws "No active organization" (orphan-user symptom).
 
-// Better Auth's TestHelpers type doesn't surface `login` to consumers; the
-// runtime object has it. Narrow type here so we don't lean on `unknown`.
+// Better Auth's TestHelpers type omits `login` (runtime has it); narrow here to avoid `unknown`.
 type TestHelpersWithLogin = {
   createUser: (overrides?: Record<string, unknown>) => { id: string; [key: string]: unknown };
   saveUser: (user: { id: string; [key: string]: unknown }) => Promise<{ id: string }>;

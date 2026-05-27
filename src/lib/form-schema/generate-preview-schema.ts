@@ -1,19 +1,13 @@
-/**
- * Generate Zod validation schema from PlateFormField definitions.
- *
- * This utility creates a Zod schema object from the validation properties
- * stored in the Plate editor nodes, enabling runtime form validation in preview mode.
- */
+/** Build a Zod schema from Plate-node validation props for preview-mode validation. */
 import { isValidPhoneNumber } from "react-phone-number-input";
 import { z } from "zod";
 import type { ZodType } from "zod";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 
 /**
- * Generates a Zod schema from an array of PlateFormField.
- *
- * @param fields - Array of form fields with validation properties
- * @returns Zod object schema for form validation
+ * Zod schema from PlateFormField[].
+ * @param fields - form fields w/ validation props
+ * @returns Zod object schema
  */
 export const generateZodSchemaFromFields = (fields: PlateFormField[]): z.ZodObject => {
   const schemaShape: Record<string, ZodType> = {};
@@ -55,10 +49,8 @@ export const generateZodSchemaFromFields = (fields: PlateFormField[]): z.ZodObje
         if (typeof field.max === "number") {
           numberSchema = numberSchema.max(field.max, `Value must be at most ${field.max}`);
         }
-        // `Number("")` is 0, so a required Number with an empty input would
-        // silently coerce to 0 and pass. Preprocess "" → undefined so the
-        // downstream number schema sees undefined and rejects it with the
-        // standard required-field error.
+        // `Number("") === 0` → a required empty input would pass. Preprocess
+        // "" → undefined so the number schema rejects it as required.
         fieldSchema = field.required
           ? z.preprocess(
               (val) => (val === "" || val === null || val === undefined ? undefined : val),
@@ -68,10 +60,8 @@ export const generateZodSchemaFromFields = (fields: PlateFormField[]): z.ZodObje
         break;
       }
       case "Phone": {
-        // PhoneInput emits E.164 strings (e.g. "+919360992440"). Validate the
-        // phone-number format with libphonenumber, not character-count limits
-        // that may have been written onto the node before Phone was split out
-        // of the text-like settings UI.
+        // PhoneInput emits E.164 (e.g. "+919360992440"). Validate format via
+        // libphonenumber, not stale char-count limits from the old text UI.
         const phoneSchema = z
           .string()
           .refine((v) => isValidPhoneNumber(v), "Please enter a valid phone number");
@@ -166,10 +156,9 @@ export const generateZodSchemaFromFields = (fields: PlateFormField[]): z.ZodObje
 };
 
 /**
- * Generates default form values from fields, using defaultValue if specified.
- *
- * @param fields - Array of form fields
- * @returns Object with field names as keys and default values
+ * Default form values from fields (uses field.defaultValue if set).
+ * @param fields - form fields
+ * @returns field name → default value
  */
 export const generateDefaultValuesFromFields = (
   fields: PlateFormField[],

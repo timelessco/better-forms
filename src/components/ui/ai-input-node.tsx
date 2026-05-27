@@ -8,6 +8,7 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } fro
 import { useFormGenStream } from "@/components/editor/hooks/use-form-gen-stream";
 import { AIInputPlugin, hideAIInput } from "@/components/editor/plugins/ai-input-base";
 import type { AIInputState } from "@/components/editor/plugins/ai-input-base";
+import { IconSwap } from "@/components/transitions/icon-swap";
 import { Button } from "@/components/ui/button";
 import { CheckIcon, ImageIcon, Loader2Icon, SparklesIcon, XIcon } from "@/components/ui/icons";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -18,11 +19,8 @@ const MAX_FILE_SIZE = 4 * 1024 * 1024;
 
 type AttachedImage = { url: string; name: string };
 
-/**
- * Rendered once as the plugin's `afterEditable` slot. Only mounts the popover
- * body when state.open is true — closing unmounts the body, resetting prompt
- * state without leaving any node behind in the editor tree.
- */
+/** Plugin's afterEditable slot. Mounts the popover body only when state.open — closing unmounts it,
+ *  resetting prompt state with no leftover node in the tree. */
 export const AIInputOverlay = () => {
   const state = usePluginOption(AIInputPlugin, "ui");
   if (!state.open) return null;
@@ -243,10 +241,8 @@ const AIInputPopoverBody = ({ state }: { state: AIInputState }) => {
   const handleOpenChange = useCallback(
     (open: boolean) => {
       if (open) return;
-      // While a stream is in flight or a diff preview is pending, block
-      // outside-click dismissal — the user must explicitly Stop (in-flight)
-      // or Accept/Discard (preview) to close. Losing these silently would
-      // kill the generation or drop the pending diff with no indication.
+      // Block outside-click dismissal during a stream/pending preview — must Stop or
+      // Accept/Discard explicitly; silent dismissal would kill the gen or drop the diff.
       if (isLoading || hasPendingPreview) return;
       hide();
     },
@@ -466,26 +462,19 @@ const PromptInputRow = ({
       <ImageIcon />
     </Button>
 
-    {isLoading ? (
-      <Button
-        variant="secondary"
-        size="icon-xs"
-        onClick={handleStop}
-        className="rounded-full"
-        aria-label="Stop generation"
-      >
-        <Loader2Icon className="animate-spin" />
-      </Button>
-    ) : (
-      <Button
-        size="icon-xs"
-        onClick={handleSubmit}
-        disabled={!input.trim() && attachedImagesCount === 0}
-        className="rounded-full"
-        aria-label="Submit prompt"
-      >
-        <ArrowUpIcon strokeWidth={2.5} />
-      </Button>
-    )}
+    <Button
+      variant={isLoading ? "secondary" : "default"}
+      size="icon-xs"
+      onClick={isLoading ? handleStop : handleSubmit}
+      disabled={!isLoading && !input.trim() && attachedImagesCount === 0}
+      className="rounded-full"
+      aria-label={isLoading ? "Stop generation" : "Submit prompt"}
+    >
+      <IconSwap
+        state={isLoading ? "b" : "a"}
+        iconA={<ArrowUpIcon strokeWidth={2.5} />}
+        iconB={<Loader2Icon className="animate-spin" />}
+      />
+    </Button>
   </div>
 );

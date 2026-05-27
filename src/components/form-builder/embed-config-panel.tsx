@@ -1,4 +1,5 @@
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { TextSwap } from "@/components/transitions/text-swap";
 import { Input } from "@/components/ui/input";
 import { StyleNumberInput } from "@/components/ui/style-controls";
 import { Switch } from "@/components/ui/switch";
@@ -11,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { orgDomainsQueryOptions } from "@/lib/server-fn/custom-domains";
 import { assignFormDomain, updateFormSlug } from "@/lib/server-fn/forms";
 
-/** Common display config shared across all embed types */
+/** Display config shared by all embed types. */
 export interface EmbedDisplayConfig {
   title: "visible" | "hidden";
   background: "transparent" | "solid";
@@ -21,7 +22,7 @@ export interface EmbedDisplayConfig {
   branding: boolean;
 }
 
-/** Popup-specific appearance and behavior config */
+/** Popup appearance + behavior. */
 export interface EmbedPopupConfig {
   overlay: "dark" | "light";
   hideOnSubmit: boolean;
@@ -34,7 +35,7 @@ export interface EmbedPopupConfig {
   emojiAnimation: "wave" | "bounce" | "pulse";
 }
 
-/** Full embed options using typed config objects */
+/** Embed options as typed config objects. */
 export interface EmbedOptions {
   height: number;
   display: EmbedDisplayConfig;
@@ -42,7 +43,7 @@ export interface EmbedOptions {
   customDomain: boolean;
 }
 
-/** Flat representation used by TanStack Form field bindings and URL search params */
+/** Flat shape for TanStack Form bindings + URL search params. */
 export interface EmbedFormFields {
   height: number;
   dynamicHeight: boolean;
@@ -83,7 +84,7 @@ export const defaultEmbedFormFields: EmbedFormFields = {
   hideOnSubmitDelay: 0,
 };
 
-/** Convert flat form fields to structured EmbedOptions */
+/** Flat fields → structured EmbedOptions. */
 export const formFieldsToEmbedOptions = (fields: EmbedFormFields): EmbedOptions => ({
   height: fields.height,
   display: {
@@ -108,7 +109,7 @@ export const formFieldsToEmbedOptions = (fields: EmbedFormFields): EmbedOptions 
   customDomain: fields.customDomain,
 });
 
-/** Minimal field API shape from TanStack Form render callbacks */
+/** Minimal field API from TanStack Form render callbacks. */
 interface FieldRenderApi<T = unknown> {
   state: { value: T };
   handleChange: (value: T) => void;
@@ -119,13 +120,10 @@ interface EmbedConfigPanelProps {
   // eslint-disable-next-line typescript-eslint/no-explicit-any
   form: { Field: any; Subscribe: any };
   section: "customize" | "pro";
-  /** Current server-side value of forms.branding for this form. When provided,
-   * the Reform Branding toggle in the Pro section reads this value directly
-   * instead of local form state, and writes back through `onBrandingChange`. */
+  /** Server-side forms.branding. When set, Pro Branding toggle reads this (not local state) and writes via `onBrandingChange`. */
   docBranding?: boolean;
   onBrandingChange?: (value: boolean) => void;
-  /** Current server-side value of forms.analytics. Pro-gated; when off the
-   * public form skips visit/progress tracking entirely. */
+  /** Server-side forms.analytics. Pro-gated; off skips visit/progress tracking on public form. */
   docAnalytics?: boolean;
   onAnalyticsChange?: (value: boolean) => void;
   /** Custom domain props for the Pro section */
@@ -550,18 +548,14 @@ const ProSection = ({
     },
   });
 
-  // Group 4 — live DB fields. Local draft state + explicit Save button so
-  // users don't accidentally push domain/slug/branding changes on every click.
-  // Silently discarded on unmount (sidebar close / tab switch).
+  // Group 4 — live DB fields. Local draft + explicit Save so domain/slug/branding aren't pushed on every click. Discarded on unmount.
   const [draftBranding, setDraftBranding] = useState<boolean>(docBranding ?? true);
   const [draftAnalytics, setDraftAnalytics] = useState<boolean>(docAnalytics ?? false);
   const [draftDomainId, setDraftDomainId] = useState<string | null>(customDomainId ?? null);
   const [draftSlug, setDraftSlug] = useState<string>(formSlug ?? defaultSlug);
 
-  // Re-sync draft with incoming props when the server-side value changes
-  // (e.g. another tab wrote, or the publish flow refetched). Tracking the
-  // previous prop snapshot in one tuple lets us run a single comparison per
-  // render — see https://react.dev/reference/react/useState#storing-information-from-previous-renders
+  // Re-sync draft when server-side value changes (other tab wrote / publish refetched). Prev-prop snapshot in one tuple
+  // = single comparison per render. See https://react.dev/reference/react/useState#storing-information-from-previous-renders
   const [previousInputs, setPreviousInputs] = useState({
     docBranding,
     docAnalytics,
@@ -632,9 +626,7 @@ const ProSection = ({
 
   return (
     <FeatureGate requiredPlan="pro" variant="block">
-      {/* Live Settings — explicit Save gate. These fields write directly to
-          the forms row and take effect on the public URL immediately after
-          Save, without requiring a republish. */}
+      {/* Live Settings — explicit Save gate; writes straight to forms row, live on public URL after Save, no republish. */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between px-1">
           <span className="text-[11px] tracking-wider text-muted-foreground uppercase">
@@ -714,7 +706,10 @@ const ProSection = ({
               saveLiveSettings().catch((err) => console.error("[LiveSettings] Save failed:", err));
             }}
           >
-            {isSaving ? "Saving…" : "Save"}
+            {(() => {
+              const label = isSaving ? "Saving…" : "Save";
+              return <TextSwap key={label}>{label}</TextSwap>;
+            })()}
           </Button>
         </div>
       </div>

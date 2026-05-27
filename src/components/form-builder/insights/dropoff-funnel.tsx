@@ -44,9 +44,7 @@ interface CutDateBannerProps {
   startDate: string;
 }
 
-// Surfaces the per-Question rework cut-date when the user's selected range
-// reaches back before it. Anything older is intentionally hidden from the
-// funnel — see ADR-0002.
+// Surfaces per-Question rework cut-date when selected range predates it; older data hidden from funnel — see ADR-0002.
 const CutDateBanner = ({ startDate }: CutDateBannerProps) => {
   const cutDateKey = PER_QUESTION_ANALYTICS_CUT_TS.slice(0, 10);
   if (startDate >= cutDateKey) {
@@ -71,7 +69,7 @@ const DropoffHeader = ({ mode, singleStep }: DropoffHeaderProps) => {
       ? "Drop-off = % who viewed but didn't complete"
       : "Drop-off = % who started but didn't complete";
   return (
-    <div className="grid grid-cols-[24px_minmax(0,1fr)_80px_90px_90px_100px] items-center gap-3 border-b border-border px-3 py-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+    <div className="grid h-9 grid-cols-[24px_minmax(0,1fr)_80px_90px_90px_100px] items-center gap-3 border-b border-border px-2.5 text-[13px] font-normal text-secondary-foreground/80">
       <span aria-hidden="true" />
       <span>{singleStep ? "Question" : "Step / Question"}</span>
       <span className="text-right">Viewed</span>
@@ -104,13 +102,12 @@ interface QuestionRowProps {
   mode: DropoffMode;
 }
 
-// Flat top-level row used for single-step Forms — same grid as StepRow but
-// without the chevron / accordion, so the Question reads as the primary row.
+// Flat top-level row for single-step Forms: StepRow grid minus chevron/accordion, so Question is the primary row.
 const QuestionRow = ({ question, index, mode }: QuestionRowProps) => {
   const dropoffRate = computeDropoffRate(question, mode, "question");
   const label = formatQuestionLabel(question);
   return (
-    <div className="grid grid-cols-[24px_minmax(0,1fr)_80px_90px_90px_100px] items-center gap-3 border-b border-border px-3 py-2.5 text-[13px] last:border-b-0">
+    <div className="grid grid-cols-[24px_minmax(0,1fr)_80px_90px_90px_100px] items-center gap-3 border-b border-border px-2.5 py-2 text-[13px] transition-colors last:border-b-0 hover:bg-muted/40">
       <span aria-hidden="true" />
       <span className="flex min-w-0 items-center gap-2">
         <span className="text-muted-foreground tabular-nums">{index + 1}.</span>
@@ -142,7 +139,7 @@ const StepRow = ({ step, mode }: StepRowProps) => {
     <Collapsible>
       <CollapsibleTrigger
         className={cn(
-          "group/funnel-step grid w-full grid-cols-[24px_minmax(0,1fr)_80px_90px_90px_100px] items-center gap-3 border-b border-border px-3 py-2.5 text-left text-[13px] last:border-b-0",
+          "group/funnel-step grid w-full grid-cols-[24px_minmax(0,1fr)_80px_90px_90px_100px] items-center gap-3 border-b border-border px-2.5 py-2 text-left text-[13px] transition-colors last:border-b-0 hover:bg-muted/40",
           !hasQuestions && "pointer-events-none",
         )}
         disabled={!hasQuestions}
@@ -174,7 +171,7 @@ const StepRow = ({ step, mode }: StepRowProps) => {
             return (
               <div
                 key={q.questionId}
-                className="grid grid-cols-[24px_minmax(0,1fr)_80px_90px_90px_100px] items-center gap-3 border-t border-border/60 px-3 py-2 text-[13px]"
+                className="grid grid-cols-[24px_minmax(0,1fr)_80px_90px_90px_100px] items-center gap-3 border-t border-border/60 px-2.5 py-2 text-[13px] transition-colors hover:bg-muted/50"
               >
                 <span aria-hidden="true" />
                 <span className="flex min-w-0 items-center gap-2 pl-4">
@@ -222,7 +219,7 @@ export const DropoffFunnel = ({ dropoff }: DropoffFunnelProps) => {
   return (
     <div className="space-y-4">
       <CutDateBanner startDate={dropoff.startDate} />
-      <div className="overflow-hidden rounded-md border border-border">
+      <div className="overflow-x-auto">
         <DropoffHeader mode={mode} singleStep={steps.length <= 1} />
         <div>
           {steps.length === 1

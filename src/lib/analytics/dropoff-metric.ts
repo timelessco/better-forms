@@ -1,19 +1,7 @@
-// Mode-aware dropoff rate helper.
-//
-// The Step funnel uses different denominators depending on Form shape because
-// the per-row event counts mean different things between multi-step and
-// single-page Forms:
-//
-// - Multi-step (`stepCount > 1`): Step rows count View → Complete transitions
-//   for the whole step, so the meaningful drop-off is "viewed but didn't
-//   complete the step". Between-step transitions follow the same metric.
-//   Question rows nested inside a Step use Start → Complete because we want to
-//   isolate the per-Question dropout independent of whether a Respondent
-//   even started typing.
-//
-// - Single-page (`stepCount === 1`): there's no view/start distinction per
-//   Question — the whole page is one View event. Use Start → Complete
-//   everywhere so the percentage stays well-defined.
+// Mode-aware dropoff: denominator depends on Form shape.
+// - Multi-step (stepCount>1): Step rows = View→Complete (viewed-not-completed);
+//   nested Question rows = Start→Complete (isolate per-Question dropout).
+// - Single-page (stepCount===1): whole page is one View, so Start→Complete everywhere.
 
 export type DropoffMode = "multi-step" | "single-page";
 

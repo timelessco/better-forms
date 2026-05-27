@@ -20,11 +20,8 @@ export const Calendar = ({
   className,
   classNames,
   showOutsideDays = true,
-  // Default to dropdown so users can jump months/years from the caption
-  // without clicking the arrows repeatedly. Existing `dropdown_root` and
-  // `caption_label` styles below already support this layout — the native
-  // <select> sits transparently over the caption text so OS pickers fire on
-  // mobile and the visible label stays themed.
+  // Default dropdown so users jump months/years from the caption. Native <select> sits
+  // transparently over the caption text so OS pickers fire on mobile, label stays themed.
   captionLayout = "dropdown",
   buttonVariant = "ghost",
   locale,
@@ -56,11 +53,8 @@ export const Calendar = ({
         months: cn("relative flex flex-col gap-4 md:flex-row", defaultClassNames.months),
         month: cn("flex w-full flex-col gap-4", defaultClassNames.month),
         nav: cn(
-          // pointer-events-none on the nav + auto on its inner buttons:
-          // the nav is absolutely positioned across the full caption row to
-          // park prev/next chevrons on the edges. Without this, its empty
-          // middle area sits on top of the month/year dropdowns and eats
-          // their clicks (Tab still works since tab order is DOM-source).
+          // pointer-events-none on nav, auto on its buttons: nav spans the caption row to park
+          // chevrons on edges; otherwise its empty middle covers the dropdowns and eats clicks.
           "pointer-events-none absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1 [&>button]:pointer-events-auto",
           defaultClassNames.nav,
         ),
@@ -175,13 +169,9 @@ export const Calendar = ({
 };
 
 /**
- * Replaces RDP's native <select> caption dropdowns with our themed Base UI
- * Select. RDP passes `onChange` as a ChangeEventHandler<HTMLSelectElement>;
- * we synthesize a minimal event whose `target.value` is what RDP actually
- * reads, so navigation works without touching the rest of the library.
- *
- * The popup portals to document.body, so we re-anchor `bf-themed` + theme
- * vars onto it — same pattern as date-picker / multi-select / phone-input.
+ * Replaces RDP's native <select> caption dropdowns with themed Base UI Select. RDP's onChange is
+ * a ChangeEventHandler<HTMLSelectElement>; synthesize a minimal event whose target.value RDP reads.
+ * Popup portals to body — re-anchor bf-themed + theme vars (same as date-picker/multi-select).
  */
 const CalendarDropdown = ({ value, onChange, options }: DropdownProps) => {
   const themeReanchor = useReanchorThemeProps();

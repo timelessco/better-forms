@@ -1,9 +1,6 @@
 import { put } from "@vercel/blob";
 
-/**
- * Upload a buffer/blob to Vercel Blob storage as a public object.
- * Centralizes the access level and token so callers don't repeat boilerplate.
- */
+/** Upload to Vercel Blob as a public object; centralizes access level + token. */
 export const putBlob = (key: string, body: Buffer | Blob, contentType: string) =>
   put(key, body, {
     access: "public",

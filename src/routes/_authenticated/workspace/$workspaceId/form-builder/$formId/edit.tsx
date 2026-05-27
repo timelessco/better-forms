@@ -76,11 +76,7 @@ const DesignPage = () => {
           )}
         >
           {previewMode && <PreviewMode formId={formId} workspaceId={workspaceId} />}
-          {/* Keep EditorApp's fiber tree, Slate document, and DOM alive across
-              preview toggles via <Activity>. A fresh mount of Plate (50+
-              elements, per-element plugin effects) costs ~600ms; Activity
-              preserves the editor instance and only re-runs effects on the
-              hidden ↔ visible flip. */}
+          {/* <Activity> keeps EditorApp fiber/Slate doc/DOM alive across preview toggles — fresh Plate mount (50+ elements, per-element effects) is ~600ms; only re-runs effects on hidden↔visible flip. */}
           <Activity mode={previewMode ? "hidden" : "visible"}>
             {isViewingVersion && isLoadingVersionContent ? (
               <div className="flex size-full items-center justify-center">
@@ -142,9 +138,7 @@ export const Route = createFileRoute(
   ssr: "data-only",
   // Redirect published forms to submissions (prevents flash of editor)
   beforeLoad: async ({ context, params, search }) => {
-    // Warm the editor-app chunk during route preload (e.g. on Link hover with
-    // preload="intent") and on navigation. Window guard keeps the dynamic
-    // import off the server module graph in `ssr: "data-only"` mode.
+    // Warm editor-app chunk on preload (Link hover) + nav. Window guard keeps import off server module graph in ssr:"data-only".
     if (typeof window !== "undefined") {
       void import("../-components/editor-app");
     }

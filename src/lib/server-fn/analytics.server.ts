@@ -19,13 +19,18 @@ import { isBotUserAgent } from "@/lib/analytics/bot-filter";
 import { PER_QUESTION_ANALYTICS_CUT_TS } from "@/lib/analytics/cut-date";
 import { filterByCutDate, mergeDropoffMetrics } from "@/lib/analytics/merge-dropoff";
 import { mergeInsightsMetrics } from "@/lib/analytics/merge-metrics";
+import { buildVitalsMetrics } from "@/lib/analytics/merge-vitals";
 import { parseUserAgent } from "@/lib/analytics/parse-user-agent";
 import { resolveTimeRange, splitTodayVsPast, toDateKey } from "@/lib/analytics/time-range";
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { authForm } from "@/lib/server-fn/auth-helpers.server";
 import { isServerPlan } from "@/lib/server-fn/plan-helpers";
 import { getOrgPlanWithPolarSync } from "@/lib/server-fn/plan-helpers.server";
-import type { FormInsightsMetrics, QuestionDropoffMetrics } from "@/types/analytics";
+import type {
+  FormInsightsMetrics,
+  FormVitalsMetrics,
+  QuestionDropoffMetrics,
+} from "@/types/analytics";
 
 export type RecordFormVisitInput = {
   formId: string;
@@ -44,6 +49,9 @@ export type UpdateFormVisitInput = {
   submissionId?: string | null;
   visitEndedAt?: string | null;
   durationMs?: number | null;
+  lcpMs?: number | null;
+  inpMs?: number | null;
+  cls?: number | null;
 };
 
 export type RecordQuestionProgressInput = {
@@ -70,31 +78,21 @@ export type InsightsFilterInput = {
   endDate?: string;
 };
 
-// Display-only gate for insights/dropoff readers. Recorders write data
-// unconditionally — the toggle controls what's *shown*, not what's *kept*,
-// so enabling analytics later (or upgrading to Pro) surfaces historical
-// data instead of starting from zero. The org-plan check covers the
-// window where a Polar downgrade webhook hasn't yet flipped any cached
-// state.
+// Display-only gate for insights/dropoff readers. Recorders write unconditionally — toggle
+// controls what's shown not what's kept, so enabling later (or upgrading) surfaces history.
+// Org-plan check covers the window before a Polar downgrade webhook flips cached state.
 export const isAnalyticsEnabled = async (formId: string): Promise<boolean> => {
   const { display } = await getAnalyticsState(formId);
   return display;
 };
 
-/**
- * Returns the two booleans that drive every analytics-availability decision:
- *   - `toggle`: raw `formSettings.settings.analytics` (what the user can flip)
- *   - `display`: whether visits/dropoff should render — toggle AND plan unlock
- *
- * `display` consults the cached `organization.plan` column. UI surfaces that
- * need Polar-confirmed state should ignore `display` and re-derive it against
- * `getOrgPlanWithPolarSync` themselves; recorders are fine with the column.
- */
+/** Two booleans driving analytics availability: toggle (raw formSettings.analytics) and
+ * display (toggle AND plan unlock). display uses cached organization.plan; UI needing
+ * Polar-confirmed state should re-derive via getOrgPlanWithPolarSync (recorders use the column). */
 export const getAnalyticsState = async (
   formId: string,
 ): Promise<{ toggle: boolean; display: boolean }> => {
-  // Read the LIVE settings (form_settings table), not the working draft —
-  // analytics display should reflect what's published, not pending edits.
+  // Read LIVE settings (form_settings), not draft: display reflects published, not pending edits.
   const [row] = await db
     .select({ settings: formSettings.settings, plan: organization.plan })
     .from(forms)
@@ -162,6 +160,15 @@ export const updateFormVisitImpl = async (data: UpdateFormVisitInput): Promise<{
   if (data.durationMs !== undefined) {
     updates.durationMs = data.durationMs;
   }
+  if (data.lcpMs !== undefined) {
+    updates.lcpMs = data.lcpMs;
+  }
+  if (data.inpMs !== undefined) {
+    updates.inpMs = data.inpMs;
+  }
+  if (data.cls !== undefined) {
+    updates.cls = data.cls;
+  }
 
   await db.update(formVisits).set(updates).where(eq(formVisits.id, data.visitId));
   return { ok: true };
@@ -193,10 +200,8 @@ export const recordQuestionProgressImpl = async (
     })
     .onConflictDoUpdate({
       target: [formQuestionProgress.visitId, formQuestionProgress.questionId],
-      // Reference excluded.* (the would-be-inserted row) instead of interpolating
-      // raw Date values into sql templates — postgres-js's parameter binder
-      // refuses a JS Date for a coalesce arg when the column type isn't
-      // explicit on its branch (issue triggered analytics-option-b.test.ts).
+      // Use excluded.* not raw Date in sql templates: postgres-js binder refuses a JS Date
+      // for a coalesce arg when the branch column type isn't explicit (analytics-option-b.test.ts).
       set: {
         startedAt: sql`coalesce(${formQuestionProgress.startedAt}, excluded."startedAt")`,
         completedAt: sql`coalesce(${formQuestionProgress.completedAt}, excluded."completedAt")`,
@@ -270,6 +275,108 @@ export const getFormInsightsImpl = async (
   });
 };
 
+/** Day keys for the period immediately before rangeDays (same length), for "vs prior" deltas.
+ * Prior window is fully past, so reads entirely from aggregated daily rows. */
+const priorDayKeys = (rangeDays: string[]): string[] => {
+  const firstKey = rangeDays[0];
+  if (!firstKey) {
+    return [];
+  }
+  const firstDay = new Date(`${firstKey}T00:00:00.000Z`);
+  const keys: string[] = [];
+  for (let offset = rangeDays.length; offset >= 1; offset--) {
+    keys.push(toDateKey(new Date(firstDay.getTime() - offset * MS_PER_DAY)));
+  }
+  return keys;
+};
+
+export const getFormVitalsImpl = async (
+  data: InsightsFilterInput,
+  context: { session: { user: { id: string } } },
+  orgId: string,
+): Promise<FormVitalsMetrics> => {
+  await authForm(data.formId, context.session.user.id, orgId);
+
+  const now = new Date();
+  const range = resolveTimeRange(
+    { filter: data.filter, startDate: data.startDate, endDate: data.endDate },
+    now,
+  );
+  const split = splitTodayVsPast(range, now);
+  const startDate = data.startDate ?? toDateKey(range.start);
+  const endDate = data.endDate ?? toDateKey(range.end);
+
+  const enabled = await isAnalyticsEnabled(data.formId);
+  if (!enabled) {
+    return buildVitalsMetrics({
+      dailyRows: [],
+      todayRawRows: [],
+      priorDailyRows: [],
+      days: range.days,
+      todayKey: split.todayStart ? toDateKey(split.todayStart) : null,
+      startDate,
+      endDate,
+    });
+  }
+
+  const dailyVitalsColumns = {
+    date: formAnalyticsDaily.date,
+    lcpHistogram: formAnalyticsDaily.lcpHistogram,
+    inpHistogram: formAnalyticsDaily.inpHistogram,
+    clsHistogram: formAnalyticsDaily.clsHistogram,
+  };
+
+  const dailyRows =
+    split.pastDays.length > 0
+      ? await db
+          .select(dailyVitalsColumns)
+          .from(formAnalyticsDaily)
+          .where(
+            and(
+              eq(formAnalyticsDaily.formId, data.formId),
+              inArray(formAnalyticsDaily.date, split.pastDays),
+            ),
+          )
+      : [];
+
+  const todayRawRows = split.rawStart
+    ? await db
+        .select({ lcpMs: formVisits.lcpMs, inpMs: formVisits.inpMs, cls: formVisits.cls })
+        .from(formVisits)
+        .where(
+          and(
+            eq(formVisits.formId, data.formId),
+            gte(formVisits.visitStartedAt, split.rawStart),
+            lte(formVisits.visitStartedAt, range.end),
+          ),
+        )
+    : [];
+
+  const priorDays = priorDayKeys(range.days);
+  const priorDailyRows =
+    priorDays.length > 0
+      ? await db
+          .select(dailyVitalsColumns)
+          .from(formAnalyticsDaily)
+          .where(
+            and(
+              eq(formAnalyticsDaily.formId, data.formId),
+              inArray(formAnalyticsDaily.date, priorDays),
+            ),
+          )
+      : [];
+
+  return buildVitalsMetrics({
+    dailyRows,
+    todayRawRows,
+    priorDailyRows,
+    days: range.days,
+    todayKey: split.todayStart ? toDateKey(split.todayStart) : null,
+    startDate,
+    endDate,
+  });
+};
+
 export const getFormDropoffImpl = async (
   data: InsightsFilterInput,
   context: { session: { user: { id: string } } },
@@ -322,8 +429,7 @@ export const getFormDropoffImpl = async (
     cutTs: PER_QUESTION_ANALYTICS_CUT_TS,
   });
 
-  // Build a Question-id → label map from the Form's current draft content so
-  // the funnel renders human-readable labels instead of raw Plate Block ids.
+  // Question-id → label map from draft content so funnel shows labels not raw Plate Block ids.
   const labelMap = new Map<string, string>();
   const [formRow] = await db
     .select({ content: forms.content })
@@ -355,17 +461,13 @@ export interface InsightsAvailability {
   formStatus: string;
   /** Total submissions for the form (lifetime, all-time). */
   submissionCount: number;
-  /** Whether ANY raw visit has been recorded for this form. Recorders write
-   *  unconditionally now, so this is true once anyone has loaded the public
-   *  form even if the analytics toggle has never been flipped on. */
+  /** Any raw visit recorded. Recorders write unconditionally, so true once anyone loads
+   *  the public form even if the toggle was never flipped. */
   hasAnyVisits: boolean;
-  /** Raw `formSettings.settings.analytics` value — whether the per-form
-   *  toggle is flipped on, regardless of whether the org plan allows it.
-   *  Lets the empty state tell "off" apart from "on-but-plan-locked". */
+  /** Raw formSettings.analytics — per-form toggle on regardless of plan. Lets empty state
+   *  tell "off" from "on-but-plan-locked". */
   analyticsToggle: boolean;
-  /** Live toggle AND plan-unlock both true — drives the actual dashboard
-   *  render. False when the toggle is off OR the plan doesn't include
-   *  analytics. */
+  /** toggle AND plan-unlock; drives dashboard render. False if toggle off OR plan lacks analytics. */
   analyticsEnabled: boolean;
 }
 
@@ -376,9 +478,8 @@ export const getInsightsAvailabilityImpl = async (
 ): Promise<InsightsAvailability> => {
   await authForm(data.formId, context.session.user.id, orgId);
 
-  // Plan resolves via Polar-sync (the `organization.plan` column drifts if a
-  // webhook missed) but the count queries don't depend on it — run them in
-  // parallel with the Polar roundtrip rather than serializing.
+  // Plan via Polar-sync (organization.plan drifts on missed webhook); counts don't depend on it,
+  // so run them in parallel with the Polar roundtrip.
   const [plan, [form], [{ value: submissionCount }], [{ value: visitCount }], analyticsState] =
     await Promise.all([
       getOrgPlanWithPolarSync(orgId, context.session.user.email ?? null),
@@ -388,8 +489,7 @@ export const getInsightsAvailabilityImpl = async (
       getAnalyticsState(data.formId),
     ]);
 
-  // `getAnalyticsState` ran without the override (so it could parallelize with
-  // the Polar fetch); re-derive `display` against the Polar-confirmed plan.
+  // getAnalyticsState ran without override (to parallelize with Polar); re-derive against Polar-confirmed plan.
   const analyticsEnabled = analyticsState.toggle && planUnlocks(plan, "analytics");
 
   return {
@@ -413,19 +513,10 @@ export interface AggregateResult {
   pruned: { visits: number; progress: number };
 }
 
-/**
- * Idempotent nightly rollup.
- *
- * 1. Reads raw `formVisits` for the given UTC date and writes one
- *    `formAnalyticsDaily` row per `formId` (delete-then-insert for the date,
- *    so re-running for the same date never double-counts).
- * 2. Reads raw `formQuestionProgress` for the same UTC date and writes one
- *    `formDropoffDaily` row per (formId, questionId, questionIndex).
- * 3. Prunes raw rows older than 90 days from BOTH raw tables.
- *
- * Wrapped in a single DB transaction so partial failures don't leave half-
- * written aggregates.
- */
+/** Idempotent nightly rollup, single transaction (no half-written aggregates):
+ * 1. formVisits → one formAnalyticsDaily row/formId (delete-then-insert per date, no double-count).
+ * 2. formQuestionProgress → one formDropoffDaily row per (formId, questionId, questionIndex).
+ * 3. Prune raw rows older than 90 days from both raw tables. */
 export const aggregateAnalyticsDailyImpl = async (data: {
   date: string;
 }): Promise<AggregateResult> => {

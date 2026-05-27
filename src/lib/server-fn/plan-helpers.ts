@@ -14,10 +14,8 @@ export type FormProSettingsInput = {
   presentationMode?: string;
 };
 
-// Customization keys available to every plan (basic Theme controls in the
-// editor's Customize sidebar). Anything outside this set — light:/dark:
-// per-mode color overrides, layout numbers, typography, custom CSS — is
-// Pro-only and triggers the customization gate.
+// Free-plan customization keys (basic Theme controls). Anything outside (per-mode colors,
+// layout, typography, custom CSS) is Pro-only and triggers the customization gate.
 export const FREE_CUSTOMIZATION_KEYS: ReadonlySet<string> = new Set([
   "preset",
   "themeColor",
@@ -35,8 +33,7 @@ const customizationRequiresPro = (value: unknown): boolean => {
   return false;
 };
 
-// Maps each FormProSettingsInput field to the FeatureGate it triggers, with
-// the predicate that decides when the field is "on" (gating-eligible).
+// Maps each FormProSettingsInput field → FeatureGate + predicate for when it's gating-eligible.
 const FORM_INPUT_GATES: ReadonlyArray<{
   field: keyof FormProSettingsInput;
   gate: FeatureGate;
@@ -62,8 +59,7 @@ const FORM_INPUT_GATES: ReadonlyArray<{
   },
 ];
 
-// Returns which FeatureGates this input bundle activates.
-// Empty array means no plan check needed.
+// FeatureGates this input activates; empty = no plan check needed.
 export const formSettingsFeatureGates = (data: FormProSettingsInput): FeatureGate[] => {
   const record = data as Record<string, unknown>;
   const gates: FeatureGate[] = [];
@@ -73,7 +69,6 @@ export const formSettingsFeatureGates = (data: FormProSettingsInput): FeatureGat
   return gates;
 };
 
-// Pure predicate: do these form-settings inputs require any paid feature?
-// Used by formProSettingsMiddleware to decide whether to fetch the plan.
+// Do these inputs need any paid feature? Used by formProSettingsMiddleware to decide plan fetch.
 export const requiresProForFormSettings = (data: FormProSettingsInput): boolean =>
   formSettingsFeatureGates(data).length > 0;

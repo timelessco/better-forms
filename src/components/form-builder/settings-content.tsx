@@ -21,6 +21,7 @@ import {
 } from "@/lib/server-fn/notifications";
 import { defaultFormSettings } from "@/types/form-settings";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/icons";
+import { IconSwap } from "@/components/transitions/icon-swap";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseError } from "@/lib/errors/parse";
 import { useMemo, useState } from "react";
@@ -750,7 +751,11 @@ const PasswordInput = ({ value, onChange }: { value: string; onChange: (val: str
         className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         aria-label="Toggle password visibility"
       >
-        {show ? <EyeOffIcon className="size-3.5" /> : <EyeIcon className="size-3.5" />}
+        <IconSwap
+          state={show ? "b" : "a"}
+          iconA={<EyeIcon className="size-3.5" />}
+          iconB={<EyeOffIcon className="size-3.5" />}
+        />
       </button>
     </div>
   );

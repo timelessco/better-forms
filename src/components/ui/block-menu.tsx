@@ -102,15 +102,12 @@ type NumberRowProps = {
   min?: number;
   max?: number;
   suffix?: string;
-  /** Shown as placeholder when value is unset — hints the effective default
-   *  without actually persisting it. Pick per-field (see call sites). */
+  /** Placeholder when unset — hints the effective default without persisting it. */
   defaultHint?: number;
 };
 
-// Dropdown row: label on the left, compact number input on the right.
-// Uses DropdownMenuItem so padding + hover match the Required/File-types
-// rows above; Input is stripped to a subtle bordered box (no shadow) to
-// blend into the menu instead of standing out.
+// Dropdown row: label left, number input right. DropdownMenuItem so padding/hover match the
+// rows above; Input stripped to a subtle bordered box to blend into the menu.
 const NumberRow = ({ label, value, onChange, min, max, suffix, defaultHint }: NumberRowProps) => (
   <DropdownMenuItem closeOnClick={false} onPointerDown={stopMouseEventPropagation}>
     <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">{label}</span>
@@ -283,10 +280,8 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     onDuplicate: handleDuplicate,
   });
 
-  // Close the menu on scroll. The dropdown's virtual anchor is pinned to the
-  // viewport (x, y) where the user clicked; without this the menu floats in
-  // place while the underlying block scrolls away. Ignore scroll events that
-  // originate inside the menu itself so its own overflow scroll still works.
+  // Close on scroll — virtual anchor is pinned to the click (x,y), so the menu would float in
+  // place as the block scrolls away. Ignore scrolls from inside the menu so its overflow works.
   React.useEffect(() => {
     if (!isOpen) return;
     const handleScroll = (event: Event) => {
@@ -313,8 +308,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     (open: boolean, eventDetails: { reason?: string }) => {
       if (!open) {
         const { reason } = eventDetails;
-        // Only close on deliberate dismissals, not focus-related events
-        // that fire during submenu interactions
+        // Close on deliberate dismissals only, not focus events from submenu interactions.
         if (reason === "outsidePress" || reason === "escapeKey" || reason === "itemPress") {
           api.blockMenu.hide();
         }
@@ -821,9 +815,8 @@ const TextLikeSettings = ({
   </>
 );
 
-// Phone numbers are validated by format (E.164 via libphonenumber), not by
-// character count — exposing Min/Max characters produced nonsensical errors
-// like "Maximum 1 characters allowed" on a valid +91… number.
+// Phones validated by format (E.164 via libphonenumber), not char count — Min/Max chars
+// produced nonsense like "Maximum 1 characters allowed" on valid +91… numbers.
 const FormPhoneSettings = ({
   hasDefaultValue,
   currentDefaultValue,

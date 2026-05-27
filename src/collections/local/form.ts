@@ -1,7 +1,4 @@
-/**
- * Local-only form collection (localStorage-backed) for unauthenticated drafts.
- * This is localStorage-backed and independent of the query-based collections.
- */
+/** Local-only form collection (localStorage-backed) for unauthenticated drafts; independent of the query-based collections. */
 import { createCollection, localStorageCollectionOptions } from "@tanstack/react-db";
 import { z } from "zod";
 import { createFormHeaderNode } from "@/lib/form-schema/form-header-factory";
@@ -33,8 +30,7 @@ export const FormSchema = z.object({
   lastPublishedVersionId: z.string().nullable().optional(),
   publishedContentHash: z.string().nullable().optional(),
   draftSettings: z.custom<FormSettings>().default(() => defaultFormSettings),
-  // Live settings — for unauthenticated local drafts there's no server row,
-  // so this mirrors draft until the user signs in and publishes.
+  // Live settings — no server row for local drafts; mirrors draft until sign-in + publish.
   liveSettings: z.custom<FormSettings | null>().default(() => null),
   customization: z.record(z.string(), z.any()).default({}),
   createdAt: timestampField,

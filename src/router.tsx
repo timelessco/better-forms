@@ -21,6 +21,10 @@ export const getRouter = () => {
       session: null,
     },
     defaultPreload: "intent",
+    // Let TanStack Query own caching. Without this the router keeps its own
+    // 30s cache of preloaded loader results on top of Query's cache, so an
+    // intent-preloaded route can serve stale data and bypass Query's freshness.
+    defaultPreloadStaleTime: 0,
   });
 
   setupRouterSsrQueryIntegration({

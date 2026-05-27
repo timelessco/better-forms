@@ -10,11 +10,7 @@ export type PresentationMode = "card" | "field-by-field" | "ai-chat";
 
 export type AiChatTone = "formal" | "friendly" | "playful";
 
-/**
- * Canonical shape of `forms.settings` JSONB column. The single typed group
- * for all behavioral configuration of a Form. `customization` (theme tokens)
- * lives in `forms.customization`, not here.
- */
+/** Canonical shape of `forms.settings` JSONB — all behavioral config. Theme tokens live in `forms.customization`, not here. */
 export interface FormSettings {
   language: string;
   redirectOnCompletion: boolean;
@@ -91,13 +87,7 @@ export const defaultPublicFormSettings: PublicFormSettings = {
   preventDuplicateSubmissions: false,
 };
 
-/**
- * Merge a partial source of PublicFormSettings fields (typically a
- * version-snapshot jsonb or a live form doc) with the defaults. Accepts both
- * `Partial<PublicFormSettings>` (live shape, undefined for missing) and a
- * versioned snapshot (every key present, `null` for missing). Either flavour
- * falls back to the default for missing fields.
- */
+/** Merge partial PublicFormSettings (live doc: undefined for missing; version snapshot: null for missing) over defaults; missing fields fall back to default. */
 export const buildPublicFormSettings = (
   source: { [K in keyof PublicFormSettings]?: PublicFormSettings[K] | null } | null | undefined,
   overrides: Partial<PublicFormSettings> = {},

@@ -15,8 +15,8 @@ export interface VercelDomainStatus {
 
 const NOT_FOUND_RE = /not.?found|404/i;
 
-// VercelError exposes the raw HTTP body as a string (Content-Type from the
-// Vercel API isn't always application/json, so the SDK doesn't auto-parse).
+// VercelError exposes the raw body as a string — Vercel's Content-Type isn't
+// always JSON, so the SDK doesn't auto-parse.
 type ParsedErrorBody = {
   error?: { message?: string; verification?: VercelDomainVerification[] };
 };
@@ -58,9 +58,8 @@ export const vercelDomains = {
         verification: value.verification,
       };
     } catch (error) {
-      // Vercel returns the verification challenge inline when a domain is
-      // already attached to another team — surface it instead of throwing so
-      // the UI can render TXT _vercel instructions.
+      // When domain is already on another team, Vercel returns the challenge
+      // inline — surface it (don't throw) so UI can show TXT _vercel steps.
       const verification = extractVerificationFromError(error);
       if (verification?.length) {
         return { domain, verified: false, verification };
@@ -108,8 +107,7 @@ export const vercelDomains = {
         teamId: vercelTeamId(),
         domain,
       });
-      // The verify endpoint only reports verified; callers needing the TXT
-      // challenge should fall back to check().
+      // verify only reports `verified`; for the TXT challenge fall back to check().
       return { verified: value.verified ?? false };
     } catch (error) {
       throw createError({
@@ -124,11 +122,8 @@ export const vercelDomains = {
     }
   },
 
-  /**
-   * Project-level disassociation only. The domain stops resolving on this
-   * project but remains on the team, so a later re-add (e.g. plan re-upgrade)
-   * skips re-verification. Use for downgrade/suspend flows.
-   */
+  /** Project-level detach only — domain stops resolving here but stays on the
+   * team, so re-add (e.g. re-upgrade) skips re-verification. For downgrade/suspend. */
   async detach(domain: string): Promise<void> {
     try {
       await vercel.projects.removeProjectDomain({
@@ -137,8 +132,7 @@ export const vercelDomains = {
         domain,
       });
     } catch (error) {
-      // The SDK doesn't expose a status code on errors directly; tolerate
-      // "not found" by message inspection.
+      // SDK exposes no status code on errors; tolerate "not found" by message.
       const message = errorMessage(error, "Failed to detach domain from project");
       if (NOT_FOUND_RE.test(message)) return;
       throw createError({
@@ -153,10 +147,7 @@ export const vercelDomains = {
     }
   },
 
-  /**
-   * Full removal: project-detach + account-level delete. Use for permanent
-   * tenant offboarding.
-   */
+  /** Full removal: project-detach + account-level delete. For permanent offboarding. */
   async remove(domain: string): Promise<void> {
     await this.detach(domain);
     try {

@@ -4,16 +4,16 @@ import type {
   formQuestionProgress,
   formVisits,
 } from "@/db/schema";
+import { resolveSource } from "./source";
+import { buildHistogram } from "./vitals";
 
 type RawVisit = typeof formVisits.$inferSelect;
 type RawProgress = typeof formQuestionProgress.$inferSelect;
 type DailyAnalyticsInsert = typeof formAnalyticsDaily.$inferInsert;
 type DailyDropoffInsert = typeof formDropoffDaily.$inferInsert;
 
-// Schema convention: dropoffRate / completionRate are stored as percentage * 100.
-// e.g. 50% → 5000, 12.34% → 1234. Read side currently recomputes from raw counts,
-// but storing the scaled integer is required for forensic queries and to match
-// the column comment.
+// dropoffRate/completionRate stored as percentage * 100 (50% → 5000). Scaled int
+// for forensic queries; read side recomputes from raw counts.
 const PERCENT_SCALE = 100;
 
 const computeAverage = (values: number[]): number | null => {
@@ -48,10 +48,7 @@ export const bumpKey = (target: Record<string, number>, key: string | null | und
   target[key] = (target[key] ?? 0) + 1;
 };
 
-/**
- * Group raw visits by formId and return one DailyAnalyticsInsert row per form.
- * `dateKey` is YYYY-MM-DD UTC.
- */
+/** One DailyAnalyticsInsert row per form, grouped by formId. dateKey: YYYY-MM-DD UTC. */
 export const buildDailyAnalyticsRows = (
   visits: RawVisit[],
   dateKey: string,
@@ -86,6 +83,11 @@ export const buildDailyAnalyticsRows = (
     const cityBreakdown: Record<string, number> = {};
     const sourceBreakdown: Record<string, number> = {};
 
+    // Non-null CWV samples, this form's day.
+    const lcpSamples: number[] = [];
+    const inpSamples: number[] = [];
+    const clsSamples: number[] = [];
+
     for (const visit of group) {
       uniqueVisitorHashes.add(visit.visitorHash);
 
@@ -98,13 +100,23 @@ export const buildDailyAnalyticsRows = (
         durations.push(visit.durationMs);
       }
 
+      if (visit.lcpMs !== null && visit.lcpMs !== undefined) {
+        lcpSamples.push(visit.lcpMs);
+      }
+      if (visit.inpMs !== null && visit.inpMs !== undefined) {
+        inpSamples.push(visit.inpMs);
+      }
+      if (visit.cls !== null && visit.cls !== undefined) {
+        clsSamples.push(visit.cls);
+      }
+
       bumpKey(deviceBreakdown, visit.deviceType);
       bumpKey(browserBreakdown, visit.browser ?? "Other");
       bumpKey(osBreakdown, visit.os ?? "Other");
       bumpKey(countryBreakdown, visit.country);
       bumpKey(cityBreakdown, visit.city);
 
-      const sourceKey = visit.utmSource ?? "direct";
+      const sourceKey = resolveSource({ utmSource: visit.utmSource, referrer: visit.referrer });
       sourceBreakdown[sourceKey] = (sourceBreakdown[sourceKey] ?? 0) + 1;
     }
 
@@ -124,6 +136,9 @@ export const buildDailyAnalyticsRows = (
       countryBreakdown,
       cityBreakdown,
       sourceBreakdown,
+      lcpHistogram: buildHistogram("lcp", lcpSamples),
+      inpHistogram: buildHistogram("inp", inpSamples),
+      clsHistogram: buildHistogram("cls", clsSamples),
       createdAt: now,
       updatedAt: now,
     });
@@ -132,11 +147,7 @@ export const buildDailyAnalyticsRows = (
   return rows;
 };
 
-/**
- * Visit slice needed by the daily rollup for terminal-drop attribution.
- * The cron loads full `formVisits` rows; this is the minimal shape consumed
- * by {@link buildDailyDropoffRows}.
- */
+/** Minimal visit shape for terminal-drop attribution in {@link buildDailyDropoffRows}. */
 export type VisitForRollup = {
   id: string;
   didSubmit: boolean;
@@ -144,23 +155,13 @@ export type VisitForRollup = {
 };
 
 /**
- * Group raw progress events by (formId, questionId, questionIndex) and return
- * one DailyDropoffInsert row per group.
- *
- * Per ADR-0002:
- *  - `dropoffCount` means "started but not completed" (intra-Question
- *    abandonment), NOT the legacy `viewCount - completeCount`.
- *  - `terminalDropoffCount` is the per-Visit attribution: for each Visit that
- *    ended without submitting (`didSubmit === false && visitEndedAt != null`),
- *    the Question with the latest `startedAt` and no `completedAt` is the
- *    terminal one — increment its counter once.
- *  - `stepId` / `stepIndex` are pass-through from a representative row per
- *    (formId, questionId, questionIndex). Upstream guarantees they agree
- *    within a group (Task 3.2).
- *
- * NOTE: every progress row has a non-null `viewedAt` (it's the row's primary
- * timestamp), so `viewCount === 0` cannot occur for an existing group. We still
- * guard against divide-by-zero and store null rates if it ever happens.
+ * One DailyDropoffInsert row per (formId, questionId, questionIndex) group. Per ADR-0002:
+ * - dropoffCount = "started, not completed" (intra-Question), NOT viewCount-completeCount.
+ * - terminalDropoffCount = per-Visit: for each incomplete Visit (didSubmit=false,
+ *   visitEndedAt!=null), latest-startedAt Question with no completedAt; +1 once.
+ * - stepId/stepIndex pass-through from a representative row (agree within group, Task 3.2).
+ * NOTE: every progress row has non-null viewedAt, so viewCount===0 can't occur; still
+ * guard divide-by-zero (null rates).
  */
 export const buildDailyDropoffRows = ({
   rows: progressEvents,
@@ -177,10 +178,7 @@ export const buildDailyDropoffRows = ({
     return [];
   }
 
-  // Terminal-drop attribution per Visit.
-  // For each incomplete (didSubmit=false, visitEndedAt!=null) Visit, find the
-  // Question with the latest `startedAt` whose `completedAt` is null. That's
-  // the terminal Question for that Visit; increment its counter once.
+  // Terminal-drop per Visit: incomplete Visit's latest-startedAt Question w/ null completedAt, +1.
   const visitsById = new Map<string, VisitForRollup>();
   for (const v of visits) {
     visitsById.set(v.id, v);

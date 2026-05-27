@@ -255,10 +255,7 @@ describe("mergeDropoffMetrics", () => {
   });
 
   it("reports cross-step drop-off when a visitor completes step N but never views step N+1", () => {
-    // Funnel: 3 visitors view+complete steps 1–3, only 2 of them ever reach
-    // steps 4–6. The visitor who completed step 3 and bailed should show up
-    // as a drop-off at step 4 (33%), not as 0% just because step 4's
-    // viewers→completers ratio is intact.
+    // 3 visitors complete steps 1–3, only 2 reach 4–6. The one who bailed after step 3 must count as drop-off at step 4 (33%), not 0% from step 4's intact view→complete ratio.
     const dailyRows = [
       makeDaily({
         date: "2026-04-26",

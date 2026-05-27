@@ -21,9 +21,7 @@ export const AccordionItem = ({ className, ...props }: AccordionPrimitive.Item.P
 );
 
 interface AccordionTriggerProps extends AccordionPrimitive.Trigger.Props {
-  /** Position of the chevron icon relative to the label.
-   *  - "inline": chevron sits right after the label text (sidebar style)
-   *  - "end": chevron is pushed to the far right (default / FAQ style) */
+  /** Chevron position: "inline" = after the label (sidebar); "end" = far right (default/FAQ). */
   iconPosition?: "inline" | "end";
   /** Optional action slot rendered on the far right (visible on hover). */
   action?: ReactNode;

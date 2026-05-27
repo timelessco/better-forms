@@ -58,8 +58,7 @@ describe("computeDropoffRate", () => {
 
   describe("single-page mode", () => {
     it("uses start → complete for Step rows", () => {
-      // Single-page funnel: denominator is startCount regardless of row kind.
-      // (80 - 60) / 80 = 25%
+      // Single-page funnel: denominator is startCount regardless of kind. (80-60)/80 = 25%.
       expect(computeDropoffRate(baseRow, "single-page", "step")).toBe(25);
     });
 

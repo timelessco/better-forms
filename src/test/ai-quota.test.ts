@@ -127,8 +127,7 @@ describe("checkAiQuota", () => {
   it("free plan: at-limit blocks with daily_limit_exceeded", async () => {
     for (let i = 0; i < 5; i++) await incrementAiCount(orgId);
     const result = await checkAiQuota(orgId, "free");
-    // Cast through the discriminated union once so the assertions don't
-    // need a type-narrowing conditional (oxlint forbids those in tests).
+    // Cast the union once so assertions skip a type-narrowing conditional (oxlint forbids those in tests).
     const blocked = result as Extract<typeof result, { allowed: false }>;
     expect(blocked.allowed).toBeFalsy();
     expect(blocked.reason).toBe("daily_limit_exceeded");

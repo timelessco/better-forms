@@ -26,10 +26,8 @@ export const getAriaLabelFallback = (element: PlateFormField): string | undefine
   return placeholder ?? "Field";
 };
 
-// Label → WHATWG `autocomplete` token map. Match order matters — list more
-// specific patterns first (e.g. "first name" before bare "name") so they
-// win when both could match. Tokens come from
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill
+// Label → WHATWG `autocomplete` token. Order matters: specific before generic ("first name" before "name").
+// Tokens: https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill
 const AUTOCOMPLETE_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
   [/first\s*name|given\s*name/i, "given-name"],
   [/(last|family|sur)\s*name/i, "family-name"],
@@ -50,16 +48,8 @@ const AUTOCOMPLETE_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
   [/website|^\s*url\s*$|^\s*link\s*$/i, "url"],
 ] as const;
 
-/**
- * Maps the field's label/placeholder text to a WHATWG `autocomplete` token
- * so browsers and password managers can fill it. Without this most fields
- * fall back to the generic `name` attribute (which is a random short id
- * here) and autofill silently no-ops.
- *
- * Falls back to "on" (i.e. let the browser try its own heuristics) when no
- * pattern matches — never returns "off", since the public-form pattern is
- * "respondent fills personal details," not "auth/secret entry".
- */
+// Map label/placeholder → autocomplete token for browser/password-manager fill (else `name` is a random id and autofill no-ops).
+// No match → "on" (browser heuristics), never "off" — public forms collect personal details, not secrets.
 export const guessAutocomplete = (element: PlateFormField): string => {
   const text = (("label" in element && element.label) ||
     ("placeholder" in element && element.placeholder) ||
@@ -71,10 +61,7 @@ export const guessAutocomplete = (element: PlateFormField): string => {
   return "on";
 };
 
-/** Returns `aria-labelledby={fieldLabelId(name)}` when the field has a label
- * rendered as a heading/blockquote (not a real `<label>`). For non-heading
- * labels, the standard `<label htmlFor>` already does the association so we
- * return undefined to avoid double-wiring. */
+// aria-labelledby for heading/blockquote labels (not real <label>). Non-heading: <label htmlFor> already wires it, return undefined to avoid double-wiring.
 export const getAriaLabelledBy = (element: PlateFormField): string | undefined => {
   const labelType = "labelType" in element ? element.labelType : undefined;
   const label = "label" in element ? element.label : undefined;
@@ -121,8 +108,7 @@ const RequiredBadge = () => (
   </Tooltip>
 );
 
-/** Stable id for label-less render variants (h1/h2/h3/blockquote and group
- * fields) so the input can wire `aria-labelledby` to it. */
+// Stable id for label-less variants (h1/h2/h3/blockquote, group fields) to wire aria-labelledby.
 export const fieldLabelId = (fieldName: string): string => `${fieldName}-label`;
 
 export const FieldLabelText = ({
@@ -136,19 +122,14 @@ export const FieldLabelText = ({
   labelType?: string;
   htmlFor: string;
   required?: boolean;
-  /** When true, render the label as a non-<label> element with a stable id,
-   * since group fields (Checkbox/MultiChoice/Ranking) have no single
-   * `<input id>` to bind to — the surrounding `role="group"` wrapper uses
-   * `aria-labelledby` instead. */
+  /** Render label as non-<label> w/ stable id. Group fields (Checkbox/MultiChoice/Ranking) have no single <input id>; role="group" wrapper uses aria-labelledby. */
   asGroupLabel?: boolean;
 }) => {
   if (!text) return null;
   const badge = required ? <RequiredBadge /> : null;
   const labelId = fieldLabelId(htmlFor);
 
-  // Heading / blockquote label variants are non-<label> elements, so they
-  // can't use `htmlFor`. We give them a stable id and the input control wires
-  // `aria-labelledby={fieldLabelId(name)}` to it (see RenderStepPreviewInput).
+  // Heading/blockquote labels are non-<label>, can't use htmlFor. Stable id; input wires aria-labelledby (see RenderStepPreviewInput).
   if (labelType === "h1") {
     return (
       <div className="flex w-full items-center py-2.5">
@@ -190,9 +171,7 @@ export const FieldLabelText = ({
     );
   }
 
-  // Group fields don't have a single labelable input — emit a <span> (with the
-  // stable id) styled like the label, rather than a <label htmlFor> that would
-  // point at nothing.
+  // Group fields have no single labelable input — emit styled <span> w/ stable id, not a <label htmlFor> pointing at nothing.
   if (asGroupLabel) {
     return (
       <span
@@ -214,12 +193,7 @@ export const FieldLabelText = ({
   );
 };
 
-/** Field types whose visible control is NOT a labelable HTML element
- * (multi-checkbox + single-pick + ranking lists, plus MultiSelect whose
- * outer trigger is a `<div role="button">` due to nested remove-tag buttons
- * — see comment at top of multi-select.tsx). They render as groups, so the
- * surrounding shell uses `role="group" aria-labelledby` rather than
- * `<label htmlFor>`. */
+// Field types whose control isn't a labelable element (checkbox/single-pick/ranking lists; MultiSelect trigger is <div role="button"> due to nested remove-tag buttons — see multi-select.tsx). Render as groups: role="group" aria-labelledby, not <label htmlFor>.
 export const GROUP_FIELD_TYPES = new Set<PlateFormField["fieldType"]>([
   "Checkbox",
   "MultiChoice",

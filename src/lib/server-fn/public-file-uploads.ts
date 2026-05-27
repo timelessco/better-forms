@@ -43,8 +43,7 @@ const DEFAULT_ACCEPT = "image/*,.pdf,.doc,.docx";
 
 export const getClientIp = (): string => getRequestIP({ xForwardedFor: true }) ?? "unknown";
 
-// Inlined as a SQL literal because Postgres can't concatenate a parameterized
-// integer with text inside an interval cast. Safe: it's a build-time constant.
+// SQL literal: Postgres can't concat a parameterized int with text in an interval cast. Build-time constant, safe.
 const WINDOW_INTERVAL_SQL = sql.raw(`interval '${WINDOW_MINUTES} minutes'`);
 
 export const checkUploadRateLimit = async (ip: string): Promise<void> => {
@@ -54,8 +53,7 @@ export const checkUploadRateLimit = async (ip: string): Promise<void> => {
     );
   }
 
-  // Atomic upsert: insert with count=1, or on conflict either reset (window expired)
-  // or increment.
+  // Atomic upsert: insert count=1, or on conflict reset (window expired) or increment.
   const result = await db
     .insert(uploadRateLimits)
     .values({ ip, count: 1 })
@@ -148,9 +146,8 @@ export const assertFormFileField = async (
       internal: { formId, fieldName },
     });
   }
-  // Prefer the granular allowedFileTypes/allowedFileExtensions set by the
-  // block menu. Fall back to a legacy `accept` string if present, then to the
-  // hardcoded default for forms that predate the type picker.
+  // Prefer granular allowedFileTypes/Extensions (block menu); else legacy accept; else default
+  // for forms predating the type picker.
   const allowedFileTypes = "allowedFileTypes" in field ? field.allowedFileTypes : undefined;
   const allowedFileExtensions =
     "allowedFileExtensions" in field ? field.allowedFileExtensions : undefined;

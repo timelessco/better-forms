@@ -5,10 +5,7 @@ import { putBlob } from "@/integrations/blob";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { ErrorCode } from "@/lib/errors/codes";
 
-/**
- * Upload avatar image to Vercel Blob storage.
- * Accepts base64 image data and returns the public URL.
- */
+/** Upload avatar image (base64) to Vercel Blob; returns public URL. */
 export const uploadAvatar = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
@@ -34,10 +31,7 @@ export const uploadAvatar = createServerFn({ method: "POST" })
     return { url: blob.url };
   });
 
-/**
- * Upload media file (image, video, audio, pdf, etc.) for the form editor canvas.
- * Requires auth. Used by the Plate editor's media placeholder node.
- */
+/** Upload media (image/video/audio/pdf) for the editor canvas (auth required; Plate media placeholder). */
 export const uploadEditorMedia = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(

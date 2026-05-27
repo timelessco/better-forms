@@ -1,3 +1,4 @@
+import { IconSwap } from "@/components/transitions/icon-swap";
 import { ChevronsUpDownIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import type { FieldRendererProps } from "./shared";
@@ -47,20 +48,23 @@ const RankingField = ({ element, form }: FieldRendererProps<"Ranking">) => (
                     hasErrors && "text-destructive",
                   )}
                 >
-                  {isRanked ? (
-                    <span className="flex size-4 shrink-0 items-center justify-center rounded-[4px] bg-primary text-[9px] leading-none font-semibold text-primary-foreground">
-                      {rankIndex + 1}
-                    </span>
-                  ) : (
-                    <span
-                      className={cn(
-                        "flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-border text-muted-foreground",
-                        hasErrors && "border-destructive ring-1 ring-destructive",
-                      )}
-                    >
-                      <ChevronsUpDownIcon className="size-2.5" />
-                    </span>
-                  )}
+                  <span
+                    className={cn(
+                      "flex size-4 shrink-0 items-center justify-center rounded-[4px]",
+                      isRanked
+                        ? "bg-primary text-[9px] leading-none font-semibold text-primary-foreground"
+                        : cn(
+                            "border border-border text-muted-foreground",
+                            hasErrors && "border-destructive ring-1 ring-destructive",
+                          ),
+                    )}
+                  >
+                    <IconSwap
+                      state={isRanked ? "b" : "a"}
+                      iconA={<ChevronsUpDownIcon className="size-2.5" />}
+                      iconB={<span>{isRanked ? rankIndex + 1 : ""}</span>}
+                    />
+                  </span>
                   <span>{option.label}</span>
                 </button>
               );

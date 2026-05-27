@@ -1,7 +1,4 @@
-/**
- * Dynamic Google Fonts loader.
- * Injects <link> tags into document.head on demand, with deduplication.
- */
+/** Dynamic Google Fonts loader: injects deduped <link> tags into document.head on demand. */
 
 import { getGoogleFontUrl } from "./font-registry";
 

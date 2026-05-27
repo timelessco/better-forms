@@ -1,16 +1,12 @@
-/**
- * Tiny helpers that route Vercel-Blob-hosted images through Vercel's image
- * optimisation endpoint. Pure functions, server-safe — used by both the RSC
- * cover renderer and the public-form route `head()` for Early-Hints preload
- * of the LCP cover image.
- */
+/** Route Vercel-Blob images through Vercel's image-optimisation endpoint. Pure,
+ * server-safe — used by the RSC cover renderer and the public-form `head()`
+ * Early-Hints preload of the LCP cover. */
 import { isValidUrl } from "@/lib/utils";
 
 const VERCEL_BLOB_HOST = ".public.blob.vercel-storage.com";
 
-/** Width candidates for the cover `srcSet`. Shared between the rendered
- *  `<img>` and the preload link so the browser sees the same option set in
- *  both places. */
+/** Cover `srcSet` widths. Shared by rendered `<img>` and preload link so the
+ *  browser sees one option set. */
 export const COVER_SRCSET_WIDTHS = [640, 960, 1200, 1600] as const;
 
 export const vercelImg = (url: string, w: number, q = 75): string =>
@@ -32,11 +28,9 @@ interface CoverPreloadLink {
   imageSizes?: string;
 }
 
-/** Returns the `<link rel=preload as=image>` entry for the LCP cover, or `[]`
- *  if the value isn't a URL. `imagesrcset`/`imagesizes` mirror the rendered
- *  `<img>`'s responsive `srcSet`/`sizes` so the browser participates in
- *  variant selection — on small mobile it picks 640w instead of wasting the
- *  preload on the 1200w default and re-fetching the smaller variant. */
+/** `<link rel=preload as=image>` for the LCP cover, or `[]` if not a URL.
+ *  imagesrcset/imagesizes mirror the `<img>` srcSet/sizes so the browser picks
+ *  the right variant (e.g. 640w on mobile, not the 1200w default + refetch). */
 export const getCoverPreloadLinks = (
   cover: string | null | undefined,
 ): ReadonlyArray<CoverPreloadLink> => {

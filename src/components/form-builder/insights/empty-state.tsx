@@ -2,6 +2,7 @@ import { BarChart3, LineChart, Lock, Rocket, Share2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { TextSwap } from "@/components/transitions/text-swap";
 
 interface EmptyStateProps {
   /** Form's lifecycle status — drives the publish-vs-share branch. */
@@ -86,7 +87,9 @@ export const EmptyState = ({
         action={
           onEnableAnalyticsClick && (
             <Button size="sm" onClick={onEnableAnalyticsClick} disabled={isEnablingAnalytics}>
-              {isEnablingAnalytics ? "Enabling…" : "Enable analytics"}
+              <TextSwap key={isEnablingAnalytics ? "Enabling…" : "Enable analytics"}>
+                {isEnablingAnalytics ? "Enabling…" : "Enable analytics"}
+              </TextSwap>
             </Button>
           )
         }

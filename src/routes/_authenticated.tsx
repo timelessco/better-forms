@@ -1,4 +1,5 @@
 import { ThemedFormIcon } from "@/components/icon-picker/icon-picker-preview";
+import { NumberPopIn } from "@/components/transitions/number-pop-in";
 import { SidebarItem } from "@/components/sidebar-item";
 import {
   AlertDialog,
@@ -134,12 +135,12 @@ import {
   workspacesCollectionQueryOptions,
   formListingsCollectionQueryOptions,
   favoritesCollectionQueryOptions,
+  fetchWorkspacesWithEmptyForms,
 } from "@/lib/server-fn/query-options";
 import { getSubmissionsCount } from "@/lib/server-fn/submissions";
 import {
   createWorkspace,
   deleteWorkspace,
-  getWorkspaces,
   reorderWorkspace,
   updateWorkspace,
 } from "@/lib/server-fn/workspaces";
@@ -204,22 +205,9 @@ const LazyCustomizeSidebar = lazy(() =>
 );
 
 /**
- * Keeps each sidebar's React tree alive across activeSidebar toggles via
- * <Activity>, so switching settings ↔ share ↔ customize doesn't remount the
- * TanStack Form, lose scroll position, or reset transient field-level state.
- *
- * Per-sidebar epoch counters increment on every hidden→visible transition
- * and feed `SidebarSectionResetProvider`. Each `<SidebarSection>` consumes
- * that epoch as a `key` on its inner Accordion only — so reopening a sidebar
- * resets the expanded/collapsed state of all sections back to `initialOpen`
- * while everything above the Accordion (form provider, scroll container)
- * stays mounted. Best of both: cheap reopen, predictable expanded state.
- *
- * `key={formId}` on the inner sidebar ensures a hard remount when the user
- * navigates between forms, since per-sidebar form state is form-specific.
- *
- * `history` is excluded from the persistence path — it's a one-shot
- * view/restore action and rarely toggled.
+ * <Activity> keeps each sidebar tree alive across toggles — no Form remount, scroll/field state preserved.
+ * Per-sidebar epoch counter (hidden→visible) keys inner Accordion only: reopen resets section expand to initialOpen, form/scroll stay mounted.
+ * key={formId} hard-remounts on form nav. `history` excluded — one-shot, rarely toggled.
  */
 const PersistentSidebars = ({
   activeSidebar,
@@ -296,18 +284,9 @@ const initCollectionsOnClient = createClientOnlyFn((queryClient: QueryClient) =>
   if (isCollectionsInitialized()) return;
 
   initCollections(queryClient, {
-    getWorkspacesWithForms: async () => {
-      const result = await getWorkspaces();
-      return {
-        workspaces: result.workspaces.map(
-          // oxlint-disable-next-line typescript-eslint/no-explicit-any -- server type bridge
-          (ws: any) => ({
-            ...ws,
-            forms: [],
-          }),
-        ),
-      };
-    },
+    getWorkspacesWithForms: async () => ({
+      workspaces: await fetchWorkspacesWithEmptyForms(),
+    }),
     getFormListings: () => getFormListingsServer(),
     getFormDetail: async (formId: string) => {
       const { getFormbyIdQueryOption } = await import("@/lib/server-fn/forms");
@@ -371,8 +350,7 @@ export const Route = createFileRoute("/_authenticated")({
         ...orgDataForLayoutQueryOptions(),
         revalidateIfStale: true,
       }),
-      // Prefetch collection data using the same query keys TanStack DB will use.
-      // This seeds the query cache so collections find warm data on init.
+      // Prefetch via TanStack DB's query keys — seeds cache so collections init warm.
       context.queryClient.ensureQueryData(workspacesCollectionQueryOptions()),
       context.queryClient.ensureQueryData(formListingsCollectionQueryOptions()),
       context.queryClient.ensureQueryData(favoritesCollectionQueryOptions()),
@@ -391,8 +369,7 @@ const AuthLayoutContent = () => {
   const isEditRoute = pathname.includes("/form-builder/") && pathname.endsWith("/edit");
   const { visible: isHeaderVisible, reportPointerActivity } = useEditorHeaderVisibility();
 
-  // Warm the user-settings dialog chunk in the background so the first open
-  // doesn't pay for a round-trip behind <Suspense fallback={null}>.
+  // Warm settings-dialog chunk so first open skips the round-trip.
   useEffect(() => {
     void importSettingsDialog();
   }, []);
@@ -403,7 +380,7 @@ const AuthLayoutContent = () => {
   const isMobile = useIsMobile();
 
   const isFormBuilder = pathname.includes("/form-builder/");
-  // "history" and "customize" sidebars are edit-route-only (derived guard replaces useEffect cleanup)
+  // history/customize sidebars edit-route-only — derived guard, not useEffect cleanup.
   const isEditOnlySidebar = activeSidebar === "history" || activeSidebar === "customize";
   const showEditorSidebar = !!(
     activeSidebar &&
@@ -455,10 +432,7 @@ const AuthLayoutContent = () => {
           />
         )}
         <div className="relative z-20 flex min-h-0 flex-1 overflow-hidden">
-          {/* On mobile the right sidebar is a floating overlay (a drawer),
-              so we don't pad the content out — that's what made the editor
-              unreadably narrow on phones. Desktop keeps the push-to-resize
-              behavior users expect on wide screens. */}
+          {/* Mobile: sidebar is a drawer overlay, don't pad content (was too narrow on phones). Desktop: push-to-resize. */}
           <div
             className={cn(
               "z-50 flex min-w-0 flex-1 flex-col",
@@ -477,8 +451,7 @@ const AuthLayoutContent = () => {
           </div>
         </div>
 
-        {/* Resize handle is desktop-only — there's nothing to resize when
-            the sidebar is a drawer. */}
+        {/* Resize handle desktop-only — nothing to resize when sidebar is a drawer. */}
         {showEditorSidebar && !isMobile && (
           <RightSidebarResizeHandle
             sidebarWidth={rightSidebarWidth}
@@ -541,7 +514,11 @@ const AppSidebar = () => {
   const [trashDialogOpen, setTrashDialogOpen] = useState(false);
   const [paletteSearch, setPaletteSearch] = useState("");
 
-  const activeOrg = Route.useLoaderData({ select: (d) => d.activeOrg });
+  // Subscribe to loader-primed org query (not loader data) to stay active: refetch on focus/reconnect, react to invalidation, no GC while on screen.
+  const { data: activeOrg } = useQuery({
+    ...orgDataForLayoutQueryOptions(),
+    select: (d) => d.activeOrg,
+  });
   const { data: workspacesData } = useOrgWorkspaces(activeOrg?.id);
   const { data: formsData } = useOrgForms(activeOrg?.id);
   const { unreadSubmissionCount } = useSubmissionNotifications({ poll: true });
@@ -565,9 +542,7 @@ const AppSidebar = () => {
     ignoreInputs: true,
   });
 
-  // On mobile, tapping "Notifications" pushes an inbox view into the drawer
-  // instead of opening the desktop floating panel (which has no sensible
-  // anchor when the sidebar itself is a floating drawer).
+  // Mobile: Notifications pushes inbox into the drawer (floating panel has no anchor when sidebar is a drawer).
   const showMobileInbox = isMobile && isInboxOpen;
 
   return (
@@ -630,7 +605,7 @@ const AppSidebar = () => {
                       >
                         {pendingCount > 0 && (
                           <span className="w-4 shrink-0 rounded-full bg-primary py-0.5 text-center text-[10px] font-semibold text-primary-foreground tabular-nums">
-                            {pendingCount}
+                            <NumberPopIn value={pendingCount} />
                           </span>
                         )}
                       </SidebarItem>
@@ -823,12 +798,10 @@ const TrashDialog = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
-  // Per-row pending state — tracked separately so each restore/delete button
-  // can show a spinner and disable independently while in flight.
+  // Per-row pending state — independent spinner/disable per restore/delete in flight.
   const [restoringIds, setRestoringIds] = useState<Set<string>>(new Set());
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
-  // Trash list is a server-fetched query gated on dialog open — no payload
-  // until the user actually wants to see it. Sidebar listings stay archived-free.
+  // Server query gated on dialog open — no payload until viewed. Sidebar listings stay archived-free.
   const { data: archivedFormsData, isFetching: isFetchingArchived } = useArchivedForms(open);
   const { data: orgWorkspacesData } = useOrgWorkspaces(activeOrgId);
 
@@ -971,10 +944,7 @@ const TrashDialog = ({
 
   const hasSelection = selectedIds.size > 0;
 
-  // `allow` (not `replace`): dashboard registers the same hotkeys at document
-  // level. `replace` would unregister those and leak — they'd be gone after
-  // this dialog closes. With `allow`, both stay registered; the dashboard
-  // handlers no-op when a dialog is open, so this one wins while open.
+  // `allow` not `replace`: dashboard registers same hotkeys at doc level; `replace` would unregister + leak them. `allow` keeps both; dashboard no-ops while a dialog is open.
   useHotkey("Mod+A", handleSelectAll, {
     enabled: open,
     conflictBehavior: "allow",
@@ -1011,8 +981,7 @@ const TrashDialog = ({
         className="gap-0 border-foreground/10 bg-background p-0 sm:max-w-[500px]"
       >
         <div className="p-1.5 pb-0">
-          {/* Matches CommandInput shell so trash search reads as the same
-              search affordance used elsewhere in the app. */}
+          {/* Matches CommandInput shell — same search affordance as elsewhere. */}
           <div className="flex h-[30px] w-full items-center gap-1.5 overflow-hidden rounded-xl bg-accent px-2.5 py-1.75">
             <LucideSearch
               className="size-4 shrink-0 text-muted-foreground"
@@ -1243,15 +1212,10 @@ const TrashFooter = ({
   </div>
 );
 
-// Inbox body — header + notifications + invitations. Extracted so it can be
-// rendered in two contexts:
-//   1. Floating panel beside the docked desktop sidebar (via `SidebarInbox`).
-//   2. In-place inside the mobile drawer (push-navigation from the sidebar
-//      nav view, with a back button instead of a close button).
+// Inbox body (header + notifications + invitations). Two contexts: desktop floating panel (SidebarInbox), mobile in-drawer (back button vs close).
 interface InboxPanelBodyProps {
   onClose: () => void;
-  // When supplied, rendered to the left of the title. Mobile uses this for a
-  // back-arrow; desktop passes nothing (only the right-side close button).
+  // Rendered left of title — mobile back-arrow; desktop omits (close button only).
   headerLeft?: React.ReactNode;
 }
 
@@ -1507,12 +1471,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
   );
 };
 
-/**
- * Desktop-only floating Inbox panel. Docks beside the main sidebar (left-X
- * positioning follows the sidebar's collapsed/expanded width). On mobile we
- * return null — the inbox content is rendered inside the drawer instead, via
- * push-navigation in `AppSidebar`.
- */
+/** Desktop-only floating Inbox panel; left-X follows sidebar collapsed/expanded width. Mobile returns null (rendered in drawer via AppSidebar). */
 const SidebarInbox = () => {
   const { isInboxOpen, closeInbox } = useMinimalSidebar();
   const { state } = useSidebar();
@@ -1596,9 +1555,7 @@ const useSortedWorkspacesWithForms = ({
   isDataReady,
   sortMode,
 }: UseSortedWorkspacesWithFormsOptions) => {
-  // Cache workspace + forms-array identities by id so a live-query notification
-  // that doesn't actually change content (just the array reference) doesn't
-  // cascade new identities into every consumer downstream.
+  // Cache workspace/forms-array identities by id — content-stable live-query churn (new array ref, same data) won't cascade new identities downstream.
   const workspaceCacheRef = useRef(new Map<string, WorkspaceWithForms>());
   const formsArrayCacheRef = useRef(new Map<string, WorkspaceWithForms["forms"]>());
 
@@ -1646,9 +1603,7 @@ const useSortedWorkspacesWithForms = ({
         );
       }
 
-      // Reuse the previous forms array if every form item is the same reference
-      // in the same order — this stabilises both the array and any per-form
-      // identity churn upstream.
+      // Reuse prev forms array if every item is same ref in same order — stabilises array + per-form identity churn.
       const previousForms = formsArrayCacheRef.current.get(ws.id);
       if (previousForms && arraysAreShallowEqual(previousForms, sortedForms)) {
         sortedForms = previousForms;
@@ -1679,8 +1634,7 @@ const useSortedWorkspacesWithForms = ({
     return result;
   }, [workspacesData, formsData, activeOrgId, isDataReady, sortMode]);
 
-  // Same content-stability trick: keep the previous summaries array when every
-  // (id, name) tuple is unchanged so memoised children skip re-rendering.
+  // Same stability trick: keep prev summaries array when every (id,name) unchanged — memoised children skip re-render.
   const allWorkspaceSummariesRef = useRef<Array<Pick<WorkspaceWithForms, "id" | "name">>>([]);
   const allWorkspaceSummaries = useMemo(() => {
     const next = workspaces.map((w) => ({ id: w.id, name: w.name }));
@@ -1721,8 +1675,7 @@ const useSidebarWorkspaceDialogs = ({
     id: string;
     title: string;
   } | null>(null);
-  // Pending state for destructive dialogs — prevents double-submission and
-  // gives the action button a spinner while the server fn is in flight.
+  // Pending state for destructive dialogs — blocks double-submit, spins button while server fn in flight.
   const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
   const [isDeletingForm, setIsDeletingForm] = useState(false);
   const [duplicatingIds, setDuplicatingIds] = useState<Set<string>>(new Set());
@@ -1911,10 +1864,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
 
   const favoriteForms = useFavoriteForms(session?.user?.id);
 
-  // Derive a stable Set of favorited form ids so individual sidebar rows can
-  // read a primitive `isFavorite` prop instead of each spinning up its own
-  // `useIsFavorite` live-query subscription. The Set identity is reused when
-  // the membership is unchanged so the prop chain stays referentially stable.
+  // Stable Set of favorited ids — rows read primitive `isFavorite` prop instead of each running useIsFavorite. Set identity reused when membership unchanged.
   const favoriteFormIdsRef = useRef<Set<string>>(new Set());
   const favoriteFormIds = useMemo(() => {
     const next = new Set<string>();
@@ -1934,8 +1884,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
     return next;
   }, [favoriteForms]);
 
-  // Pull the active form id once at the parent so each form row can read a
-  // primitive `isActive` prop instead of subscribing to `useLocation`.
+  // Active form id once at parent — rows read primitive `isActive` prop, not useLocation.
   const activeFormId = useMemo(() => {
     const match = pathname.match(/\/form-builder\/([^/]+)/);
     return match?.[1];
@@ -1959,9 +1908,7 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
 
   const workspaceIds = useMemo(() => workspaces.map((w) => w.id), [workspaces]);
 
-  // Read-only ref so drag handlers can read the freshest workspaces snapshot
-  // without re-binding their identity (and re-rendering every WorkspaceItemMinimal)
-  // each time the live-query data churns.
+  // Read-only ref: drag handlers read freshest workspaces without re-binding identity (would re-render every WorkspaceItemMinimal on live-query churn).
   const workspacesRef = useRef(workspaces);
   workspacesRef.current = workspaces;
   const sortModeRef = useRef(sortMode);

@@ -1,8 +1,3 @@
-/**
- * Reform Popup Embed - Inline CSS Styles
- * All styles are injected as a single <style> tag to avoid external dependencies
- */
-
 const STYLES = `
 /* Keyframe Animations */
 @keyframes bf-wave {

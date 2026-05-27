@@ -34,6 +34,9 @@ const makeVisit = (overrides: Partial<RawVisit> & { id: string }): RawVisit => {
     didStartForm: false,
     didSubmit: false,
     submissionId: null,
+    lcpMs: null,
+    inpMs: null,
+    cls: null,
     createdAt: baseTimestamp,
     updatedAt: baseTimestamp,
     ...rest,
@@ -230,8 +233,7 @@ describe("buildDailyDropoffRows — terminalDropoffCount", () => {
   });
 
   it("only counts the latest-started incomplete Question, not all incomplete Questions", () => {
-    // Edge case: a Visit ended without submit, with multiple incomplete-started
-    // Questions. Only the one with the latest startedAt is terminal.
+    // Visit ended without submit, multiple incomplete-started Questions; only the latest startedAt is terminal.
     const visits = [
       makeVisit({
         id: "v1",
@@ -280,8 +282,7 @@ describe("buildDailyDropoffRows — terminalDropoffCount", () => {
   });
 
   it("ignores completed Questions when finding the terminal Question", () => {
-    // Visit completed q1 + q2, started but didn't complete q3, abandoned.
-    // Terminal is q3, not q2 (even though q2 has a later startedAt than q1).
+    // Completed q1+q2, started-not-completed q3, abandoned. Terminal is q3, not q2 (despite q2's later startedAt).
     const visits = [
       makeVisit({
         id: "v1",

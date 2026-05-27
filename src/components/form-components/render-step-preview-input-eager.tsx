@@ -17,10 +17,7 @@ import TextareaField from "./fields/TextareaField";
 import TimeField from "./fields/TimeField";
 import { PreviewInputShell } from "./render-step-preview-input";
 
-// Static-import twin of `RenderStepPreviewInput` for the form-builder preview.
-// The lazy/Suspense variant flashes empty when stepping into a chunk that
-// hasn't loaded yet; in the editor preview the auth bundle already contains
-// every field, so chunk-splitting buys us nothing and costs perceived speed.
+// Static-import twin of RenderStepPreviewInput for builder preview. Lazy variant flashes empty on unloaded chunks; editor bundle already has every field, so splitting only costs perceived speed.
 const FIELD_RENDERERS: Record<FieldType, React.ComponentType<{ element: never; form: AppForm }>> = {
   Input: InputField,
   Textarea: TextareaField,

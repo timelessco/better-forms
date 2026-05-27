@@ -1,11 +1,11 @@
-// Client-side consumer of `getPublicFormViewRSC`. Imports no Plate code — the
-// static prose is pre-rendered server-side; only field widgets fill slots.
+// Client consumer of getPublicFormViewRSC. No Plate code — prose pre-rendered server-side; only field widgets fill slots.
 import { CompositeComponent } from "@tanstack/react-start/rsc";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { RenderFieldComponent } from "@/components/form-components/render-step-preview-input";
 import { ServerFormIcon } from "@/components/form-components/server-form-icon";
 import { FormShareCard } from "@/components/form-components/form-share-card";
+import { SuccessCheck } from "@/components/transitions/success-check";
 import { Button } from "@/components/ui/button";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import { ProgressBar } from "@/routes/forms/-components/progress-bar";
@@ -28,16 +28,13 @@ import type {
 } from "@/lib/server-fn/public-form-view-rsc.types";
 import type { PresentationMode, PublicFormSettings } from "@/types/form-settings";
 
-// `src` is the opaque Composite Component payload; `fields` travels alongside
-// so the client can build the TanStack Form instance.
+// `src` = opaque Composite payload; `fields` travels alongside to build the TanStack Form instance.
 export interface StepRSC {
   src: unknown;
   fields: PlateFormField[];
 }
 
-// CompositeComponent's src generic collapses to `never` when the server fn's
-// return type doesn't thread through to this file cleanly — local-alias the
-// slot prop shape so slot components typecheck.
+// CompositeComponent's src generic collapses to `never` when server fn return type doesn't thread here. Local-alias slot prop shape so slots typecheck.
 const TypedComposite = CompositeComponent as unknown as React.ComponentType<{
   src: unknown;
   Field?: React.ComponentType<FieldSlotProps>;
@@ -49,13 +46,7 @@ interface FormPreviewRSCProps {
   steps: StepRSC[];
   thankYou?: string | null;
   stepCount: number;
-  /**
-   * Pre-rendered header composite (cover + icon + title). Server-rendered so
-   * the client ships no cover/icon rendering code. `null` when the form has
-   * no header content, `undefined` when the viewer requested `hideTitle`.
-   * Skipped server-side for field-by-field mode — that layout renders its
-   * own icon+title client-side.
-   */
+  /** Server-rendered header composite (cover+icon+title); client ships no cover/icon code. null = no header, undefined = hideTitle. Skipped for field-by-field (renders own client-side). */
   header?: unknown;
   settings?: PublicFormSettings;
   formId: string;
@@ -65,15 +56,9 @@ interface FormPreviewRSCProps {
   /** Rehydrate step state from a server-side draft (resume-after-refresh). */
   initialFormData?: Record<string, unknown>;
   initialCurrentStep?: number;
-  /** Analytics tracking base ({ visitId, visitorHash }). Only passed by the
-   * public form route — builder previews leave this undefined to disable
-   * tracking. */
+  /** Analytics base ({ visitId, visitorHash }). Public route only; undefined in builder previews disables tracking. */
   trackingBase?: TrackingBase;
-  /** Field-by-field metadata. Required when settings.presentationMode is
-   * "field-by-field" — the client renders the icon+title+cover-as-background
-   * layout instead of using the pre-rendered card-mode header composite.
-   * `iconColor` mirrors the builder's icon picker bg color (extracted from
-   * the Plate `formHeader` node server-side). */
+  /** Field-by-field meta. Required when presentationMode="field-by-field" — client renders icon+title+cover-as-bg instead of pre-rendered card header. iconColor = picker bg (from server-side formHeader node). */
   fieldByFieldMeta?: {
     title?: string;
     icon?: string | null;
@@ -108,31 +93,12 @@ const NoContentPlaceholderIcon = (
   </svg>
 );
 
-const SuccessCheckmarkIcon = (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="32"
-    height="32"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="text-green-600"
-  >
-    <title>Success checkmark</title>
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-    <polyline points="22 4 12 14.01 9 11.01" />
-  </svg>
-);
-
 const DefaultThankYou = ({ shortId }: { shortId?: string }) => {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-green-100">
-        {SuccessCheckmarkIcon}
+        <SuccessCheck size={32} className="text-green-600" />
       </div>
       <h2 className="mb-2 text-2xl font-semibold">{t("thankYou")}</h2>
       <p className="mb-6 text-muted-foreground">{t("responseSubmitted")}</p>
@@ -235,8 +201,7 @@ const StepFormRSC = ({
   stepRSC: StepRSC;
   isLastStep: boolean;
   questions: QuestionRef[];
-  /** Field-by-field mode: server strips Button fields from segments, so render
-   * an auto Submit/Next here with the Enter/Esc keyboard shortcuts. */
+  /** Field-by-field: server strips Button fields, so render an auto Submit/Next here w/ Enter/Esc shortcuts. */
   autoActionButton?: boolean;
 }) => {
   const { currentStep, totalSteps, goToPrevStep, isSubmitting } = useStepForm();
@@ -255,8 +220,7 @@ const StepFormRSC = ({
   const [isTextareaFocused, setIsTextareaFocused] = useState(false);
   useFocusFirstField(formRef);
 
-  // Field-by-field shortcuts: Enter advances/submits (textareas keep native
-  // newline unless ⌘/Ctrl is held), Esc steps back. Mirrors step-form.tsx.
+  // Field-by-field shortcuts: Enter advances/submits (textarea keeps newline unless ⌘/Ctrl), Esc back. Mirrors step-form.tsx.
   const handleFieldByFieldKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
     const target = event.target as HTMLElement | null;
     if (target && formRef.current && !formRef.current.contains(target)) return;
@@ -300,8 +264,7 @@ const StepFormRSC = ({
 
   const { tracking } = useStepForm();
 
-  // Fire one `view` event per Question on Step mount, mirroring the plate
-  // renderer (step-form.tsx). The server upsert collapses re-mount duplicates.
+  // Fire one `view` per Question on mount (mirrors step-form.tsx). Server upsert collapses re-mount dups.
   useMountEffect(() => {
     if (!(tracking?.visitId && tracking.mode)) return;
     const visitId = tracking.visitId;
@@ -579,13 +542,7 @@ const FormPreviewRSCContent = ({
 const WHITE_HEX = "#ffffff";
 const BLACK_HEX = "#000000";
 
-/**
- * Sprite-icon variant for field-by-field that honors the picker's custom
- * iconColor. When a color is set we render with that bg + contrasting fg
- * (white on dark, black on white). Mirrors IconPickerPreview's static
- * behavior. Falls back to the theme-tinted ServerFormIcon when no color
- * is set, matching card-mode header rendering.
- */
+// Field-by-field sprite icon honoring picker iconColor: that bg + contrasting fg (white on dark, black on white). Mirrors IconPickerPreview. No color → theme-tinted ServerFormIcon (card-mode parity).
 const ColoredSpriteIcon = ({
   iconName,
   iconColor,
@@ -707,8 +664,7 @@ const FieldByFieldRSCContent = ({
   const { title, icon, iconColor, cover, hideTitle, isPopup } = meta;
   const coverImage = cover && isValidUrl(cover) ? cover : null;
   const coverColor = cover && isHexColor(cover) ? cover : null;
-  // In popup mode the avatar/icon is already used as the popup bubble, so
-  // hide it inside the popup to save space and avoid duplication.
+  // Popup: avatar already the bubble, hide inside (space + no dup).
   const hasIcon = !!icon && !isPopup;
   const showHeader = !hideTitle && (!!title || hasIcon);
   const hasTint = coverImage?.includes("tint=true") ?? false;
@@ -847,8 +803,7 @@ export const FormPreviewRSC = ({
 
   const presentationMode: PresentationMode = settings?.presentationMode ?? "card";
   const isFieldByField = presentationMode === "field-by-field";
-  // Per ADR-0002, tracking is always on — single-page card forms still emit
-  // per-Question view/start/complete events.
+  // Per ADR-0002 tracking always on — card forms still emit per-Question view/start/complete.
   const trackingMode: PublicFormTracking["mode"] = isFieldByField ? "field-by-field" : "card";
   const tracking: PublicFormTracking | null =
     trackingBase && formId

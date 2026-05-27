@@ -2,7 +2,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
 import { getFormListings, isInitialized } from "@/collections";
-import { getFormVersions } from "@/lib/server-fn/form-versions";
+import { getFormVersionsQueryOption } from "@/lib/server-fn/form-versions";
 import { getFormbyIdQueryOption, getFormStatus } from "@/lib/server-fn/forms";
 import type { FormStatus } from "@/lib/server-fn/forms";
 import {
@@ -20,10 +20,7 @@ const FormLayout = () => {
   const params = Route.useParams();
   const formId = formIdFromPath || params.formId;
 
-  // Warm the right-sidebar chunks in the background so the first open of
-  // Settings / Share / Customize doesn't flash an empty panel behind
-  // <Suspense fallback={null}>. Version History is intentionally skipped — it's
-  // opened rarely, so lazy-on-click is fine.
+  // Warm Settings/Share/Customize chunks so first open doesn't flash empty behind Suspense. Version History skipped — rare, lazy-on-click is fine.
   useEffect(() => {
     void importFormSettingsSidebar();
     void importShareSummarySidebar();
@@ -88,9 +85,7 @@ export const Route = createFileRoute("/_authenticated/workspace/$workspaceId/for
       }
     },
     loader: async ({ context, params }) => {
-      // Skip server fetch if collection already has this form (e.g. after optimistic create/duplicate).
-      // The component reads from useLiveQuery, so the optimistic data is sufficient.
-      // Guard: collections may not be initialized yet (SSR or first load before parent layout runs).
+      // Skip server fetch if collection has this form (e.g. optimistic create/duplicate) — component reads useLiveQuery. Guard: collections may not be init yet (SSR/first load before parent layout).
       if (isInitialized()) {
         const cachedForm = getFormListings().get(params.formId);
         if (cachedForm?.content) return;
@@ -98,12 +93,7 @@ export const Route = createFileRoute("/_authenticated/workspace/$workspaceId/for
 
       await Promise.all([
         context.queryClient.ensureQueryData(getFormbyIdQueryOption(params.formId)),
-        context.queryClient.ensureQueryData({
-          queryKey: ["form-versions", params.formId],
-          queryFn: () =>
-            getFormVersions({ data: { formId: params.formId } }).then((r) => r.versions),
-          staleTime: 1000 * 60 * 5,
-        }),
+        context.queryClient.ensureQueryData(getFormVersionsQueryOption(params.formId)),
       ]);
     },
     staleTime: 30_000,

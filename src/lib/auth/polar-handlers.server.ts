@@ -7,16 +7,13 @@ import type { WebhookSubscriptionUpdatedPayload } from "@polar-sh/sdk/models/com
 import { planForProductId } from "@/lib/config/plan-config";
 import { logger } from "@/lib/utils";
 
-// `plan-cleanup.server` is imported lazily inside each handler body. `auth.ts`
-// is reachable from the client through `auth-client.ts` (which reads `Session`
-// from the `auth` instance), so any *static* import here would drag the
-// `@/db` + `pg` graph into the client bundle and produce hydration-time
-// `Symbol(TSS_SERVER_FUNCTION_FACTORY) in undefined` errors. The lazy import
-// keeps the heavy module out of the static graph; it only loads when Polar
-// actually delivers a webhook (server-side, on demand).
+// `plan-cleanup.server` imported lazily per handler: auth.ts is client-reachable
+// via auth-client.ts, so a static import drags @/db + pg into the client bundle
+// → hydration `Symbol(TSS_SERVER_FUNCTION_FACTORY) in undefined` errors. Lazy
+// keeps it out of the static graph; loads only when Polar delivers a webhook.
 //
-// Errors are swallowed via the logger so a failed write doesn't wedge Polar's
-// delivery channel — Polar retries, and read-time gates cover the gap.
+// Errors swallowed via logger so a failed write doesn't wedge Polar's delivery —
+// Polar retries, read-time gates cover the gap.
 
 type SubscriptionPayload =
   | WebhookSubscriptionActivePayload
@@ -65,8 +62,8 @@ export const handleSubscriptionDowngrade = async (payload: SubscriptionPayload):
   }
 };
 
-// `subscription.updated` covers many transitions; we only act on `active` and
-// `canceled` to avoid double-running with the dedicated created/canceled hooks.
+// `subscription.updated` fires for many transitions; act only on `active`/`canceled`
+// to avoid double-running the dedicated created/canceled hooks.
 export const handleSubscriptionUpdated = async (
   payload: WebhookSubscriptionUpdatedPayload,
 ): Promise<void> => {

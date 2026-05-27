@@ -35,14 +35,9 @@ export const TableFooter = ({ className, ...props }: React.ComponentProps<"tfoot
 export const TableRow = ({ className, ...props }: React.ComponentProps<"tr">) => (
   <tr
     data-slot="table-row"
-    // Asymmetric hover: 100ms ease-out on enter (via the hover: duration),
-    // duration-0 on the base state so leaving the row snaps back instantly.
-    // The two simultaneous fades (out-of A, in-on B) that made the original
-    // feel mushy collapse into a single fade-in on B.
-    //
-    // Border kill on the active row + its previous sibling (`has-[+tr:hover]`)
-    // so the highlight reads as one bar instead of a stack sliced by the
-    // table's horizontal rules.
+    // Asymmetric hover: 100ms ease-out on enter, duration-0 base so leaving snaps back instantly
+    // (single fade-in on B, not the mushy two-fade). Kill border on active row + prev sibling
+    // (has-[+tr:hover]) so the highlight reads as one bar, not a stack sliced by row rules.
     className={cn(
       "border-b transition-colors duration-0 data-[state=selected]:bg-muted",
       "hover:border-transparent hover:bg-muted/50 hover:duration-100 hover:ease-out",

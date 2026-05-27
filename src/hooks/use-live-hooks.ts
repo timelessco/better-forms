@@ -50,9 +50,7 @@ export const useWorkspace = (workspaceId?: string) => {
   return { ...result, data: result.data?.[0] };
 };
 
-/**
- * The query-backed formListings collection already filters by org membership server-side.
- */
+/** formListings collection already filters by org membership server-side. */
 export const useOrgForms = (_organizationId?: string) =>
   useLiveQuery((q) => {
     if (!isInitialized()) return undefined;
@@ -71,10 +69,7 @@ export const useOrgForms = (_organizationId?: string) =>
       .orderBy(({ form }) => form.updatedAt, "desc");
   }, []);
 
-/**
- * Queries the unified formListings collection and enriches with full
- * detail (content, settings, etc.) on demand via a TanStack Query.
- */
+/** formListings query, enriched with full detail (content, settings) on demand via TanStack Query. */
 export const useForm = (formId?: string) => {
   const result = useLiveQuery(
     (q) => {
@@ -137,9 +132,7 @@ export const useIsFavorite = (userId?: string, formId?: string) => {
   return data !== undefined && data.length > 0;
 };
 
-/**
- * Fetches favorites and form listings separately and combines them.
- */
+/** Fetches favorites + listings separately, combines them. */
 export const useFavoriteForms = (userId?: string) => {
   const { data: favs } = useFavorites(userId);
   const { data: allForms } = useLiveQuery((q) => {
@@ -173,10 +166,7 @@ export const useFavoriteForms = (userId?: string) => {
   }, [favs, allForms]);
 };
 
-// Archived listings come from a server fn rather than the formListings
-// collection — `getFormListings` no longer returns archived rows, so the
-// trash dialog fetches its own list on demand. `enabled` keeps the request
-// off the wire until the dialog actually opens.
+// Archived rows excluded from formListings — trash dialog fetches via server fn. `enabled` keeps request off-wire until dialog opens.
 export const useArchivedForms = (enabled = true) =>
   useQuery({ ...archivedFormListingsQueryOptions(), enabled });
 
@@ -189,10 +179,7 @@ export const useSubmissionCounts = () => {
     }));
   }, []);
 
-  // TanStack DB live queries hand back fresh array references on every notification,
-  // so the upstream useMemo would emit a brand-new Map identity even when no count
-  // actually changed. Returning the previous Map reference when contents are
-  // identical lets memoised consumers downstream skip re-rendering entirely.
+  // Live queries return fresh array refs every notification → new Map identity even when unchanged. Return prev Map ref when contents identical so memoised consumers skip re-render.
   const previousMapRef = useRef<Map<string, number>>(new Map());
 
   return useMemo(() => {
