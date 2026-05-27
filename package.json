@@ -141,10 +141,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@faker-js/faker": "^10.4.0",
     "@tanstack/devtools-vite": "^0.5.5",
     "@tanstack/eslint-plugin-query": "^5.100.9",
-    "@tanstack/intent": "^0.0.29",
     "@tanstack/router-devtools-core": "^1.167.3",
     "@tanstack/router-generator": "^1.166.42",
     "@testing-library/jest-dom": "^6.9.1",
@@ -153,7 +151,6 @@
     "@types/node": "^22.19.18",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@typescript/native-preview": "^7.0.0-dev.20260511.1",
     "@vitejs/plugin-react": "^5.2.0",
     "babel-plugin-react-compiler": "^1.0.0",
     "dotenv": "^16.6.1",

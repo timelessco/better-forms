@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
+import { DropoffSankey } from "@/components/form-builder/insights/dropoff-sankey.lazy";
 import { toast } from "sonner";
 
 import { BreakdownCards } from "@/components/form-builder/insights/breakdown-cards";
 import { DropoffFunnel } from "@/components/form-builder/insights/dropoff-funnel";
-import { DropoffSankey } from "@/components/form-builder/insights/dropoff-sankey";
 import { EmptyState } from "@/components/form-builder/insights/empty-state";
 import { MetricsRow } from "@/components/form-builder/insights/metrics-row";
 import { TimeRangeSelector } from "@/components/form-builder/insights/time-range-selector";
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCwIcon } from "@/components/ui/icons";
 import Loader from "@/components/ui/loader";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
@@ -252,7 +253,9 @@ const InsightsPage = () => {
                   <DropoffFunnel dropoff={dropoff} />
                 </TabsContent>
                 <TabsContent value="flow">
-                  <DropoffSankey dropoff={dropoff} />
+                  <Suspense fallback={<Skeleton className="h-[320px] w-full" />}>
+                    <DropoffSankey dropoff={dropoff} />
+                  </Suspense>
                 </TabsContent>
               </Tabs>
             </CardContent>
