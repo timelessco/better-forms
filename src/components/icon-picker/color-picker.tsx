@@ -1,4 +1,5 @@
 import { useResolvedTheme } from "@/components/theme-provider";
+import { useEditorTheme } from "@/contexts/editor-theme-context";
 import { cn } from "@/lib/utils";
 
 // prettier-ignore
@@ -17,7 +18,10 @@ type ColorPickerProps = {
 };
 
 export const ColorPicker = ({ onChange, selectedColor, colors }: ColorPickerProps) => {
-  const isDark = useResolvedTheme() === "dark";
+  // Dark/light from the FORM's resolved mode, not the app theme (see icon-picker-preview).
+  const appTheme = useResolvedTheme();
+  const formMode = useEditorTheme().customization?.mode;
+  const isDark = (formMode ?? appTheme) === "dark";
 
   const COLORS = colors || DEFAULT_COLORS;
 

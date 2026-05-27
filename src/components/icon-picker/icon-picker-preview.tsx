@@ -1,4 +1,5 @@
 import { useResolvedTheme } from "@/components/theme-provider";
+import { useEditorTheme } from "@/contexts/editor-theme-context";
 import { getThemeStyleVars } from "@/lib/theme/generate-theme-css";
 import { DEFAULT_ICON, SPRITE_PATH } from "@/lib/config/app-config";
 import { cn, DEFAULT_ICON_NAME, isValidUrl } from "@/lib/utils";
@@ -61,7 +62,13 @@ export const IconPickerPreview = ({
   useThemeColor = false,
   standaloneIcon = false,
 }: IconPickerPreviewProps) => {
-  const isDarkMode = useResolvedTheme() === "dark";
+  // Dark/light comes from the FORM's resolved mode (customization.mode), not the
+  // app theme — a light form must render light icons even inside a dark editor.
+  // Falls back to app theme only when the form has no customization (matches the
+  // canvas's effectiveTheme). No ref/closest: that finds the app's <html.dark>.
+  const appTheme = useResolvedTheme();
+  const formMode = useEditorTheme().customization?.mode;
+  const isDarkMode = (formMode ?? appTheme) === "dark";
 
   const matchedIcon = icon ? iconMap.get(icon) : undefined;
 
