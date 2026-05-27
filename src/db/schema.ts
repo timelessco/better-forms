@@ -13,7 +13,6 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import { createSelectSchema } from "drizzle-zod";
 import type { VersionedSettingsSnapshot } from "@/lib/content-hash";
 import type { FormSettings } from "@/types/form-settings";
 import { defaultFormSettings } from "@/types/form-settings";
@@ -825,8 +824,6 @@ export const relations = defineRelations(
   }),
 );
 
-export const WorkspaceZod = createSelectSchema(workspaces);
-
 export const uploadRateLimits = pgTable("upload_rate_limits", {
   ip: text("ip").primaryKey(),
   windowStart: timestamp("window_start", { withTimezone: true }).notNull().defaultNow(),
@@ -848,20 +845,3 @@ export const aiGenerationCounts = pgTable(
   },
   (t) => [index("idx_ai_generation_counts_org_day").on(t.organizationId, t.periodDay)],
 );
-
-export const FormZod = createSelectSchema(forms);
-export const FormVersionZod = createSelectSchema(formVersions);
-export const SubmissionZod = createSelectSchema(submissions);
-export const FormVisitsZod = createSelectSchema(formVisits);
-export const FormQuestionProgressZod = createSelectSchema(formQuestionProgress);
-export const FormAnalyticsDailyZod = createSelectSchema(formAnalyticsDaily);
-export const FormDropoffDailyZod = createSelectSchema(formDropoffDaily);
-
-export const OrganizationZod = createSelectSchema(organization);
-export const MemberZod = createSelectSchema(member);
-export const InvitationZod = createSelectSchema(invitation);
-
-export const FormFavoriteZod = createSelectSchema(formFavorites);
-export const CustomDomainZod = createSelectSchema(customDomains);
-export const FormNotificationPreferenceZod = createSelectSchema(formNotificationPreferences);
-export const FormSubmissionNotificationZod = createSelectSchema(formSubmissionNotifications);

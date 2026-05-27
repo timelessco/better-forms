@@ -289,7 +289,7 @@ const initCollectionsOnClient = createClientOnlyFn((queryClient: QueryClient) =>
     }),
     getFormListings: () => getFormListingsServer(),
     getFormDetail: async (formId: string) => {
-      const { getFormbyIdQueryOption } = await import("@/lib/server-fn/forms");
+      const { getFormbyIdQueryOption } = await import("@/lib/server-fn/forms-queries");
       const result = await queryClient.ensureQueryData(getFormbyIdQueryOption(formId));
       // oxlint-disable-next-line typescript-eslint/no-explicit-any -- server type bridge
       return (result as { form?: any })?.form ?? null;

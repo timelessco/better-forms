@@ -1,4 +1,3 @@
-import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { and, count, eq, inArray, ne, sql } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
@@ -330,14 +329,7 @@ export const getArchivedFormListings = createServerFn({ method: "GET" })
     }));
   });
 
-export const archivedFormListingsQueryOptions = () =>
-  queryOptions({
-    queryKey: ["form-listings-archived"],
-    queryFn: ({ signal }) => getArchivedFormListings({ signal }),
-    staleTime: 1000 * 60, // 1 min — refetched on dialog reopen anyway
-  });
-
-const _getFormById = createServerFn({ method: "GET" })
+export const _getFormById = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .inputValidator(z.object({ id: z.uuid() }))
   .handler(async ({ data, context }) => {
@@ -360,20 +352,6 @@ const _getFormById = createServerFn({ method: "GET" })
 
     return { form: serializeForm(form) };
   });
-
-export const getFormbyIdQueryOption = (formId: string) =>
-  queryOptions({
-    queryKey: ["forms", formId],
-    queryFn: ({ signal }) => _getFormById({ data: { id: formId }, signal }),
-    staleTime: 1000 * 60 * 10, // 10 minutes
-  });
-
-export type FormStatus = "draft" | "published" | "archived";
-type FormStatusQueryResult = {
-  form?: {
-    status?: FormStatus;
-  };
-};
 
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
@@ -604,15 +582,3 @@ export const assignFormDomain = createServerFn({ method: "POST" })
 
     return { form: serializeForm(updatedForm) };
   });
-
-export const getFormStatus = async (
-  queryClient: import("@tanstack/react-query").QueryClient,
-  formId: string,
-): Promise<FormStatus | undefined> => {
-  const result = (await queryClient.ensureQueryData({
-    ...getFormbyIdQueryOption(formId),
-    revalidateIfStale: true,
-  })) as FormStatusQueryResult;
-
-  return result.form?.status;
-};
