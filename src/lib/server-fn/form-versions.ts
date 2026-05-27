@@ -5,6 +5,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
 import * as v from "valibot";
 import { formSettings, forms, formVersions, user } from "@/db/schema";
+import type { FormVersionRow } from "@/db/schema";
 import { db } from "@/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { canonicalJSON, computeContentHash } from "@/lib/content-hash";
@@ -18,7 +19,7 @@ import { authForm } from "./auth-helpers.server";
 // TODO: make plan-based
 const MAX_VERSIONS_PER_FORM = 20;
 
-const serializeVersion = (version: typeof formVersions.$inferSelect) => ({
+const serializeVersion = (version: FormVersionRow) => ({
   ...version,
   publishedAt: version.publishedAt.toISOString(),
   createdAt: version.createdAt.toISOString(),
@@ -93,7 +94,7 @@ export const publishFormVersion = createServerFn({ method: "POST" })
         willInsertVersion: versionedDirty || isFirstPublish,
       });
 
-      let newVersion: typeof formVersions.$inferSelect | undefined;
+      let newVersion: FormVersionRow | undefined;
       let versionId = form.lastPublishedVersionId ?? null;
 
       if (versionedDirty || isFirstPublish) {

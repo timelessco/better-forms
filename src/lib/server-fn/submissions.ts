@@ -3,6 +3,7 @@ import { and, count, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import * as v from "valibot";
 import type { Value } from "platejs";
 import { formSettings, forms, formVersions, submissions } from "@/db/schema";
+import type { SubmissionRow } from "@/db/schema";
 import { db } from "@/db";
 import {
   getEditableFields,
@@ -23,7 +24,7 @@ export type SerializedSubmission = {
   updatedAt: string;
 };
 
-const serializeSubmission = (s: typeof submissions.$inferSelect) => ({
+const serializeSubmission = (s: SubmissionRow) => ({
   ...s,
   createdAt: s.createdAt.toISOString(),
   updatedAt: s.updatedAt.toISOString(),

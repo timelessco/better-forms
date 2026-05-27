@@ -3,6 +3,7 @@ import { and, count, eq, inArray, ne, sql } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
 import * as v from "valibot";
 import { customDomains, formSettings, forms, member, submissions, workspaces } from "@/db/schema";
+import type { FormRow } from "@/db/schema";
 import { RESERVED_SLUGS } from "@/lib/config/plan-config";
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { db } from "@/db";
@@ -13,6 +14,7 @@ import { defaultFormSettings } from "@/types/form-settings";
 import type { FormSettings } from "@/types/form-settings";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm, authFormsBulk } from "./auth-helpers.server";
+import { mergeFormSettings } from "./merge-form-settings.server";
 import { getOrgPlan, getOrgPlanWithPolarSync } from "./plan-helpers.server";
 import { generateShortId } from "@/lib/short-id";
 
@@ -29,18 +31,13 @@ const isShortIdCollision = (err: unknown): boolean =>
   "constraint_name" in err &&
   (err as { constraint_name: unknown }).constraint_name === SHORT_ID_CONSTRAINT;
 
-const serializeForm = (form: typeof forms.$inferSelect) => ({
+const serializeForm = (form: FormRow) => ({
   ...form,
   createdAt: form.createdAt.toISOString(),
   updatedAt: form.updatedAt.toISOString(),
   content: form.content as object[],
   customization: (form.customization ?? {}) as Record<string, object>,
 });
-
-/** Shallow-merge settings patch into forms.draftSettings JSONB (working draft only;
- * live settings served to public renderers live in form_settings). */
-export const mergeFormSettings = (patch: Partial<FormSettings>) =>
-  sql`${forms.draftSettings} || ${JSON.stringify(patch)}::jsonb`;
 
 export const createForm = createServerFn({ method: "POST" })
   .middleware([authMiddleware, formProSettingsMiddleware])

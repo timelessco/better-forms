@@ -1,3 +1,4 @@
+import "@tanstack/react-start/server-only";
 import { defineRelations, sql } from "drizzle-orm";
 import {
   boolean,
@@ -845,3 +846,12 @@ export const aiGenerationCounts = pgTable(
   },
   (t) => [index("idx_ai_generation_counts_org_day").on(t.organizationId, t.periodDay)],
 );
+
+// Row types — import these via `import type` from client-reachable server-fn modules
+// so a `typeof <table>.$inferSelect` annotation doesn't pull the table value (and
+// thus drizzle-orm) into the client bundle. Server-only marker above keeps values out.
+export type FormRow = typeof forms.$inferSelect;
+export type FormVersionRow = typeof formVersions.$inferSelect;
+export type SubmissionRow = typeof submissions.$inferSelect;
+export type CustomDomainRow = typeof customDomains.$inferSelect;
+export type FormSubmissionNotificationRow = typeof formSubmissionNotifications.$inferSelect;

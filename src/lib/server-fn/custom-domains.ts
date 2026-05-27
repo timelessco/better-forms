@@ -4,6 +4,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
 import * as v from "valibot";
 import { customDomains, forms, member } from "@/db/schema";
+import type { CustomDomainRow } from "@/db/schema";
 import { db } from "@/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { ErrorCode } from "@/lib/errors/codes";
@@ -17,7 +18,7 @@ import {
 import { DOMAIN_LIMITS } from "@/lib/config/plan-config";
 import { isSubdomain } from "@/lib/dns-instructions";
 
-const serializeDomain = (domain: typeof customDomains.$inferSelect) => ({
+const serializeDomain = (domain: CustomDomainRow) => ({
   ...domain,
   createdAt: domain.createdAt.toISOString(),
   updatedAt: domain.updatedAt.toISOString(),
