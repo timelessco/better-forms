@@ -96,7 +96,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
         <div
           className={cn(
             hasCustomization && "bf-themed",
-            effectiveTheme === "dark" && "dark",
+            effectiveTheme === "dark" ? "dark" : "bf-light",
             "flex size-full flex-col overflow-hidden bg-background text-foreground transition-colors duration-300",
           )}
           style={{
