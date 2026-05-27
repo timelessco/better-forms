@@ -5,6 +5,7 @@ import * as v from "valibot";
 import { db } from "@/db";
 import { member } from "@/db/schema";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { polarClient } from "@/lib/auth/auth";
 import type { ErrorCode } from "@/lib/errors/codes";
 
 /** Opens Polar's hosted portal for an org-scoped customer. Better Auth's customer.portal() looks
@@ -32,7 +33,6 @@ export const openOrgBillingPortal = createServerFn({ method: "POST" })
       });
     }
 
-    const { polarClient } = await import("@/lib/auth/auth");
     const email = context.session.user.email;
 
     // Customer has no externalId (checkout created it with email only; referenceId lives on the
