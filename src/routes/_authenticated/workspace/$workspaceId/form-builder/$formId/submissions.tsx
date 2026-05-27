@@ -27,8 +27,8 @@ import {
 import {
   infiniteQueryOptions,
   queryOptions,
+  useInfiniteQuery,
   useQueryClient,
-  useSuspenseInfiniteQuery,
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -514,21 +514,26 @@ const SubmissionsPage = () => {
   );
   const handleClearSelection = useCallback(() => setRowSelection({}), []);
 
-  // Bootstrap: published form content + total count + historical field labels (1 round-trip).
-  // The loader awaits ensureQueryData for both queries below, so the cache is
-  // always primed by the time this (data-only SSR) component mounts — suspense
-  // resolves immediately and the route's pendingComponent covers initial load.
+  // Bootstrap (published form content + total count + historical field labels):
+  // blocking initial data via suspense. The loader awaits ensureQueryData, so the
+  // cache is primed and the route's pendingComponent covers the first load. It has
+  // a 10min staleTime, so it rarely refetches — low risk of a refetch error
+  // throwing to the error boundary.
   const { data: bootstrapData } = useSuspenseQuery(submissionsBootstrapQueryOptions(formId));
   const publishedContent = bootstrapData?.form?.content;
   const totalCount = bootstrapData?.totalCount ?? 0;
   const historicalLabels = bootstrapData?.fieldLabels ?? EMPTY_LABELS;
 
+  // The submissions list is intentionally NOT suspense: useInfiniteQuery keeps the
+  // already-loaded rows visible if a background refetch (e.g. on tab refocus) fails,
+  // instead of throwing the whole route to the error boundary.
   const {
     data: submissionsData,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useSuspenseInfiniteQuery(submissionsInfiniteQueryOptions(formId));
+    isLoading: isLoadingSubmissions,
+  } = useInfiniteQuery(submissionsInfiniteQueryOptions(formId));
 
   const allSubmissions: SerializedSubmission[] = useMemo(
     () => submissionsData?.pages?.flatMap((page) => page?.submissions ?? []) ?? [],
@@ -695,9 +700,7 @@ const SubmissionsPage = () => {
 
           <table.DataGrid
             recordCount={totalCount}
-            // Initial load is handled by the route's pendingComponent via suspense;
-            // the grid always has data by the time it renders.
-            isLoading={false}
+            isLoading={isLoadingSubmissions}
             tableLayout={{
               dense: true,
               columnsResizable: true,
