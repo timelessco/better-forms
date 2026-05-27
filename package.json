@@ -32,6 +32,7 @@
     "@ai-sdk/google": "^3.0.79",
     "@ai-sdk/openai": "^3.0.65",
     "@ai-sdk/react": "3.0.192",
+    "@ai-sdk/valibot": "2.0.28",
     "@ariakit/react": "^0.4.26",
     "@base-ui/react": "^1.4.1",
     "@dnd-kit/core": "^6.3.1",
@@ -87,6 +88,7 @@
     "@tanstack/router-plugin": "^1.167.35",
     "@udecode/cn": "^52.3.4",
     "@unpic/react": "^1.0.2",
+    "@valibot/to-json-schema": "1.7.0",
     "@vercel/blob": "^2.3.3",
     "@vercel/og": "^0.11.1",
     "@vercel/sdk": "^1.21.1",
@@ -137,8 +139,7 @@
     "valibot": "1.4.0",
     "vaul": "^1.1.2",
     "vite-tsconfig-paths": "^6.1.1",
-    "web-vitals": "5.2.0",
-    "zod": "^4.4.3"
+    "web-vitals": "5.2.0"
   },
   "devDependencies": {
     "@tanstack/devtools-vite": "^0.5.5",

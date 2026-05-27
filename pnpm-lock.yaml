@@ -17,6 +17,9 @@ importers:
       '@ai-sdk/react':
         specifier: 3.0.192
         version: 3.0.192(react@19.2.6)(zod@4.4.3)
+      '@ai-sdk/valibot':
+        specifier: 2.0.28
+        version: 2.0.28(@valibot/to-json-schema@1.7.0(valibot@1.4.0(typescript@5.9.3)))(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3)
       '@ariakit/react':
         specifier: ^0.4.26
         version: 0.4.26(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -182,6 +185,9 @@ importers:
       '@unpic/react':
         specifier: ^1.0.2
         version: 1.0.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@valibot/to-json-schema':
+        specifier: 1.7.0
+        version: 1.7.0(valibot@1.4.0(typescript@5.9.3))
       '@vercel/blob':
         specifier: ^2.3.3
         version: 2.3.3
@@ -335,9 +341,6 @@ importers:
       web-vitals:
         specifier: 5.2.0
         version: 5.2.0
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
     devDependencies:
       '@tanstack/devtools-vite':
         specifier: ^0.5.5
@@ -462,6 +465,13 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
+
+  '@ai-sdk/valibot@2.0.28':
+    resolution: {integrity: sha512-IR1o0QA9kYxnWZjbVWyuqNiLvvGPGb1rxn5LDmGSe9OBbMf4t9EGQMFkADa96vp4lKk+CFVFX04ovpDm4oyo8g==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@valibot/to-json-schema': ^1.3.0
+      valibot: ^1.1.0
 
   '@antfu/ni@25.0.0':
     resolution: {integrity: sha512-9q/yCljni37pkMr4sPrI3G4jqdIk074+iukc5aFJl7kmDCCsiJrbZ6zKxnES1Gwg+i9RcDZwvktl23puGslmvA==}
@@ -3976,6 +3986,11 @@ packages:
     peerDependenciesMeta:
       next:
         optional: true
+
+  '@valibot/to-json-schema@1.7.0':
+    resolution: {integrity: sha512-Y3pPVibbIOHzohrlxSINvO7w/bvXkoYS3BQHoImV9ynE+bXKf171bdMucPurV2zp7gdmt0L1HCcNAsbo7cFRQw==}
+    peerDependencies:
+      valibot: ^1.4.0
 
   '@vercel/blob@2.3.3':
     resolution: {integrity: sha512-MtD7VLo6hU07eHR7bmk5SIMD290q574UaNYTe46qeyRT+hWrCy26CoAqfd7PnIefVXvRehRZBzukxuTO9iGTVg==}
@@ -7943,6 +7958,14 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
+  '@ai-sdk/valibot@2.0.28(@valibot/to-json-schema@1.7.0(valibot@1.4.0(typescript@5.9.3)))(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider-utils': 4.0.27(zod@4.4.3)
+      '@valibot/to-json-schema': 1.7.0(valibot@1.4.0(typescript@5.9.3))
+      valibot: 1.4.0(typescript@5.9.3)
+    transitivePeerDependencies:
+      - zod
+
   '@antfu/ni@25.0.0':
     dependencies:
       ansis: 4.3.0
@@ -11221,6 +11244,10 @@ snapshots:
       '@unpic/core': 1.0.3
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
+
+  '@valibot/to-json-schema@1.7.0(valibot@1.4.0(typescript@5.9.3))':
+    dependencies:
+      valibot: 1.4.0(typescript@5.9.3)
 
   '@vercel/blob@2.3.3':
     dependencies:
