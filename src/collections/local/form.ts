@@ -1,6 +1,6 @@
 /** Local-only form collection (localStorage-backed) for unauthenticated drafts; independent of the query-based collections. */
 import { createCollection, localStorageCollectionOptions } from "@tanstack/react-db";
-import { z } from "zod";
+import * as v from "valibot";
 import { createFormHeaderNode } from "@/lib/form-schema/form-header-factory";
 import { defaultFormSettings } from "@/types/form-settings";
 import type { FormSettings } from "@/types/form-settings";
@@ -11,33 +11,39 @@ const parseAsUTC = (val: string): string => {
   return new Date(val.replace(" ", "T") + "Z").toISOString();
 };
 
-const timestampField = z
-  .string()
-  .optional()
-  .transform((val) => (val ? parseAsUTC(val) : new Date().toISOString()));
+const timestampField = v.pipe(
+  v.optional(v.string()),
+  v.transform((val) => (val ? parseAsUTC(val) : new Date().toISOString())),
+);
 
-export const FormSchema = z.object({
-  id: z.uuid(),
-  createdByUserId: z.string().optional(),
-  workspaceId: z.uuid(),
-  title: z.string().default("Untitled"),
-  formName: z.string().default("draft"),
-  schemaName: z.string().default("draftFormSchema"),
-  content: z.array(z.any()).default([]),
-  icon: z.string().nullable().optional(),
-  cover: z.string().nullable().optional(),
-  status: z.enum(["draft", "published", "archived"]).default("draft"),
-  lastPublishedVersionId: z.string().nullable().optional(),
-  publishedContentHash: z.string().nullable().optional(),
-  draftSettings: z.custom<FormSettings>().default(() => defaultFormSettings),
+export const FormSchema = v.object({
+  id: v.pipe(v.string(), v.uuid()),
+  createdByUserId: v.optional(v.string()),
+  workspaceId: v.pipe(v.string(), v.uuid()),
+  title: v.optional(v.string(), "Untitled"),
+  formName: v.optional(v.string(), "draft"),
+  schemaName: v.optional(v.string(), "draftFormSchema"),
+  content: v.optional(v.array(v.any()), []),
+  icon: v.nullish(v.string()),
+  cover: v.nullish(v.string()),
+  status: v.optional(v.picklist(["draft", "published", "archived"]), "draft"),
+  lastPublishedVersionId: v.nullish(v.string()),
+  publishedContentHash: v.nullish(v.string()),
+  draftSettings: v.optional(
+    v.custom<FormSettings>(() => true),
+    () => defaultFormSettings,
+  ),
   // Live settings — no server row for local drafts; mirrors draft until sign-in + publish.
-  liveSettings: z.custom<FormSettings | null>().default(() => null),
-  customization: z.record(z.string(), z.any()).default({}),
+  liveSettings: v.optional(
+    v.custom<FormSettings | null>(() => true),
+    () => null,
+  ),
+  customization: v.optional(v.record(v.string(), v.any()), {}),
   createdAt: timestampField,
   updatedAt: timestampField,
 });
 
-export type Form = z.infer<typeof FormSchema>;
+export type Form = v.InferOutput<typeof FormSchema>;
 
 export const localFormCollection = createCollection(
   localStorageCollectionOptions({
