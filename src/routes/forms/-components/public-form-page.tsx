@@ -588,6 +588,7 @@ const PublicFormMain = ({
       alignLeft && "text-left",
     )}
     style={dynamicWidth ? ({ "--bf-page-width": "100%" } as React.CSSProperties) : undefined}
+    data-bf-hide-title={hideTitle ? "" : undefined}
     aria-live="polite"
   >
     {themeToggle && (
@@ -604,7 +605,7 @@ const PublicFormMain = ({
       steps={rsc.steps}
       thankYou={(rsc.thankYou as string | null) ?? null}
       stepCount={rsc.stepCount}
-      header={hideTitle ? null : rsc.header}
+      header={hideTitle && !(form.cover || form.icon) ? null : rsc.header}
       onSubmit={handleSubmit}
       settings={settings}
       formId={formId}

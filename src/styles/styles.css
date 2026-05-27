@@ -885,6 +885,11 @@
   font-style: var(--bf-title-font-style, normal);
 }
 
+/* hideTitle embed option: hide only the title text; cover + icon (avatar) stay visible. */
+[data-bf-hide-title] [data-bf-title] {
+  display: none !important;
+}
+
 /* Font-size: editor blocks (inputs, labels, buttons, textareas, paragraphs — NOT headings/header) */
 .bf-themed [data-slate-editor] {
   font-size: var(--bf-font-size);

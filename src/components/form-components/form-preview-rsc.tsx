@@ -671,7 +671,8 @@ const FieldByFieldRSCContent = ({
   const coverColor = cover && isHexColor(cover) ? cover : null;
   // Popup: avatar already the bubble, hide inside (space + no dup).
   const hasIcon = !!icon && !isPopup;
-  const showHeader = !hideTitle && (!!title || hasIcon);
+  // hideTitle hides only the title; keep the header when there's an icon. Cover stays (it's the bg).
+  const showHeader = hasIcon || (!!title && !hideTitle);
   const hasTint = coverImage?.includes("tint=true") ?? false;
   const isLastStep = currentStep === steps.length - 1;
   const currentStepRSC = steps[currentStep];
