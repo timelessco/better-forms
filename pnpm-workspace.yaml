@@ -31,6 +31,49 @@ minimumReleaseAgeExclude:
   - "@ai-sdk/openai"
   - "@ai-sdk/google"
   - "@ai-sdk/gateway@3.0.119"
+  # Re-enabling minimumReleaseAge (2026-05-27): the lockfile currently pins
+  # these packages to versions published within the last 7 days (publish dates
+  # 2026-05-20 .. 2026-05-22). Without excluding them, `pnpm install
+  # --frozen-lockfile` fails the quarantine. Remove individual entries once
+  # their pinned version ages past the 7-day window.
+  #  - TanStack Start / Router 1.168.x–1.171.x bump
+  - "@tanstack/react-start-client"
+  - "@tanstack/react-start-rsc"
+  - "@tanstack/react-start-server"
+  - "@tanstack/router-core"
+  - "@tanstack/router-generator"
+  - "@tanstack/router-plugin"
+  - "@tanstack/router-utils"
+  - "@tanstack/start-client-core"
+  - "@tanstack/start-plugin-core"
+  - "@tanstack/start-server-core"
+  - "@tanstack/start-storage-context"
+  #  - Rolldown 1.0.2 + per-platform bindings (transitive via Vite/Start)
+  - "rolldown"
+  - "@rolldown/binding-android-arm64"
+  - "@rolldown/binding-darwin-arm64"
+  - "@rolldown/binding-darwin-x64"
+  - "@rolldown/binding-freebsd-x64"
+  - "@rolldown/binding-linux-arm-gnueabihf"
+  - "@rolldown/binding-linux-arm64-gnu"
+  - "@rolldown/binding-linux-arm64-musl"
+  - "@rolldown/binding-linux-ppc64-gnu"
+  - "@rolldown/binding-linux-s390x-gnu"
+  - "@rolldown/binding-linux-x64-gnu"
+  - "@rolldown/binding-linux-x64-musl"
+  - "@rolldown/binding-openharmony-arm64"
+  - "@rolldown/binding-wasm32-wasi"
+  - "@rolldown/binding-win32-arm64-msvc"
+  - "@rolldown/binding-win32-x64-msvc"
+  #  - Nitro 3 beta + transitive server deps
+  - "nitro"
+  - "env-runner"
+  - "httpxy"
+
+# 7-day supply-chain quarantine (see CLAUDE.md). Freshly published registry
+# versions are held back for 10080 minutes; the explicit exclude list above
+# carries the deliberate exceptions.
+minimumReleaseAge: 10080
 
 # Hoist these transitive deps to the node_modules root so direct imports keep
 # resolving:
