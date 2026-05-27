@@ -21,6 +21,7 @@ import {
 import type { ErrorCode } from "@/lib/errors/codes";
 import { isServerPlan } from "./plan-helpers";
 import { recordOwnerSubmissionNotification } from "./notifications-helpers.server";
+import { sendFormSubmissionNotification, sendRespondentConfirmation } from "@/integrations/email";
 
 type VersionSettings = {
   closeForm?: boolean;
@@ -381,9 +382,6 @@ const sendEmailNotifications = async (
   submissionId: string,
   submissionData: Record<string, unknown>,
 ) => {
-  const { sendFormSubmissionNotification, sendRespondentConfirmation } =
-    await import("@/integrations/email");
-
   if (settings.selfEmailNotifications) {
     let toEmail = settings.notificationEmail;
 
