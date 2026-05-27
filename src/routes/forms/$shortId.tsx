@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as v from "valibot";
+import { optionalCoercedBoolean } from "@/lib/valibot-search";
 import { PublicFormPage } from "@/routes/forms/-components/public-form-page";
 import type { PublicFormEmbedConfig } from "@/routes/forms/-components/public-form-page";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
@@ -16,14 +17,6 @@ import {
 import { seo } from "@/lib/seo";
 import { APP_WEBSITE_URL } from "@/lib/config/app-config";
 import { getCoverPreloadLinks } from "@/lib/vercel-image";
-
-// z.coerce.boolean() parity: any present value → Boolean(value); absent key → undefined.
-const optionalCoercedBoolean = v.optional(
-  v.pipe(
-    v.unknown(),
-    v.transform((input) => Boolean(input)),
-  ),
-);
 
 type PublicTheme = "light" | "dark" | "system";
 

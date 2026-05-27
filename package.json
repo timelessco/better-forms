@@ -85,7 +85,6 @@
     "@tanstack/react-virtual": "^3.13.24",
     "@tanstack/router-core": "^1.169.2",
     "@tanstack/router-plugin": "^1.167.35",
-    "@tanstack/zod-adapter": "^1.166.9",
     "@udecode/cn": "^52.3.4",
     "@unpic/react": "^1.0.2",
     "@vercel/blob": "^2.3.3",
