@@ -1,5 +1,3 @@
-import { useRef } from "react";
-
 import { useResolvedTheme } from "@/components/theme-provider";
 import { getThemeStyleVars } from "@/lib/theme/generate-theme-css";
 import { DEFAULT_ICON, SPRITE_PATH } from "@/lib/config/app-config";
@@ -63,15 +61,13 @@ export const IconPickerPreview = ({
   useThemeColor = false,
   standaloneIcon = false,
 }: IconPickerPreviewProps) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const isDarkMode = ref.current?.closest(".dark") != null;
+  const isDarkMode = useResolvedTheme() === "dark";
 
   const matchedIcon = icon ? iconMap.get(icon) : undefined;
 
   if (useThemeColor) {
     return (
       <div
-        ref={ref}
         className="flex items-center justify-center rounded-full bg-primary text-primary-foreground"
         style={{
           width: `${size}px`,
@@ -94,7 +90,6 @@ export const IconPickerPreview = ({
 
   return (
     <div
-      ref={ref}
       className="flex items-center justify-center rounded-full"
       style={{
         backgroundColor: adjustedBgColor,

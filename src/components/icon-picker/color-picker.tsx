@@ -1,5 +1,4 @@
-import { useRef } from "react";
-
+import { useResolvedTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 
 // prettier-ignore
@@ -18,8 +17,7 @@ type ColorPickerProps = {
 };
 
 export const ColorPicker = ({ onChange, selectedColor, colors }: ColorPickerProps) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const isDark = ref.current?.closest(".dark") != null;
+  const isDark = useResolvedTheme() === "dark";
 
   const COLORS = colors || DEFAULT_COLORS;
 
@@ -47,7 +45,7 @@ export const ColorPicker = ({ onChange, selectedColor, colors }: ColorPickerProp
   const baseLightColor = !colors ? COLORS[0] : null;
 
   return (
-    <div ref={ref} className={cn("flex", "cursor-pointer", "items-center", "space-x-1")}>
+    <div className={cn("flex", "cursor-pointer", "items-center", "space-x-1")}>
       {displayColors.map((colorItem) => (
         <div
           className={cn("rounded-md", "p-1", "hover:bg-muted", {
