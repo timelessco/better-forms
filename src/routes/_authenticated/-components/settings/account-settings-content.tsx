@@ -181,8 +181,22 @@ const profileFormDefaults = {
 };
 
 export const AccountSettingsContent = () => {
+  const { data: session, isPending } = useSession();
+  // Gate before the form so useAppForm initializes from loaded session data —
+  // TanStack Form reads defaultValues once on mount and won't re-sync later.
+  if (isPending || !session?.user) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2Icon aria-hidden="true" className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  return <AccountSettingsForm />;
+};
+
+const AccountSettingsForm = () => {
   const queryClient = useQueryClient();
-  const { data: session, isPending: isSessionPending } = useSession();
+  const { data: session } = useSession();
   const user = session?.user;
 
   const profileForm = useAppForm({
@@ -297,14 +311,6 @@ export const AccountSettingsContent = () => {
     () => handleDisconnectAccount("google"),
     [handleDisconnectAccount],
   );
-
-  if (isSessionPending) {
-    return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2Icon aria-hidden="true" className="size-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
 
   return (
     <profileForm.AppForm>
