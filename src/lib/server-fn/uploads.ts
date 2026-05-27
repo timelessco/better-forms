@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createError } from "@/lib/errors/create";
-import { z } from "zod";
+import * as v from "valibot";
 import { putBlob } from "@/integrations/blob";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { ErrorCode } from "@/lib/errors/codes";
@@ -9,9 +9,9 @@ import type { ErrorCode } from "@/lib/errors/codes";
 export const uploadAvatar = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      base64: z.string(),
-      filename: z.string().optional(),
+    v.object({
+      base64: v.string(),
+      filename: v.optional(v.string()),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -35,10 +35,10 @@ export const uploadAvatar = createServerFn({ method: "POST" })
 export const uploadEditorMedia = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      base64: z.string().min(1),
-      filename: z.string().min(1).max(255),
-      contentType: z.string().min(1).max(127),
+    v.object({
+      base64: v.pipe(v.string(), v.minLength(1)),
+      filename: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
+      contentType: v.pipe(v.string(), v.minLength(1), v.maxLength(127)),
     }),
   )
   .handler(async ({ data, context }) => {

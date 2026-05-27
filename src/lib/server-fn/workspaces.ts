@@ -17,26 +17,27 @@ import { purgeFormCacheBatch } from "@/lib/server-fn/cdn-cache";
 import { createServerFn } from "@tanstack/react-start";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
-import { z } from "zod";
+import * as v from "valibot";
 import type { ErrorCode } from "@/lib/errors/codes";
 import { getActiveOrgId } from "./auth-helpers";
 import { authWorkspace } from "./auth-helpers.server";
 
-const workspaceSchema = z.object({
-  id: z.uuid(),
-  organizationId: z.uuid(),
-  name: z.string().max(100),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
+const workspaceSchema = v.object({
+  id: v.pipe(v.string(), v.uuid()),
+  organizationId: v.pipe(v.string(), v.uuid()),
+  name: v.pipe(v.string(), v.maxLength(100)),
+  createdAt: v.optional(v.string()),
+  updatedAt: v.optional(v.string()),
 });
 
 export const createWorkspace = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    workspaceSchema.pick({ organizationId: true, name: true }).extend({
-      id: z.uuid().optional(),
-      name: workspaceSchema.shape.name.optional().default("Workspace"),
-      sortIndex: z.string().optional(),
+    v.object({
+      organizationId: v.pipe(v.string(), v.uuid()),
+      name: v.optional(v.pipe(v.string(), v.maxLength(100)), "Workspace"),
+      id: v.optional(v.pipe(v.string(), v.uuid())),
+      sortIndex: v.optional(v.string()),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -84,7 +85,7 @@ export const createWorkspace = createServerFn({ method: "POST" })
 
 export const updateWorkspace = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(workspaceSchema.pick({ id: true, name: true }).partial({ name: true }))
+  .inputValidator(v.partial(v.pick(workspaceSchema, ["id", "name"]), ["name"]))
   .handler(async ({ data, context }) => {
     const { id, ...updateData } = data;
     const orgId = getActiveOrgId(context.session);
@@ -110,7 +111,7 @@ export const updateWorkspace = createServerFn({ method: "POST" })
 
 export const deleteWorkspace = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(workspaceSchema.pick({ id: true }))
+  .inputValidator(v.pick(workspaceSchema, ["id"]))
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authWorkspace(data.id, context.session.user.id, orgId);
@@ -208,9 +209,9 @@ export const getWorkspaces = createServerFn({ method: "GET" })
 export const reorderWorkspace = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      workspaceId: z.uuid(),
-      sortIndex: z.string(),
+    v.object({
+      workspaceId: v.pipe(v.string(), v.uuid()),
+      sortIndex: v.string(),
     }),
   )
   .handler(async ({ data, context }) => {

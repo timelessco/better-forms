@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
+import * as v from "valibot";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getActiveOrgId } from "@/lib/server-fn/auth-helpers";
 import type {
@@ -15,14 +15,14 @@ import type {
 // DB logic lives in analytics.server.ts, dynamically imported in each handler so Start strips it
 // from the client bundle — @/db + postgres driver never reach the browser via this file.
 
-const recordVisitInputSchema = z.object({
-  formId: z.uuid(),
-  visitorHash: z.string().min(1).max(128),
-  sessionId: z.string().min(1).max(128),
-  referrer: z.string().nullish(),
-  utmSource: z.string().nullish(),
-  utmMedium: z.string().nullish(),
-  utmCampaign: z.string().nullish(),
+const recordVisitInputSchema = v.object({
+  formId: v.pipe(v.string(), v.uuid()),
+  visitorHash: v.pipe(v.string(), v.minLength(1), v.maxLength(128)),
+  sessionId: v.pipe(v.string(), v.minLength(1), v.maxLength(128)),
+  referrer: v.nullish(v.string()),
+  utmSource: v.nullish(v.string()),
+  utmMedium: v.nullish(v.string()),
+  utmCampaign: v.nullish(v.string()),
 });
 
 export const recordFormVisit = createServerFn({ method: "POST" })
@@ -37,16 +37,18 @@ const MAX_DURATION_MS = 86_400_000; // 24h cap as a spam guard for client-suppli
 const MAX_VITAL_MS = 3_600_000; // 1h — generous spam guard for client-reported vitals
 const MAX_CLS = 100;
 
-const updateVisitInputSchema = z.object({
-  visitId: z.uuid(),
-  didStartForm: z.boolean().optional(),
-  didSubmit: z.boolean().optional(),
-  submissionId: z.uuid().nullish(),
-  visitEndedAt: z.iso.datetime().nullish(),
-  durationMs: z.number().int().nonnegative().max(MAX_DURATION_MS).nullish(),
-  lcpMs: z.number().int().nonnegative().max(MAX_VITAL_MS).nullish(),
-  inpMs: z.number().int().nonnegative().max(MAX_VITAL_MS).nullish(),
-  cls: z.number().nonnegative().max(MAX_CLS).nullish(),
+const updateVisitInputSchema = v.object({
+  visitId: v.pipe(v.string(), v.uuid()),
+  didStartForm: v.optional(v.boolean()),
+  didSubmit: v.optional(v.boolean()),
+  submissionId: v.nullish(v.pipe(v.string(), v.uuid())),
+  visitEndedAt: v.nullish(v.pipe(v.string(), v.isoTimestamp())),
+  durationMs: v.nullish(
+    v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(MAX_DURATION_MS)),
+  ),
+  lcpMs: v.nullish(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(MAX_VITAL_MS))),
+  inpMs: v.nullish(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(MAX_VITAL_MS))),
+  cls: v.nullish(v.pipe(v.number(), v.minValue(0), v.maxValue(MAX_CLS))),
 });
 
 export const updateFormVisit = createServerFn({ method: "POST" })
@@ -56,17 +58,17 @@ export const updateFormVisit = createServerFn({ method: "POST" })
     return updateFormVisitImpl(data);
   });
 
-const questionProgressInputSchema = z.object({
-  visitId: z.uuid(),
-  formId: z.uuid(),
-  visitorHash: z.string().min(1).max(128),
-  questionId: z.string().min(1).max(256),
-  questionType: z.string().max(64).nullish(),
-  questionIndex: z.number().int().nonnegative(),
-  stepId: z.string().max(256).nullish(),
-  stepIndex: z.number().int().nonnegative().nullish(),
-  event: z.enum(["view", "start", "complete"]),
-  wasLastQuestion: z.boolean().optional(),
+const questionProgressInputSchema = v.object({
+  visitId: v.pipe(v.string(), v.uuid()),
+  formId: v.pipe(v.string(), v.uuid()),
+  visitorHash: v.pipe(v.string(), v.minLength(1), v.maxLength(128)),
+  questionId: v.pipe(v.string(), v.minLength(1), v.maxLength(256)),
+  questionType: v.nullish(v.pipe(v.string(), v.maxLength(64))),
+  questionIndex: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  stepId: v.nullish(v.pipe(v.string(), v.maxLength(256))),
+  stepIndex: v.nullish(v.pipe(v.number(), v.integer(), v.minValue(0))),
+  event: v.picklist(["view", "start", "complete"]),
+  wasLastQuestion: v.optional(v.boolean()),
 });
 
 export const recordQuestionProgress = createServerFn({ method: "POST" })
@@ -78,8 +80,12 @@ export const recordQuestionProgress = createServerFn({ method: "POST" })
 
 const MAX_QUESTION_PROGRESS_BATCH = 20;
 
-const questionProgressBatchInputSchema = z.object({
-  items: z.array(questionProgressInputSchema).min(1).max(MAX_QUESTION_PROGRESS_BATCH),
+const questionProgressBatchInputSchema = v.object({
+  items: v.pipe(
+    v.array(questionProgressInputSchema),
+    v.minLength(1),
+    v.maxLength(MAX_QUESTION_PROGRESS_BATCH),
+  ),
 });
 
 export const recordQuestionProgressBatch = createServerFn({ method: "POST" })
@@ -100,11 +106,11 @@ export const recordQuestionProgressBatch = createServerFn({ method: "POST" })
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-const insightsFilterInputSchema = z.object({
-  formId: z.uuid(),
-  filter: z.enum(["last_24_hours", "last_7_days", "last_30_days", "last_90_days", "custom"]),
-  startDate: z.string().regex(DATE_KEY_PATTERN).optional(),
-  endDate: z.string().regex(DATE_KEY_PATTERN).optional(),
+const insightsFilterInputSchema = v.object({
+  formId: v.pipe(v.string(), v.uuid()),
+  filter: v.picklist(["last_24_hours", "last_7_days", "last_30_days", "last_90_days", "custom"]),
+  startDate: v.optional(v.pipe(v.string(), v.regex(DATE_KEY_PATTERN))),
+  endDate: v.optional(v.pipe(v.string(), v.regex(DATE_KEY_PATTERN))),
 });
 
 export const getFormInsights = createServerFn({ method: "POST" })
@@ -133,14 +139,14 @@ export const getFormVitals = createServerFn({ method: "POST" })
 
 export const getInsightsAvailability = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ formId: z.uuid() }))
+  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }): Promise<InsightsAvailability> => {
     const { getInsightsAvailabilityImpl } = await import("./analytics.server");
     return getInsightsAvailabilityImpl(data, context, getActiveOrgId(context.session));
   });
 
-const aggregateInputSchema = z.object({
-  date: z.string().regex(DATE_KEY_PATTERN),
+const aggregateInputSchema = v.object({
+  date: v.pipe(v.string(), v.regex(DATE_KEY_PATTERN)),
 });
 
 export const aggregateAnalyticsDaily = createServerFn({ method: "POST" })

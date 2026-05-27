@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
-import { z } from "zod";
+import * as v from "valibot";
 import { formFavorites } from "@/db/schema";
 import { db } from "@/db";
 import { authMiddleware } from "@/lib/auth/middleware";
@@ -26,9 +26,9 @@ export const getFavorites = createServerFn({ method: "GET" })
 export const addFavorite = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      formId: z.uuid(),
-      sortIndex: z.string().nullable().optional(),
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
+      sortIndex: v.nullish(v.string()),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -51,7 +51,7 @@ export const addFavorite = createServerFn({ method: "POST" })
 
 export const removeFavorite = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ formId: z.uuid() }))
+  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const userId = context.session.user.id;
     await authForm(data.formId, userId, getActiveOrgId(context.session));
@@ -64,9 +64,9 @@ export const removeFavorite = createServerFn({ method: "POST" })
 export const reorderFavorite = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      formId: z.uuid(),
-      sortIndex: z.string(),
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
+      sortIndex: v.string(),
     }),
   )
   .handler(async ({ data, context }) => {

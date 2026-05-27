@@ -3,7 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
-import { z } from "zod";
+import * as v from "valibot";
 import { formSettings, forms, formVersions, user } from "@/db/schema";
 import { db } from "@/db";
 import { authMiddleware } from "@/lib/auth/middleware";
@@ -29,8 +29,8 @@ const serializeVersion = (version: typeof formVersions.$inferSelect) => ({
 export const publishFormVersion = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      formId: z.uuid(),
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -195,7 +195,7 @@ export const publishFormVersion = createServerFn({ method: "POST" })
 
 export const getFormVersions = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ formId: z.uuid() }))
+  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     const [_, versions] = await Promise.all([
@@ -245,7 +245,7 @@ export const getFormVersionsQueryOption = (formId: string) =>
 
 export const getFormVersionContent = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ versionId: z.uuid() }))
+  .inputValidator(v.object({ versionId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const [version] = await db
       .select()
@@ -273,9 +273,9 @@ export const getFormVersionContent = createServerFn({ method: "GET" })
 export const restoreFormVersion = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      formId: z.uuid(),
-      versionId: z.uuid(),
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
+      versionId: v.pipe(v.string(), v.uuid()),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -322,7 +322,7 @@ export const restoreFormVersion = createServerFn({ method: "POST" })
 
 export const discardFormChanges = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ formId: z.uuid() }))
+  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authForm(data.formId, context.session.user.id, orgId);

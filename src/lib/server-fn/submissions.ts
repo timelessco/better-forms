@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, count, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
-import { z } from "zod";
+import * as v from "valibot";
 import type { Value } from "platejs";
 import { formSettings, forms, formVersions, submissions } from "@/db/schema";
 import { db } from "@/db";
@@ -49,7 +49,9 @@ const maybePurgeAfterSubmissionDelete = async (formId: string) => {
 
 export const deleteSubmission = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ id: z.uuid(), formId: z.uuid() }))
+  .inputValidator(
+    v.object({ id: v.pipe(v.string(), v.uuid()), formId: v.pipe(v.string(), v.uuid()) }),
+  )
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authForm(data.formId, context.session.user.id, orgId);
@@ -61,9 +63,9 @@ export const deleteSubmission = createServerFn({ method: "POST" })
 export const deleteSubmissionsBulk = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      formId: z.uuid(),
-      submissionIds: z.array(z.uuid()),
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
+      submissionIds: v.array(v.pipe(v.string(), v.uuid())),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -83,11 +85,14 @@ export const SUBMISSIONS_PAGE_SIZE = 50;
 export const getSubmissionsByFormIdPaginated = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      formId: z.uuid(),
-      cursor: z.object({ createdAt: z.string(), id: z.string() }).optional(),
-      limit: z.number().int().min(1).max(100).default(SUBMISSIONS_PAGE_SIZE),
-      search: z.string().optional(),
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
+      cursor: v.optional(v.object({ createdAt: v.string(), id: v.string() })),
+      limit: v.optional(
+        v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100)),
+        SUBMISSIONS_PAGE_SIZE,
+      ),
+      search: v.optional(v.string()),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -139,7 +144,7 @@ export const getSubmissionsByFormIdPaginated = createServerFn({ method: "GET" })
 
 export const getSubmissionsCount = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ formId: z.uuid() }))
+  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authForm(data.formId, context.session.user.id, orgId);
@@ -156,7 +161,7 @@ export const getSubmissionsCount = createServerFn({ method: "GET" })
  * historical versions. One round-trip replacing three queries; no orphan-detection waterfall. */
 export const getSubmissionsBootstrap = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ formId: z.uuid() }))
+  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authForm(data.formId, context.session.user.id, orgId);

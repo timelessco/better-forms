@@ -4,7 +4,7 @@ import { getRequestIP } from "@tanstack/react-start/server";
 import { and, eq, sql } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
 import type { Value } from "platejs";
-import { z } from "zod";
+import * as v from "valibot";
 import { forms, formVersions, uploadRateLimits } from "@/db/schema";
 import { db } from "@/db";
 import type { ErrorCode } from "@/lib/errors/codes";
@@ -186,13 +186,13 @@ const decodeBase64 = (dataUrl: string): Buffer => {
 
 export const uploadFormFile = createServerFn({ method: "POST" })
   .inputValidator(
-    z.object({
-      formId: z.uuid(),
-      draftId: z.uuid(),
-      fieldName: z.string().min(1),
-      filename: z.string().min(1).max(255),
-      contentType: z.string().min(1).max(127),
-      base64: z.string().min(1),
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
+      draftId: v.pipe(v.string(), v.uuid()),
+      fieldName: v.pipe(v.string(), v.minLength(1)),
+      filename: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
+      contentType: v.pipe(v.string(), v.minLength(1), v.maxLength(127)),
+      base64: v.pipe(v.string(), v.minLength(1)),
     }),
   )
   .handler(async ({ data }) => {
