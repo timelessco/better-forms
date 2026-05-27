@@ -1,15 +1,12 @@
 import { cn, isNullable } from "@/lib/utils";
 
 export interface IconProps extends React.ComponentProps<"svg"> {
-  /**
-   * If it has a label, the icon will be given a role of "img" for accessibility
-   * If it does not have a label, the icon will be hidden from screen readers
-   */
+  /** With a label → role="img"; without → hidden from screen readers. */
   ariaLabel?: string;
 }
 
 // For accessibility - https://www.smashingmagazine.com/2021/05/accessible-svg-patterns-comparison/
-// Default: aria hidden props are used as the majority of icons are decorative
+// Default aria-hidden — most icons are decorative.
 export const Icon = (props: IconProps) => {
   const { "aria-label": ariaLabel, children, className, name, ...rest } = props;
   const ariaLabelProps: AriaHiddenProps | AriaLabelProps = isNullable(ariaLabel)

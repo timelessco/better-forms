@@ -169,8 +169,7 @@ const LocalEditorApp = () => {
   const localFormId = getLocalFormId();
   const { data: savedDocs } = useLocalForm(localFormId);
 
-  // Ensure localStorage record exists so both editor saves and sidebar updates always work.
-  // Runs once on mount — if the record already exists the insert is skipped.
+  // Ensure localStorage record exists (editor saves + sidebar updates). Once on mount; skip insert if present.
   const seededRef = useRef(false);
   if (!seededRef.current) {
     seededRef.current = true;

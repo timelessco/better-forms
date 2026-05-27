@@ -35,12 +35,9 @@ export const isValidUrl = (str: string): boolean => {
   }
 };
 
-// Diagnostic helper — routes through evlog's debug level. The actual
-// `log.debug(...)` call expressions below are removed from production
-// builds by `evlog/vite`'s default `strip: ['debug']` AST transform, so in
-// prod this function is effectively `() => {}`. Don't remove that strip
-// without re-adding an `import.meta.env.PROD` guard, or these 45+ call
-// sites will start flooding production logs.
+// Diagnostic helper via evlog debug. `log.debug` calls are stripped from prod
+// by `evlog/vite` (`strip: ['debug']`) → no-op in prod. Don't drop that strip
+// without an `import.meta.env.PROD` guard, or 45+ call sites flood prod logs.
 // Inputs:
 //   logger("[tag]")           → { tag: "[tag]" }
 //   logger("[tag]", data)     → { tag: "[tag]", data }

@@ -11,14 +11,8 @@ type SyncResult = {
 };
 
 /**
- * Client-side function that syncs local forms to the cloud using createTransaction.
- *
- * For each local form, creates a transaction that:
- * - mutationFn: calls createForm() (creates form with all settings in a single row),
- *   then invalidates queries for sync.
- * - tx.mutate(): optimistically inserts form into formListings, deletes from local collection.
- *
- * @param organizationId - The organization ID to sync forms to
+ * Sync local forms to cloud via createTransaction. Per form: mutationFn createForm() (single-row) + invalidate; tx.mutate optimistic insert into formListings + delete from local.
+ * @param organizationId - org to sync forms to
  */
 export const syncLocalDataToCloud = async (organizationId: string): Promise<SyncResult | null> => {
   try {
@@ -74,9 +68,7 @@ export const syncLocalDataToCloud = async (organizationId: string): Promise<Sync
           icon: localForm.icon,
           cover: localForm.cover,
           status: localForm.status || "draft",
-          // Promote local draft to the cloud form's `draftSettings` — sync
-          // doesn't establish a live row here; first Publish click creates
-          // the formSettings row.
+          // Promote local draft to cloud `draftSettings` — no live row yet; first Publish creates the formSettings row.
           draftSettings: localForm.draftSettings,
           customization: localForm.customization,
           createdAt: now,

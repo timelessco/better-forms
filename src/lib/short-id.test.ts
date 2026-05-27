@@ -20,9 +20,8 @@ describe("Form Short ID generator", () => {
   it("rarely repeats across many calls (sanity check, not a guarantee)", () => {
     const seen = new Set<string>();
     for (let i = 0; i < 1000; i++) seen.add(generateShortId());
-    // With 62^7 = 3.5T namespace, 1000 draws colliding is vanishingly rare.
-    // We assert no duplicates rather than a probabilistic bound so the test
-    // is deterministic.
+    // 62^7 = 3.5T namespace → 1000 draws colliding is vanishingly rare. Assert
+    // zero dupes (not a probabilistic bound) to stay deterministic.
     expect(seen.size).toBe(1000);
   });
 });

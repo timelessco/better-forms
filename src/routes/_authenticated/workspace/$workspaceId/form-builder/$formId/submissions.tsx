@@ -465,8 +465,7 @@ const buildSubmissionColumns = ({
   return { columns: baseColumns, fieldCounts: counts };
 };
 
-// Shared query definitions so the route loader and the component can't drift
-// on key / queryFn / fetch options.
+// Shared query defs — loader + component can't drift on key/queryFn/options.
 const submissionsBootstrapQueryOptions = (formId: string) =>
   queryOptions({
     queryKey: ["submissionsBootstrap", formId],
@@ -481,9 +480,7 @@ const submissionsInfiniteQueryOptions = (formId: string) =>
       getPaginatedSubmissionsPage(formId, pageParam),
     initialPageParam: undefined as SubmissionCursor | undefined,
     getNextPageParam: (lastPage) => lastPage?.nextCursor,
-    // Submissions are an inbox — keep them fresh on tab refocus. Explicit 0
-    // overrides the global 60s QueryClient default, which would otherwise
-    // suppress the refetchOnWindowFocus below within the first minute.
+    // Inbox — fresh on refocus. Explicit 0 overrides global 60s default that would suppress refetchOnWindowFocus in the first minute.
     staleTime: 0,
     refetchOnWindowFocus: true,
   });
@@ -514,19 +511,13 @@ const SubmissionsPage = () => {
   );
   const handleClearSelection = useCallback(() => setRowSelection({}), []);
 
-  // Bootstrap (published form content + total count + historical field labels):
-  // blocking initial data via suspense. The loader awaits ensureQueryData, so the
-  // cache is primed and the route's pendingComponent covers the first load. It has
-  // a 10min staleTime, so it rarely refetches — low risk of a refetch error
-  // throwing to the error boundary.
+  // Bootstrap (published content + count + historical labels): blocking suspense data. Loader awaits ensureQueryData → cache primed, pendingComponent covers first load. 10min staleTime → rarely refetches, low error-boundary risk.
   const { data: bootstrapData } = useSuspenseQuery(submissionsBootstrapQueryOptions(formId));
   const publishedContent = bootstrapData?.form?.content;
   const totalCount = bootstrapData?.totalCount ?? 0;
   const historicalLabels = bootstrapData?.fieldLabels ?? EMPTY_LABELS;
 
-  // The submissions list is intentionally NOT suspense: useInfiniteQuery keeps the
-  // already-loaded rows visible if a background refetch (e.g. on tab refocus) fails,
-  // instead of throwing the whole route to the error boundary.
+  // List NOT suspense: useInfiniteQuery keeps loaded rows on a failed background refetch instead of throwing route to error boundary.
   const {
     data: submissionsData,
     fetchNextPage,
@@ -571,8 +562,7 @@ const SubmissionsPage = () => {
     return transformPlateStateToFormElements(publishedContent as Value);
   }, [publishedContent]);
 
-  // Derive stable orphaned field names from submissions
-  // This prevents columns from rebuilding when submission data reference changes
+  // Stable orphaned field names — prevents column rebuild on submission-data ref change.
   const orphanedFieldNamesRef = useRef<Set<string>>(new Set());
   const orphanedFieldNames = useMemo(() => {
     const currentFieldNames = new Set<string>();
@@ -1080,8 +1070,7 @@ const SubmissionBulkActionBar = ({
   onDelete,
   onClear,
 }: SubmissionBulkActionBarProps) => (
-  // motion owns the X centering (x: "-50%") so it can animate y/opacity
-  // without fighting a Tailwind `-translate-x-1/2` transform.
+  // motion owns X centering (x: "-50%") to animate y/opacity without fighting Tailwind -translate-x-1/2.
   <motion.div
     initial={{ opacity: 0, y: 16, x: "-50%" }}
     animate={{ opacity: 1, y: 0, x: "-50%" }}

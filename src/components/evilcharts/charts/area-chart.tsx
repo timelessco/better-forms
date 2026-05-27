@@ -437,10 +437,7 @@ const AnimatedDashedStyle = () => (
   </>
 );
 
-/**
- * Shared horizontal color gradient (left to right) used by all variants and stroke.
- * ALWAYS rendered so colors are available for any variant.
- */
+/** Shared L→R color gradient; always rendered so colors exist for every variant + stroke. */
 const HorizontalColorGradientStyle = ({
   chartConfig,
   chartId,
@@ -833,27 +830,21 @@ const generateEasedGradientStops = (
 ) =>
   Array.from({ length: steps }, (_, i) => {
     const t = i / (steps - 1); // 0 to 1
-    // Sine-based bell curve easing: peaks at center (t=0.5), smooth falloff at edges
+    // Sine bell-curve easing: peaks at t=0.5, falls off at edges.
     const eased = Math.sin(t * Math.PI) ** 2;
     const opacity = minOpacity + eased * (maxOpacity - minOpacity);
     return { offset: `${(t * 100).toFixed(0)}%`, opacity: Number(opacity.toFixed(3)) };
   });
 
 /**
- * Hook to manage loading data with pixel-perfect shimmer synchronization.
- *
- * Uses motion.dev's onAnimationComplete callback to ensure chart data
- * is only regenerated when the shimmer has completely exited the visible area.
- * This eliminates timing drift issues from setTimeout/setInterval.
- *
- * The shimmer pattern has 200-300% width so that when the visible shimmer
- * exits the chart container (at the 100% point), we can safely swap data
- * while the invisible portion continues animating.
+ * Loading data synced to shimmer. Regenerates only after shimmer fully exits visible area
+ * (motion.dev onUpdate, not setTimeout) to avoid timing drift. Pattern is 200-300% width so
+ * data swaps at the 100% point while the invisible portion keeps animating.
  */
 export function useLoadingData(isLoading: boolean, loadingPoints: number = 14) {
   const [loadingDataKey, setLoadingDataKey] = useState(false);
 
-  // Callback fired by motion.dev when shimmer exits visible area
+  // Fired by motion.dev when shimmer exits visible area.
   const onShimmerExit = useCallback(() => {
     if (isLoading) {
       setLoadingDataKey((prev) => !prev);
@@ -862,7 +853,7 @@ export function useLoadingData(isLoading: boolean, loadingPoints: number = 14) {
 
   const loadingData = useMemo(
     () => getLoadingData(loadingPoints),
-    // loadingDataKey toggle triggers re-computation when shimmer exits
+    // loadingDataKey toggle re-computes on shimmer exit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [loadingPoints, loadingDataKey],
   );
@@ -871,20 +862,9 @@ export function useLoadingData(isLoading: boolean, loadingPoints: number = 14) {
 }
 
 /**
- * Loading area pattern with animated skeleton effect using motion.dev
- *
- * Key design for pixel-perfect sync:
- * - Visible chart area is normalized to 0-1 in objectBoundingBox units
- * - Shimmer gradient has width=1 (same as visible area)
- * - Pattern width is 3x (300%) to provide buffer on both sides
- * - Animation: x goes from -1 (off-screen left) to 2 (off-screen right)
- * - At x=-1: shimmer is completely outside left edge
- * - At x=0: shimmer starts entering from left
- * - At x=1: shimmer has fully exited right edge
- * - At x=2: shimmer is in the right buffer zone
- * - onShimmerExit fires when x crosses 1 (shimmer fully exited visible area)
- * - Data swaps happen while shimmer is outside visible area (x >= 1)
- * - Loop continues infinitely
+ * Animated skeleton shimmer (motion.dev). objectBoundingBox: visible area 0-1, gradient width=1,
+ * pattern width=3 (buffer each side). x animates -1 (off-left) → 2 (off-right); onShimmerExit fires
+ * when x crosses 1 (fully exited right), so data swaps happen off-screen (x >= 1). Loops forever.
  */
 const LoadingAreaPatternStyle = ({
   chartId,
@@ -895,20 +875,19 @@ const LoadingAreaPatternStyle = ({
 }) => {
   const gradientStops = generateEasedGradientStops();
 
-  // Pattern width needs to accommodate: 1 (left buffer) + 1 (visible) + 1 (right buffer) = 3
+  // 1 (left buffer) + 1 (visible) + 1 (right buffer).
   const patternWidth = 3;
 
-  // Animation goes from -1 (left of visible) to 2 (right of visible)
-  // Total travel distance = 3, matching pattern width
+  // -1 (off-left) → 2 (off-right), travel 3 = pattern width.
   const startX = -1;
   const endX = 2;
 
-  // Track last x value to detect threshold crossing
+  // Last x, to detect threshold crossing.
   const lastXRef = useRef(startX);
 
   return (
     <>
-      {/* Gradient for smooth fade: edges dim, middle bright for sweep effect */}
+      {/* Fade gradient: edges dim, middle bright for sweep. */}
       <linearGradient id={`${chartId}-loading-mask-gradient`} x1="0" y1="0" x2="1" y2="0">
         {gradientStops.map(({ offset, opacity }) => (
           <stop key={offset} offset={offset} stopColor="white" stopOpacity={opacity} />
@@ -938,17 +917,16 @@ const LoadingAreaPatternStyle = ({
             repeat: Infinity,
             repeatType: "loop",
           }}
-          // Use onUpdate to fire callback at precise exit point
+          // onUpdate fires callback at precise exit point.
           onUpdate={(latest) => {
             const xValue = typeof latest.x === "number" ? latest.x : startX;
             const lastX = lastXRef.current;
 
-            // Fire when crossing the exit threshold (x >= 1 means shimmer fully exited right)
+            // x >= 1: shimmer fully exited right.
             if (xValue >= 1 && lastX < 1) {
               onShimmerExit();
             }
 
-            // Update tracked value
             lastXRef.current = xValue;
           }}
         />

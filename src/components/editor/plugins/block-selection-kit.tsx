@@ -8,8 +8,7 @@ import { BlockSelection } from "@/components/ui/block-selection";
 export const BlockSelectionKit = [
   BlockSelectionPlugin.configure(({ editor }) => ({
     options: {
-      // Point viselect at the real scroll container so drag-select auto-scrolls
-      // when the cursor nears the viewport edge.
+      // Point viselect at real scroll container so drag-select auto-scrolls near viewport edge.
       areaOptions: {
         boundaries: "[data-editor-scroll]",
         container: "[data-editor-scroll]",

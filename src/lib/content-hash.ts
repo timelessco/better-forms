@@ -1,29 +1,20 @@
 /**
- * Shared content-hash helpers for form publish/change detection.
+ * Content-hash helpers for publish/change detection. Server stores
+ * `publishedContentHash` at publish; client recomputes from draft to detect
+ * unpublished changes (no version fetch).
  *
- * The server computes `publishedContentHash` at publish time and stores it on
- * the form row. The client re-computes the same hash from live draft state
- * and compares to detect unpublished changes — no version-content fetch
- * required.
+ * Settings NOT hashed — live outside versioning (see
+ * docs/plans/2026-05-04-settings-version-split.md); dirty flag is deep-equal of
+ * `forms.draftSettings` vs live `form_settings`.
  *
- * Settings are intentionally **not** part of the hash — they live outside
- * versioning entirely (see docs/plans/2026-05-04-settings-version-split.md).
- * The settings dirty flag is computed by deep-equal of `forms.draftSettings`
- * vs the live `form_settings` row.
- *
- * Both environments must run identical code, so the hash is a pure-JS fn
- * (cyrb53) and the JSON is canonicalized (sorted keys, stripped undefineds)
- * so that object-key-order drift between server reads and client edits
- * cannot produce spurious mismatches.
+ * Pure-JS hash (cyrb53) + canonicalized JSON (sorted keys, stripped undefineds)
+ * so server/client run identical code and key-order drift can't false-mismatch.
  */
 
 import type { FormSettings } from "@/types/form-settings";
 
-/**
- * Legacy snapshot shape — pre-split versions stored a subset of settings keys
- * here. Kept for type compatibility when reading old `formVersions.settings`
- * rows; new versions write `null` for the column.
- */
+/** Legacy shape: pre-split versions stored settings here. Kept for reading old
+ * `formVersions.settings` rows; new versions write `null`. */
 export type VersionedSettingsSnapshot = Partial<FormSettings>;
 
 export type VersionedSnapshotInput = {
@@ -47,11 +38,8 @@ export const canonicalize = (value: unknown): unknown => {
   return out;
 };
 
-/**
- * Stable JSON for jsonb-roundtrip-safe equality checks. Postgres jsonb may
- * rearrange keys after a server merge, so any equality check between draft
- * and live settings must canonicalize both sides first.
- */
+/** Stable JSON for jsonb-roundtrip-safe equality. Postgres jsonb may reorder
+ * keys after merge — canonicalize both sides before comparing. */
 export const canonicalJSON = (value: unknown): string => JSON.stringify(canonicalize(value));
 
 const cyrb53 = (str: string, seed = 0): string => {

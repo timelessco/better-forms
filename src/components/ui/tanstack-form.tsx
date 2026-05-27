@@ -36,22 +36,18 @@ const {
   useFormContext,
 } = createFormHookContexts();
 
-// Duration (ms) of the t-input-shake keyframe — keep in sync with the
-// --shake-dur-* tokens in transitions.css (80*2 + 60*2 = 280ms), plus a small
-// buffer before stripping the class so the animation always completes.
+// t-input-shake duration (ms); keep in sync with --shake-dur-* in transitions.css
+// (80*2 + 60*2 = 280ms) plus buffer before stripping the class.
 const SHAKE_CLEANUP_MS = 320;
 
 /**
- * Replay the error shake on every invalid field inside this form. Runs on a
- * failed submit (validation blocks the submit but marks fields touched, so they
- * now carry `aria-invalid="true"`). Deferred one frame so React has flushed the
- * aria-invalid state onto the DOM before we query for it.
+ * Replay the error shake on every invalid field on failed submit (fields marked touched →
+ * aria-invalid). Deferred one frame so React flushes aria-invalid to DOM before we query.
  */
 const shakeInvalidFields = (formEl: HTMLFormElement) => {
   requestAnimationFrame(() => {
     const invalid = Array.from(formEl.querySelectorAll<HTMLElement>('[aria-invalid="true"]'));
-    // A field group (<f.Field>) and its inner control can both report invalid.
-    // Shake only the outermost so each field jolts once, not twice.
+    // <f.Field> and its inner control can both report invalid — shake outermost only.
     const outermost = invalid.filter(
       (el) => !invalid.some((other) => other !== el && other.contains(el)),
     );
@@ -118,9 +114,8 @@ const FieldSet = ({ className, children, ...props }: React.ComponentProps<"field
   );
 };
 
-// Stable selector function to ensure consistent hook calls. `value` is
-// intentionally excluded — only the input wrappers need it, and including it
-// here would re-render every Field/FieldError on every keystroke.
+// Stable selector. `value` excluded — only input wrappers need it; including it would
+// re-render every Field/FieldError on each keystroke.
 // eslint-disable-next-line typescript-eslint/no-explicit-any
 const fieldStateSelector = (state: any) => ({
   errors: state?.meta?.errors ?? [],
@@ -133,22 +128,18 @@ const fieldValueSelector = (state: any) => state?.value as unknown;
 const useFieldContext = () => {
   const { id } = React.use(FormItemContext);
 
-  // Always call _useFieldContext() unconditionally - it's a hook and must be called
-  // This hook may conditionally call hooks internally, but we must always call it
+  // Call unconditionally — it's a hook (may call hooks internally).
   const innerFieldContext = _useFieldContext();
 
-  // Use a ref to maintain a stable store reference across renders
-  // This ensures useStore is always called with a consistent reference type
+  // Stable store ref across renders for consistent useStore typing.
   const storeRef = React.useRef<unknown>(null);
 
-  // Update the ref if we have a store, but always use the ref for useStore
-  // This ensures hook order stability even when innerFieldContext changes
+  // Update ref but always read from it, so hook order stays stable as innerFieldContext changes.
   if (innerFieldContext?.store !== undefined) {
     storeRef.current = innerFieldContext.store ?? null;
   }
 
-  // Always call useStore unconditionally to keep hook order stable
-  // useStore handles undefined/null store by not subscribing
+  // Call useStore unconditionally for stable hook order; handles null store by not subscribing.
   // eslint-disable-next-line typescript-eslint/no-explicit-any
   const fieldState = useStore(storeRef.current as any, fieldStateSelector);
 
@@ -208,9 +199,8 @@ const Field = ({
   );
 };
 
-// Field-bound input wrappers — pull value/onChange/onBlur/aria-invalid from
-// `useFieldContext()` so renderers don't have to wire them up by hand. Use
-// as `<f.Input />`, `<f.Textarea />`, `<f.PhoneInput />` inside `form.AppField`.
+// Field-bound input wrappers — pull value/onChange/onBlur/aria-invalid from useFieldContext().
+// Use as <f.Input />, <f.Textarea />, <f.PhoneInput /> inside form.AppField.
 
 const Input = ({
   className,

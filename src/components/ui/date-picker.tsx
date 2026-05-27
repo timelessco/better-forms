@@ -51,8 +51,7 @@ export const DatePicker = ({
 
   const displayText = date ? format(date, "MMM d, yyyy") : placeholder;
 
-  // PopoverContent portals to document.body, which breaks CSS-var inheritance
-  // from the form's .bf-themed wrapper. Re-anchor the theme on the popup.
+  // PopoverContent portals to body, breaking .bf-themed CSS-var inheritance — re-anchor on the popup.
   const themeReanchor = useReanchorThemeProps("w-auto p-0");
 
   return (
@@ -68,9 +67,8 @@ export const DatePicker = ({
             data-empty={!date}
             className={cn(
               "inline-flex h-[30px] w-full items-center justify-start rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-1.5 pl-2.5 text-left text-sm font-normal elevation-sm",
-              // Track foreground (not the themable muted token) so
-              // custom-themed forms can't drop placeholder contrast below
-              // WCAG AA. 70% of gray-950 ≈ gray-700, ~7:1 on gray-50 bg.
+              // Foreground (not muted token) so custom themes can't drop placeholder below WCAG AA;
+              // 70% of gray-950 ≈ gray-700, ~7:1 on gray-50.
               !date && "text-foreground/70",
               className,
             )}

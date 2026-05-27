@@ -25,8 +25,7 @@ describe("getDnsInstructions", () => {
   });
 
   it("includes a relative shortName for FQDN names that end with the apex", () => {
-    // Tenants frequently see DNS providers (Cloudflare, Namecheap) auto-strip
-    // the zone, so the table needs both forms to avoid double-zone configs.
+    // DNS providers (Cloudflare, Namecheap) auto-strip the zone, so emit both forms to avoid double-zone configs.
     const instructions = getDnsInstructions("forms.acme.com", [
       { type: "TXT", domain: "_vercel.acme.com", value: "vc-xyz" },
     ]);
@@ -46,8 +45,7 @@ describe("getDnsInstructions", () => {
   });
 
   it("returns BOTH the verification TXT and the routing CNAME when a challenge is present", () => {
-    // The TXT proves ownership; the CNAME makes the subdomain resolve.
-    // Tenants need both — TXT alone leaves the subdomain as NXDOMAIN.
+    // TXT proves ownership, CNAME makes the subdomain resolve — need both; TXT alone leaves NXDOMAIN.
     const instructions = getDnsInstructions("forms.acme.com", [
       {
         type: "TXT",

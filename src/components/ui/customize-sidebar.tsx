@@ -796,8 +796,7 @@ const ADVANCED_COLOR_TOKENS = [
   { key: "ring", label: "Ring" },
 ] as const;
 
-// Per-token wrapper. React Compiler auto-memoizes this and its `onChange`
-// closure based on (prefixedKey, value, updateField) stability.
+// Per-token wrapper. React Compiler auto-memoizes this + its onChange via (prefixedKey, value, updateField).
 const TokenColorPicker = ({
   label,
   prefixedKey,
@@ -817,12 +816,9 @@ const TokenColorPicker = ({
   />
 );
 
-// 15 ColorPickers — each with text inputs, Popover setup, and useUncontrolledSync
-// effects — are the heaviest part of CustomizeSidebar's initial mount. The
-// sidebar opens with all sections expanded, so we defer this subtree to a
-// post-paint render: first commit drops the wrapper, next tick mounts the
-// pickers. Net effect: the sidebar's other sections paint fast, and the
-// Colors row fills in within a frame.
+// 15 ColorPickers are the heaviest part of CustomizeSidebar's mount (all sections expand on open).
+// Defer to post-paint: first commit drops the wrapper, next tick mounts pickers — other sections
+// paint fast, Colors fills in within a frame.
 const DeferredAdvancedColorPickers = (props: {
   customization: Record<string, string>;
   updateField: (field: string, value: string) => void;

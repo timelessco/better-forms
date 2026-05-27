@@ -26,12 +26,7 @@ type FormFieldVariant = {
   icon: IconComponent;
   /** Default placeholder when the node doesn't carry one explicitly. */
   defaultPlaceholder?: string;
-  /**
-   * Escape hatch for variants that need a non-trivial editor preview later
-   * (e.g. an inline date-picker stub). Returning a ReactNode replaces the
-   * default shell entirely. None of the current variants use it — kept here
-   * so adding one in the future doesn't require splitting the file back up.
-   */
+  /** Escape hatch: return a ReactNode to fully replace the default shell. Unused today, kept for future variants. */
   customRender?: (props: PlateElementProps) => ReactNode;
 };
 

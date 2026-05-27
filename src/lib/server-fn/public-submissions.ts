@@ -35,13 +35,9 @@ type VersionSettings = {
   respondentEmailBody?: string | null;
 };
 
-// Inlined `waitUntil` — `@vercel/functions`'s index re-exports `./cache`,
-// which transitively loads `@vercel/oidc`'s CJS modules. Vite 7's module
-// runner can't evaluate those in dev (`Cannot read properties of undefined
-// (reading '__cjs_module_runner_transform')`), crashing the server. Vercel
-// exposes the request context via a Symbol-keyed global, so we read it
-// directly. On non-Vercel runtimes the symbol is unset and we just let the
-// promise run unattached — same behavior as `@vercel/functions/waitUntil`.
+// Inlined waitUntil: @vercel/functions re-exports ./cache → @vercel/oidc CJS, which
+// Vite 7's dev module runner can't eval (crashes dev). Read Vercel's Symbol-keyed
+// request-context global directly; non-Vercel: symbol unset, promise runs unattached.
 const VERCEL_REQUEST_CONTEXT = Symbol.for("@vercel/request-context");
 const waitUntil = (promise: Promise<unknown>) => {
   const ctx = (
@@ -52,22 +48,18 @@ const waitUntil = (promise: Promise<unknown>) => {
   ctx?.get?.()?.waitUntil?.(promise);
 };
 
-// Max size of the `data` JSON payload in bytes for draft saves. Prevents
-// malicious clients from stuffing arbitrary blobs into anonymous public rows.
+// Draft-save payload cap: stops malicious clients stuffing blobs into anon public rows.
 const MAX_DRAFT_PAYLOAD_BYTES = 100_000;
-// Min interval between draft upserts per draftId. Independent of the client
-// debounce — defends against a runaway/malicious client.
+// Min interval between draft upserts per draftId; defends against runaway/malicious client.
 const DRAFT_RATE_LIMIT_MS = 900;
 
-// In-memory per-process rate-limit map. Good enough for a single-node deploy;
-// swap for Redis/edge KV if we scale horizontally. Bounded via opportunistic
-// eviction in the handler to prevent unbounded growth across many draftIds.
+// In-memory per-process rate-limit map (single-node only; swap for Redis/KV if scaling
+// horizontally). Bounded via opportunistic eviction in handler.
 const draftLastWriteAt = new Map<string, number>();
 const DRAFT_RATE_LIMIT_TTL_MS = DRAFT_RATE_LIMIT_MS * 20;
 const DRAFT_RATE_LIMIT_MAX_ENTRIES = 10_000;
 
-// Per-published-version cache of allowed field names. Version content is
-// immutable per id, so the transform only needs to run once per version.
+// Per-version allowed-field-name cache: version content is immutable per id, transform once.
 const ALLOWED_FIELDS_CACHE_MAX = 500;
 const allowedFieldsByVersion = new Map<string, Set<string>>();
 
@@ -90,19 +82,13 @@ const getAllowedFieldNames = (versionId: string | null, content: Value): Set<str
 };
 
 /**
- * Public submission endpoint (no authentication).
- *
- * Two modes (Submission states — see CONTEXT.md):
- *   - **Incomplete**: `isCompleted: false` + `draftId`. Upserts on (formId, draftId).
- *     Shape-only validation (unknown fields rejected, types coerced), no
- *     required/format checks. Rate-limited per draftId. The `draftId` is a
- *     client-generated identifier for the autosave session — not a state label.
- *   - **Completed**: `isCompleted: true`. Full validation via published schema.
- *     If an incomplete row exists for the same (formId, draftId), it's updated in
- *     place. Refuses to downgrade an already-completed row.
- *
- * Gating + email settings are read from the published Form Version snapshot so
- * the Form's unpublished changes don't take effect until the user republishes.
+ * Public submission endpoint (no auth). Two modes (see CONTEXT.md):
+ *   - Incomplete (isCompleted:false + draftId): upsert on (formId, draftId), shape-only
+ *     validation, rate-limited per draftId. draftId = client autosave-session id, not a state label.
+ *   - Completed (isCompleted:true): full validation via published schema; updates matching
+ *     incomplete row in place; refuses to downgrade an already-completed row.
+ * Gating + email settings read from published version snapshot, so unpublished changes
+ * don't take effect until republish.
  */
 export const createPublicSubmission = createServerFn({ method: "POST" })
   .inputValidator(
@@ -116,8 +102,7 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    // Payload size guard for incomplete submissions. Completed submits trust
-    // the published schema to reject unreasonable payloads via field validators.
+    // Payload guard for incomplete only; completed submits trust published schema's validators.
     if (!data.isCompleted) {
       const payloadSize = JSON.stringify(data.data).length;
       if (payloadSize > MAX_DRAFT_PAYLOAD_BYTES) {
@@ -221,8 +206,7 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
       });
     }
     if (vSettings.limitSubmissions && vSettings.maxSubmissions) {
-      // Only count completed rows toward the submission cap — incomplete ones shouldn't
-      // exhaust the quota of a form with e.g. maxSubmissions = 100.
+      // Count only completed rows toward the cap; incomplete drafts mustn't exhaust quota.
       const [{ value: submissionCount }] = await db
         .select({ value: count() })
         .from(submissions)
@@ -243,9 +227,8 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
       }
     }
 
-    // Shape-only sanitization for drafts only — strips keys that don't belong
-    // to the published form. Final submits already enforce shape via the
-    // client-side Zod schema, so we skip the transform on the hot path.
+    // Shape-only sanitize for drafts: strip keys not on published form. Final submits
+    // enforce shape via client Zod schema, so skip the transform on the hot path.
     let sanitizedData = data.data;
     if (!data.isCompleted && version?.content) {
       const allowed = getAllowedFieldNames(form.lastPublishedVersionId, version.content as Value);
@@ -268,8 +251,7 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
       : [];
     const existingRow = existing[0];
 
-    // Defense in depth: never downgrade a completed row back to incomplete, even if
-    // an out-of-order debounced save arrives after submit.
+    // Defense in depth: never downgrade completed → incomplete on out-of-order debounced save.
     if (existingRow?.isCompleted && !data.isCompleted) {
       return { submissionId: existingRow.id, success: true, noop: true };
     }
@@ -316,10 +298,8 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
           createdAt: now,
         }).catch(() => {});
 
-        // waitUntil keeps the email send tied to the request's extended
-        // lifetime on Vercel — the response returns immediately but the
-        // function instance stays alive until the promise settles, instead
-        // of being an orphan promise that may be killed mid-send.
+        // waitUntil keeps the function alive until the send settles (response returns
+        // immediately) instead of an orphan promise killed mid-send on Vercel.
         waitUntil(
           sendEmailNotifications(
             {
@@ -341,21 +321,18 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
         );
       }
 
-      // Attribute the submission to its visit row. For incomplete → completed flows,
-      // the same draftId may have produced multiple visits across sessions; the
-      // current tab's visitId wins (most-recent-session attribution for v1).
+      // Attribute submission to its visit row. draftId may span multiple visits across
+      // sessions; current tab's visitId wins (most-recent-session attribution for v1).
       if (data.visitId) {
-        // Compute durationMs in SQL so we don't need a separate read.
-        // EXTRACT(EPOCH FROM ...) returns seconds, multiply by 1000 for ms.
+        // durationMs computed in SQL (no extra read). EXTRACT(EPOCH) is seconds → ×1000 = ms.
         db.update(formVisits)
           .set({
             didSubmit: true,
             didStartForm: true,
             submissionId,
             visitEndedAt: now,
-            // ISO string instead of Date — postgres-js doesn't auto-serialize
-            // a Date when it's bound as a raw `sql\`...\`` template parameter
-            // (drizzle's column-aware Date→ISO mapping doesn't apply here).
+            // ISO string, not Date: postgres-js won't auto-serialize a Date bound as a raw
+            // sql`...` param (drizzle's column-aware Date→ISO mapping doesn't apply here).
             durationMs: sql`(EXTRACT(EPOCH FROM (${now.toISOString()}::timestamptz - ${formVisits.visitStartedAt})) * 1000)::int`,
             updatedAt: now,
           })
@@ -371,10 +348,7 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/**
- * Find a respondent's email from submission data.
- * Priority: keys containing "email" first, then any email-like string value.
- */
+/** Find respondent email in submission data: "email"-keyed first, then any email-like value. */
 const findRespondentEmail = (data: Record<string, unknown>): string | null => {
   for (const [key, value] of Object.entries(data)) {
     if (key.toLowerCase().includes("email") && typeof value === "string" && value.includes("@")) {
@@ -410,7 +384,6 @@ const sendEmailNotifications = async (
   const { sendFormSubmissionNotification, sendRespondentConfirmation } =
     await import("@/integrations/email");
 
-  // Self email notification
   if (settings.selfEmailNotifications) {
     let toEmail = settings.notificationEmail;
 
@@ -437,7 +410,6 @@ const sendEmailNotifications = async (
     }
   }
 
-  // Respondent email notification
   if (settings.respondentEmailNotifications) {
     const respondentEmail = findRespondentEmail(submissionData);
     if (respondentEmail) {

@@ -4,10 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { NumberPopIn } from "./number-pop-in";
 
-// Verifies the core mechanism: changing `value` must REMOUNT the inner
-// .t-digit-group element (new DOM node), which is what replays the CSS
-// pop-in animation. If the key-on-root were a no-op, the node identity
-// would be preserved across re-renders.
+// Core mechanism: changing `value` must REMOUNT .t-digit-group (new DOM node) to replay the CSS anim; a no-op key would keep node identity.
 describe("NumberPopIn remount-on-value-change", () => {
   it("replaces the .t-digit-group DOM node when value changes", () => {
     const { container, rerender } = render(<NumberPopIn value={3} />);

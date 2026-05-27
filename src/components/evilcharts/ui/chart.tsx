@@ -141,9 +141,7 @@ function LoadingIndicator({ isLoading }: { isLoading: boolean }) {
   );
 }
 
-// Distribute colors evenly across slots, extra slots go to last color(s)
-// Example: 2 colors for 4 slots → [red, red, pink, pink]
-// Example: 3 colors for 4 slots → [red, pink, blue, blue]
+// Distribute colors evenly across slots, extras to last color(s). 3 colors/4 slots → [red, pink, blue, blue].
 function distributeColors(colorsArray: string[], maxCount: number): string[] {
   const availableCount = colorsArray.length;
   if (availableCount >= maxCount) {
@@ -154,8 +152,7 @@ function distributeColors(colorsArray: string[], maxCount: number): string[] {
   const baseSlots = Math.floor(maxCount / availableCount);
   const extraSlots = maxCount % availableCount;
 
-  // First (availableCount - extraSlots) colors get baseSlots each
-  // Last extraSlots colors get (baseSlots + 1) each
+  // First (availableCount - extraSlots) colors get baseSlots; last extraSlots get baseSlots + 1.
   for (let colorIdx = 0; colorIdx < availableCount; colorIdx++) {
     const isExtraColor = colorIdx >= availableCount - extraSlots;
     const slotsForThisColor = baseSlots + (isExtraColor ? 1 : 0);
@@ -235,10 +232,7 @@ function getColorsCount(config: ChartConfig[string]): number {
   return Math.max(...counts, 1);
 }
 
-/**
- * Generate random loading data for skeleton/loading state.
- * min/max represent percentage of the range (0-100); defaults to 0-70 for a realistic look.
- */
+/** Random skeleton loading data. min/max = % of range (0-100); default 0-70 looks realistic. */
 export const getLoadingData = (points: number = 10, min: number = 0, max: number = 70) => {
   const range = max - min;
   return Array.from({ length: points }, () => ({

@@ -44,9 +44,7 @@ interface CutDateBannerProps {
   startDate: string;
 }
 
-// Surfaces the per-Question rework cut-date when the user's selected range
-// reaches back before it. Anything older is intentionally hidden from the
-// funnel — see ADR-0002.
+// Surfaces per-Question rework cut-date when selected range predates it; older data hidden from funnel — see ADR-0002.
 const CutDateBanner = ({ startDate }: CutDateBannerProps) => {
   const cutDateKey = PER_QUESTION_ANALYTICS_CUT_TS.slice(0, 10);
   if (startDate >= cutDateKey) {
@@ -104,8 +102,7 @@ interface QuestionRowProps {
   mode: DropoffMode;
 }
 
-// Flat top-level row used for single-step Forms — same grid as StepRow but
-// without the chevron / accordion, so the Question reads as the primary row.
+// Flat top-level row for single-step Forms: StepRow grid minus chevron/accordion, so Question is the primary row.
 const QuestionRow = ({ question, index, mode }: QuestionRowProps) => {
   const dropoffRate = computeDropoffRate(question, mode, "question");
   const label = formatQuestionLabel(question);

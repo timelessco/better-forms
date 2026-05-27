@@ -19,8 +19,7 @@ const tierActionLabel = (currentPlan: Plan, tier: Plan): TierAction => {
   return PLAN_RANK[tier] > PLAN_RANK[currentPlan] ? "Upgrade" : "Downgrade";
 };
 
-// Visual weight follows action: Upgrade is the CTA (filled), Downgrade is
-// a soft secondary (ghost), Current is shown as a disabled outline marker.
+// Weight by action: Upgrade=CTA (filled), Downgrade=ghost, Current=disabled outline.
 const tierActionVariant = (action: TierAction): ButtonVariant => {
   if (action === "Upgrade") return "default";
   if (action === "Current") return "outline";
@@ -67,9 +66,7 @@ export const BillingContent = () => {
         toast.error("Please select an organization first");
         return;
       }
-      // Polar's checkout creates a *new* subscription and rejects customers
-      // who already have an active one. Route existing paid customers through
-      // the customer portal, which supports plan switching with proration.
+      // Polar checkout creates a *new* sub, rejects active customers. Route paid users to portal (plan switch with proration).
       if (!isFreePlan) {
         await handleOpenPortal();
         return;

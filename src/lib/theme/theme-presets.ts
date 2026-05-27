@@ -1,7 +1,4 @@
-/**
- * Theme preset definitions for form customization.
- * All colors in hex for uniform display in color pickers.
- */
+/** Theme preset definitions. Colors in hex for uniform color-picker display. */
 
 export interface BaseColorTokens {
   background: string;
@@ -93,7 +90,7 @@ export const BASE_COLORS: BaseColorMap = {
   },
 };
 
-// Alpha values (border/input) are blended against the preset's background.
+// Alpha values (border/input) blended against the preset's background.
 export const DARK_BASE_COLORS: BaseColorMap = {
   neutral: {
     background: "#131313",

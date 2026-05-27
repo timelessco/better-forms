@@ -4,12 +4,7 @@ import { createSlateEditor } from "platejs";
 import type { Value } from "platejs";
 import { useMemo } from "react";
 
-/**
- * Renders a chunk of Plate nodes statically using PlateStatic.
- * Creates a memoized editor instance with BaseEditorKit plugins
- * so all registered static components (headings, blockquotes,
- * code blocks, tables, lists, etc.) render with full fidelity.
- */
+// Render Plate nodes statically via PlateStatic. Memoized editor w/ BaseEditorKit so all static components (headings, blockquotes, code, tables, lists) render at full fidelity.
 export const StaticContentBlock = ({ nodes }: { nodes: Value }) => {
   const editor = useMemo(
     () => createSlateEditor({ plugins: BaseEditorKit, value: nodes }),

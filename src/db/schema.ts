@@ -116,19 +116,10 @@ export const twoFactor = pgTable("twoFactor", {
   userId: text().notNull(),
 });
 
-// Convention: tables with composite identity (`${userId}:${formId}`,
-// `${orgId}:${YYYY-MM-DD}`) use string-concatenated PKs in the `id` column.
-// Used by formFavorites, userWorkspaceOrder, formNotificationPreferences,
-// formSubmissionNotifications, aiGenerationCounts. Working compromise with
-// TanStack DB collection ergonomics; revisit if collection ergonomics change.
-//
-// Convention: `createdByUserId` / `publishedByUserId` are audit-trail FKs to
-// `user.id` with ON DELETE SET NULL — domain rows are owned by their org or
-// parent, not the user, so user deletion anonymises the audit field.
+// Convention: composite-identity tables (`${userId}:${formId}`, `${orgId}:${YYYY-MM-DD}`) use string-concat PKs in `id` — TanStack DB ergonomics compromise. Used by formFavorites, userWorkspaceOrder, formNotificationPreferences, formSubmissionNotifications, aiGenerationCounts.
+// Convention: `createdByUserId`/`publishedByUserId` are audit-trail FKs to user.id with ON DELETE SET NULL — rows owned by org/parent, so user deletion anonymises the field.
 
-// Single source of truth for the small enum-like status sets, used to derive
-// both DB-level CHECK constraints and TS unions. Keep the literal tuples in
-// sync with any consumer that needs the same set (forms.ts, custom-domains.ts).
+// Single source for enum-like status sets — derives both CHECK constraints and TS unions. Keep tuples in sync with consumers (forms.ts, custom-domains.ts).
 export const FORM_STATUSES = ["draft", "published", "archived"] as const;
 export const CUSTOM_DOMAIN_STATUSES = ["pending", "verified", "failed", "suspended"] as const;
 export const DEVICE_TYPES = ["desktop", "mobile", "tablet"] as const;
@@ -164,10 +155,7 @@ export const forms = pgTable(
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     title: text().notNull().default("Untitled"),
-    // formName / schemaName are runtime identifiers passed to TanStack Form
-    // (they become DOM `id` and Zod schema export names). They are NOT the
-    // user-facing title — that's `title`. Both default to placeholder values
-    // for newly-created forms; document use sites in src/components/form-components/.
+    // formName/schemaName: TanStack Form runtime ids (DOM `id`, Zod export names), NOT the user-facing `title`. Use sites in src/components/form-components/.
     formName: text().notNull().default("draft"),
     schemaName: text().notNull().default("draftFormSchema"),
     content: jsonb().notNull().default([]),
@@ -179,9 +167,7 @@ export const forms = pgTable(
       onDelete: "set null",
     }),
     publishedContentHash: text(), // Hash for fast change detection
-    // Behavioral settings draft (working buffer). The live published settings
-    // live in `formSettings` keyed by formId. Both share the `FormSettings`
-    // shape; diffing draft vs. live drives the settings dirty flag.
+    // Behavioral settings draft (working buffer); live copy in `formSettings` by formId. Same FormSettings shape; draft-vs-live diff drives the dirty flag.
     draftSettings: jsonb().$type<FormSettings>().notNull().default(defaultFormSettings),
     customization: jsonb().default({}),
     slug: text(),
@@ -213,8 +199,7 @@ export const customDomains = pgTable(
       .references(() => organization.id, { onDelete: "cascade" }),
     domain: text().notNull().unique(),
     status: text().notNull().default("pending"),
-    // Captures `status` when an org is downgraded so re-upgrade can restore
-    // without re-verifying through Vercel.
+    // Captures `status` on org downgrade so re-upgrade restores without re-verifying via Vercel.
     previousStatus: text(),
     vercelDomainId: text(),
     siteTitle: text(),
@@ -246,20 +231,14 @@ export const formVersions = pgTable(
       .references(() => forms.id, { onDelete: "cascade" }),
     version: integer().notNull(), // v1, v2, v3...
     content: jsonb().notNull(), // Plate.js JSON snapshot
-    // Legacy: pre-split versions snapshot the 23 versioned-settings keys here.
-    // Settings are no longer versioned — new version rows write null.
+    // Legacy: pre-split versions snapshot 23 settings keys here; no longer versioned — new rows write null.
     settings: jsonb().$type<VersionedSettingsSnapshot | null>(),
     customization: jsonb().default({}), // Theme customization snapshot
     title: text().notNull(),
     icon: text(), // Visual asset snapshot
     cover: text(), // Visual asset snapshot
     publishedByUserId: text().references(() => user.id, { onDelete: "set null" }),
-    // Denormalized publisher snapshot — captured at publish time so the
-    // version history audit trail survives user deletion, name changes, and
-    // any Better Auth profile drift. Authoritative for "who published this
-    // version"; the FK above is only useful for "is this still the same
-    // active user". Both columns are nullable because legacy rows predate
-    // the snapshot.
+    // Denormalized publisher snapshot at publish time — survives user deletion/rename/profile drift. Authoritative for "who published this"; the FK only tells "is this still the same active user". Nullable: legacy rows predate it.
     publishedByName: text(),
     publishedByImage: text(),
     publishedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -271,12 +250,7 @@ export const formVersions = pgTable(
   ],
 );
 
-/**
- * Live published settings for each form. The form row carries `draftSettings`
- * (working buffer); this table is what the public renderer reads. Settings
- * are intentionally outside `formVersions` — they're flip-on/flip-off
- * toggles, not snapshot-able content. See docs/plans/2026-05-04-settings-version-split.md.
- */
+/** Live published settings the public renderer reads (form row holds the `draftSettings` buffer). Outside `formVersions` — flip toggles, not snapshot-able. See docs/plans/2026-05-04-settings-version-split.md. */
 export const formSettings = pgTable("form_settings", {
   formId: text()
     .primaryKey()
@@ -295,11 +269,9 @@ export const submissions = pgTable(
     formVersionId: text().references(() => formVersions.id, { onDelete: "set null" }),
     data: jsonb().notNull().default({}),
     isCompleted: boolean().notNull().default(true),
-    // Client-generated UUID (localStorage) that links debounced draft saves to a
-    // single submission row. Null for legacy rows pre-autosave.
+    // Client UUID (localStorage) linking debounced draft saves to one submission row. Null for legacy pre-autosave rows.
     draftId: text(),
-    // Highest step index the respondent reached (0-based). Null until the form
-    // is multi-step and a draft save records it.
+    // Highest step index reached (0-based). Null until multi-step + a draft save records it.
     lastStepReached: integer(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -421,8 +393,7 @@ export const formVisits = pgTable(
     os: text(),
     osVersion: text(),
 
-    // Geolocation: ISO-3166 country code + city/region. Country display names
-    // are resolved at the application layer (i18n-aware) — no countryName column.
+    // Geolocation: ISO-3166 code + city/region. Display names resolved app-side (i18n) — no countryName column.
     country: text(),
     city: text(),
     region: text(),
@@ -437,8 +408,7 @@ export const formVisits = pgTable(
     didSubmit: boolean().notNull().default(false),
     submissionId: text().references(() => submissions.id, { onDelete: "set null" }),
 
-    // Core Web Vitals (RUM, one sample per session). Nullable: finalize on
-    // page-hide and may be absent (e.g. no interaction => no INP).
+    // Core Web Vitals (RUM, one/session). Nullable: finalized on page-hide, may be absent (e.g. no interaction => no INP).
     lcpMs: integer(),
     inpMs: integer(),
     cls: real(),
@@ -507,10 +477,7 @@ export const formAnalyticsDaily = pgTable(
     avgDurationMs: integer(),
     medianDurationMs: integer(),
 
-    // Breakdowns: counts keyed by dimension value, e.g.
-    //   deviceBreakdown:  { desktop: 12, mobile: 4, tablet: 1 }
-    //   browserBreakdown: { Chrome: 9, Safari: 3, Firefox: 2, Other: 3 }
-    //   osBreakdown:      { Windows: 6, macOS: 5, iOS: 2, Android: 4, Other: 0 }
+    // Breakdowns: counts keyed by dimension value, e.g. { desktop: 12, mobile: 4 } / { Chrome: 9, Other: 3 }.
     deviceBreakdown: jsonb("device_breakdown")
       .$type<Record<string, number>>()
       .notNull()
@@ -866,10 +833,7 @@ export const uploadRateLimits = pgTable("upload_rate_limits", {
   count: integer("count").notNull().default(0),
 });
 
-// Tracks AI form-generate calls per org per UTC day. Read by the rate-limit
-// check in /api/ai/form-generate, written on every successful generation.
-// `id` format: `${organizationId}:${YYYY-MM-DD}` so a single upsert handles
-// the per-day bucket without a composite-PK migration.
+// AI form-generate calls per org per UTC day; rate-limit check in /api/ai/form-generate. `id` = `${organizationId}:${YYYY-MM-DD}` so one upsert handles the daily bucket, no composite-PK migration.
 export const aiGenerationCounts = pgTable(
   "ai_generation_counts",
   {

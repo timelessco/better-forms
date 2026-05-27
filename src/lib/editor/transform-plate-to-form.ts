@@ -245,15 +245,9 @@ export const extractTextContent = (children: Array<{ text?: string }>): string =
     .trim();
 };
 
-/**
- * True when `type` is a Plate node that, if it appears immediately after a
- * label-eligible block (p / h1-3 / formLabel / blockquote), would consume
- * that block as its field label in `transformPlateStateToFormElements`.
- *
- * Used by extractors that need to distinguish description prose from a
- * field label — a leading `p` whose next block is one of these types is a
- * label, not description text.
- */
+/** True when `type` is a Plate input that would consume a preceding label-eligible
+ * block (p/h1-3/formLabel/blockquote) as its label. Lets extractors tell a label
+ * apart from description prose: a `p` whose next block is one of these is a label. */
 export const isFormInputType = (type: string | undefined): boolean =>
   type !== undefined && FORM_INPUT_NODE_TYPES.has(type);
 
@@ -271,7 +265,7 @@ const extractListItems = (node: PlateNode): string[] => {
 
   for (const li of node.children) {
     if (li.type === "li" && li.children) {
-      // List item content is typically wrapped in a "lic" node
+      // li content usually wrapped in a "lic" node.
       for (const child of li.children) {
         if (child.type === "lic" || child.type === "p") {
           const text = extractTextContent((child.children ?? []) as Array<{ text?: string }>);
@@ -323,21 +317,12 @@ const extractTableRows = (node: PlateNode): { cells: string[]; isHeader: boolean
 };
 
 /**
- * Transforms Plate.js editor Value into form elements suitable for export.
- *
- * Uses an "input-looks-back" heuristic: each form input node looks at value[i-1]
- * to find its label. Label-like nodes (formLabel, h1-h3, p, blockquote) peek ahead
- * at value[i+1] — if the next node is a form input, the label skips itself so the
- * input can claim it.
- *
- * Supports:
- * - formInput/formTextarea/formEmail/etc. with preceding label -> typed fields
- * - formMultiSelectInput with preceding label -> MultiSelect field
- * - formOptionItem runs with preceding label -> Checkbox/MultiChoice/etc.
- * - h1, h2, h3 -> Static headings (unless consumed as labels)
- * - hr -> Separator
- * - p, blockquote -> Description text (unless consumed as labels)
- *
+ * Plate Value → exportable form elements via "input-looks-back": each input claims
+ * value[i-1] as label; label nodes (formLabel/h1-3/p/blockquote) peek value[i+1] and
+ * yield to a following input.
+ * - form inputs + preceding label → typed fields
+ * - formMultiSelectInput + label → MultiSelect; formOptionItem runs + label → Checkbox/etc.
+ * - h1-3 → headings; hr → Separator; p/blockquote → Description (unless consumed as labels)
  * @param value - Plate editor content array
  * @returns Array of elements for form rendering
  */
@@ -345,14 +330,11 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
   const elements: TransformedElement[] = [];
   let fieldIndex = 0;
 
-  /** Indices of label nodes consumed by a following input — skip when processing static content */
+  /** Label-node indices consumed by a following input — skip in static processing. */
   const consumedIndices = new Set<number>();
 
-  /**
-   * Look back at value[i-1] to find a label.
-   * If the previous node is in ALLOWED_LABEL_TYPES, extract its text,
-   * mark it as consumed, and remove it from elements if it was the last pushed item.
-   */
+  /** Look back at value[i-1]: if in ALLOWED_LABEL_TYPES, extract text, mark consumed,
+   * pop from elements if it was the last pushed item. */
   const lookBackForLabel = (
     i: number,
   ): { labelText: string; labelNode: Record<string, unknown> } | null => {
@@ -364,16 +346,16 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
     const labelText = extractTextContent(prev.children as Array<{ text?: string }>);
     consumedIndices.add(i - 1);
 
-    // Pop the label from elements if it was the most-recently pushed static item
+    // Pop label from elements if it was the most-recently pushed static item.
     if (elements.length > 0) {
       const last = elements[elements.length - 1];
       if ("static" in last && last.static) {
-        // Check if the last static element corresponds to this label node
+        // Does last static element match this label node?
         const lastId = last.id;
         const expectedPrefixes = ["h1_", "h2_", "h3_", "desc_", "empty_"];
         const isStaticLabel = expectedPrefixes.some((p) => lastId.startsWith(p));
         if (isStaticLabel) {
-          // For formLabel nodes we always pop; for heading/p/blockquote we check content match
+          // formLabel: always pop; heading/p/blockquote: pop only on content match.
           if (prevType === "formLabel") {
             elements.pop();
           } else {
@@ -527,9 +509,8 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
       continue;
     }
 
-    // For headings (h1/h2/h3) and text blocks (p/blockquote): if the NEXT node
-    // is a form input type, skip rendering as static — the input will consume
-    // this node as its label via lookBackForLabel.
+    // Headings (h1-3) / text (p/blockquote): if next is a form input, skip static
+    // render — the input consumes this as its label via lookBackForLabel.
     if (ALLOWED_LABEL_TYPES.has(nodeType) && nodeType !== "formLabel") {
       const nextNode = i + 1 < value.length ? value[i + 1] : null;
       const nextType = nextNode ? nextNode.type : "";
@@ -573,8 +554,7 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
       continue;
     }
 
-    // formLabel: peek ahead — if next is input, skip (input will consume it);
-    // otherwise render nothing (bare label without input).
+    // formLabel: skip if next is an input (consumed); else render nothing (bare label).
     if (nodeType === "formLabel") {
       const nextNode = i + 1 < value.length ? value[i + 1] : null;
       const nextType = nextNode ? nextNode.type : "";

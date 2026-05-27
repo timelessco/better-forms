@@ -10,12 +10,7 @@ interface TextSwapProps {
 }
 
 /**
- * Swaps text in place — the new value enters from below with a blur. Drive it
- * with a `key` that changes when the text changes so each new value remounts
- * and re-enters:
- *
- *   <TextSwap key={status}>{status}</TextSwap>
- *
+ * Swaps text in place; new value enters from below w/ blur. Key on the text so each value remounts: `<TextSwap key={status}>`.
  * See `.t-text-swap` in `src/styles/transitions.css`.
  */
 export const TextSwap = ({ children, className }: TextSwapProps) => {
@@ -24,8 +19,7 @@ export const TextSwap = ({ children, className }: TextSwapProps) => {
   useMountEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // Jump to the "below + blurred" start, force a reflow, then release so
-    // the element transitions up to its resting position.
+    // Jump to "below + blurred" start, force reflow, release so it transitions up to rest.
     el.classList.add("is-enter-start");
     void el.offsetHeight;
     el.classList.remove("is-enter-start");

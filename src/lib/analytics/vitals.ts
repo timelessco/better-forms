@@ -1,11 +1,8 @@
 /**
- * Pure Core Web Vitals helpers — bucketing, histogram merge, interpolated p75,
- * and Google's good/needs-improvement/poor rating thresholds. No DB, no I/O, so
- * the same code runs in the aggregation cron, the read server fn, and tests.
- *
- * Histograms are `Record<bucketLabel, count>`. A bucket label is its lower edge
- * (e.g. "2000"); the top bucket collapses everything at/above the cap into an
- * overflow bucket labelled "<cap>+" (e.g. "6000+").
+ * Pure CWV helpers — bucketing, histogram merge, interpolated p75, Google rating
+ * thresholds. No I/O, so cron / read fn / tests share it.
+ * Histogram = Record<bucketLabel, count>; label = lower edge ("2000"); top bucket
+ * collapses ≥cap into overflow "<cap>+" ("6000+").
  */
 
 export type WebVitalName = "lcp" | "inp" | "cls";
@@ -97,11 +94,8 @@ const edgeValue = (metric: WebVitalName, label: string): number => {
   return Number(label);
 };
 
-/**
- * 75th-percentile estimate from a histogram, linearly interpolated within the
- * bucket that holds the 0.75·N rank. Returns null for an empty histogram. The
- * overflow bucket returns the cap (no upper edge to interpolate toward).
- */
+/** p75 estimate, linearly interpolated within the bucket holding rank 0.75·N.
+ * Null if empty; overflow bucket returns cap (no upper edge to interpolate). */
 export const p75FromHistogram = (metric: WebVitalName, hist: VitalHistogram): number | null => {
   const total = histogramCount(hist);
   if (total === 0) {

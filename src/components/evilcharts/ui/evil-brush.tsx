@@ -19,7 +19,7 @@ interface EvilBrushRange {
 }
 
 interface EvilBrushProps {
-  /** Full dataset – always rendered in the miniature chart */
+  /** Full dataset; always rendered in mini chart. */
   data: Record<string, unknown>[];
   /** Chart config with colour definitions */
   chartConfig: ChartConfig;
@@ -33,11 +33,11 @@ interface EvilBrushProps {
   height?: number;
   /** Extra className */
   className?: string;
-  /** Whether areas/bars should be stacked in the mini chart */
+  /** Stack areas/bars in mini chart. */
   stacked?: boolean;
   /** Stroke variant for line / area strokes in the mini chart */
   strokeVariant?: "solid" | "dashed" | "animated-dashed";
-  /** Whether to connect null data points in line / area variants */
+  /** Connect null points in line/area variants. */
   connectNulls?: boolean;
   /** Radius for bar corners in the bar variant */
   barRadius?: number;
@@ -58,19 +58,17 @@ interface EvilBrushProps {
   formatLabel?: (value: unknown, index: number) => string;
   /** Curve type for line / area variants */
   curveType?: CurveType;
-  /** Minimum number of data points that must remain selected */
+  /** Min points that must stay selected. */
   minSpan?: number;
-  /** Whether to render labels on the handles */
+  /** Render labels on handles. */
   showLabels?: boolean;
-  /** Skip rendering own ChartStyle (when inside a ChartContainer that already provides CSS vars) */
+  /** Skip own ChartStyle when parent ChartContainer provides CSS vars. */
   skipStyle?: boolean;
 }
 
 const SPRING_CONFIG = { stiffness: 300, damping: 35, mass: 0.8 };
 
-// Pointer Events API: setPointerCapture routes all pointer events to the
-// originating element, giving us mouse + touch + pen support with zero
-// global listeners.
+// setPointerCapture routes events to originating element: mouse+touch+pen, no global listeners.
 
 type DragType = "left" | "right" | "middle";
 
@@ -197,8 +195,7 @@ function EvilBrush({
     endIndex: Math.max(0, Math.min(defaultEndIndex ?? totalPoints - 1, totalPoints - 1)),
   }));
 
-  // Track the last committed range to avoid duplicate updates when small
-  // mouse movements don't produce index changes (e.g., at boundaries)
+  // Last committed range: dedupe updates when sub-index mouse moves don't change index (boundaries).
   const lastCommittedRef = React.useRef<EvilBrushRange>(internalRange);
 
   // Re-clamp range when totalPoints shrinks under us (uncontrolled mode).
@@ -251,17 +248,14 @@ function EvilBrush({
       const clamped = clampRange(next, mode);
       const last = lastCommittedRef.current;
 
-      // Only update if the range has actually changed — avoids unnecessary
-      // re-renders when the brush is at a boundary and small mouse movements
-      // don't produce index changes
+      // Skip if range unchanged: avoids re-renders at boundary when small moves don't change index.
       if (last.startIndex === clamped.startIndex && last.endIndex === clamped.endIndex) {
         return;
       }
 
       lastCommittedRef.current = clamped;
       setInternalRange(clamped);
-      // Defer the parent callback — chart re-render happens at lower priority,
-      // React can skip intermediate frames during fast drags
+      // Defer parent callback: chart re-render at lower priority, skips frames during fast drags.
       React.startTransition(() => {
         onChange?.(clamped);
       });
@@ -639,10 +633,7 @@ function useEvilBrush<TData extends Record<string, unknown>>({
     endIndex: defaultEndIndex ?? Math.max(0, data.length - 1),
   });
 
-  // Defer the range used for data slicing — the brush handles move at the
-
-  // immediate `range` cadence while the expensive chart re-render uses the
-  // deferred value.  React can skip intermediate slices during fast drags.
+  // Defer slicing range: handles move at immediate `range`, chart re-render uses deferred. Skips slices during fast drags.
   const deferredRange = React.useDeferredValue(range);
 
   // Reset to full data range when the dataset size changes.

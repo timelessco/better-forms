@@ -82,27 +82,21 @@ interface PublicFormPageProps {
     current: "light" | "dark";
     onChange: (next: "light" | "dark" | "system") => void;
   };
-  /** Currently-resolved app theme. Used to derive theme tokens for portaled
-   * popovers (Date/MultiSelect/Phone Combobox), which lose the cascade from
-   * `.bf-themed` on `<main>` because they render via createPortal. */
+  /** Resolved app theme — theme tokens for portaled popovers (Date/MultiSelect/Phone) that lose `.bf-themed` cascade via createPortal. */
   resolvedAppTheme?: "light" | "dark";
-  // When present, renders via FormPreviewRSC — static prose is server-rendered
-  // so the client bundle no longer ships platejs/static.
+  // Present → renders via FormPreviewRSC: static prose server-rendered, client bundle drops platejs/static.
   rsc?: {
     steps: StepRSC[];
     thankYou?: unknown;
     stepCount: number;
     /** Pre-rendered header composite (cover + icon + title). */
     header?: unknown;
-    /** Icon background color extracted from the Plate formHeader node;
-     * field-by-field only (card mode uses the pre-rendered header composite). */
+    /** Icon bg color from Plate formHeader node; field-by-field only (card mode uses pre-rendered header). */
     formHeaderIconColor?: string | null;
   };
 }
 
-/**
- * Send a message to the parent window (for popup embeds)
- */
+/** Post message to parent window (popup embeds). */
 const sendToParent = (event: string, payload?: Record<string, unknown>): void => {
   if (typeof window === "undefined" || window.parent === window) return;
 
@@ -155,9 +149,7 @@ type DraftState =
   | { status: "dismissed" };
 
 const usePublicDraftState = (formId: string) => {
-  // Start "loading" so SSR HTML and the first client render match (no
-  // DraftResumePrompt in either). useEffect resolves on mount by reading
-  // localStorage synchronously — no server roundtrip.
+  // Start "loading" so SSR + first client render match (no DraftResumePrompt). useEffect resolves on mount from localStorage — no roundtrip.
   const [draftState, setDraftState] = useState<DraftState>({ status: "loading" });
 
   useEffect(() => {
@@ -283,20 +275,13 @@ export const PublicFormPage = ({
   const dynamicWidth = embedConfig.dynamicWidth;
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Portaled popovers (date picker, country combobox, multi-select) lose the
-  // CSS-var cascade from `.bf-themed` on <main>. Publish themeVars +
-  // hasCustomization via EditorThemeProvider so useReanchorThemeProps() can
-  // re-apply them on each portaled popup. Must run before any early return.
+  // Portaled popovers lose `.bf-themed` cascade. Publish themeVars/hasCustomization via EditorThemeProvider so useReanchorThemeProps() re-applies per popup. Must run before early returns.
   const { customization, hasCustomization, themeVars } = useFormCustomization(
     form,
     resolvedAppTheme,
   );
   const themeCtxValue = useFormThemeContextValue({ themeVars, hasCustomization, customization });
-  // Analytics writers run unconditionally (Option B): we always record visits
-  // and question progress so flipping the analytics toggle on later surfaces
-  // historical data instead of starting from zero. The toggle gates DISPLAY
-  // (insights dashboard), not recording. `form` may be null in error states,
-  // so only suppress tracking when there's no form to attribute visits to.
+  // Analytics writers always run (Option B): record visits/progress so toggling analytics on later shows history, not zero. Toggle gates DISPLAY not recording. Suppress only when no form.
   const trackingBase = usePublicFormTracking({ formId, enabled: !!form });
   // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value is read in JSX to render AlreadySubmitted
   const [submitted, setSubmitted] = useState(() => {
@@ -328,9 +313,7 @@ export const PublicFormPage = ({
 
   useTransparentBackground(transparentBackground, isPopup);
 
-  // For field-by-field popups, suppress iframe-level scrollbars — the single
-  // visible field is centered within the available height, so no scroll is
-  // needed and the macOS overlay scrollbar would otherwise appear.
+  // Field-by-field popups: suppress iframe scrollbars (single centered field needs none; else macOS overlay scrollbar shows).
   const isFieldByFieldPopup = isPopup && form?.settings?.presentationMode === "field-by-field";
   useFieldByFieldOverflowLock(isFieldByFieldPopup);
 
@@ -340,8 +323,7 @@ export const PublicFormPage = ({
     async (values: Record<string, unknown>) => {
       setSubmitError(null);
       try {
-        // Carry the draftId forward so the server updates the existing draft
-        // row in place (preserves submissionId, notifications fire once).
+        // Carry draftId so server updates existing draft in place (keeps submissionId, notifies once).
         const draftId = readDraftId(formId) ?? undefined;
         await createPublicSubmission({
           data: {
@@ -353,8 +335,7 @@ export const PublicFormPage = ({
           },
         });
 
-        // Completed: drop the localStorage pointer so a fresh visit starts a
-        // fresh draft instead of resuming the one that just finalized.
+        // Completed: drop localStorage pointer so next visit starts fresh, not resuming this finalized draft.
         clearDraftId(formId);
 
         if (form?.settings?.preventDuplicateSubmissions) {
@@ -392,8 +373,7 @@ export const PublicFormPage = ({
     ],
   );
 
-  // Handle gated states (closed, date expired, limit reached) — check before !form
-  // because the server returns form: null for closed forms
+  // Gated states (closed/expired/limit) — check before !form (server returns null for closed).
   if (gated && gated.type !== "password_required") {
     return (
       <TranslationProvider language={resolvedLanguage}>
@@ -492,11 +472,7 @@ const ThemeToggleButton = ({ themeToggle }: { themeToggle: ThemeToggleHandle }) 
       onClick={() => themeToggle.onChange(themeToggle.current === "dark" ? "light" : "dark")}
       className="rounded-full bg-background/80 elevation-sm backdrop-blur dark:bg-muted/50 dark:shadow-none"
     >
-      {/* Render both icons; the pre-hydration script sets `.dark` on the
-          root before paint, so CSS picks the right one. Doing this in
-          React state would mismatch SSR (server can't know the viewer's
-          system preference), triggering a full-tree re-render that
-          presents as a ~1s layout shift after hydration. */}
+      {/* Both icons; pre-hydration script sets `.dark` pre-paint, CSS picks. React state would mismatch SSR (server can't know viewer pref) → ~1s post-hydration layout shift. */}
       <SunIcon className="hidden size-4 dark:block" />
       <MoonIcon className="block size-4 dark:hidden" />
     </Button>
@@ -510,8 +486,7 @@ const DraftResumePrompt = ({
   handleResumeDraft: () => void;
   handleStartOver: () => void;
 }) => (
-  // Anchored top-6: users miss bottom toasts (eyes are on the form), so the
-  // resume affordance lives where the gaze already is on first paint.
+  // Anchored top-6: users miss bottom toasts (eyes on form), so resume sits where gaze is on first paint.
   <div
     role="status"
     className="fixed top-6 left-1/2 z-50 w-[min(560px,90vw)] -translate-x-1/2 animate-in duration-250 ease-out fade-in slide-in-from-top-4"
@@ -604,9 +579,7 @@ const PublicFormMain = ({
         ? "relative h-screen overflow-hidden"
         : cn("overflow-x-hidden", settings.branding ? "pb-16" : "pb-8"),
       form.customization && Object.keys(form.customization).length > 0 && "bf-themed",
-      // Don't apply min-h-screen for popup or dynamic-height embeds — it
-      // stretches the form to 100vh of the iframe viewport, creating a
-      // second inner scrollbar on top of the host page's scroll.
+      // No min-h-screen for popup/dynamic-height embeds — 100vh of iframe viewport adds a second inner scrollbar over host scroll.
       !isPopup &&
         !dynamicHeight &&
         settings.presentationMode !== "field-by-field" &&
@@ -618,10 +591,7 @@ const PublicFormMain = ({
     aria-live="polite"
   >
     {themeToggle && (
-      // Theme toggle only matters when the viewer clicks/focuses it. Defer
-      // hydration to first interaction so the icon paints from SSR HTML
-      // without dragging its handler chunk into the critical path. Safe
-      // because the pre-hydration script already sets the .dark class.
+      // Toggle only matters on click/focus. Defer hydration to first interaction — icon paints from SSR HTML, handler chunk off critical path. Safe: pre-hydration script sets .dark.
       <Hydrate when={interaction({ events: ["pointerdown", "focusin"] })}>
         <ThemeToggleButton themeToggle={themeToggle} />
       </Hydrate>
@@ -655,8 +625,7 @@ const PublicFormMain = ({
     />
     {submitError && <SubmitErrorToast submitError={submitError} />}
     {settings.branding && (
-      // Static fixed-bottom link with no client behavior — ship SSR HTML
-      // and skip hydration entirely.
+      // Static link, no client behavior — SSR HTML only, skip hydration.
       <Hydrate when={never()}>
         <BrandingFooter />
       </Hydrate>

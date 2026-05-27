@@ -40,8 +40,7 @@ const METRICS: readonly MetricMeta[] = [
   },
 ] as const;
 
-// CWV rating colors are a standard traffic-light semantic, so explicit hues are
-// intentional here rather than neutral design tokens.
+// CWV ratings use standard traffic-light semantics; explicit hues intentional, not design tokens.
 const RATING_DOT: Record<VitalRating, string> = {
   good: "bg-emerald-500",
   "needs-improvement": "bg-amber-500",

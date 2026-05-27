@@ -55,9 +55,7 @@ function ChartLegendContent({
       {payload
         .filter((item) => item.type !== "none")
         .map((item) => {
-          // For pie charts, item.value contains the sector name (e.g., "chrome")
-          // For radial charts, the name is in item.payload[nameKey]
-          // For other charts, item.dataKey contains the series name (e.g., "desktop")
+          // Name location: pie → item.value; radial → item.payload[nameKey]; other → item.dataKey.
           const payloadName =
             nameKey && item.payload
               ? (item.payload as Record<string, unknown>)[nameKey]
@@ -146,12 +144,7 @@ function getLegendFillStyle(dataKey: string, colorsCount: number): React.CSSProp
   return { background: `linear-gradient(to right, ${stops})` };
 }
 
-/**
- * Outline style for stroke variants.
- * Uses background + mask-composite to punch out the center, leaving only the
- * "border" visible. Works with both solid colors and gradients, and respects
- * border-radius — unlike plain `border-color`.
- */
+/** Outline for stroke variants: mask-composite punches out center, leaving only border. Works w/ gradients + border-radius, unlike `border-color`. */
 function getLegendOutlineStyle(dataKey: string, colorsCount: number): React.CSSProperties {
   const maskStyle: React.CSSProperties = {
     WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",

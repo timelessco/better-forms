@@ -71,8 +71,7 @@ export const SidebarProvider = ({
   const [openMobile, setOpenMobile] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
 
-  // Auto-close the mobile drawer on navigation so tapping a nav item leaves a
-  // clean screen instead of the drawer overlaying the destination route.
+  // Auto-close mobile drawer on navigation so it doesn't overlay the destination route.
   const pathname = useLocation({ select: (s) => s.pathname });
   const [lastPathname, setLastPathname] = useState(pathname);
   if (lastPathname !== pathname) {

@@ -11,8 +11,7 @@ interface IconSwapProps {
 }
 
 /**
- * Cross-fades two icons in the same slot (sun ↔ moon, eye ↔ eye-off, …). Both
- * icons stay mounted, stacked in one grid cell; `state` decides which is shown.
+ * Cross-fades two icons in one slot (sun ↔ moon). Both stay mounted, stacked in one grid cell; `state` picks the visible one.
  * Pure CSS — see `.t-icon-swap` in `src/styles/transitions.css`.
  */
 export const IconSwap = ({ state, iconA, iconB, className }: IconSwapProps) => (

@@ -3,10 +3,8 @@ import { SlateElement } from "platejs/static";
 
 const formatStaticDate = (dateValue: string | undefined): string => {
   if (!dateValue) return "No date";
-  // Static renderer: no relative labels (Today/Yesterday/Tomorrow) because
-  // they would compute differently on the server vs the client and trigger
-  // a hydration mismatch. The interactive `DateElement` swaps in relative
-  // labels client-side once mounted.
+  // No relative labels (Today/Yesterday) — server vs client would mismatch on hydration.
+  // Interactive DateElement swaps them in client-side after mount.
   return new Date(dateValue).toLocaleDateString(undefined, {
     day: "numeric",
     month: "long",

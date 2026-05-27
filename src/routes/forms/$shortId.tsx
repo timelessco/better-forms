@@ -74,12 +74,7 @@ const PublicFormRoute = () => {
 
   const handleThemeChange = useCallback(
     (next: PublicTheme) => {
-      // Apply the DOM class change synchronously so View Transitions can
-      // snapshot both "before" and "after" cleanly. Without this, the
-      // setViewerTheme() React update + the useEffect that swaps the
-      // <html> class both run AFTER startViewTransition has already taken
-      // its "after" snapshot — the transition would crossfade between
-      // two identical frames and look like nothing happened.
+      // Swap DOM class synchronously so View Transitions snapshot before/after cleanly. Else React + useEffect swap run after the "after" snapshot → crossfade of identical frames (no visible transition).
       const resolved: "light" | "dark" = next === "system" ? resolveSystemTheme() : next;
       const applyDom = () => {
         const root = document.documentElement;
@@ -105,7 +100,7 @@ const PublicFormRoute = () => {
     [shortId],
   );
 
-  // Support both transparentBackground and transparent params
+  // Accept both transparentBackground and transparent params.
   const isTransparent = search.transparentBackground || search.transparent || false;
 
   const embedConfig: PublicFormEmbedConfig = {
@@ -116,8 +111,7 @@ const PublicFormRoute = () => {
     dynamicWidth: search.dynamicWidth ?? false,
   };
 
-  // Dual-mode CSS — both light and dark tokens are emitted; the root `.dark`
-  // class picks one purely in CSS, avoiding any hydration flash.
+  // Dual-mode CSS — emit both light+dark tokens, root `.dark` picks in CSS, no hydration flash.
   const themeCss = useMemo(() => generateDualThemeCss(rawCustomization), [rawCustomization]);
 
   const showThemeToggle = defaultMode === "system" && !search.popup && !isTransparent;
@@ -157,9 +151,7 @@ const PublicFormRoute = () => {
 export const Route = createFileRoute("/forms/$shortId")({
   validateSearch: zodValidator(
     z.object({
-      // No `.default()` on these — TanStack Router would canonicalize the URL
-      // by 307-redirecting `/forms/$formId` to `/forms/$formId?popup=false&…`,
-      // which strips link-preview bots that don't follow redirects.
+      // No `.default()` — Router would 307-canonicalize to ?popup=false&…, stripping link-preview bots that don't follow redirects.
       transparentBackground: z.boolean().optional(),
       transparent: z.coerce.boolean().optional(),
       popup: z.coerce.boolean().optional(),
@@ -197,9 +189,7 @@ export const Route = createFileRoute("/forms/$shortId")({
           loaderData?.form?.icon,
           loaderData?.form?.ogImageUrl,
         ),
-        // Preload the Latin subset of Inter Variable. The other subsets
-        // (latin-ext, rest) stay lazy — the browser only fetches them if
-        // the page renders a glyph outside U+0000–00FF.
+        // Preload Inter Variable Latin subset only; other subsets stay lazy (fetched only for glyphs outside U+0000–00FF).
         {
           rel: "preload",
           href: "/fonts/inter-variable/fonts/inter-variable-latin.woff2",
@@ -224,12 +214,7 @@ export const Route = createFileRoute("/forms/$shortId")({
         },
 
         {
-          // Pre-hydration: as soon as the SSR'd form HTML is parsed, tell the
-          // parent popup (a) the measured height so it can size the iframe
-          // without a jump, and (b) that the form is visually ready so the
-          // popup spinner veil can be hidden — no need to wait for every CSS/JS
-          // chunk to finish downloading. The React ResizeObserver + useEffect
-          // in public-form-page take over after hydration.
+          // Pre-hydration: on SSR HTML parse, tell parent popup (a) measured height (size iframe, no jump) + (b) form ready (hide spinner veil) without waiting for chunks. React ResizeObserver takes over post-hydration.
           children: `(function(){try{if(window.parent===window)return;var p=new URLSearchParams(window.location.search);var isPopup=(p.get("popup")==="1"||p.get("popup")==="true");var isDynamic=(p.get("dynamicHeight")==="1"||p.get("dynamicHeight")==="true");if(!isPopup&&!isDynamic)return;var post=function(){var el=document.getElementById("bf-form-container");if(!el)return;var h=el.scrollHeight;if(h>0)window.parent.postMessage(JSON.stringify({event:"Reform.Resize",height:h}),"*");if(isPopup)window.parent.postMessage(JSON.stringify({event:"Reform.FormLoaded"}),"*");};if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",post,{once:true});}else{post();}}catch(e){}})();`,
         },
       ],

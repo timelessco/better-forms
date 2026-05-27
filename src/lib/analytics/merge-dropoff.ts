@@ -15,10 +15,8 @@ interface FilterByCutDateOutput {
   todayProgressRows: QuestionProgressRow[];
 }
 
-// Drops pre-cut analytics rows so the funnel UI doesn't show data captured
-// before the per-Question rework deploy. Daily rows compare by `date` string
-// (YYYY-MM-DD ≥ first 10 chars of cutTs); raw progress rows compare by
-// `viewedAt` Date.
+// Drops pre-cut rows from the funnel. Daily rows compare by `date` string
+// (≥ cutTs[:10]); raw progress rows compare by `viewedAt` Date.
 export const filterByCutDate = (input: FilterByCutDateInput): FilterByCutDateOutput => {
   const cutDateKey = input.cutTs.slice(0, 10);
   const cutDate = new Date(input.cutTs);
@@ -34,9 +32,8 @@ interface MergeDropoffArgs {
   endDate: string;
   dailyRows: DropoffDailyRow[];
   todayProgressRows: QuestionProgressRow[];
-  /** Optional Question id → human-readable label lookup. Sourced from the
-   * Form's current Plate content; populates `questionLabel` so the funnel
-   * shows "Full Name" instead of the raw Plate Block id. */
+  /** Question id → label (from Form's Plate content). Sets `questionLabel` so
+   * the funnel shows "Full Name" not the raw Plate Block id. */
   labelMap?: ReadonlyMap<string, string>;
 }
 
@@ -114,18 +111,13 @@ export const mergeDropoffMetrics = (args: MergeDropoffArgs): QuestionDropoffMetr
     (a, b) => a.questionIndex - b.questionIndex,
   );
 
-  // Step-to-step drop-off semantics:
-  //   - First step: intra-step drop = (viewed − completed) / viewed. There's
-  //     no prior step, so this is the only meaningful "where did people fall
-  //     off" measure for the first question.
-  //   - Subsequent steps: cross-step drop = (prev.completed − this.viewed) /
-  //     prev.completed. Captures the case where a visitor finishes step N
-  //     but never even reaches step N+1 — which intra-step math (which only
-  //     compares viewers vs. completers of the SAME step) silently hides at
-  //     0% because viewCount and completeCount drop in lockstep.
-  // Cohort: viewCount can technically exceed prev.completeCount in pathological
-  // cases (re-entry, out-of-order events) — clamp dropoffCount to ≥ 0 so the
-  // rate doesn't go negative.
+  // Step-to-step drop-off:
+  // - First step: intra-step = (viewed − completed) / viewed (no prior step).
+  // - Subsequent: cross-step = (prev.completed − this.viewed) / prev.completed.
+  //   Catches "finished step N, never reached N+1" — intra-step math hides this
+  //   at 0% since viewCount/completeCount drop in lockstep.
+  // Clamp dropoffCount ≥ 0: viewCount can exceed prev.completeCount on re-entry/
+  // out-of-order events.
   const questions = sorted.map((agg, idx) => {
     const prev = idx > 0 ? sorted[idx - 1] : null;
     const cohort = prev ? prev.completeCount : agg.viewCount;
@@ -151,11 +143,9 @@ export const mergeDropoffMetrics = (args: MergeDropoffArgs): QuestionDropoffMetr
   });
 
   // Overall funnel:
-  // - totalStarted = startCount of the question with the lowest questionIndex
-  //   (the first question starting counts the visitor as "started form").
-  // - totalCompleted = completeCount of the "last question". The schema does
-  //   not preserve `wasLastQuestion` in daily rollups, so for v1 we use the
-  //   max questionIndex present in the data as a proxy for "last question".
+  // - totalStarted = startCount of lowest-questionIndex question ("started form").
+  // - totalCompleted = completeCount of last question. No `wasLastQuestion` in
+  //   daily rollups, so v1 uses max questionIndex as the "last question" proxy.
   const totalStarted = questions.length > 0 ? questions[0].startCount : 0;
   const totalCompleted = questions.length > 0 ? questions[questions.length - 1].completeCount : 0;
   const overallCompletionRate =

@@ -56,11 +56,7 @@ const NON_EDITABLE_BLOCK_TYPES = new Set([
   "formMultiSelectInput",
 ]);
 
-/**
- * If the block at `blockPath` is the only content block after a preceding pageBreak,
- * delete both the block and the pageBreak, then move the cursor to the previous content block.
- * Returns true if it handled the deletion.
- */
+// Block is only content after a preceding pageBreak → delete both, move cursor to prev content block. Returns true if handled.
 const tryDeletePageBreakWithEmptyBlock = (editor: PlateEditor, blockPath: Path): boolean => {
   const children = editor.children as TElement[];
   const currentIndex = blockPath[0];
@@ -102,10 +98,7 @@ const tryDeletePageBreakWithEmptyBlock = (editor: PlateEditor, blockPath: Path):
   return true;
 };
 
-/**
- * Backspace handler for form-field blocks. Preserves the delete-edge-case
- * behaviors (empty option collapse, page-break cleanup, button protection).
- */
+// Backspace on form-field blocks: empty-option collapse, page-break cleanup, button protection.
 const handleBackspace = (editor: PlateEditor, event: React.KeyboardEvent): void => {
   if (event.key !== "Backspace") return;
 
@@ -115,7 +108,7 @@ const handleBackspace = (editor: PlateEditor, event: React.KeyboardEvent): void 
   const [node, path] = block;
   if (!editor.api.isEmpty(node)) return;
 
-  // Empty formOptionItem → delete unless it's the only option
+  // Empty formOptionItem → delete unless only option.
   if (node.type === "formOptionItem") {
     event.preventDefault();
     event.stopPropagation();
@@ -159,12 +152,7 @@ const handleBackspace = (editor: PlateEditor, event: React.KeyboardEvent): void 
   editor.tf.removeNodes({ at: path });
 };
 
-/**
- * Enter handler for form-field blocks: insert a plain paragraph below the
- * current block and move the cursor into it, instead of splitting the
- * field's label text. formOptionItem is excluded — its own plugin handles
- * Enter to continue the option list.
- */
+// Enter on form-field: insert paragraph below + move cursor, don't split label. formOptionItem excluded (own plugin continues option list).
 const handleFormFieldEnter = (editor: PlateEditor, event: React.KeyboardEvent): boolean => {
   if (event.key !== "Enter" || event.shiftKey) return false;
 
@@ -184,9 +172,7 @@ const handleFormFieldEnter = (editor: PlateEditor, event: React.KeyboardEvent): 
   event.stopPropagation();
   event.nativeEvent.stopImmediatePropagation();
 
-  // When a label sits directly above a void form field, Enter should land the
-  // new paragraph *after* the whole label+input group — otherwise there's no
-  // way to escape past a trailing void input like file upload.
+  // Label directly above void form field: land paragraph after the whole label+input group, else no way to escape past trailing void input (e.g. file upload).
   let insertIndex = path[0] + 1;
   if (node.type === "formLabel") {
     const siblings = editor.children as TElement[];
@@ -234,9 +220,7 @@ export const FormButtonPlugin = createPlatePlugin({
   handlers: {
     onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
     onChange: ({ editor }) => {
-      // Redirect selection away from form buttons/page breaks. Uses the last
-      // selected block index to infer direction: moving forward (e.g. ArrowDown)
-      // redirects forward across the button, moving backward redirects backward.
+      // Redirect selection away from buttons/page-breaks. Last-block-index infers direction (forward across button vs backward).
       // eslint-disable-next-line typescript-eslint/no-explicit-any
       const editorRef = editor as any;
       if (editorRef.__redirectingSelection) return;
@@ -310,11 +294,7 @@ export const FormButtonPlugin = createPlatePlugin({
             return;
           }
 
-          // Deleting an empty paragraph that sits directly after a void form
-          // input (file upload, multi-select) — Plate's default merge leaves
-          // selection dangling in a trailing paragraph. Remove the empty block
-          // ourselves and park the cursor at the end of the nearest editable
-          // block above.
+          // Empty paragraph after void form input (file upload, multi-select): Plate's default merge dangles selection in trailing paragraph. Remove empty block ourselves, park cursor at end of nearest editable above.
           const isVoidFormInput = prevNode && VOID_FORM_INPUT_TYPES.has(prevNode.type);
           if (isVoidFormInput && editorRef.api.isEmpty(node)) {
             editorRef.tf.removeNodes({ at: path });
@@ -404,8 +384,7 @@ export const FormButtonPlugin = createPlatePlugin({
     const originalSelect = editorRef.tf.select.bind(editorRef.tf);
     // eslint-disable-next-line typescript-eslint/no-explicit-any
     editorRef.tf.select = (target: any) => {
-      // Check if selection target is on a form button/pageBreak and redirect.
-      // Direction inferred from the current selection vs target.
+      // Target on form button/pageBreak → redirect. Direction inferred from current selection vs target.
       if (target && typeof target === "object") {
         let targetPath: Path | null = null;
         if ("path" in target) {
@@ -483,8 +462,7 @@ export const FormButtonPlugin = createPlatePlugin({
       if (targetIndex > 0) {
         const prevNode = children[targetIndex - 1];
         if (prevNode && isFormButton(prevNode)) {
-          // Moving something to be after a button.
-          // PageBreaks can stay right after a button.
+          // Moving to after a button. PageBreaks may stay right after a button.
           if (at) {
             const entry = editorRef.api.node(at);
             if (entry) {
@@ -494,8 +472,7 @@ export const FormButtonPlugin = createPlatePlugin({
               }
             }
           }
-          // Otherwise, redirect the drop to the first position of the NEXT page
-          // (after the trailing pageBreak).
+          // Else redirect drop to first position of NEXT page (after trailing pageBreak).
           let pageBreakIndex = -1;
           for (let i = targetIndex; i < children.length; i++) {
             if (children[i]?.type === "pageBreak") {
@@ -507,9 +484,7 @@ export const FormButtonPlugin = createPlatePlugin({
           if (pageBreakIndex !== -1) {
             return originalMoveNodes({ ...options, to: [pageBreakIndex + 1] });
           }
-          // No pageBreak ahead. Redirect to before the button instead of
-          // silently dropping the move — silent no-op manifests as a snap-back
-          // even though the drop indicator showed a valid target.
+          // No pageBreak ahead: redirect before button, not silent no-op (which snaps back despite valid drop indicator).
           return originalMoveNodes({ ...options, to: [targetIndex - 1] });
         }
       }
@@ -531,9 +506,7 @@ export const FormButtonPlugin = createPlatePlugin({
           return;
         }
 
-        // 2. Multi thank-you enforcement: only one pageBreak can be the thank-you page.
-        // If multiple exist (e.g. via paste, undo, or loaded data), keep the LAST one
-        // (most recently flagged wins) and demote the rest.
+        // 2. Only one thank-you pageBreak allowed. Multiple (paste/undo/load) → keep LAST, demote rest.
         const thankYouIndices: number[] = [];
         const rootChildren = getChildren();
         for (let i = 0; i < rootChildren.length; i++) {
@@ -631,19 +604,13 @@ export const FormButtonPlugin = createPlatePlugin({
             }
 
             if (isThankYouSection) {
-              // Rule: thank-you must be the FINAL pageBreak. If another pageBreak
-              // ends this section, remove it (and let the next iteration absorb
-              // its content into the thank-you section, which will then be cleaned
-              // of any disallowed nodes).
+              // Thank-you must be FINAL pageBreak. Trailing pageBreak → remove; next iteration absorbs + cleans its content.
               if (isPageBreak) {
                 originalRemoveNodes({ at: [i] });
                 return; // Restart normalization
               }
 
-              // Rule: thank-you section cannot contain form fields, form buttons,
-              // or other layout blocks (pageBreaks). Plain text / headings / lists
-              // remain allowed so users can author the thank-you message.
-              // Iterate from end to start so removal doesn't shift indices we'd revisit.
+              // Thank-you section forbids form fields/buttons/pageBreaks (text/headings/lists OK for the message). Iterate end→start so removal doesn't shift unvisited indices.
               for (let j = pageEndIndex - 1; j >= pageStartIndex; j--) {
                 const n = getChildren()[j];
                 if (!n) continue;
@@ -663,8 +630,7 @@ export const FormButtonPlugin = createPlatePlugin({
               continue;
             }
 
-            // Second pass: check for orphaned content AFTER action button
-            // For Thank You pages, action button is Submit.
+            // Second pass: orphaned content AFTER action button (Submit on thank-you pages).
             if (actionButtonIndex !== -1) {
               for (let j = actionButtonIndex + 1; j < pageEndIndex; j++) {
                 const n = getChildren()[j];
@@ -677,9 +643,7 @@ export const FormButtonPlugin = createPlatePlugin({
                   continue;
                 }
 
-                // Found orphaned content after action button - MOVE it before the button
-                // This allows "Type to Add" behavior
-                // Even for Thank You pages, content should be BEFORE the button.
+                // Orphaned content after action button → move before button ("Type to Add"; holds for thank-you too).
                 tfMoveNodes({ at: [j], to: [actionButtonIndex] });
                 return;
               }
@@ -709,9 +673,7 @@ export const FormButtonPlugin = createPlatePlugin({
               return;
             }
 
-            // 3. Validate Action Button Role & Text
-            // "Smart Update": Only update if role is wrong.
-            // Access button directly from editor to ensure fresh state
+            // 3. Validate action button role/text. Smart-update: only if role wrong. Read fresh from editor.
             const actionBtn = getChildren()[actionButtonIndex];
             const currentRole = (actionBtn as Record<string, unknown>).buttonRole || "submit";
             const expectedRole = isLastPage ? "submit" : "next";
@@ -759,8 +721,7 @@ export const FormButtonPlugin = createPlatePlugin({
               return;
             }
 
-            // 5. Validate Previous Button Position
-            // Should be immediately before Action Button
+            // 5. Previous button must sit immediately before action button.
             if (
               !isFirstPage &&
               previousButtonIndex !== -1 &&
@@ -884,8 +845,7 @@ export const FormOptionItemPlugin = createPlatePlugin({
       if (block && block[0].type === "formOptionItem") {
         const [node, path] = block;
 
-        // Empty option → exit the list by converting this option to a paragraph.
-        // Lets users press Enter twice to escape the option group and add a new field.
+        // Empty option → convert to paragraph (exit list). Enter twice escapes option group to add a field.
         if (editor.api.isEmpty(node)) {
           editor.tf.setNodes({ type: "p", variant: undefined } as unknown as Partial<TElement>, {
             at: path,
@@ -923,14 +883,7 @@ export const FormMultiSelectInputPlugin = createPlatePlugin({
   },
 });
 
-/**
- * Global Tab / Shift+Tab navigation and Enter-on-form-field handling.
- * Tab moves the cursor between content blocks, skipping form buttons,
- * page breaks, and the form header. Enter on a form field (other than
- * formOptionItem) inserts a plain paragraph below instead of splitting
- * the field's label. formOptionItem's Enter is handled by its own
- * insertBreak override to continue the option list.
- */
+// Global Tab/Shift+Tab nav (skips buttons, page-breaks, header) + Enter-on-form-field (inserts paragraph, doesn't split label; formOptionItem handled by its own insertBreak).
 const NavigationPlugin = createPlatePlugin({
   key: "navigation",
   priority: 1000, // Runs before IndentPlugin's Tab handler
@@ -957,10 +910,7 @@ const NavigationPlugin = createPlatePlugin({
   },
 });
 
-/**
- * Must be registered AFTER IndentPlugin (from ListKit/ToggleKit) so that this
- * tab override wraps outermost and can short-circuit before IndentPlugin indents.
- */
+// Register AFTER IndentPlugin (ListKit/ToggleKit) so this tab override wraps outermost and short-circuits before indent.
 export const TabGuardPlugin = createPlatePlugin({
   key: "tabGuard",
 }).overrideEditor(({ editor, tf: { tab } }) => ({

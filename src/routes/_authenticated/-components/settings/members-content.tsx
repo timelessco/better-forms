@@ -69,7 +69,6 @@ export const MembersContent = () => {
   return (
     <inviteForm.AppForm>
       <div className="flex flex-col gap-8">
-        {/* Invite Section */}
         <section className="flex flex-col gap-3">
           <h3 className="text-sm text-[var(--gray-900)]">Invite member</h3>
           <p className="text-[13px] text-[var(--gray-600)]">
@@ -108,7 +107,6 @@ export const MembersContent = () => {
           </inviteForm.AppField>
         </section>
 
-        {/* Pending Invitations */}
         {invitations.length > 0 && (
           <section className="flex flex-col gap-3">
             <h3 className="text-sm text-[var(--gray-900)]">Pending invitations</h3>
@@ -161,7 +159,6 @@ export const MembersContent = () => {
           </section>
         )}
 
-        {/* Members List */}
         <section className="flex flex-col gap-3">
           <h3 className="text-sm text-[var(--gray-900)]">Members</h3>
           <p className="text-[13px] text-[var(--gray-600)]">Manage members of your organization.</p>

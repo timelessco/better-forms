@@ -495,36 +495,25 @@ interface ColorPickerPanelProps {
 }
 
 const ColorPickerPanel = ({ value, onChange }: ColorPickerPanelProps) => {
-  // The panel is mounted only while the popover is open. We seed `hsla` from
-  // `value` once on mount and from then on the panel OWNS the value. Ignoring
-  // later `value` prop changes is intentional — without that, the parent's
-  // optimistic round-trip during a drag would race with local state and
-  // create a setState feedback loop.
+  // Seed hsla from value once on mount; panel OWNS it after. Ignoring later value changes is
+  // intentional — the parent's optimistic round-trip during a drag would race and feedback-loop.
   const [hsla, setHsla] = React.useState<Hsla>(() => cssToHsla(value));
   const [mode, setMode] = React.useState<Mode>("hex");
   const onChangeRef = useLatestRef(onChange);
 
-  // Mirror `hsla` in a ref so `updateAndEmit` can compute `next` without using
-  // the function-form of setState. Why this matters: emitting (which fires
-  // `onChange` → `collection.update` → live-query subscriber setStates)
-  // INSIDE a setState updater triggers React's "Cannot update a component
-  // while rendering a different component" warning and can cause the updater
-  // to be re-run, doubling work per drag tick.
+  // Mirror hsla in a ref so updateAndEmit computes `next` without setState's updater form:
+  // emitting (onChange → collection.update → subscriber setStates) inside an updater triggers
+  // React's "update while rendering" warning and can re-run the updater, doubling work per tick.
   const hslaRef = React.useRef(hsla);
 
   const updateAndEmit = React.useCallback(
     (patch: Partial<Hsla>) => {
       const next = { ...hslaRef.current, ...patch };
       hslaRef.current = next;
-      // Urgent: local picker state. Drives the saturation panel handle and
-      // slider thumbs — must commit immediately so the cursor doesn't lag.
+      // Urgent: local picker state — drives handle/thumbs, commit now so the cursor doesn't lag.
       setHsla(next);
-      // Transition: app-wide cascade (collection.update → live-query
-      // subscribers → editor preview / customize sidebar / app sidebar
-      // re-render). React commits the urgent update first and lets
-      // subsequent pointermove events interrupt this transition, so the
-      // local handle stays glued to the cursor regardless of how heavy the
-      // downstream re-renders are.
+      // Transition: app-wide cascade (collection.update → subscribers → previews/sidebars).
+      // Urgent commits first; pointermoves interrupt this, keeping the handle glued to the cursor.
       React.startTransition(() => {
         onChangeRef.current(hslaToHex(next));
       });

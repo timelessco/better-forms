@@ -40,15 +40,9 @@ export const useFormVersionContent = (versionId: string | undefined) =>
   );
 
 /**
- * Compose dirty flags for the publish CTA. Two independent sources:
- *
- *   - `hasVersionedChanges`: hash of editor + customization + title/icon/cover
- *     against `form.publishedContentHash`. Settings are intentionally NOT in
- *     the hash (split out per docs/plans/2026-05-04-settings-version-split.md).
- *   - `hasSettingsChanges`: deep-equal of `form.draftSettings` against the
- *     live `formSettings.settings` row (carried on the listings query as
- *     `liveSettings`). When no live row exists yet (first publish), any
- *     non-default draft counts as dirty.
+ * Publish-CTA dirty flags, two independent sources:
+ * - hasVersionedChanges: hash(editor+customization+title/icon/cover) vs publishedContentHash; settings excluded (docs/plans/2026-05-04-settings-version-split.md).
+ * - hasSettingsChanges: deep-equal draftSettings vs live liveSettings row; no live row (first publish) → any non-default draft is dirty.
  */
 export const useFormPublishStatus = (formId: string | undefined) => {
   const { data: formData } = useForm(formId);
@@ -57,9 +51,7 @@ export const useFormPublishStatus = (formId: string | undefined) => {
   return useMemo(() => {
     if (!formId || !form) return EMPTY_STATUS;
 
-    // Versioned: pre-first-publish, any draft counts. Once a baseline exists,
-    // hash editor + customization + title/icon/cover and compare to
-    // `publishedContentHash`.
+    // Pre-first-publish: any draft counts. Else hash content vs publishedContentHash.
     const everPublished = !!form.lastPublishedVersionId;
     const hasVersionedChanges =
       !everPublished ||
@@ -72,9 +64,7 @@ export const useFormPublishStatus = (formId: string | undefined) => {
           cover: form.cover,
         }) !== form.publishedContentHash);
 
-    // Settings: compare draft against the live row. Canonicalize before
-    // stringify — postgres jsonb roundtrip can rearrange keys after a server
-    // merge, and key-order drift would flicker the dirty flag during autosave.
+    // Canonicalize before compare — postgres jsonb roundtrip reorders keys; drift would flicker dirty flag during autosave.
     const draft = form.draftSettings ?? null;
     const live = form.liveSettings ?? null;
     const hasSettingsChanges =
@@ -88,23 +78,17 @@ export const useFormPublishStatus = (formId: string | undefined) => {
   }, [formId, form]);
 };
 
-/**
- * Boolean alias kept for migration; callers gating the Publish button can
- * use this until they switch to `useFormPublishStatus` for granular flags.
- */
+/** Boolean alias for migration; use useFormPublishStatus for granular flags. */
 export const useHasUnpublishedChanges = (formId: string | undefined): boolean =>
   useFormPublishStatus(formId).hasAnyChanges;
 
-/**
- * Publish the current form draft. Optimistically sets status to "published".
- */
+/** Publish draft. Optimistically sets status "published". */
 export const publishForm = (formId: string) => {
   const queryClient = getQueryClient();
   const tx = createTransaction({
     mutationFn: async () => {
       const result = await publishFormVersion({ data: { formId } });
-      // Pre-populate version content cache so useHasUnpublishedChanges
-      // can compare immediately without waiting for a separate fetch
+      // Pre-populate version-content cache so dirty check compares without a fetch.
       if (result?.version) {
         queryClient.setQueryData(["form-version-content", result.version.id], [result.version]);
       }
@@ -118,9 +102,7 @@ export const publishForm = (formId: string) => {
   tx.mutate(() => {
     getFormListings().update(formId, (draft) => {
       draft.status = "published";
-      // Optimistically align publishedContentHash AND liveSettings so both
-      // dirty flags flip to "no changes" immediately, without waiting for
-      // the server refetch.
+      // Align publishedContentHash + liveSettings so both dirty flags clear before server refetch.
       draft.publishedContentHash = computeContentHash({
         content: draft.content,
         customization: draft.customization,
@@ -139,11 +121,8 @@ export const publishForm = (formId: string) => {
 };
 
 /**
- * Restore a version's content to the form draft.
- * Bypasses createTransaction to avoid optimistic overlay timing issues —
- * calls the server API, then uses writeUpdate to synchronously update
- * the collection's sync store so the editor picks up restored content
- * immediately when exiting version view.
+ * Restore version content to draft. Bypasses createTransaction (overlay timing) —
+ * server call then writeUpdate syncs the store so editor sees restored content on exit.
  */
 export const restoreVersion = async (formId: string, versionId: string) => {
   const versionCollection = getVersionContent(versionId);
@@ -166,27 +145,16 @@ export const restoreVersion = async (formId: string, versionId: string) => {
 };
 
 /**
- * Discard changes and revert every versioned field (Groups 1–3) on the live
- * draft back to the latest published version snapshot. Group 4 fields (slug,
- * customDomainId, branding) stay as-is — they're live and never versioned.
- *
- * The server is authoritative — it reads the published version and resets
- * every versioned column. We don't build a client-side optimistic overlay
- * because the published version's content isn't guaranteed to be cached on
- * the client (the version-content collection only populates once Version
- * History is opened). After the server call, refetching the form listing
- * pulls in the reverted state.
+ * Discard changes: revert versioned fields (Groups 1–3) to latest published snapshot.
+ * Group 4 (slug, customDomainId, branding) untouched — live, never versioned.
+ * Server authoritative; no optimistic overlay since published content isn't guaranteed cached.
  */
 export const discardChanges = async (formId: string) => {
   const detail = getFormListings();
   const form = detail.get(formId);
   if (!form?.lastPublishedVersionId) throw new Error("No published version to revert to");
 
-  // Server reverts every versioned column and returns the full form row.
-  // We bypass createTransaction (mirroring restoreVersion) because there's
-  // no useful optimistic overlay to apply — the revert target isn't
-  // guaranteed cached client-side. writeUpdate syncs the row into the
-  // collection store so live queries (and the theme inline style) react.
+  // Server reverts + returns full row; bypass createTransaction (no cacheable overlay). writeUpdate syncs store so live queries react.
   const result = (await discardFormChanges({ data: { formId } })) as {
     form?: Record<string, unknown>;
   };

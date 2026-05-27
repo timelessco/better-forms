@@ -13,12 +13,7 @@ import { BaseMediaKit } from "./plugins/media-base-kit";
 import { BaseTocKit } from "./plugins/toc-base-kit";
 import { BaseToggleKit } from "./plugins/toggle-base-kit";
 
-// Math, Mention, Comment, Suggestion are intentionally omitted. The runtime
-// EditorKit never included MathKit/MentionKit/CommentKit (no insertion path
-// or toolbar wired), and SuggestionKit had no entry point either. Pulling
-// their Base counterparts would drag @platejs/math (→ katex.min.css side-
-// effect), @platejs/mention, @platejs/comment, and @platejs/suggestion into
-// the public-form RSC's SSR CSS manifest for zero rendered output.
+// Math/Mention/Comment/Suggestion intentionally omitted — runtime EditorKit never wired them (no insertion/toolbar). Their Base kits would drag @platejs/math (katex.min.css), mention, comment, suggestion into the RSC SSR CSS manifest for zero output.
 export const BaseEditorKit = [
   ...BaseBasicBlocksKit,
   ...BaseToggleKit,

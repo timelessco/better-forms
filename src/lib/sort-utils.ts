@@ -1,18 +1,12 @@
 import { generateNKeysBetween } from "fractional-indexing";
 
-/**
- * Generate a fresh, ascending list of fractional indexes for N items.
- * Use this to rewrite a list's order after a drag, ensuring a consistent
- * sequence even when some items had no previous sortIndex (lazy backfill).
- */
+/** N fresh ascending fractional indexes. Rewrites list order after a drag, even
+ * when items lacked a prior sortIndex (lazy backfill). */
 export const generateOrderedIndexes = (count: number): string[] =>
   count === 0 ? [] : generateNKeysBetween(null, null, count);
 
-/**
- * Sort a list by `sortIndex` first, falling back to `fallback` (e.g. updatedAt)
- * for rows where `sortIndex` hasn't been set yet (lazy backfill).
- * Rows with a sortIndex appear before rows without.
- */
+/** Sort by `sortIndex`, falling back to `fallback` (e.g. updatedAt) for unset
+ * rows (lazy backfill). Rows with a sortIndex sort before those without. */
 export const sortByManualOrder = <T extends { sortIndex?: string | null }>(
   items: readonly T[],
   fallback: (a: T, b: T) => number,
@@ -26,11 +20,8 @@ export const sortByManualOrder = <T extends { sortIndex?: string | null }>(
     return fallback(a, b);
   });
 
-/**
- * Lowest existing `sortIndex` in a list, or `null` if none have one yet.
- * Pass to `generateKeyBetween(null, leading)` to produce an index that places
- * a new item before every other.
- */
+/** Lowest existing `sortIndex`, or `null`. Pass to
+ * `generateKeyBetween(null, leading)` to place a new item before all others. */
 export const getLeadingSortIndex = (
   items: readonly { sortIndex?: string | null }[],
 ): string | null => {

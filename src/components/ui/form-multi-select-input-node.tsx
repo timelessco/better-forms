@@ -155,8 +155,7 @@ export const FormMultiSelectInputElement = ({ children, ...props }: PlateElement
         }
       }
     } else if (e.key === "Tab" || e.key === "ArrowDown" || e.key === "ArrowUp") {
-      // ArrowLeft/Right should navigate within the input natively; Up/Down and Tab
-      // bridge to block-level navigation.
+      // Left/Right navigate the input natively; Up/Down and Tab bridge to block navigation.
       const goPrev = e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey);
       e.preventDefault();
       e.stopPropagation();

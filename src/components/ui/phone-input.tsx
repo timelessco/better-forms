@@ -62,9 +62,8 @@ function PhoneInput({
   ...props
 }: PhoneInputProps) {
   const phoneInputSize = variant || "default";
-  // `defaultCountry` is read once on mount by react-phone-number-input, so
-  // we wait for hydration before deriving from `navigator.language` and key
-  // the underlying component so it remounts with the resolved value.
+  // react-phone-number-input reads defaultCountry once on mount; wait for hydration to derive
+  // from navigator.language, then key the component to remount with the resolved value.
   const mounted = useMounted();
   const defaultCountry = defaultCountryProp ?? (mounted ? getBrowserDefaultCountry() : undefined);
   return (
@@ -73,15 +72,9 @@ function PhoneInput({
     >
       <BasePhoneInput.default
         key={defaultCountry ?? "no-default"}
-        // The wrapper carries the visual outline (drop-shadow recipe in
-        // light mode, just bg contrast in dark — same as every other input
-        // on the page; no borders in either mode). The two inner pieces
-        // (country select + number field) stay transparent and just butt
-        // together inside this shared surface. Surface is driven by the
-        // same `--form-input-bg` token the `form-input` utility uses so
-        // themed and unthemed pages stay consistent with other inputs.
-        // `[&]:` bumps specificity past react-phone-number-input's own
-        // defaults.
+        // Wrapper owns the visual surface (drop-shadow in light, bg contrast in dark; no borders);
+        // both inner pieces stay transparent. Surface uses --form-input-bg (same as form-input util)
+        // for theme consistency. [&]: bumps specificity past react-phone-number-input's defaults.
         className={cn(
           "flex flex-row items-stretch overflow-hidden rounded-lg text-foreground elevation-sm dark:shadow-none [&]:bg-[var(--form-input-bg,var(--color-gray-50))]",
           phoneInputSize === "sm" && "[&]:h-7",
@@ -110,17 +103,10 @@ function InputComponent({ className, ...props }: React.ComponentProps<"input">) 
     <InputGroupInput
       data-bf-input-fill
       className={cn(
-        // Right-side "input-text" piece: full border in light mode for the
-        // two-part seam, transparent in dark mode so the whole control reads
-        // as a single bg-tinted block — matching every other dark-mode input
-        // in the form (which rely on bg contrast, not borders).
-        // Surface color is bg-background by default; .bf-themed overrides
-        // via [data-bf-input-fill] so the Input token applies.
-        // Inner input is fully transparent — bg / shadow / border are
-        // overridden via `!` because Input's cva variant ships `bg-card`
-        // and `dark:border dark:border-border` in a CSS layer that
-        // out-races plain tailwind-merge. The wrapper above owns the
-        // visual surface.
+        // Right "input-text" piece: bordered in light for the seam, transparent in dark (bg
+        // contrast like other dark inputs). Surface bg-background by default; .bf-themed overrides
+        // via [data-bf-input-fill]. Inner input fully transparent — bg/shadow/border forced with !
+        // because Input's cva ships bg-card + dark:border in a CSS layer out-racing tailwind-merge.
         "flex-1 rounded-l-none rounded-r-[8px] bg-transparent! px-2.5 py-2 text-sm tracking-[0.28px] text-foreground shadow-none! ring-0! outline-none! focus-visible:ring-0 aria-invalid:ring-0 dark:border-0! dark:bg-transparent! dark:shadow-none!",
         variant === "sm" && "h-7",
         variant === "lg" && "h-9",
@@ -152,9 +138,8 @@ function CountrySelect({
 }: CountrySelectProps) {
   const { variant, popupClassName } = use(PhoneInputContext);
   const [searchValue, setSearchValue] = useState("");
-  // ComboboxContent portals to document.body, so it loses the .bf-themed
-  // CSS-var context. Re-anchor the theme on the popup (same pattern as
-  // date-picker / multi-select).
+  // ComboboxContent portals to body, losing .bf-themed CSS vars — re-anchor theme on the popup
+  // (same as date-picker/multi-select).
   const themeReanchor = useReanchorThemeProps();
 
   const filteredCountries = useMemo(() => {
@@ -183,11 +168,9 @@ function CountrySelect({
             data-bf-input-fill
             suffix={<ChevronDownIcon className="ml-0.5 size-3 text-muted-foreground" />}
             className={cn(
-              // Left "input-select" piece — flag + chevron. No border, no
-              // shadow, no own bg: the wrapper owns the visual surface and
-              // both inner pieces are transparent so the whole control
-              // reads as one rounded block. Hover/pressed paint a subtle
-              // overlay so the click target is still discoverable.
+              // Left "input-select" piece (flag + chevron). No border/shadow/bg — wrapper owns
+              // the surface; transparent so the control reads as one block. Hover/pressed paint a
+              // subtle overlay to keep the target discoverable.
               "flex items-center gap-[3px] rounded-l-[8px] rounded-r-none bg-transparent! py-2 pr-1 pl-2 shadow-none hover:bg-secondary/40 focus:z-10 data-pressed:bg-secondary/40 dark:border-0! dark:bg-transparent! dark:shadow-none! dark:hover:bg-muted/40 dark:data-pressed:bg-muted/40",
               variant === "sm" && "h-7",
               variant === "lg" && "h-9",
@@ -210,19 +193,16 @@ function CountrySelect({
       <ComboboxContent
         align="start"
         className={cn(
-          // Drop any blanket "*:data-[slot=input-group]:bg-transparent"
-          // override here — the search-input InputGroup below intentionally
-          // carries `bg-secondary` so the search row reads as a themed chip
-          // inside the popover (matches the Command palette pattern).
+          // No blanket *:data-[slot=input-group]:bg-transparent — search InputGroup keeps
+          // bg-secondary so it reads as a themed chip (Command palette pattern).
           "w-[246px] rounded-xl bg-popover p-1 elevation-xl",
           themeReanchor.className,
           popupClassName,
         )}
         style={themeReanchor.style}
       >
-        {/* Single InputGroup carries bg + the focus ring so search icon and
-            input read as one focused control. variant="borderless" suppresses
-            the default border; focus-within paints the unified ring. */}
+        {/* One InputGroup carries bg + focus ring so icon and input read as one control.
+            variant="borderless" drops the default border; focus-within paints the ring. */}
         <InputGroup
           variant="borderless"
           className="h-7 gap-1.5 rounded-lg bg-secondary px-2 focus-within:ring-2 focus-within:ring-ring/50"
@@ -256,10 +236,8 @@ function CountrySelect({
                     <ComboboxItem
                       key={item.value}
                       value={item.value}
-                      // Hide the built-in ItemIndicator slot — we surface
-                      // selection via the country code on the right instead,
-                      // and the 16px reserved indicator span shoves the code
-                      // away from the popover edge.
+                      // Hide built-in ItemIndicator — selection shown via country code on right;
+                      // its 16px reserved span would shove the code off the popover edge.
                       className="flex h-7 items-center gap-1 rounded-lg px-2 py-1.5 text-sm tracking-[0.28px] [&>span[aria-hidden=true]]:hidden"
                     >
                       <span className="flex-1 text-foreground">{item.label}</span>

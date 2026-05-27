@@ -2,10 +2,8 @@ import type { TElement, Value } from "platejs";
 import { createFormButtonNode } from "@/components/ui/form-button-node";
 import { createFormHeaderNode } from "@/components/ui/form-header-node";
 
-/**
- * Ensure saved editor content has a formHeader at index 0 and a submit button.
- * Shared between the authenticated editor and the landing (local) editor.
- */
+/** Ensure content has a formHeader at index 0 + a submit button. Shared by
+ * authenticated and landing (local) editors. */
 export const migrateEditorContent = (
   content: Value,
   metadata?: { title?: string | null; icon?: string | null; cover?: string | null },
@@ -43,10 +41,8 @@ export const migrateEditorContent = (
   return result;
 };
 
-/**
- * Convert consecutive formOptionItem nodes with variant="multiSelect"
- * into a single formMultiSelectInput node with options as a string array.
- */
+/** Consecutive variant="multiSelect" formOptionItem nodes → one formMultiSelectInput
+ * with options as a string array. */
 const migrateMultiSelectOptions = (content: Value): Value => {
   const result: TElement[] = [];
   let i = 0;
@@ -72,7 +68,7 @@ const migrateMultiSelectOptions = (content: Value): Value => {
         options,
         children: [{ text: "" }],
       } as unknown as TElement);
-      // Add trailing paragraph if next node isn't one (matches what transforms.ts inserts for new fields)
+      // Trailing paragraph if next isn't one (matches transforms.ts for new fields).
       const nextNode = content[i];
       if (!nextNode || nextNode.type !== "p") {
         result.push({ type: "p", children: [{ text: "" }] } as unknown as TElement);

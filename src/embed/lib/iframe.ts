@@ -1,14 +1,6 @@
-/**
- * Reform Popup Embed - Iframe Management
- */
-
 import type { PopupOptions } from "./types";
 
-/**
- * Get the base URL for forms.
- * In production, this comes from the script's src attribute.
- * Falls back to current origin for local development.
- */
+/** Forms base URL — from script src in prod, current origin in local dev. */
 const getBaseUrl = (): string => {
   const scripts = document.getElementsByTagName("script");
   for (let i = scripts.length - 1; i >= 0; i--) {
@@ -26,23 +18,12 @@ const getBaseUrl = (): string => {
   return window.location.origin;
 };
 
-/**
- * Build the iframe URL with query parameters.
- * Exported so the bubble's warmup can prefetch the exact same URL — any
- * parameter divergence causes the browser to treat it as a different
- * resource and skip the prefetched cache entry.
- */
+/** Build iframe URL. Exported so warmup prefetches the exact same URL — any param divergence is a different cache entry. */
 export const buildIframeUrl = (formId: string, options: PopupOptions): string => {
   const baseUrl = getBaseUrl();
   const params = new URLSearchParams();
 
-  // The /forms/$formId route's validateSearch normalizes booleans to
-  // "true"/"false" and fills every optional bool with its default, then
-  // 307-redirects non-canonical URLs. Prefetch (<link rel="prefetch">) does
-  // NOT follow redirects, so a mismatched URL warms nothing and the click
-  // lands on a cold page. Emit the canonical form here — all bool params,
-  // in schema order, as "true"/"false" — so hover-prefetch and click hit
-  // the exact same cacheable URL.
+  // validateSearch 307-redirects non-canonical URLs; prefetch doesn't follow redirects → cold page. Emit canonical form (all bools, schema order, "true"/"false") so prefetch + click hit the same URL.
   params.set("popup", "true");
   params.set("originPage", window.location.pathname);
   params.set("transparent", "true");
@@ -58,7 +39,7 @@ export const buildIframeUrl = (formId: string, options: PopupOptions): string =>
     }
   }
 
-  // Forward current page's query params (useful for UTM tracking, etc.)
+  // Forward page query params (UTM etc.).
   const currentParams = new URLSearchParams(window.location.search);
   currentParams.forEach((value, key) => {
     if (!params.has(key)) {
@@ -96,11 +77,7 @@ const IFRAME_HEIGHT_MAX = 600;
 /** Leave margin top+bottom so the popup never touches the viewport edges. */
 const IFRAME_VIEWPORT_MARGIN = 40;
 
-/**
- * Update iframe height. Clamps to min(600, viewport - 40) so the iframe
- * never overflows the popup container. If the form content is taller than
- * the clamp, the iframe's own page scroll handles overflow.
- */
+/** Update iframe height, clamped to min(600, viewport-40); taller content scrolls inside the iframe. */
 export const updateIframeHeight = (iframe: HTMLIFrameElement, height: number): void => {
   const max = Math.min(IFRAME_HEIGHT_MAX, window.innerHeight - IFRAME_VIEWPORT_MARGIN);
   const adjustedHeight = Math.min(height + 2, max);

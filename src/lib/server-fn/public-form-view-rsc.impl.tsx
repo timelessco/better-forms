@@ -45,9 +45,8 @@ const ServerPlateBlock = ({ nodes }: { nodes: Value }) => {
   );
 };
 
-// Server-rendered label + required badge. No hooks, no Tooltip (that's
-// client-only Radix) — renders a plain styled label with a `title` tooltip
-// so the required marker still has an accessible hint without shipping JS.
+// Server label + required badge. No hooks/Tooltip (client Radix); uses a title tooltip so
+// the required marker keeps an accessible hint without shipping JS.
 const RequiredBadge = () => (
   <span
     aria-label="Required field"
@@ -87,8 +86,7 @@ const ServerFieldLabel = ({
   labelType?: string;
   htmlFor: string;
   required?: boolean;
-  /** Group fields render the label as a span with stable id; the surrounding
-   * role=group wrapper handles AT association via aria-labelledby. */
+  /** Group fields render label as span w/ stable id; role=group wrapper handles AT via aria-labelledby. */
   asGroupLabel?: boolean;
 }) => {
   if (!text) return null;
@@ -145,8 +143,7 @@ type ButtonField = {
 
 type GroupedSegment = PreviewSegment | { type: "buttonGroup"; buttons: ButtonField[] };
 
-// Buttons are collected and moved to the end of the step (rendered as a single
-// button group row) regardless of their original position in the segments.
+// Collect buttons, move to step end as one group row, regardless of original position.
 const groupSegmentsForRendering = (
   segments: PreviewSegment[],
 ): { grouped: GroupedSegment[]; fields: PlateFormField[] } => {
@@ -213,9 +210,8 @@ export const renderStepComponent = async (segments: PreviewSegment[]) => {
               return <Field key={item.key} fieldId={field.id} field={field} />;
             }
             const { label, required, labelType } = getFieldLabelProps(field);
-            // Group fields have no single labelable control — wrap them in
-            // role=group with aria-labelledby so AT announces the group label.
-            // Mirrors PreviewInputShell.
+            // Group fields lack a single labelable control; role=group + aria-labelledby so AT
+            // announces the group label. Mirrors PreviewInputShell.
             const isGroup = GROUP_FIELD_TYPES.has(field.fieldType);
             const groupAriaProps =
               isGroup && label
@@ -375,9 +371,8 @@ export const renderThankYouComponent = async (nodes: Value | null) => {
 export const runPublicFormViewRSC = async (data: { shortId: string }) => {
   const base = await getPublishedFormByShortId({ data: { shortId: data.shortId } });
 
-  // Cache-Tag must be the UUID so `purgeFormCache(formId)` can invalidate.
-  // When base.form is null (gated/closed/over-limit) the gated:true branch
-  // skips Cache-Tag entirely, so an empty placeholder is fine here.
+  // Cache-Tag must be the UUID so purgeFormCache(formId) can invalidate. When base.form is null
+  // (gated/closed/over-limit) the gated:true branch skips Cache-Tag, so empty placeholder is fine.
   applyFormCacheHeaders(base.form?.id ?? "", { gated: !(base.form && !base.gated) });
 
   const { steps: rawSteps, thankYouNodes }: PreviewStepResult = base.form
@@ -386,8 +381,8 @@ export const runPublicFormViewRSC = async (data: { shortId: string }) => {
 
   const isFieldByField = base.form?.settings?.presentationMode === "field-by-field";
   const steps = isFieldByField ? chunkSegmentsForFieldByField(rawSteps) : rawSteps;
-  // Custom icon color lives in the Plate `formHeader` node, not the form row.
-  // Extract here so the field-by-field client header can match the builder.
+  // Custom icon color lives in the Plate formHeader node, not the form row; extract so the
+  // field-by-field client header matches the builder.
   const formHeaderIconColor =
     isFieldByField && base.form
       ? (extractFormHeader(base.form.content as Value)?.iconColor ?? null)
@@ -396,8 +391,7 @@ export const runPublicFormViewRSC = async (data: { shortId: string }) => {
   const [stepComponents, thankYou, header] = await Promise.all([
     Promise.all(steps.map((segs) => renderStepComponent(segs))),
     renderThankYouComponent(thankYouNodes),
-    // Field-by-field renders its own icon+title header client-side (different
-    // layout: icon beside title, no cover band). Skip the card-mode header.
+    // Field-by-field renders its own client header (icon beside title, no cover band); skip card header.
     base.form && !isFieldByField
       ? renderHeaderComponent({
           title: base.form.title,

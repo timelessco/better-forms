@@ -17,27 +17,19 @@ import { logger } from "@/lib/utils";
 import { useDraftAutoSave } from "./use-draft-autosave";
 import type { AppForm } from "./use-form-builder";
 
-/** Tracks which visits have already fired `didStartForm: true`. Module-scope so
- * it survives re-renders and step changes within the same visit, but resets on
- * full page reload (which also produces a new visitId, so no double-fire). */
+/** Visits that already fired `didStartForm: true`. Module-scope survives re-renders/step changes; resets on reload (new visitId, no double-fire). */
 const didStartFiredVisits = new Set<string>();
 
 interface UseStepPreviewFormOptions {
   fields: PlateFormField[];
-  /** Pre-computed Questions in this Step (global indices, stepId, stepIndex).
-   * Used by the per-Question `start` (on first focus) and `complete` (on
-   * submit) analytics emitters. Omit / pass `[]` when tracking is disabled
-   * (e.g. RSC-rendered preview, builder previews). */
+  /** Questions in this Step for per-Question start/complete analytics. Pass `[]` to disable tracking (RSC/builder previews). */
   questions?: QuestionRef[];
   stepIndex: number;
   isLastStep: boolean;
   formName?: string;
 }
 
-/**
- * Creates a TanStack Form instance for a single step in a multi-step form.
- * Uses StepFormContext for navigation and data accumulation.
- */
+/** TanStack Form instance for one step of a multi-step form. Navigation + data accumulation via StepFormContext. */
 export const useStepPreviewForm = ({
   fields,
   questions = [],
@@ -47,26 +39,18 @@ export const useStepPreviewForm = ({
 }: UseStepPreviewFormOptions): {
   form: AppForm;
   formName: string;
-  /** Form-level onFocus handler. Routes focus events to the per-Question
-   * `start` emitter, deduped per `(visitId, questionId)` for the Visit. */
+  /** Form-level onFocus → per-Question `start` emitter, deduped per (visitId, questionId). */
   handleFieldFocus: (event: React.FocusEvent<HTMLFormElement>) => void;
 } => {
   const { formData, goToNextStep, submitForm, formId, tracking } = useStepForm();
   const { saveDraft } = useDraftAutoSave(formId);
 
-  // Per-Question `start` dedup latch keyed by `${visitId}::${questionId}`.
-  // Dedupes within a single Step mount. Cross-step idempotency is guaranteed
-  // by the server upsert (coalesce on `startedAt`); `StepForm` is keyed on
-  // `currentStep` and remounts on back-navigation, which resets this ref.
+  // `start` dedup latch keyed `visitId::questionId`, per Step mount. Cross-step idempotency via server upsert (coalesce on startedAt); StepForm remounts on back-nav, resetting this.
   const startFiredRef = useRef<Set<string>>(new Set());
 
   const validationSchema = useMemo(() => generateZodSchemaFromFields(fields), [fields]);
 
-  // Lookup from Question id → ref. Keyed by the Plate Block id (the same
-  // value rendered as `data-bf-question-id` on each Question wrapper), so
-  // focus on any descendant — including field types that don't expose `name`
-  // on the focusable element (Phone, MultiSelect, MultiChoice, Checkbox,
-  // Date, FileUpload, Ranking) — resolves cleanly.
+  // Question id → ref, keyed by Plate Block id (= data-bf-question-id), so focus on any descendant resolves even for fields without `name` (Phone, MultiSelect, etc.).
   const questionsById = useMemo<Map<string, QuestionRef>>(() => {
     const map = new Map<string, QuestionRef>();
     for (const q of questions) {
@@ -77,7 +61,7 @@ export const useStepPreviewForm = ({
 
   const defaultValues = useMemo(() => {
     const fieldDefaults = generateDefaultValuesFromFields(fields);
-    // Merge context data (for when user goes back to previous step)
+    // Merge context data — for back-nav to previous step.
     const merged: Record<string, unknown> = { ...fieldDefaults };
     for (const field of fields) {
       if (field.name in formData) {
@@ -121,11 +105,7 @@ export const useStepPreviewForm = ({
       onDynamic: validationSchema,
       onDynamicAsyncDebounceMs: 300,
     },
-    // Draft autosave: merge this step's current values with previously-captured
-    // step data and persist as an in-progress submission. `onBlurDebounceMs`
-    // collapses rapid tabbing through fields into a single save. The per-
-    // Question `start` event lives on `handleFieldFocus` (on first focus),
-    // not on blur — see ADR-0002.
+    // Draft autosave: merge step values into in-progress submission. onBlurDebounceMs collapses rapid tabbing. `start` event lives on focus, not blur — see ADR-0002.
     listeners: {
       onBlur: ({ formApi }) => {
         if (formId) {
@@ -138,15 +118,10 @@ export const useStepPreviewForm = ({
       onBlurDebounceMs: 1000,
     },
     onSubmit: async ({ value }) => {
-      // Errors bubble to public-form-page, which renders an inline banner.
-      // No toast here — keeps the published form's bundle free of sonner.
+      // Errors bubble to public-form-page (inline banner); no toast — keeps published bundle sonner-free.
       logger(`Step ${stepIndex + 1} submitted with values:`, value);
 
-      // Analytics: emit `complete` for every Question in this Step before
-      // navigating. The last Question of the final Step carries the
-      // `wasLastQuestion` flag so the funnel can identify terminal Questions.
-      // Flush the buffer afterwards so the next Step's mount doesn't race
-      // ahead of the prior Step's events.
+      // Emit `complete` for every Question before nav; last Question of final Step gets wasLastQuestion (funnel terminal). Flush after so next Step's mount doesn't race ahead.
       if (tracking?.visitId && tracking.mode && questions.length > 0) {
         const visitId = tracking.visitId;
         const lastIndex = questions.length - 1;

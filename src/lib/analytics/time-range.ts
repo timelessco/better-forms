@@ -11,10 +11,7 @@ const DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 export type ResolvedRange = {
   start: Date;
   end: Date;
-  /**
-   * Inclusive list of UTC date keys (YYYY-MM-DD) that intersect [start, end].
-   * Every calendar date with any portion in the window appears here.
-   */
+  /** Inclusive UTC date keys (YYYY-MM-DD) intersecting [start, end]. */
   days: string[];
 };
 
@@ -37,7 +34,7 @@ const parseDateKey = (key: string): Date => {
   }
   const [year, month, day] = key.split("-").map(Number);
   const parsed = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-  // Round-trip check rejects out-of-range months/days (e.g. 2024-02-30).
+  // Round-trip rejects out-of-range months/days (e.g. 2024-02-30).
   if (toDateKey(parsed) !== key) {
     throw new Error(`Invalid date key '${key}': not a real calendar date`);
   }
@@ -74,10 +71,7 @@ const resolveRollingDays = (days: number, now: Date): ResolvedRange => {
   return { start, end, days: dayKeys };
 };
 
-/**
- * Resolve a TimeRange (filter + optional custom dates) into concrete
- * start/end Dates and the list of UTC date keys the window touches.
- */
+/** Resolve a TimeRange into start/end Dates + UTC date keys the window touches. */
 export const resolveTimeRange = (input: TimeRange, now: Date = new Date()): ResolvedRange => {
   switch (input.filter) {
     case "last_24_hours":
@@ -93,7 +87,7 @@ export const resolveTimeRange = (input: TimeRange, now: Date = new Date()): Reso
         throw new Error("Custom time range requires both startDate and endDate (YYYY-MM-DD)");
       }
       const start = parseDateKey(input.startDate);
-      // End-of-day UTC for the endDate (inclusive)
+      // End-of-day UTC, inclusive
       const endDay = parseDateKey(input.endDate);
       const end = new Date(endDay.getTime() + MS_PER_DAY - 1);
       const days = buildIntersectingDayKeys(start, end);
@@ -107,11 +101,9 @@ export const resolveTimeRange = (input: TimeRange, now: Date = new Date()): Reso
 };
 
 /**
- * Split a resolved range into a "today" portion and a list of fully-aggregated
- * past day keys. `todayStart` is the start of the current UTC day (when the
- * range includes today). `rawStart` is the SQL lower bound for raw rows in the
- * open day: `max(range.start, todayStart)`. Both are null when the range ends
- * before today.
+ * Split range into "today" portion + fully-aggregated past day keys.
+ * todayStart = start of current UTC day; rawStart = SQL lower bound for open-day
+ * raw rows = max(range.start, todayStart). Both null when range ends before today.
  */
 export const splitTodayVsPast = (
   range: ResolvedRange,

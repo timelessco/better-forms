@@ -19,11 +19,8 @@ const MAX_FILE_SIZE = 4 * 1024 * 1024;
 
 type AttachedImage = { url: string; name: string };
 
-/**
- * Rendered once as the plugin's `afterEditable` slot. Only mounts the popover
- * body when state.open is true — closing unmounts the body, resetting prompt
- * state without leaving any node behind in the editor tree.
- */
+/** Plugin's afterEditable slot. Mounts the popover body only when state.open — closing unmounts it,
+ *  resetting prompt state with no leftover node in the tree. */
 export const AIInputOverlay = () => {
   const state = usePluginOption(AIInputPlugin, "ui");
   if (!state.open) return null;
@@ -244,10 +241,8 @@ const AIInputPopoverBody = ({ state }: { state: AIInputState }) => {
   const handleOpenChange = useCallback(
     (open: boolean) => {
       if (open) return;
-      // While a stream is in flight or a diff preview is pending, block
-      // outside-click dismissal — the user must explicitly Stop (in-flight)
-      // or Accept/Discard (preview) to close. Losing these silently would
-      // kill the generation or drop the pending diff with no indication.
+      // Block outside-click dismissal during a stream/pending preview — must Stop or
+      // Accept/Discard explicitly; silent dismissal would kill the gen or drop the diff.
       if (isLoading || hasPendingPreview) return;
       hide();
     },

@@ -4,11 +4,7 @@ import * as schema from "@/db/schema";
 import { db } from "@/db";
 import { getTestUtils, cleanupTestUser } from "@/test/helpers";
 
-// Validates the `databaseHooks.user.create.after` hook in
-// `src/lib/auth/auth.ts`. When a new user is created, the hook must
-// auto-provision their starting state: one organization, an owner membership,
-// and one default workspace. This is the gate that prevented the orphan-user
-// bug we backfilled.
+// Validates `databaseHooks.user.create.after` (auth.ts): new user auto-provisions one org + owner membership + default workspace. Guards the backfilled orphan-user bug.
 
 describe("auto-provision on user creation", () => {
   const createdUserIds: string[] = [];

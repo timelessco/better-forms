@@ -12,9 +12,7 @@ const tick = () => {
 };
 
 const subscribe = (listener: () => void) => {
-  // When the last subscriber unmounts the interval is cleared but cachedNow
-  // retains its old value; refresh it here so a remount doesn't display a
-  // stale relative-time label until the next 60s tick.
+  // Refresh on first subscriber — remount after all unmounted would show stale time until next 60s tick.
   if (listeners.size === 0) cachedNow = Date.now();
   listeners.add(listener);
   if (intervalId === null) intervalId = setInterval(tick, REFRESH_MS);

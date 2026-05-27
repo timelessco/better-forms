@@ -100,9 +100,7 @@ function ChartTooltipContent({
         {payload
           .filter((item) => item.type !== "none")
           .map((item, index) => {
-            // For pie charts, item.name contains the sector name (e.g., "chrome")
-            // For radial charts, the name is in item.payload[nameKey]
-            // For other charts, item.name or item.dataKey contains the series name
+            // Name location: pie → item.name; radial → item.payload[nameKey]; other → item.name/item.dataKey.
             const payloadName =
               nameKey && item.payload
                 ? (item.payload as Record<string, unknown>)[nameKey]

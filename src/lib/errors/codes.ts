@@ -1,11 +1,7 @@
-// Canonical list of stable, machine-readable error codes used across the
-// app. Client code branches on these via `parseError(err).code` rather
-// than parsing user-facing message strings. Server `createError({ code,
-// ... })` calls must pick from this union so TypeScript catches typos.
-//
-// Convention: `domain/kebab-specific`. Lowercase. Stable — once a code
-// ships, treat it like a public API: rename = breaking change for any
-// client that branches on it.
+// Stable machine-readable error codes. Client branches on `parseError().code`,
+// not message strings; `createError` picks from this union (TS catches typos).
+// Convention: `domain/kebab`, lowercase. Shipped codes are public API —
+// rename = breaking change.
 export type ErrorCode =
   // --- Auth & access ----------------------------------------------------
   | "auth/no-org" // no active organization on the session
@@ -64,8 +60,7 @@ export type ErrorCode =
   | "quota/ai-daily-limit"
 
   // --- Vercel infrastructure (custom-domains via Vercel API) ----------
-  // These wrap upstream Vercel SDK failures; status mirrors the upstream
-  // HTTP response when available, falls back to 502 for opaque failures.
+  // Wrap upstream Vercel SDK failures; status mirrors upstream, else 502.
   | "vercel/domain-add-failed"
   | "vercel/domain-check-failed"
   | "vercel/domain-verify-failed"

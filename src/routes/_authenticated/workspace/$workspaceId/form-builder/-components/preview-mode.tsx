@@ -67,9 +67,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
     if (embedType === "popup") setIsPopupOpen(true);
   }
 
-  // Portaled popovers (date picker, etc.) lose CSS-var inheritance. Publish
-  // themeVars/hasCustomization via EditorThemeProvider so portaled content
-  // can re-anchor the theme. Hook must run before any early returns.
+  // Portaled popovers lose CSS-var inheritance. Publish themeVars/hasCustomization via EditorThemeProvider so they re-anchor theme. Must run before early returns.
   const themeCtxValue = useFormThemeContextValue({ themeVars, hasCustomization, customization });
 
   if (!isLoading && savedDocs !== undefined && savedDocs.length === 0) {
@@ -197,10 +195,7 @@ const EmbedPreviewSurface = ({
   previewSettings,
   formId,
 }: EmbedPreviewSurfaceProps) => {
-  // Track the embed's bounding element so portaled popovers (date picker,
-  // multi-select) inside the form render into it and collision-detect
-  // against its bounds — without this, popups portal to body and can
-  // visually escape the embed frame.
+  // Track embed bounds so portaled popovers render + collision-detect within it; else they portal to body and escape the embed frame.
   const [embedFrame, setEmbedFrame] = useState<HTMLElement | null>(null);
   useFocusTrap(embedType === "standard", embedFrame);
   return (
@@ -488,11 +483,7 @@ const FullpagePreviewSurface = ({
   branding,
   formId,
 }: FullpagePreviewSurfaceProps) => {
-  // Match FormPreviewFromPlate's cover resolution exactly: when a formHeader
-  // node exists, it is the sole source of truth for the cover (no fallback to
-  // the legacy `doc.cover` column, which can hold a stale URL from before the
-  // user removed the cover in the editor). Only forms with no header node
-  // fall back to `doc.cover`.
+  // Match FormPreviewFromPlate cover resolution: formHeader node is sole truth (legacy doc.cover may be stale). Only header-less forms fall back to doc.cover.
   const effectiveCover = useMemo(() => {
     const header = extractFormHeader(content);
     if (header) return header.cover ?? null;
@@ -505,8 +496,7 @@ const FullpagePreviewSurface = ({
         transparentBackground ? "bg-transparent" : "bg-background",
       )}
     >
-      {/* Field-by-field mode: render the cover as a full-pane background here
-      because the form-preview's own bg-image only fills its content height. */}
+      {/* Field-by-field: cover as full-pane bg here — form-preview's bg-image only fills content height. */}
       {previewSettings.presentationMode === "field-by-field" && effectiveCover && (
         <FieldByFieldCoverBackground cover={effectiveCover} />
       )}

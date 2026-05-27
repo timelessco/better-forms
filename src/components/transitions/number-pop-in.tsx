@@ -7,9 +7,7 @@ interface NumberPopInProps {
 }
 
 /**
- * Renders a number whose characters slide + blur into place. Changing `value`
- * re-keys the group, which remounts it and replays the CSS animation — no
- * effect needed. The last two characters stagger so decimals feel alive.
+ * Number whose chars slide + blur in. Changing `value` re-keys the group → remount replays CSS anim (no effect). Last two chars stagger.
  * See `.t-digit-group` in `src/styles/transitions.css`.
  */
 export const NumberPopIn = ({ value, className }: NumberPopInProps) => {

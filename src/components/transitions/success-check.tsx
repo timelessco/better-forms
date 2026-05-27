@@ -7,11 +7,8 @@ interface SuccessCheckProps {
 }
 
 /**
- * A checkmark that celebrates a completed action: it fades in, rotates upright,
- * settles with a Y-bob, and draws its stroke. Mount it when the success state
- * becomes true (e.g. render it only after `await save()`) and the appear
- * animation runs once. The stroke-draw length is calibrated statically in
- * `.t-success-check svg path` (transitions.css) to match the fixed `d` below.
+ * Checkmark: fades in, rotates upright, Y-bobs, draws stroke. Mount on success so appear anim runs once.
+ * Stroke-draw length is calibrated statically in `.t-success-check svg path` (transitions.css) to match the fixed `d` below.
  */
 export const SuccessCheck = ({ className, size = 48 }: SuccessCheckProps) => (
   <span className={cn("t-success-check", className)} data-state="in" aria-hidden="true">

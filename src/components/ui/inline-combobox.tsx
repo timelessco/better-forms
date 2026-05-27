@@ -81,7 +81,7 @@ const InlineCombobox = ({
   const hasValueProp = valueProp !== undefined;
   const value = hasValueProp ? valueProp : valueState;
 
-  // Check if current user is the creator of this element (for Yjs collaboration)
+  // Is current user the creator (Yjs collaboration)?
   const isCreator = React.useMemo(() => {
     const elementUserId = (element as TElement & { userId?: string }).userId;
     const currentUserId = editor.meta.userId;
@@ -103,10 +103,7 @@ const InlineCombobox = ({
     [setValueProp, hasValueProp],
   );
 
-  /**
-   * Track the point just before the input element so we know where to
-   * insertText if the combobox closes due to a selection change.
-   */
+  /** Point just before the input — where to insertText if the combobox closes on selection change. */
   const insertPoint = React.useRef<Point | null>(null);
 
   React.useEffect(() => {
@@ -167,10 +164,7 @@ const InlineCombobox = ({
 
   const items = store.useState("items");
 
-  /**
-   * If there is no active ID and the list of items changes, select the first
-   * item.
-   */
+  /** No active ID + items changed → select first. */
   const activeId = store.useState("activeId");
   const [lastItems, setLastItems] = React.useState(items);
   if (lastItems !== items) {
@@ -214,12 +208,7 @@ const InlineComboboxInput = ({
 
   const ref = useComposedRefs(propRef, contextRef);
 
-  /**
-   * To create an auto-resizing input, we render a visually hidden span
-   * containing the input value and position the input element on top of it.
-   * This works well for all cases except when input exceeds the width of the
-   * container.
-   */
+  /** Auto-resize: hidden span holds the value, input sits on top. Breaks if input exceeds container width. */
 
   return (
     <>

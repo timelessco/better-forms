@@ -303,13 +303,7 @@ export const WorkspaceItemMinimal = ({
   );
 };
 
-// Lightweight sidebar section that mirrors the look of the shared SidebarSection
-// but does not pull in Base UI's Accordion + Collapsible. Those primitives
-// broadcast AccordionItemContext + CollapsibleRootContext to every descendant on
-// every internal state change (height measurements, mount transitions, etc.),
-// which forces all 26 nested form rows + the dnd-kit useSortable subscribers to
-// re-render even when no real data changed. With ~26 forms × multiple Base UI
-// effects per render, that broadcast was the dominant cost in the sidebar.
+// Lightweight section mirroring SidebarSection without Base UI Accordion/Collapsible — those broadcast context to every descendant on internal state changes, re-rendering all ~26 form rows + useSortable subscribers on no real change. Dominant sidebar cost.
 const LiteSidebarSection = ({
   label,
   children,
@@ -459,8 +453,7 @@ const WorkspaceFormMinimal = ({
         linkOptions={linkOptions}
         isActive={isActive}
         prefix={prefix}
-        // Reserve space for the absolute-positioned options button so the
-        // truncated title's ellipsis doesn't end up underneath it.
+        // Reserve space for absolute options button so title ellipsis isn't under it.
         className="group-hover/row:pe-7 group-has-[[data-state=open]]/row:pe-7"
       >
         {/* eslint-disable-next-line react-doctor/rendering-conditional-render -- showCount is a derived boolean (isPublished && submissionCount > 0); cannot render numeric 0 */}

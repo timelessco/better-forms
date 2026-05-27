@@ -317,9 +317,7 @@ const DashboardPage = () => {
     if (!activeOrg?.id || !trimmedName || isCreatingWorkspace) return;
     setIsCreatingWorkspace(true);
     try {
-      // Place the new workspace before the current lead so it appears at the
-      // top of the sidebar; fractional-indexing keeps it stable even after
-      // future drag-reorders.
+      // Place before current lead so it tops the sidebar; fractional-indexing keeps it stable through drag-reorders.
       const leadingSortIndex = generateKeyBetween(null, getLeadingSortIndex(orgWorkspaces));
       const workspace = await createWorkspaceLocal(activeOrg.id, trimmedName, leadingSortIndex);
       setCreateWorkspaceOpen(false);
@@ -347,8 +345,7 @@ const DashboardPage = () => {
     [handleConfirmCreateWorkspace],
   );
 
-  // Mirror the sidebar's order so the dashboard's "New form" button targets
-  // the same workspace the sidebar lists first when no explicit pick is made.
+  // Mirror sidebar order so "New form" targets the same first-listed workspace when no explicit pick.
   const orderedWorkspaces = useMemo(
     () =>
       sortByManualOrder(
@@ -434,12 +431,7 @@ const DashboardPage = () => {
     });
   }, []);
 
-  // Global dashboard hotkeys (Mod+A / Delete / Escape) sit at the document
-  // level. When a modal dialog is open (trash, settings, command palette),
-  // its own hotkeys should win — so each handler bails if a Base UI dialog
-  // is currently open. Base UI signals open state via the `data-open`
-  // attribute on its dialog content; checking that is more reliable than
-  // tracking each dialog's state in context.
+  // Global dashboard hotkeys (Mod+A/Delete/Escape) at doc level; bail when a dialog is open so its hotkeys win. Check Base UI's data-open attr — more reliable than tracking each dialog in context.
   const isModalDialogOpen = () =>
     typeof document !== "undefined" &&
     document.querySelector('[data-slot="dialog-content"][data-open]') !== null;

@@ -253,7 +253,5 @@ export const iconOptions: IconOption[] = ICON_NAMES.map((name) => ({
   ),
 }));
 
-/**
- * Pre-computed Map for O(1) icon lookups by label
- */
+/** Pre-computed Map for O(1) icon lookup by label. */
 export const iconMap = new Map(iconOptions.map((opt) => [opt.label, opt]));

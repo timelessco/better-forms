@@ -12,11 +12,7 @@ type UseFormThemeContextValueArgs = {
   updateThemeColor?: (themeColor: string) => void;
 };
 
-/**
- * Memoizes the EditorThemeProvider value so the editor app and preview mode
- * publish a stable context object — without this, every parent render creates
- * a fresh object and propagates through context to every consumer.
- */
+/** Memoizes EditorThemeProvider value — stable context object; else every parent render re-notifies all consumers. */
 export const useFormThemeContextValue = ({
   themeVars,
   hasCustomization,
@@ -34,12 +30,8 @@ export const useFormThemeContextValue = ({
   );
 
 /**
- * Returns the className/style pair to slap on portaled popover/dropdown
- * content so theme tokens reach inside the portal. Without this, content
- * portaled to document.body loses CSS-var inheritance from `.bf-themed`.
- *
- * Caller spreads:
- *   <PopoverContent className={cn(myClasses, theme.className)} style={theme.style} />
+ * className/style pair for portaled popover/dropdown content — carries theme tokens into the portal (document.body loses `.bf-themed` CSS-var inheritance).
+ * Spread: <PopoverContent className={cn(myClasses, theme.className)} style={theme.style} />
  */
 export const useReanchorThemeProps = (
   baseClassName?: string,

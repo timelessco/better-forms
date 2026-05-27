@@ -33,7 +33,7 @@ type ServerFn = (...args: any[]) => any;
 export type ServerFnInput<T extends ServerFn> = NonNullable<Parameters<T>[0]>["data"];
 export type ServerFnOutput<T extends ServerFn> = Awaited<ReturnType<T>>;
 
-/** Convert null values to undefined so collection data aligns with Zod-validated server fn inputs */
+/** null -> undefined so collection data matches Zod-validated server fn inputs. */
 type NullToUndefined<T> = {
   [K in keyof T]: null extends T[K] ? Exclude<T[K], null> | undefined : T[K];
 };

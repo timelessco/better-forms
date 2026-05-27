@@ -1,24 +1,16 @@
-// Local `createError` — mirrors evlog's `createError` shape but avoids
-// importing from "evlog", whose main entry pulls server-only sub-modules
-// (`runtime/server/useLogger`) that contaminate the client bundle whenever
-// any transitive client import touches a server-fn file at the top level.
+// Local `createError` — mirrors evlog's shape but avoids importing "evlog",
+// whose entry pulls server-only modules that contaminate the client bundle.
 //
-// Structurally compatible with evlog's `EvlogError`:
-// - `name === "EvlogError"` so evlog's Nitro v3 error pipeline recognizes
-//   us and emits the structured `{ data: { code, why, fix, link } }`
-//   response envelope (`serializeEvlogErrorResponse` gates on the name).
-// - Aliases `statusCode`/`statusText`/`statusMessage` for h3/ofetch.
-// - `get data()` builds the same envelope evlog serializes into HTTP responses.
-// - `toJSON()` so `JSON.stringify(err)` produces the same shape as evlog.
-// - `internal` is non-enumerable, server-only context (stripped from HTTP
-//   responses by `toJSON`).
+// Structurally compatible with `EvlogError`:
+// - name === "EvlogError" so evlog's Nitro v3 pipeline emits the structured
+//   `{ data: { code, why, fix, link } }` envelope (gates on name).
+// - statusCode/statusText/statusMessage aliases for h3/ofetch.
+// - `get data()` builds evlog's HTTP envelope; toJSON() matches evlog's shape.
+// - `internal` non-enumerable server-only context (stripped by toJSON).
 //
-// Caveat re: over-the-wire fields: TanStack Start's default seroval
-// `ShallowErrorPlugin` preserves only `Error.message`. Structured fields
-// (`code`, `why`, `fix`, `link`) cross the wire via evlog's HTTP response
-// envelope path (FetchError-shaped on the client), NOT via seroval. So
-// `parseError(err).code` works on errors from server-fn HTTP responses,
-// but NOT for errors thrown across React Server Component boundaries.
+// Caveat: TanStack Start's seroval ShallowErrorPlugin keeps only Error.message.
+// Structured fields cross via evlog's HTTP envelope (FetchError-shaped), NOT
+// seroval — so `parseError().code` works on server-fn responses, NOT across RSC.
 import type { ErrorCode } from "./codes";
 
 export interface CreateErrorOptions {
@@ -50,9 +42,8 @@ export class StructuredError extends Error {
 
   constructor(opts: CreateErrorOptions) {
     super(opts.message, { cause: opts.cause });
-    // Name matches evlog's EvlogError so evlog's Nitro v3 errorHandler
-    // recognizes us via `error.name === "EvlogError"` and emits the
-    // structured response envelope instead of a generic 500.
+    // Name = "EvlogError" so Nitro v3 errorHandler emits the structured
+    // envelope, not a generic 500.
     this.name = "EvlogError";
     this.code = opts.code;
     this.status = opts.status ?? 500;
@@ -64,8 +55,7 @@ export class StructuredError extends Error {
         value: opts.internal,
         enumerable: false,
         writable: false,
-        // configurable:true matches evlog so error-augmenting middleware
-        // can re-attach context without throwing.
+        // configurable so augmenting middleware can re-attach context.
         configurable: true,
       });
     }
@@ -82,8 +72,7 @@ export class StructuredError extends Error {
     return this.message;
   }
 
-  // Structured envelope evlog's Nitro v3 serializer reads when building
-  // the HTTP response. `parseError` on the client unwraps via `data.data`.
+  // Envelope read by Nitro v3 serializer; client `parseError` unwraps via `data.data`.
   get data(): StructuredErrorData {
     return {
       code: this.code,
@@ -93,14 +82,13 @@ export class StructuredError extends Error {
     };
   }
 
-  // Backend-only context — exposed via getter so `'internal' in err` is true
-  // (evlog's drain pipeline detects via `in` check). Stripped from toJSON.
+  // Backend-only context via getter so `'internal' in err` is true (evlog drain
+  // detects via `in`). Stripped from toJSON.
   get internal(): Record<string, unknown> | undefined {
     return (this as unknown as { [INTERNAL_SYMBOL]?: Record<string, unknown> })[INTERNAL_SYMBOL];
   }
 
-  // Called by evlog's middleware and any framework code that serializes errors.
-  // Mirrors EvlogError.toJSON — `internal` deliberately omitted (server-only).
+  // Mirrors EvlogError.toJSON — `internal` omitted (server-only).
   toJSON(): {
     name: string;
     message: string;

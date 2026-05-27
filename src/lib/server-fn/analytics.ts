@@ -12,10 +12,8 @@ import type {
   QuestionDropoffMetrics,
 } from "@/types/analytics";
 
-// All DB-touching logic lives in `analytics.server.ts`. Each handler below
-// dynamically imports it inside the handler body, which TanStack Start
-// strips from the client bundle — so `@/db` (and the postgres driver) never
-// reach the browser via the route tree's reference to this file.
+// DB logic lives in analytics.server.ts, dynamically imported in each handler so Start strips it
+// from the client bundle — @/db + postgres driver never reach the browser via this file.
 
 const recordVisitInputSchema = z.object({
   formId: z.uuid(),

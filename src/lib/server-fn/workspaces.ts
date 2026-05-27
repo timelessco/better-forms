@@ -44,10 +44,8 @@ export const createWorkspace = createServerFn({ method: "POST" })
     const userId = context.session.user.id;
     const workspaceId = data.id ?? crypto.randomUUID();
 
-    // Insert workspace + per-user sort entry in one transaction so the
-    // subsequent client-side refetch of getWorkspaces always sees the joined
-    // sortIndex; otherwise the new workspace would briefly come back without a
-    // sort row and fall to the bottom of the sidebar.
+    // Insert workspace + per-user sort entry in one transaction so the getWorkspaces refetch
+    // always sees the joined sortIndex; else the new workspace briefly sorts to sidebar bottom.
     const [workspace] = await db.transaction(async (tx) => {
       const [ws] = await tx
         .insert(workspaces)
@@ -133,8 +131,7 @@ export const deleteWorkspace = createServerFn({ method: "POST" })
     }
 
     const result = await db.transaction(async (tx) => {
-      // Cascade-delete all forms and their dependent records. Capture the
-      // ever-published subset so we can purge their CDN tags after commit.
+      // Cascade-delete all forms + dependents; capture ever-published subset to purge CDN tags post-commit.
       const workspaceForms = await tx
         .select({ id: forms.id, lastPublishedVersionId: forms.lastPublishedVersionId })
         .from(forms)
@@ -167,8 +164,7 @@ export const deleteWorkspace = createServerFn({ method: "POST" })
       };
     });
 
-    // Purge CDN cache for any forms that were live at the edge. Skipped for
-    // never-published forms (no tag at the edge to invalidate).
+    // Purge CDN for forms live at the edge; skipped for never-published (no tag to invalidate).
     await purgeFormCacheBatch(result.everPublished);
 
     return { workspace: result.workspace };

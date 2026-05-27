@@ -20,8 +20,7 @@ import {
 const FREE_PRODUCT_ID = PLAN_PRODUCT_IDS.free;
 const PRO_PRODUCT_ID = PLAN_PRODUCT_IDS.pro;
 
-// Minimal subscription payload — handlers only read metadata.referenceId,
-// productId, and (for `updated`) status.
+// Minimal payload — handlers only read metadata.referenceId, productId, and (for `updated`) status.
 type AnyPayload = Parameters<typeof handleSubscriptionUpgrade>[0] &
   Parameters<typeof handleSubscriptionUpdated>[0];
 
@@ -187,9 +186,7 @@ describe("polar-handlers", () => {
 
   describe("re-upgrade behavior", () => {
     it("does not auto-restore form Pro columns after re-upgrade", async () => {
-      // Upgrade, then downgrade resets form columns, then re-upgrade leaves
-      // them at the downgrade-reset values (asserted in plan-cleanup tests;
-      // here we sanity-check that the webhook handler doesn't undo that).
+      // Re-upgrade leaves form columns at downgrade-reset values (cleanup asserted in plan-cleanup; here just check the handler doesn't undo it).
       await handleSubscriptionUpgrade(buildPayload("subscription.created", { orgId }));
       await handleSubscriptionDowngrade(buildPayload("subscription.canceled", { orgId }));
       await handleSubscriptionUpgrade(buildPayload("subscription.uncanceled", { orgId }));

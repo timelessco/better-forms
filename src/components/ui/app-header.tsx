@@ -63,8 +63,7 @@ const SavedDocsTooltipContent = ({
   updatedAt,
   createdAt,
 }: SavedDocsTooltipContentProps) => {
-  // Use useSyncExternalStore for the mounted flag so SSR and client agree on
-  // the initial render; the relative timestamp swaps in after hydration.
+  // useSyncExternalStore mounted flag so SSR/client agree initially; relative timestamp swaps in after hydration.
   const mounted = useSyncExternalStore(subscribeMountedNoop, getMountedClient, getMountedServer);
 
   const updatedDate = mounted
@@ -537,10 +536,8 @@ const buildFormBuilderMenuItems = ({
       key: "analytics",
       label: "Analytics",
       onClick: onNavigateInsights,
-      // Analytics has nothing to show until the form has been published at
-      // least once — and routing into /insights for a never-published form
-      // crashes the Recharts bundle. Gate on the same flag share + version
-      // history use.
+      // Analytics is empty until first publish, and /insights for an unpublished form crashes
+      // the Recharts bundle — gate on the same flag as share + version history.
       show: hasPublishedVersion,
     },
     {

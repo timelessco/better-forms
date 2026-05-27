@@ -41,11 +41,8 @@ const persistStatus = async (domainId: string, status: VercelDomainStatus | null
   };
 };
 
-/**
- * Poll-friendly status read: GET /v9/projects/.../domains/{d}.
- * Reserved-cost path. Use this for periodic UI refresh / reconciliation.
- * Vercel rate-limits POST /verify to 50/hr per team — this endpoint is not.
- */
+/** Poll-friendly status read (GET .../domains/{d}) for periodic refresh/reconciliation. Not
+ * rate-limited, unlike POST /verify (Vercel caps that at 50/hr per team). */
 export const refreshDomainStatusFromVercel = async (domainId: string) => {
   const domain = await loadDomain(domainId);
 
@@ -59,10 +56,8 @@ export const refreshDomainStatusFromVercel = async (domainId: string) => {
   return persistStatus(domainId, status);
 };
 
-/**
- * Explicit user action — POST /v9/projects/.../domains/{d}/verify.
- * Counts against Vercel's 50/hr verify quota. Only call from a button click.
- */
+/** Explicit user action (POST .../domains/{d}/verify); counts against Vercel's 50/hr quota.
+ * Only call from a button click. */
 export const triggerDomainVerification = async (domainId: string) => {
   const domain = await loadDomain(domainId);
 
@@ -73,8 +68,7 @@ export const triggerDomainVerification = async (domainId: string) => {
     return persistStatus(domainId, null);
   }
 
-  // verify() can return verified=false with no challenge; fall back to GET so
-  // the UI has the TXT record to display.
+  // verify() may return verified=false with no challenge; fall back to GET for the TXT record.
   if (!status.verified && !status.verification?.length) {
     try {
       status = await vercelDomains.check(domain.domain);

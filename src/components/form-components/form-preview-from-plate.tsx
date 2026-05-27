@@ -64,26 +64,18 @@ interface FormPreviewFromPlateProps {
   /** Form settings for public forms */
   settings?: PublicFormSettings;
   formId?: string;
-  /** Form Short ID — only used for the thank-you-page share URL. Omit in
-   *  editor previews to suppress the share UI. */
+  /** Short ID for thank-you-page share URL. Omit in editor previews to suppress share UI. */
   shortId?: string;
   /** Form customization record for theming */
   customization?: Record<string, string> | null;
   /** Rehydrate step state from a server-side draft (resume-after-refresh). */
   initialFormData?: Record<string, unknown>;
   initialCurrentStep?: number;
-  /** When true, field-by-field mode bounds height to its parent (popup context)
-   *  instead of using viewport units. Use for popup previews and real popup
-   *  iframes — the parent already provides a definite bounded height. */
+  /** Field-by-field bounds height to parent (popup context) not viewport units. For popup previews + real popup iframes. */
   isPopup?: boolean;
-  /** When true, field-by-field mode bounds height to its parent the same way
-   *  popups do, but without popup-specific styling (smaller title, hidden
-   *  icon, tighter padding). Use for the standard embed mockup, where the
-   *  outer iframe already provides a fixed height. */
+  /** Like isPopup (bounds height to parent) but without popup styling. For standard embed mockup w/ fixed-height iframe. */
   boundToParent?: boolean;
-  /** Analytics tracking base ({ visitId, visitorHash }). Only passed by the
-   * public form route — builder previews leave this undefined to disable
-   * tracking. */
+  /** Analytics base ({ visitId, visitorHash }). Public route only; undefined in builder previews disables tracking. */
   trackingBase?: TrackingBase;
 }
 
@@ -92,10 +84,7 @@ const PAGE_MAX_WIDTH = {
   public: `var(--bf-page-width, ${CUSTOMIZATION_AUTO_DEFAULTS.pageWidth})`,
 } as const;
 
-/**
- * Form header component with proper icon and cover handling
- * Matches the editor's form-header.tsx rendering patterns
- */
+// Form header (icon + cover). Mirrors editor's form-header.tsx rendering.
 const PreviewFormHeader = ({
   title,
   icon,
@@ -131,8 +120,7 @@ const PreviewFormHeader = ({
 
   // Check if we have valid cover (URL or hex color)
   const hasCover = cover && (isHexColor(cover) || isValidUrl(cover)) && !imageError;
-  // In popup mode the icon is already shown as the popup bubble, so hide it
-  // inside the popup body to save space and avoid duplication.
+  // Popup: icon already shown as bubble, hide inside body (space + no dup).
   const hasIcon = !!icon && !iconError && !isPopup;
   const hasTitle = title && title.trim().length > 0 && !hideTitle;
 
@@ -217,14 +205,8 @@ const PreviewFormHeader = ({
         <span data-bf-logo-icon={isLogoMinimal ? "minimal" : ""}>
           <IconPickerPreview
             icon={icon}
-            // Mirror form-header-node.tsx exactly: theme color when the
-            // form has any customization OR no explicit iconColor was
-            // set; explicit iconColor wins only on unthemed forms.
-            // Also drop `standaloneIcon` — the editor doesn't use it
-            // and it routes through a different SVG renderer where
-            // currentColor doesn't inherit cleanly through `<use href>`,
-            // which is why the silhouette was painting black instead of
-            // tracking text-primary-foreground.
+            // Mirror form-header-node.tsx: theme color if any customization OR no explicit iconColor; explicit iconColor wins only on unthemed forms.
+            // No `standaloneIcon` — its SVG renderer breaks currentColor through `<use href>` (silhouette paints black instead of text-primary-foreground).
             iconColor={hasCustomization ? undefined : iconColor || undefined}
             useThemeColor={hasCustomization || !iconColor}
             iconSize="48"
@@ -297,10 +279,7 @@ const PreviewFormHeader = ({
   );
 };
 
-/**
- * Compact "Share with others" row — link + copy button — shown on the
- * thank-you page so respondents can pass the form along.
- */
+// "Share with others" row (link + copy) on thank-you page.
 const ShareWithOthers = ({ shareUrl }: { shareUrl: string }) => (
   <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-2 pt-4">
     <p className="text-sm text-muted-foreground">Share with others</p>
@@ -320,9 +299,7 @@ const ShareWithOthers = ({ shareUrl }: { shareUrl: string }) => (
   </div>
 );
 
-/**
- * Thank-you page is static-only — rendered entirely via PlateStatic.
- */
+// Thank-you page is static-only — rendered via PlateStatic.
 const RenderThankYouContent = ({
   nodes,
   onReset,
@@ -373,15 +350,7 @@ const DefaultThankYou = ({ onReset, shareUrl }: { onReset?: () => void; shareUrl
   );
 };
 
-/**
- * Renders Plate editor content as a functional form preview.
- * Supports multi-step forms with page breaks as step dividers.
- * Uses separate forms per step with StepFormContext for state management.
- *
- * Static content (headings, paragraphs, blockquotes, code blocks, etc.)
- * is rendered via PlateStatic for full rich-text fidelity.
- * Form fields (Input, Textarea, Button) use custom form components.
- */
+// Renders Plate content as a functional form preview. Multi-step via page-break dividers, one form per step (StepFormContext). Static content via PlateStatic; fields use custom components.
 export const FormPreviewFromPlate = ({
   content,
   title: legacyTitle,
@@ -421,9 +390,7 @@ export const FormPreviewFromPlate = ({
     [rawSteps, settings?.presentationMode],
   );
 
-  // Pre-compute per-Step Question lists once so analytics emitters in
-  // `StepForm` / `useStepPreviewForm` don't re-walk the Plate tree on every
-  // render. Global `questionIndex` accumulates across all Steps.
+  // Pre-compute per-Step Question lists so analytics emitters don't re-walk Plate tree each render. questionIndex accumulates across Steps.
   const stepQuestions: QuestionRef[][] = useMemo(
     () => steps.map((_, idx) => extractQuestionsForStep(steps, idx)),
     [steps],
@@ -441,10 +408,7 @@ export const FormPreviewFromPlate = ({
     );
   }
 
-  // Determine analytics mode from presentation settings. Per ADR-0002,
-  // tracking is always on — single-page `card` forms still emit per-Question
-  // view/start/complete events (the single Step mounts once at load, focus
-  // events fire per Question, complete fires for every Question on Submit).
+  // Per ADR-0002 tracking always on — card forms still emit per-Question view/start/complete (Step mounts once, focus per Question, complete per Question on Submit).
   const isFieldByField = settings?.presentationMode === "field-by-field";
   const trackingMode: PublicFormTracking["mode"] = isFieldByField ? "field-by-field" : "card";
   const tracking: PublicFormTracking | null =
@@ -581,8 +545,7 @@ const ThankYouView = ({
 
 interface LayoutProps {
   steps: PreviewSegment[][];
-  /** Per-step list of Questions (non-Button fields) with global indices, used
-   * by the analytics emitters in `StepForm` / `useStepPreviewForm`. */
+  /** Per-step Questions (non-Button fields) w/ global indices, for analytics emitters. */
   stepQuestions: QuestionRef[][];
   thankYouNodes: Value | null;
   title?: string;
@@ -639,9 +602,7 @@ const FieldByFieldHeaderIcon = ({
     <span className="flex-shrink-0" data-bf-logo-icon>
       <IconPickerPreview
         icon={icon}
-        // Mirror editor: theme color on themed forms; explicit iconColor
-        // wins only on unthemed forms. No `standaloneIcon` for the same
-        // currentColor-through-<use> reason as the card-mode header.
+        // Mirror editor: theme color on themed forms, explicit iconColor only on unthemed. No `standaloneIcon` (same currentColor-through-<use> reason as card-mode header).
         iconColor={hasCustomization ? undefined : iconColor || undefined}
         useThemeColor={hasCustomization || !iconColor}
         iconSize="40"
@@ -676,8 +637,7 @@ const FieldByFieldLayout = ({
   const currentStepSegments = steps[currentStep] || [];
   const currentStepQuestions = stepQuestions[currentStep] || [];
 
-  // In popup mode the avatar/icon is already used as the popup bubble, so
-  // hide it inside the popup to save space and avoid duplication.
+  // Popup: avatar already the bubble, hide inside (space + no dup).
   const hasIcon = !!icon && !isPopup;
   const showHeader = !hideTitle && (title || hasIcon);
   const isPublic = layout === "public";
@@ -903,16 +863,13 @@ const FormPreviewContent = (props: {
   };
   const redirectCountdown = useRedirectCountdown(isSubmitted, settings);
 
-  // Public-form share URL — used on the thank-you page so respondents can pass
-  // the form along. Built from the shortId since `window.location.href` in the
-  // editor preview is the editor route, not the public form URL.
+  // Thank-you share URL. Built from shortId since editor preview's window.location is the editor route, not the public URL.
   const shareUrl = useMemo(() => {
     if (!shortId || typeof window === "undefined") return undefined;
     return `${window.location.origin}/forms/${shortId}`;
   }, [shortId]);
 
-  // Show thank you content after submission (non-field-by-field layout).
-  // Field-by-field renders its own thank-you inside the shared shell below.
+  // Thank-you after submit (non-field-by-field). Field-by-field renders its own in the shared shell below.
   if (isSubmitted && !isFieldByField) {
     return (
       <div className="w-full">

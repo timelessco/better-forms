@@ -1,16 +1,9 @@
-/**
- * Reform Popup Embed - Overlay & Container Management
- */
-
 import type { PopupOptions } from "./types";
 
-/** SVG for close button */
 const CLOSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><title>Close popup</title><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
 
-/** Default popup width */
 const DEFAULT_WIDTH = 376;
 
-/** Default popup height (max) */
 const DEFAULT_MAX_HEIGHT = 600;
 
 interface OverlayElements {
@@ -37,10 +30,7 @@ export const createOverlay = (
   overlay.className = `bf-overlay ${!showOverlay ? "bf-overlay--no-bg" : ""}`;
   overlay.setAttribute("data-bf-form-id", formId);
 
-  // Pre-mount mode: overlay sits in DOM but is invisible and non-interactive
-  // so the iframe loads + React mounts before the user clicks. Suppress the
-  // fade-in animation too — it would otherwise play once at mount and be
-  // invisible, so revealing later wouldn't animate.
+  // Pre-mount: in DOM but invisible/non-interactive so iframe loads pre-click. Suppress fade-in too, else it plays (invisibly) at mount and won't animate on reveal.
   if (meta.startHidden) {
     applyHiddenStyles(overlay);
   }
@@ -89,8 +79,7 @@ export const createOverlay = (
 
   overlay.appendChild(popup);
 
-  // Prevent body scroll when overlay is visible (deferred in startHidden mode
-  // — reveal code applies it at click time).
+  // Lock body scroll while visible; deferred to reveal in startHidden mode.
   if (showOverlay && !meta.startHidden) {
     document.body.style.overflow = "hidden";
   }
@@ -107,11 +96,7 @@ export const createOverlay = (
   };
 };
 
-/**
- * Reveal a pre-mounted overlay. Undoes the startHidden styles and applies
- * scroll lock. The iframe is already loaded and React already mounted, so
- * this is a pure style flip — no spinner, no height jump.
- */
+/** Reveal pre-mounted overlay — undo startHidden styles + scroll lock. Pure style flip; iframe already loaded. */
 export const revealOverlay = (overlay: HTMLElement, options: PopupOptions): void => {
   const isModal = options.layout === "modal" || options.position === "center";
   const showOverlay = options.overlay !== false || isModal;
@@ -131,11 +116,7 @@ const applyHiddenStyles = (el: HTMLElement): void => {
   el.style.animation = "none";
 };
 
-/**
- * Hide the overlay without removing it from the DOM so the iframe stays
- * mounted and reopening is a pure style flip — no refetch of the form
- * document, chunks, or fonts.
- */
+/** Hide (not remove) so iframe stays mounted — reopen is a style flip, no refetch. */
 export const hideOverlay = (overlay: HTMLElement): void => {
   document.body.style.overflow = "";
   applyHiddenStyles(overlay);
@@ -152,12 +133,7 @@ export const destroyOverlay = (overlay: HTMLElement): void => {
   }, 150);
 };
 
-/**
- * Update popup height based on iframe content. Clamps to min(600, viewport-40)
- * to match updateIframeHeight so popup + iframe stay in sync. Setting both
- * `height` and `maxHeight` keeps the popup sized exactly to the clamped value
- * even when the reported content is shorter.
- */
+/** Update popup height, clamped to min(600, viewport-40) to match updateIframeHeight. Sets height + maxHeight to pin exact size even when content is shorter. */
 export const updatePopupHeight = (popup: HTMLElement, height: number): void => {
   const max = Math.min(DEFAULT_MAX_HEIGHT, window.innerHeight - 40);
   const clampedHeight = Math.min(height, max);

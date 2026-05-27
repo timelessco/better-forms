@@ -29,11 +29,8 @@ export const recordOwnerSubmissionNotification = async ({
   }
 
   const id = `${userId}:${formId}`;
-  // postgres-js (unlike node-postgres) doesn't auto-serialize Date when it
-  // appears as a raw parameter inside a `sql\`...\`` template — drizzle's
-  // column-aware mapping is what converts Date → ISO on regular `.values()`,
-  // but the CASE branch below bypasses that path. Bind an ISO string
-  // explicitly.
+  // postgres-js won't auto-serialize a Date as a raw sql`...` param; drizzle's Date→ISO mapping
+  // applies on .values() but the CASE branch below bypasses it. Bind an ISO string explicitly.
   const createdAtIso = createdAt.toISOString();
 
   await db

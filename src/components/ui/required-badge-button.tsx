@@ -57,20 +57,14 @@ const RequiredBadge = ({
 
 type StandaloneInputBadgeProps = {
   required: boolean;
-  /**
-   * Prefer passing `element` — it lets the toggle resolve a fresh path at
-   * click time, avoiding the stale-path bug below. `path` is supported as a
-   * fallback for callers that don't have direct access to the element.
-   */
+  /** Prefer `element` — toggle resolves a fresh path at click time, avoiding the stale-path bug. */
   element?: TElement;
+  /** Fallback for callers without the element. */
   path?: Path;
   /**
-   * True when the caller has determined this input is standalone (no label
-   * above) and still wants an inline badge — currently only the
-   * agreement-style checkbox option item opts in. Otherwise the badge for a
-   * labeled input is rendered on the `formLabel` itself via
-   * `LabelRequiredBadge`, which avoids the layout gap that appeared when the
-   * label was reordered above an input that carried its own absolute badge.
+   * Standalone input (no label) that still wants an inline badge — only the agreement-style
+   * checkbox option item opts in. Labeled inputs render the badge on formLabel via
+   * LabelRequiredBadge, avoiding the layout gap from an absolute badge under a reordered label.
    */
   showWithoutLabel?: boolean;
 };
@@ -83,13 +77,9 @@ export const RequiredBadgeButton = ({
 }: StandaloneInputBadgeProps) => {
   const editor = useEditorRef();
 
-  // Resolve the path at click time when we have the element. `props.path`
-  // (from useNodePath) doesn't update on sibling reorder because slate-react
-  // memoizes elements by identity, so a closure-captured path can point at
-  // the wrong block after a drag, insert-above, or normalize merge — the
-  // toggle would then write `required` to whatever block currently sits at
-  // the stale index. Prefer id-match (stable across reorders), fall back to
-  // a fresh findPath, and only use the prop `path` if no element was given.
+  // Resolve path at click time. slate-react memoizes by identity, so props.path (useNodePath)
+  // goes stale on reorder/insert/merge and the toggle would write `required` to the wrong block.
+  // Prefer id-match (stable across reorders), then fresh findPath, then prop path.
   const toggle = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
@@ -125,13 +115,9 @@ export const RequiredBadgeButton = ({
 };
 
 /**
- * Renders the required badge on a `formLabel`, deriving its state from the
- * immediately-following input node. The input node remains the source of
- * truth for `required`; the label just reads + toggles its neighbor.
- *
- * Looks up the label's current index by element identity (not the captured
- * `props.path`) because slate-react's useNodePath doesn't refresh on sibling
- * reorder — a stale path would point the toggle at the wrong neighbor.
+ * Required badge on a formLabel, state derived from the following input node (the source of
+ * truth); label just reads + toggles its neighbor. Looks up index by element identity, not
+ * props.path — useNodePath doesn't refresh on reorder and would target the wrong neighbor.
  */
 export const LabelRequiredBadge = ({ labelElement }: { labelElement: TElement }) => {
   const editor = useEditorRef();

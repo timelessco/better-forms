@@ -28,8 +28,7 @@ export const polarClient = new Polar({
 });
 
 const getServerBaseURL = () => {
-  // Prefer VERCEL_BRANCH_URL for stable git-branch URLs (e.g. better-forms-git-dev-timelessco.vercel.app)
-  // VERCEL_URL gives random deployment URLs that change per deploy
+  // Prefer VERCEL_BRANCH_URL (stable per-branch); VERCEL_URL changes per deploy.
   const url =
     process.env.BETTER_AUTH_URL ||
     process.env.VERCEL_BRANCH_URL ||
@@ -54,9 +53,8 @@ export const auth = betterAuth({
       sendChangeEmailConfirmation: async (data) => {
         logger("[Auth] Sending change email confirmation", { userId: data.user.id });
         if (import.meta.env.DEV) {
-          // Dev-only: print the URL so devs can click it (no mail server).
-          // logger() routes through evlog `log.debug` which is stripped from
-          // prod builds, so this never reaches prod logs.
+          // Dev-only: print URL (no mail server). logger() = evlog debug,
+          // stripped from prod.
           logger("[Auth] Change email URL", { url: data.url });
         } else {
           void sendChangeEmailConfirmationEmail(data.user.email, data.newEmail, data.url);
@@ -154,8 +152,8 @@ export const auth = betterAuth({
     magicLink({
       async sendMagicLink({ email, url }) {
         if (import.meta.env.DEV) {
-          // Dev-only: print the magic-link URL so devs can click it (no
-          // mail server). logger() is stripped from prod by evlog/vite.
+          // Dev-only: print magic-link URL (no mail server). logger() stripped
+          // from prod by evlog/vite.
           logger("[Auth] Magic link", { url });
         } else {
           await sendMagicLinkEmail(email, url);

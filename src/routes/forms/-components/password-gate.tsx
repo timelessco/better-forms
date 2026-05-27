@@ -33,10 +33,7 @@ export const PasswordGate = ({ formId, children }: PasswordGateProps) => {
   }, []);
 
   const triggerShake = useCallback(() => {
-    // Defer to the next frame so the class lands AFTER React flushes the
-    // setError re-render — otherwise the recomputed className overwrites the
-    // class attribute and strips the shake before it plays. `t-shake` is the
-    // animation-only shake helper (see transitions.css).
+    // Defer a frame so class lands after setError re-render flush — else recomputed className strips the shake before it plays. `t-shake` = animation-only helper (transitions.css).
     requestAnimationFrame(() => {
       const input = passwordInputRef.current;
       if (!input) return;

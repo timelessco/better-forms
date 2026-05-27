@@ -10,8 +10,7 @@ type ViteManifestEntry = {
 };
 type ViteManifest = Record<string, ViteManifestEntry>;
 
-// Source paths — must match the `import()` specifiers in
-// render-step-preview-input.tsx so Vite emits them as manifest keys.
+// Must match the import() specifiers in render-step-preview-input.tsx so Vite emits manifest keys.
 const SOURCE_PATHS: Record<FieldType, string> = {
   Input: "src/components/form-components/fields/InputField.tsx",
   Textarea: "src/components/form-components/fields/TextareaField.tsx",
@@ -39,10 +38,8 @@ let cached: ViteManifest | null | undefined;
 
 const loadManifest = async (): Promise<ViteManifest | null> => {
   if (cached !== undefined) return cached;
-  // Never read the prod manifest in dev. A stale `.output/public/.vite/
-  // manifest.json` from an earlier `bun run build` otherwise leaks hashed
-  // chunk URLs (e.g. `/assets/input-C_WltorP.js`) into <link modulepreload>,
-  // and Vite's dev server 404s them since it serves source paths instead.
+  // Never read prod manifest in dev: a stale .output manifest leaks hashed chunk URLs into
+  // <link modulepreload> that Vite's dev server 404s (it serves source paths).
   if (process.env.NODE_ENV !== "production") {
     cached = null;
     return null;
@@ -60,8 +57,7 @@ const loadManifest = async (): Promise<ViteManifest | null> => {
   return null;
 };
 
-// Collect the chunk + all transitive imports for a source key so we can
-// emit modulepreload for the full dependency graph of each field widget.
+// Collect chunk + transitive imports for a source key → full modulepreload graph per widget.
 const collectChunkUrls = (
   manifest: ViteManifest,
   sourceKey: string,

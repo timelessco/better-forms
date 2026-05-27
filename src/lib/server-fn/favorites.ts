@@ -33,8 +33,7 @@ export const addFavorite = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const userId = context.session.user.id;
-    // Per-form authorization — without this, any authenticated user could
-    // write favorite rows referencing arbitrary form ids in other orgs.
+    // Per-form authz: else any authed user could favorite arbitrary form ids in other orgs.
     await authForm(data.formId, userId, getActiveOrgId(context.session));
     const id = `${userId}:${data.formId}`;
 

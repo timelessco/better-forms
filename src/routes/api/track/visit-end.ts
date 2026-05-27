@@ -2,15 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 const MAX_DURATION_MS = 86_400_000;
-// Generous spam guards for client-reported Core Web Vitals. Real values are far
-// smaller; these only reject absurd payloads. LCP/INP are ms; CLS is unitless.
+// Spam guards for client-reported vitals — reject absurd payloads only. LCP/INP ms, CLS unitless.
 const MAX_VITAL_MS = 3_600_000; // 1h
 const MAX_CLS = 100;
 
-/** Unload beacon payload: the timing fields plus optional Core Web Vitals the
- *  client sends from `beforeunload` / `pagehide`. Mirror of the serverFn schema
- *  for these fields — kept local so the beacon route stays decoupled from the
- *  broader `updateFormVisit` shape (which includes optional admin-only fields). */
+/** Unload beacon payload: timing + optional vitals from beforeunload/pagehide. Local mirror of serverFn schema — decoupled from broader updateFormVisit (admin-only fields). */
 const visitEndBeaconSchema = z.object({
   visitId: z.uuid(),
   visitEndedAt: z.iso.datetime(),
@@ -26,8 +22,7 @@ export const Route = createFileRoute("/api/track/visit-end")({
       POST: async ({ request }: { request: Request }) => {
         let body: unknown;
         try {
-          // sendBeacon ships the JSON as a text/plain Blob to stay CORS-safelisted
-          // (skips preflight on cross-origin embeds), so we parse the raw text.
+          // sendBeacon ships JSON as text/plain Blob (CORS-safelisted, no preflight on cross-origin embeds) — parse raw text.
           body = JSON.parse(await request.text());
         } catch {
           return new Response(null, { status: 400 });

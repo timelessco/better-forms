@@ -49,9 +49,7 @@ export const Route = createFileRoute("/api/forms/$shortId/meta")({
           });
         }
 
-        // Tag the 200 with the form's UUID so `purgeFormCache(formId)` on
-        // publish/edit/delete reaches this cached entry. Public surfaces use
-        // shortId; cache tagging stays on the UUID for purge symmetry.
+        // Tag 200 with form UUID so purgeFormCache(formId) reaches it on publish/edit/delete. Public uses shortId; tag stays UUID for purge symmetry.
         const cache = formCacheHeaders(form.id, { gated: false });
         return new Response(JSON.stringify(form), {
           status: 200,

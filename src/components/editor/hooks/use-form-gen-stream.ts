@@ -19,11 +19,7 @@ import { parseError } from "@/lib/errors/parse";
 import { formGenSchema, isOpReady } from "@/lib/ai/ops-schema";
 import type { FormGenResult, Op, PartialOp, SetThemeOp } from "@/lib/ai/ops-schema";
 
-// Flat customization dict the server returns for theme-mode. For Pro plans
-// it carries the full `light:*`/`dark:*` token overrides plus `font`/`radius`;
-// for free plans it carries only the basic Theme keys (themeColor/baseColor/
-// font/radius/defaultMode). The client treats both the same — spread into
-// formDoc.customization.
+// Flat customization dict from server (theme-mode). Pro: light:*/dark:* tokens + font/radius; free: basic Theme keys. Spread into formDoc.customization either way.
 type ThemePayload = Record<string, string>;
 
 type UseObjectReturn = {
@@ -42,12 +38,7 @@ const ADDITIVE_INTENT_PATTERN =
 const REPLACE_OVERRIDE_PATTERN =
   /\b(replace|change|update|fix|edit|rewrite|modify|swap|convert)\b/i;
 
-/**
- * Classify whether the user wants to ADD to the selected blocks (preserve them)
- * or REPLACE them (delete and substitute).
- *
- * Replace verbs override additive ones — "replace this and add a new option" is REPLACE.
- */
+// Append (preserve selected) vs replace (delete + substitute). Replace verbs override additive ones.
 const detectIntent = (prompt: string): "append" | "replace" => {
   if (REPLACE_OVERRIDE_PATTERN.test(prompt)) return "replace";
   if (ADDITIVE_INTENT_PATTERN.test(prompt)) return "append";
@@ -74,7 +65,7 @@ type SubmitInput = {
 const THEME_INTENT_PATTERN =
   /\b(theme|colors?|palette|style|look\s+like|use\s+(this|that|it)\s+as|reference|inspired\s+by|match\s+(this|that|it))\b/i;
 
-// If prompt contains form-building verbs, the user wants more than just a theme change
+// Form-building verbs → wants more than a theme change.
 const FORM_BUILDING_PATTERN =
   /\b(create\s+(a|an|the)\s+(form|page|field|section|application|survey)|build\s+(a|an|the)|generate\s+(a|an|the)\s+(form|page|field|section)|add\s+(a|an|the)?\s*(field|page|step|section)|make\s+(a|an|the)\s+(form|page|application))\b/i;
 
@@ -102,8 +93,7 @@ export type UseFormGenStreamOptions = {
   getCapturedPath: () => number[];
   getEditorContent: () => string;
   getSelectionContext?: () => string | null;
-  /** Paths of currently block-selected nodes. When non-empty, submit enters edit mode:
-   *  the selected blocks are removed and new ops are inserted in their place. */
+  /** Block-selected node paths. Non-empty → submit enters edit mode: selected blocks removed, new ops inserted in place. */
   getSelectedBlockPaths?: () => number[][];
   onFinish?: () => void;
   onError?: (message: string) => void;
@@ -129,8 +119,7 @@ export const useFormGenStream = ({
   const settledRef = useRef(false);
   const thankYouEmittedRef = useRef(false);
   const firstContentSeenRef = useRef(false);
-  // High-water mark: indices below this are frozen (no live-update possible).
-  // The apply loop starts here on each tick instead of from 0.
+  // High-water mark: indices below are frozen (no live-update); apply loop starts here each tick.
   const frozenBelowRef = useRef(0);
   const lastInsertedPathRef = useRef<number[] | null>(null);
 
@@ -149,12 +138,7 @@ export const useFormGenStream = ({
     firstContentSeenRef.current = false;
   }, []);
 
-  /**
-   * Walk the tree once, invoking `visit` for every block carrying an `aiDiff`
-   * mark. `visit` returns the node's id so the caller can decide what to do
-   * after the walk (remove vs. strip). Kept as a separate helper so accept and
-   * discard share the same traversal.
-   */
+  // Walk tree once, visit every block with aiDiff mark. Shared by accept and discard.
   const forEachDiffNode = useCallback(
     (visit: (node: Record<string, unknown>, path: number[]) => void) => {
       const entries = Array.from(
@@ -180,8 +164,7 @@ export const useFormGenStream = ({
     });
 
     editor.tf.withoutNormalizing(() => {
-      // Strip marks FIRST — paths are still valid before any removes shift
-      // indices. Then remove in descending order so earlier paths stay valid.
+      // Strip marks FIRST (paths valid pre-remove), then remove descending so earlier paths stay valid.
       for (const p of stripPaths) {
         try {
           editor.tf.unsetNodes(AI_DIFF_KEY, { at: p });
@@ -244,9 +227,7 @@ export const useFormGenStream = ({
         body: JSON.stringify(requestBody),
       });
       if (!res.ok) {
-        // Surface the rate-limit toast with an Upgrade-to-Pro CTA — the
-        // server returns 429 with a structured body when the daily AI
-        // quota is exhausted.
+        // 429 = daily AI quota exhausted; structured body. Show rate-limit toast + Upgrade CTA.
         if (res.status === 429) {
           const body = (await res.json().catch(() => null)) as {
             message?: string;
@@ -271,11 +252,7 @@ export const useFormGenStream = ({
         onFinish?.();
         return;
       }
-      // Apply the customization dict directly to the form collection. The
-      // shape is plan-aware (Pro: light:/dark: tokens + font + radius; Free:
-      // themeColor/baseColor/font/radius/defaultMode), but the merge logic
-      // is the same — spread on top of existing customization with preset
-      // marked "custom" so the editor's preset selector reflects the change.
+      // Merge plan-aware customization dict onto existing, preset="custom" so picker reflects change.
       const collectionsModule = await import("@/collections");
       const localModule = await import("@/collections/local/form");
 
@@ -292,9 +269,7 @@ export const useFormGenStream = ({
         localModule.localFormCollection.update(formId, updateDraft as never);
       }
 
-      // Detect a free-tier theme response (every key is a free-plan key)
-      // and prompt the user to upgrade for full color customization. Pro
-      // responses include `light:*`/`dark:*` tokens — those skip the toast.
+      // All-free-key response → free tier; prompt upgrade. Pro (light:*/dark:* tokens) skips toast.
       const isFreeTierResponse = Object.keys(theme).every((k) => FREE_CUSTOMIZATION_KEYS.has(k));
       if (isFreeTierResponse) {
         toast("Theme applied. For full per-mode color customization, upgrade to Pro.", {
@@ -318,7 +293,7 @@ export const useFormGenStream = ({
       const ops = finalObject?.ops;
       if (!ops || ops.length === 0) return;
 
-      // Collect the LAST set-theme op (in case AI emitted multiple, last wins)
+      // Last set-theme op wins (AI may emit multiple).
       let themeOp: SetThemeOp | null = null;
       for (const partial of ops) {
         if (partial?.type !== "set-theme") continue;
@@ -359,8 +334,7 @@ export const useFormGenStream = ({
           }
         }
 
-        // 2. If the prompt asked for a thank-you message but the AI emitted only
-        // a bare thank-you page-break with no following content, inject a default.
+        // 2. Prompt wanted thank-you message but AI emitted bare page-break w/ no content → inject default.
         const wantsThankYouMessage =
           /\bthank\s*you\b.*\b(message|with|saying|that\s*says|page\s*with)\b/i.test(
             lastPromptRef.current,
@@ -375,7 +349,7 @@ export const useFormGenStream = ({
             (n) => n?.type === "pageBreak" && n.isThankYouPage === true,
           );
           if (tyIdx !== -1) {
-            // Check if there's already content after the thank-you page-break
+            // Content already after thank-you page-break?
             const next = children[tyIdx + 1];
             const hasContent = next && /^h[1-3]$/.test(next.type as string);
             if (!hasContent) {
@@ -412,8 +386,7 @@ export const useFormGenStream = ({
     // eslint-disable-next-line typescript-eslint/no-explicit-any -- AI SDK schema generic mismatches with Zod v4
     schema: formGenSchema as any,
     onFinish: ({ object: finalObject }: { object: FormGenResult | undefined }) => {
-      // Apply set-theme atomically once the full theme has arrived (skipping
-      // partial-state churn during streaming)
+      // Apply set-theme atomically once full theme arrived (skip partial-state churn while streaming).
       applyFinalThemeOps(finalObject);
       finalizeStream();
       onFinish?.();
@@ -421,11 +394,7 @@ export const useFormGenStream = ({
     },
     onError: (err: Error) => {
       rollback();
-      // Surface daily-limit toasts for the streaming path too. The AI SDK's
-      // `useObject` doesn't route through ofetch — it serializes the server's
-      // 429 response body into `err.message` as a JSON string. We try to
-      // parse it for the structured `code` field; substring sniffing of
-      // AI_DAILY_LIMIT_ERROR stays as a back-compat fallback.
+      // Streaming path: useObject serializes 429 body into err.message as JSON. Parse for `code`; substring-sniff AI_DAILY_LIMIT_ERROR as back-compat fallback.
       const parsed = parseError(err);
       const msg = parsed.message ?? "";
       let bodyCode: string | undefined;
@@ -454,9 +423,7 @@ export const useFormGenStream = ({
 
   const { object, submit: submitObject, isLoading, error, stop } = hook;
 
-  // Apply new ops / live-update as partial object streams in.
-  // Fully synchronous inside a single Plate batch to prevent re-entrant
-  // effect fires from double-applying the same op index.
+  // Apply/live-update ops as partial object streams. Synchronous, single Plate batch — prevents re-entrant fires double-applying same op index.
   useEffect(() => {
     if (!object?.ops) return;
     const ops = object.ops as PartialOp[];
@@ -475,8 +442,7 @@ export const useFormGenStream = ({
 
     let didInsert = false;
     editor.tf.withoutNormalizing(() => {
-      // Skip ops below the high-water mark — those are frozen, no live-update possible.
-      // The tail op (the one currently streaming) is the only candidate for live-update.
+      // Below high-water mark = frozen. Only tail op (currently streaming) can live-update.
       const start = frozenBelowRef.current;
       for (let i = start; i < ops.length; i++) {
         const partial = ops[i];
@@ -492,9 +458,7 @@ export const useFormGenStream = ({
             didInsert = true;
             if ("path" in applied && applied.path?.length) {
               lastInsertedPathRef.current = applied.path;
-              // Mark the newly-inserted block(s) so the AIDiff wrapper tints
-              // them green. add-field/add-section/add-page-break inserts
-              // `nodeCount` contiguous top-level blocks starting at `path`.
+              // Mark inserted block(s) so AIDiff wrapper tints green. nodeCount = contiguous top-level blocks from path.
               const count = "nodeCount" in applied ? applied.nodeCount : 1;
               const startIdx = applied.path[0];
               if (typeof startIdx === "number") {
@@ -517,8 +481,7 @@ export const useFormGenStream = ({
       frozenBelowRef.current = Math.max(0, ops.length - 1);
     });
 
-    // Auto-scroll the most recent insertion into view as the stream grows.
-    // Only on actual inserts (not live-updates) to avoid jitter as a label fills in.
+    // Auto-scroll latest insertion into view. Inserts only, not live-updates — avoids jitter as label fills.
     if (didInsert && lastInsertedPathRef.current) {
       const path = lastInsertedPathRef.current;
       requestAnimationFrame(() => {
@@ -562,9 +525,7 @@ export const useFormGenStream = ({
       lastInsertedPathRef.current = null;
 
       if (editMode) {
-        // REPLACE: keep originals in place marked aiDiff='remove' (shown red);
-        // insert new blocks after the last selected path (shown green). Accept
-        // prunes the originals; discard prunes the new blocks.
+        // REPLACE: originals stay marked aiDiff='remove' (red), new blocks after last selected (green). Accept prunes originals; discard prunes new.
         const sortedAsc = [...selectedPaths].toSorted((a, b) => (a[0] ?? 0) - (b[0] ?? 0));
         const lastPath = sortedAsc[sortedAsc.length - 1] ?? [
           Math.max(0, editor.children.length - 1),
@@ -583,7 +544,7 @@ export const useFormGenStream = ({
           }
         });
       } else {
-        // APPEND or no-selection: leave existing blocks alone, insert fresh content
+        // APPEND/no-selection: leave existing blocks, insert fresh content.
         initialPathRef.current = getCapturedPath();
         nextInsertPathRef.current = [];
       }
@@ -591,19 +552,14 @@ export const useFormGenStream = ({
       const selection = getSelectionContext?.() ?? undefined;
       const editorContent = getEditorContent();
 
-      // A "fresh" form contains only chrome (formHeader, formButton, pageBreak)
-      // and zero content blocks (fields, sections, etc.). The MarkdownPlugin
-      // serializes the formHeader's title even for empty forms, so we can't
-      // rely on editorContent alone.
+      // Fresh form = only chrome (formHeader/formButton/pageBreak), zero content blocks. MarkdownPlugin serializes header title even when empty, so editorContent alone is unreliable.
       const CHROME_TYPES = new Set(["formHeader", "formButton", "pageBreak"]);
       const contentBlockCount = (editor.children as Array<Record<string, unknown>>).filter(
         (n) => !CHROME_TYPES.has(n?.type as string),
       ).length;
       const formIsEmpty = contentBlockCount === 0;
 
-      // Theme mode: image attached + theme intent + no form-building verbs in the prompt.
-      // If the user asks for both a form AND a theme, fall back to create/append so the
-      // form gets built; the AI can still emit set-theme as one of its ops.
+      // Theme mode = image + theme intent + no form-building verbs. Form+theme → fall back to create/append; AI can still emit set-theme as an op.
       const isThemeIntent =
         imageList.length > 0 &&
         THEME_INTENT_PATTERN.test(prompt) &&
@@ -625,8 +581,7 @@ export const useFormGenStream = ({
         mode,
       };
 
-      // Theme mode bypasses useObject — server returns one-shot JSON from a
-      // tool call rather than a streamed object.
+      // Theme mode bypasses useObject — server returns one-shot tool-call JSON, not a stream.
       if (mode === "theme") {
         themeMutate(requestBody);
         return;

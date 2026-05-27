@@ -9,11 +9,8 @@ export const BUSINESS_PRODUCT_IDS = [PLAN_PRODUCT_IDS.business];
 
 export type Plan = "free" | "pro" | "business";
 
-/**
- * Map a Polar product id to its Plan tier. Used by the webhook handler
- * (server) and the user-plan hook (client) so the productId→plan logic has
- * one home and can't drift.
- */
+/** Polar product id → Plan tier. One home for webhook handler + user-plan hook
+ * so the mapping can't drift. */
 export const planForProductId = (productId: string | null | undefined): Plan => {
   if (!productId) return "free";
   if ((BUSINESS_PRODUCT_IDS as readonly string[]).includes(productId)) return "business";
@@ -21,10 +18,8 @@ export const planForProductId = (productId: string | null | undefined): Plan => 
   return "free";
 };
 
-// `maxDomainsPerOrg` is our product-level cap. Vercel's own project soft caps
-// are separate: 100,000/project on Pro, 1,000,000 on Enterprise. If we ever
-// approach those (e.g., aggregating across all tenants), request a raise via
-// Vercel support — see https://vercel.com/docs/multi-tenant/limits.
+// Product-level cap. Vercel's own soft caps (100k/project Pro, 1M Enterprise)
+// are separate — raise via support if approached. https://vercel.com/docs/multi-tenant/limits
 export const DOMAIN_LIMITS = {
   maxDomainsPerOrg: 5,
 } as const;

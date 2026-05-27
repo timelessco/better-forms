@@ -138,12 +138,8 @@ const DataGridTableBase = ({ children }: { children: ReactNode }) => {
   const { props, table } = useDataGrid();
   const visibleColumns = table.getVisibleLeafColumns();
 
-  /**
-   * Compute column widths as CSS custom properties once upfront (memoized).
-   * Cells reference these via calc(var(--col-X-size) * 1px) so the browser
-   * handles width propagation without per-cell getSize() calls or React
-   * re-renders of the body.
-   */
+  /** Column widths as CSS vars (memoized). Cells read calc(var(--col-X-size) * 1px) so the browser
+   *  propagates widths without per-cell getSize() or body re-renders. */
   const columnSizeVars = useMemo(() => {
     if (!props.tableLayout?.columnsResizable) return undefined;
     const headers = table.getFlatHeaders();
@@ -837,11 +833,7 @@ const DataGridTableBodyRows = <TData extends RowData>({ table }: { table: DataGr
   );
 };
 
-/**
- * Memoized body rows: skip re-renders during active column resize.
- * Column widths update via CSS variables on the <table> element,
- * so the browser handles width changes without React re-renders.
- */
+/** Memoized body rows: skip re-renders during column resize — widths update via CSS vars on <table>. */
 const MemoizedDataGridTableBodyRows = memo(
   DataGridTableBodyRows,
   (_prev, next) => !!next.table.state.columnResizing.isResizingColumn,

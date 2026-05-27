@@ -23,7 +23,7 @@ export const ColorPicker = ({ onChange, selectedColor, colors }: ColorPickerProp
 
   const COLORS = colors || DEFAULT_COLORS;
 
-  // Swap first two colors (white/black) in dark mode for better visibility (only for default palette)
+  // Swap white/black in dark mode for visibility (default palette only).
   const displayColors =
     !colors && isDark && COLORS.length >= 2 ? [COLORS[1], COLORS[0], ...COLORS.slice(2)] : COLORS;
 

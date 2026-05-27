@@ -21,14 +21,13 @@ interface FunnelSegment {
   id: string;
   label: string;
   count: number;
-  // Retention vs. the first segment (0–1). Used for the small percent badge.
+  // Retention vs first segment (0–1); drives percent badge.
   retention: number;
-  // Drop relative to previous segment (0–1). null for the first segment.
+  // Drop vs previous segment (0–1); null for first.
   stepDrop: number | null;
 }
 
-// One chart datum. `value` is the (floored) plotted height; `count` is the real
-// figure surfaced in the tooltip.
+// `value` = floored plotted height; `count` = real figure shown in tooltip.
 interface FunnelDatum extends FunnelSegment {
   value: number;
 }
@@ -56,9 +55,7 @@ const buildSegments = (dropoff: QuestionDropoffMetrics): FunnelSegment[] => {
     raw = sorted.map((q, i) => ({
       id: q.questionId,
       label: formatQuestionLabel(q, i),
-      // Single-page Forms emit one View per visit, shared across all Questions.
-      // Use startCount as the funnel value — it naturally decreases as
-      // Respondents abandon partway through the page.
+      // Single-page Forms emit one View per visit; startCount decreases as Respondents abandon mid-page.
       count: q.startCount,
     }));
   }
@@ -75,23 +72,16 @@ const buildSegments = (dropoff: QuestionDropoffMetrics): FunnelSegment[] => {
 
 const CHART_HEIGHT = 220;
 const TOP_PADDING = 16;
-// Floor every bar to this fraction of the tallest so a near-zero segment still
-// reads as a sliver (matches the old hand-drawn funnel).
+// Floor each bar to this fraction of the tallest so near-zero segments still read as a sliver.
 const MIN_BAR_RATIO = 0.12;
 const CORNER_RADIUS = 28;
-// Below this per-segment width the chart scrolls horizontally instead of
-// squeezing labels to nothing.
+// Below this per-segment width, chart scrolls horizontally instead of squeezing labels.
 const MIN_SEGMENT_WIDTH = 120;
 
 const FUNNEL_COLOR = "oklch(0.62 0.18 270)";
 
-// ---------------------------------------------------------------------------
-// Custom d3 curve: a stepped funnel top whose drops sit on the band dividers
-// (the midpoint between adjacent points) with rounded corners, extended to the
-// plot edges so the area fills full width. Used as `<Area type={...} />` so the
-// shape is a first-class Recharts element (tooltip, gradient, animation all
-// native). Mirrors the geometry of the previous hand-drawn SVG path.
-// ---------------------------------------------------------------------------
+// Custom d3 curve: stepped funnel top, drops on band dividers (midpoint between points), rounded
+// corners, extended to plot edges for full-width fill. Used as <Area type> so tooltip/gradient/anim are native.
 interface CurveContext {
   moveTo(x: number, y: number): void;
   lineTo(x: number, y: number): void;
@@ -101,8 +91,7 @@ interface CurveContext {
 
 const createRoundedStepCurve = (context: CurveContext) => {
   let points: Array<[number, number]> = [];
-  // d3 area convention: areaStart sets line=0 (top), lineEnd toggles to 1
-  // (baseline). A bare line() leaves line=NaN.
+  // d3 area: areaStart sets line=0 (top), lineEnd toggles 1 (baseline); bare line() leaves NaN.
   let line = Number.NaN;
 
   const emit = (): void => {
@@ -110,9 +99,8 @@ const createRoundedStepCurve = (context: CurveContext) => {
     if (n === 0) return;
     const moveFirst = !line; // line falsy (0 or NaN) → start a new subpath
     if (n === 1) {
-      // A single segment owns the whole plot; its band is centred at x, so the
-      // plot spans [0, 2x]. Draw a full-width flat top (and baseline, right→left)
-      // so the bar is visible instead of collapsing to a zero-width line.
+      // Single segment owns whole plot; band centred at x so plot spans [0, 2x]. Draw full-width
+      // flat top + baseline (right→left) so it's visible, not a zero-width line.
       const [x, y] = points[0];
       const right = 2 * x;
       if (line) {
@@ -125,8 +113,7 @@ const createRoundedStepCurve = (context: CurveContext) => {
       return;
     }
 
-    // Extend each end outward (away from its neighbour) by half the band so the
-    // first/last plateau reaches the plot edge.
+    // Extend each end outward (away from neighbour) by half a band so first/last plateau hits plot edge.
     const startExt = Math.abs(points[1][0] - points[0][0]) / 2;
     const endExt = Math.abs(points[n - 1][0] - points[n - 2][0]) / 2;
     const startX = points[0][0] + Math.sign(points[0][0] - points[1][0]) * startExt;
@@ -188,9 +175,7 @@ const FunnelStatRow = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-// Renders Count / Retention / Drop from a hovered segment's payload. Slotted
-// into ChartTooltipContent's `formatter`, so the surrounding card (header,
-// border, shadow, fade) is the shared EvilCharts tooltip.
+// Count/Retention/Drop from hovered payload; slotted into ChartTooltipContent's `formatter` so card chrome is shared EvilCharts tooltip.
 const renderFunnelTooltip = (
   _value: unknown,
   _name: unknown,
@@ -220,8 +205,7 @@ interface FunnelChartProps {
 
 const FunnelChart = ({ segments }: FunnelChartProps) => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  // One-shot left-to-right reveal on first mount; clip is dropped afterwards so
-  // it never clips the (overflowing) hover tooltip.
+  // One-shot L→R reveal on first mount; clip dropped after so it never clips the overflowing hover tooltip.
   const [revealed, setRevealed] = useState(false);
 
   const { data, maxCount } = useMemo(() => {
@@ -283,8 +267,7 @@ const FunnelChart = ({ segments }: FunnelChartProps) => {
           transition={{ duration: 1.5, ease: [0.25, 0.1, 0.25, 1] }}
           onAnimationComplete={() => setRevealed(true)}
         >
-          {/* Full-height column dividers, behind the chart so the curve's
-              stroke (and fill) paint over them at the transitions. */}
+          {/* Full-height column dividers behind chart; curve stroke/fill paint over them at transitions. */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 -z-10 grid"
@@ -313,8 +296,7 @@ const FunnelChart = ({ segments }: FunnelChartProps) => {
               onMouseLeave={() => setActiveIndex(null)}
             >
               <defs>
-                {/* Vertical fade: tinted at the top edge → near-transparent at
-                    the baseline, matching the EvilCharts gradient area fill. */}
+                {/* Vertical fade: tinted top → near-transparent baseline, matching EvilCharts area fill. */}
                 <linearGradient id="dropoff-funnel-gradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={FUNNEL_COLOR} stopOpacity={0.22} />
                   <stop offset="100%" stopColor={FUNNEL_COLOR} stopOpacity={0.04} />

@@ -36,10 +36,8 @@ export const PageBreakElement = (props: PlateElementProps) => {
 
   const isThankYouPage = (element.isThankYouPage as boolean) ?? false;
 
-  // Subscribe to every editor change so the displayed page number follows
-  // sibling reorders/deletes. findPath returns the live position, but Plate
-  // memoizes element components by identity — without this version dep, a
-  // pageBreak after a deleted sibling keeps rendering its stale page number.
+  // Subscribe to editor changes so the page number tracks reorders/deletes. Plate memoizes by
+  // identity — without this version dep, a pageBreak after a deleted sibling shows a stale number.
   useEditorVersion();
   const pageNumber = (() => {
     const path = editor.api.findPath(element);
@@ -62,8 +60,7 @@ export const PageBreakElement = (props: PlateElementProps) => {
 
     editor.tf.withoutNormalizing(() => {
       if (checked) {
-        // Demote any other pageBreak that is currently flagged as thank-you so
-        // only this pageBreak ends up as the thank-you page.
+        // Demote any other thank-you pageBreak so only this one is the thank-you page.
         for (const [, nodePath] of editor.api.nodes({
           match: { type: "pageBreak" },
         })) {
@@ -72,8 +69,7 @@ export const PageBreakElement = (props: PlateElementProps) => {
           }
         }
         editor.tf.setNodes({ isThankYouPage: true }, { at: path });
-        // The form-blocks-kit normalizer strips any pageBreaks, form fields,
-        // and form buttons that follow this thank-you pageBreak.
+        // form-blocks-kit normalizer strips pageBreaks/fields/buttons after this thank-you pageBreak.
       } else {
         editor.tf.setNodes({ isThankYouPage: false }, { at: path });
       }
@@ -110,9 +106,8 @@ export const PageBreakElement = (props: PlateElementProps) => {
                 onCheckedChange={handleThankYouToggle}
                 disabled={readOnly}
                 onMouseDown={(e) => e.stopPropagation()}
-                // The editor canvas is white; the Switch's default `bg-input`
-                // unchecked color blends into it. Border gives it an outline
-                // matching the visibility level in the settings sidebar.
+                // Switch's default bg-input blends into the white canvas; border gives it an
+                // outline matching the settings sidebar.
                 className="border-border data-unchecked:bg-muted"
               />
             </div>

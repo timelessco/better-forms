@@ -36,8 +36,7 @@ import { settingsDialogStore } from "@/hooks/use-settings-dialog";
 
 const DEFAULT_FILTER: TimeRangeFilter = "last_30_days";
 
-// The selected time range is a cross-form user preference — persist it so it's
-// restored on the next visit instead of resetting to the default each time.
+// Time range is a cross-form preference — persist so it restores next visit, not resets to default.
 const TIME_RANGE_STORAGE_KEY = "reform:insights-time-range";
 
 const TIME_RANGE_FILTERS: readonly TimeRangeFilter[] = [
@@ -124,9 +123,7 @@ const InsightsPage = () => {
     staleTime: 0,
   });
 
-  // Cheap, time-range-independent. Drives the empty-state branch.
-  // Mutations invalidate this key explicitly, so the dashboard doesn't need
-  // per-focus refetching to stay correct after a flip.
+  // Cheap, time-range-independent — drives empty-state branch. Mutations invalidate this key, so no per-focus refetch needed.
   const availabilityQuery = useQuery({
     queryKey: insightsAvailabilityKey(formId),
     queryFn: () => getInsightsAvailability({ data: { formId } }),

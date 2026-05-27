@@ -2,10 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequestHost } from "@tanstack/react-start/server";
 import { z } from "zod";
 
-// Thin stubs: both handlers dynamically import `./custom-domain-view-rsc.impl`
-// so platejs/BaseEditorKit/EditorStatic never reach the client bundle via
-// Start's server-fn transform. Mirror the pattern used by
-// `public-form-view-rsc.tsx` on the app-domain route.
+// Thin stubs: dynamically import ./custom-domain-view-rsc.impl so platejs/BaseEditorKit/EditorStatic
+// never reach the client bundle. Mirrors public-form-view-rsc.tsx on the app-domain route.
 
 export const getCustomDomainFormByIdRSC = createServerFn({ method: "GET" })
   .inputValidator(z.object({ formId: z.uuid() }))

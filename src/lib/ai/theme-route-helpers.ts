@@ -14,14 +14,9 @@ export type ThemePromptPick = {
   isPro: boolean;
 };
 
-/**
- * Pure plan → (prompt, tool) routing for theme-mode AI requests. Pro and
- * Business get the full-fidelity tool with 30 light:/dark: token overrides;
- * everything else (including unknown plan strings) gets the limited
- * free-tier tool whose output stays inside the gate-allowed customization
- * keys. Defaulting unknown plans to free is intentional — better to gate
- * down than up if the plan column ever holds an unexpected value.
- */
+/** Pure plan → (prompt, tool) routing. Pro/Business get the full 30-token tool;
+ * everything else (incl. unknown plans) gets the gated free tool. Unknown → free
+ * is intentional: gate down, not up, on unexpected plan values. */
 export const pickThemePromptForPlan = (plan: ServerPlan): ThemePromptPick => {
   if (plan === "pro" || plan === "business") {
     return {

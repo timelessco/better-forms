@@ -76,10 +76,8 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
-  // shadcn chart pattern: inject CSS variable definitions from a fully-typed
-  // config — no user input is interpolated. We assemble the props object
-  // separately so static analyzers don't flag the JSX literal usage of
-  // dangerouslySetInnerHTML; the runtime behavior is identical.
+  // shadcn pattern: inject CSS vars from a typed config (no user input). Props assembled
+  // separately so analyzers don't flag the inline-HTML JSX usage; behavior is identical.
   const cssText = Object.entries(THEMES)
     .map(
       ([theme, prefix]) => `

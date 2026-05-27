@@ -196,8 +196,7 @@ export const useElasticSlider = ({
     [min, max, slotOffset, numericTrackPercent],
   );
 
-  // Animate fill to a target percent, or jump instantly when the user prefers
-  // reduced motion. Position still updates — only the spring is skipped.
+  // Animate fill to target percent; jump instantly under reduced motion (position still updates, only spring skipped).
   const animateFillTo = useCallback(
     (targetPercent: number) => {
       animRef.current?.stop();
@@ -243,8 +242,7 @@ export const useElasticSlider = ({
 
     pendingPointerFocusRef.current = true;
 
-    // Pointer interactions should move focus to the slider so subsequent
-    // keyboard input is received and focus styles match the active state.
+    // Move focus to slider so subsequent keyboard input lands and focus styles match active state.
     trackRef.current?.focus({ preventScroll: true });
     requestAnimationFrame(() => {
       pendingPointerFocusRef.current = false;
@@ -320,8 +318,7 @@ export const useElasticSlider = ({
           animateFillTo(0);
           onAutoChange?.();
         } else {
-          // Coarse sliders (≤10 positions) snap to the nearest step;
-          // continuous sliders keep the decile-magnetic behavior.
+          // Coarse sliders (≤10 positions) snap to nearest step; continuous ones keep decile-magnetic.
           const discreteSteps = (max - min) / step;
           const snapped =
             discreteSteps <= 10
@@ -361,12 +358,10 @@ export const useElasticSlider = ({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      // Shift + Arrow is a Figma-style fast nudge: jumps by 10x the step,
-      // independent of the WAI-ARIA Page step (which scales with range).
+      // Shift+Arrow: Figma-style fast nudge, 10x step (independent of WAI-ARIA Page step which scales with range).
       const arrowStep = e.shiftKey ? step * 10 : step;
 
-      // When in auto, the next keyboard value should originate from min so
-      // ArrowUp moves to `min + step` rather than overshooting.
+      // In auto, base from min so ArrowUp lands on `min + step`, not overshoot.
       const baseValue = isAuto ? min : value;
 
       let next: number | null = null;
@@ -423,8 +418,7 @@ export const useElasticSlider = ({
     dispatchInteraction({ type: "hover-leave" });
   }, []);
 
-  // Measure label + value to derive "dodge" thresholds so the handle fades
-  // when it would overlap either text.
+  // Measure label + value to derive "dodge" thresholds so handle fades when it would overlap either text.
   const [dodge, setDodge] = useState({ left: 38, right: 72 });
 
   useLayoutEffect(() => {

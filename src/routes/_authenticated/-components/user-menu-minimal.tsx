@@ -134,7 +134,6 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
           sideOffset={8}
           className="w-[calc(var(--anchor-width)-16px)]"
         >
-          {/* User info header */}
           <div className="flex items-start gap-2.5 px-2 py-1.5">
             <div className="bg-sidebar-active flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg text-sm font-bold">
               {session?.user?.image ? (
@@ -155,7 +154,6 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
 
           <div className="my-1 h-px bg-border" />
 
-          {/* Account section */}
           <div className="flex flex-col">
             <div className="rounded-lg px-2 py-1.5 text-xs text-muted-foreground">Account</div>
             {accountMenuItems.map((item) => {
@@ -189,7 +187,6 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
 
           <div className="my-1 h-px bg-border" />
 
-          {/* Logout */}
           <button
             type="button"
             onClick={() => {

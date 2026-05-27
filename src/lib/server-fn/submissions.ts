@@ -30,13 +30,10 @@ const serializeSubmission = (s: typeof submissions.$inferSelect) => ({
   data: s.data as Record<string, object>,
 });
 
-// Purge the form's CDN cache iff a submission delete could have re-opened the
-// limit-reached gate — i.e. the form was published AND has limitSubmissions
-// turned on. Cheap fire-and-forget; over-purges in the "count was nowhere
-// near the cap" case but cost is one Vercel API call.
+// Purge CDN iff a delete could re-open the limit-reached gate (published AND limitSubmissions on).
+// Cheap fire-and-forget; over-purges when count far from cap, but cost is one Vercel API call.
 const maybePurgeAfterSubmissionDelete = async (formId: string) => {
-  // Read the LIVE settings — only published `limitSubmissions` matters for
-  // the public renderer's gate; the user's draft is irrelevant here.
+  // Read LIVE settings: only published limitSubmissions matters for the public gate, not draft.
   const [row] = await db
     .select({
       lastPublishedVersionId: forms.lastPublishedVersionId,
@@ -155,13 +152,8 @@ export const getSubmissionsCount = createServerFn({ method: "GET" })
     return { total: result?.total ?? 0 };
   });
 
-/**
- * Bootstrap data for the submissions page: published form content, total count,
- * and a complete name → label map across ALL historical versions.
- *
- * Replaces three separate queries (published version, count, historical labels)
- * with one round-trip and removes the orphan-detection waterfall.
- */
+/** Bootstrap for submissions page: published form content, total count, name→label map across ALL
+ * historical versions. One round-trip replacing three queries; no orphan-detection waterfall. */
 export const getSubmissionsBootstrap = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .inputValidator(z.object({ formId: z.uuid() }))

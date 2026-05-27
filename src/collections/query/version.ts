@@ -21,11 +21,7 @@ export type VersionContent = {
   formId: string;
   version: number;
   content: object[];
-  /**
-   * Legacy field. Pre-split versions stored a snapshot of the 23 versioned-
-   * settings keys here; new versions write null. Kept on the type so old
-   * version rows still parse — readers should not use it for current state.
-   */
+  /** Legacy: pre-split versions snapshot 23 settings keys here; new versions write null. Kept so old rows parse — not for current state. */
   settings: VersionedSettingsSnapshot | null;
   customization: Record<string, string>;
   title: string | null;

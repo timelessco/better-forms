@@ -2,11 +2,9 @@ import { useBlockSelected } from "@platejs/selection/react";
 import { cva } from "class-variance-authority";
 import type { PlateElementProps } from "platejs/react";
 
-// Highlight covers the inner block's content box via inset-0 by default.
-// Field labels override this in styles.css to negative top/bottom (calc'd
-// from --bf-field-gap and --bf-block-margin) so consecutive selections
-// render as Notion-style pills with a uniform --bf-block-margin visible
-// gap, regardless of the larger layout spacing around labels.
+// Highlight covers the content box via inset-0. Field labels override to negative top/bottom
+// (from --bf-field-gap/--bf-block-margin) so consecutive selections read as Notion pills with
+// a uniform gap, regardless of label spacing.
 export const blockSelectionVariants = cva(
   "pointer-events-none absolute inset-0 z-1 rounded-lg bg-[rgba(32,117,224,0.13)] transition-opacity dark:bg-[rgba(64,119,189,0.2)]",
   {
@@ -22,10 +20,8 @@ export const blockSelectionVariants = cva(
   },
 );
 
-// Only the plugin key is read here, so accept anything with that field. Lets
-// callers (including void-element components like FormFileUploadElement)
-// render this directly without satisfying the full PlateElementProps shape
-// — they don't have `children` to forward.
+// Only the plugin key is read, so accept anything with it — lets void-element callers
+// (e.g. FormFileUploadElement) render directly without the full PlateElementProps shape.
 type BlockSelectionProps = Pick<PlateElementProps, "plugin">;
 
 export const BlockSelection = (props: BlockSelectionProps) => {

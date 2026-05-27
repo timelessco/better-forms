@@ -90,10 +90,7 @@ const CustomDomainSlugRoute = () => {
     dynamicWidth: false,
   };
 
-  // Dual-mode CSS — both light and dark tokens emitted, with the root `.dark`
-  // class picking one purely in CSS. Avoids the hydration flash that happens
-  // when single-mode CSS is generated for SSR's default (light) and then
-  // regenerated on the client once `prefers-color-scheme: dark` is read.
+  // Dual-mode CSS — emit both light+dark tokens, root `.dark` picks in CSS. Avoids hydration flash from single-mode SSR (light) regenerated client-side on prefers-color-scheme.
   const themeCss = useMemo(() => generateDualThemeCss(rawCustomization), [rawCustomization]);
 
   const showThemeToggle = defaultMode === "system";

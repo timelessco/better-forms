@@ -9,11 +9,8 @@ export const dropoffKey = (formId: string) => ["dropoff", formId] as const;
 
 export const vitalsKey = (formId: string) => ["vitals", formId] as const;
 
-/**
- * Invalidates every Insights-tab query for a form. Used after analytics is
- * toggled (from either the share sidebar or the dashboard's empty state) so
- * an open Insights tab swaps prompt ↔ metrics without a manual reload.
- */
+/** Invalidate all Insights-tab queries for a form. Called after analytics toggle
+ * so an open tab swaps prompt ↔ metrics without reload. */
 export const invalidateInsightsQueries = (queryClient: QueryClient, formId: string) =>
   Promise.all([
     queryClient.invalidateQueries({ queryKey: insightsAvailabilityKey(formId) }),

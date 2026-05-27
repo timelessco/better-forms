@@ -40,8 +40,7 @@ export const addSectionOp = z.object({
   level: z.enum(["1", "2", "3"]).optional(),
 });
 
-// Subset of TOKEN_NAMES the AI is expected to emit. Card/popover are excluded —
-// the form theme derives them from base/accent automatically.
+// TOKEN_NAMES subset the AI emits. Card/popover excluded — derived from base/accent.
 export const AI_THEME_TOKEN_KEYS = [
   "background",
   "foreground",
@@ -70,8 +69,7 @@ export const themeTokensSchema = z.object(themeTokensShape);
 
 export const RADIUS_OPTIONS = ["none", "small", "medium", "large"] as const;
 
-// Limited set the AI may pick from on free plans — mirrors the Customize
-// sidebar's basic Theme section so the server-side gate accepts the write.
+// Free-plan picks — mirror Customize sidebar's basic Theme so the gate accepts it.
 export const FREE_THEME_COLOR_OPTIONS = [
   "neutral",
   "zinc",
@@ -92,8 +90,8 @@ export const FREE_BASE_COLOR_OPTIONS = ["neutral", "zinc", "slate", "stone", "gr
 
 export const FREE_DEFAULT_MODE_OPTIONS = ["light", "dark", "system"] as const;
 
-// Schema the AI emits for free plans — only keys in FREE_CUSTOMIZATION_KEYS
-// (server-side gate). No light:*/dark:* token overrides, no custom CSS, etc.
+// Free-plan schema — only FREE_CUSTOMIZATION_KEYS (gate). No light/dark tokens,
+// no custom CSS.
 export const freeThemeSchema = z.object({
   themeColor: z.enum(FREE_THEME_COLOR_OPTIONS),
   baseColor: z.enum(FREE_BASE_COLOR_OPTIONS),
@@ -106,8 +104,8 @@ export type FreeThemeArgs = z.infer<typeof freeThemeSchema>;
 
 export const setThemeOp = z.object({
   type: z.literal("set-theme"),
-  // Object is optional, but if present all 30 keys must be filled — forces the
-  // model to commit to a complete theme rather than emit tokens: null.
+  // Optional, but if present all 30 keys required — forces a complete theme,
+  // not tokens: null.
   tokens: themeTokensSchema.optional(),
   font: z.string().optional(),
   radius: z.enum(RADIUS_OPTIONS).optional(),

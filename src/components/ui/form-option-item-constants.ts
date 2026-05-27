@@ -1,7 +1,5 @@
-// Constants used by both the platejs-based `form-option-item-node` (editor
-// runtime) and plain React consumers (public form field renderers, submission
-// summaries). Kept in a separate file so importing these values doesn't drag
-// the platejs runtime into the client bundle.
+// Shared by form-option-item-node (editor runtime) and plain React consumers. Separate file so
+// importing these doesn't pull the platejs runtime into the client bundle.
 
 export const LETTER_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 

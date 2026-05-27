@@ -9,11 +9,10 @@ type OMIT_BETTER_AUTH_CLIENT_KEYS =
   | `use${Capitalize<string>}` // Match React hooks like useSession, not username
   | "fetchOptions";
 
-// Match any method starting with 'get' or 'list', plus specific read-only methods from plugins
+// `get*`/`list*` methods + read-only plugin methods
 type QueryMethod = `get${string}` | `list${string}` | "state" | "portal";
 
-// Extract data type from better-auth's generic functions
-// Constrain the options arg to throw: false to resolve the conditional return type
+// Extract data type; throw:false resolves the conditional return type
 type InferBetterAuthData<TFn> = TFn extends (
   // eslint-disable-next-line typescript-eslint/no-explicit-any
   data: any,
@@ -88,11 +87,11 @@ type TransformFunction<
       ) => InferMutationOptions<TFn, TData, TError>;
     };
 
-// Built-in keys that exist on all functions - we want to ignore these
+// Built-in fn keys to ignore
 // eslint-disable-next-line typescript-eslint/no-explicit-any
 type BuiltinFunctionKeys = keyof ((...args: any[]) => any);
 
-// Helper: check if T has any meaningful keys beyond built-in function properties
+// True if T has keys beyond built-in fn properties
 type HasExtraKeys<T> = Exclude<keyof T, BuiltinFunctionKeys> extends never ? false : true;
 
 /* eslint-disable typescript-eslint/no-explicit-any */
@@ -100,7 +99,7 @@ type AuthClientToQuery<T, Path extends string[] = []> = {
   [K in keyof T as K extends OMIT_BETTER_AUTH_CLIENT_KEYS ? never : K]: T[K] extends (
     ...args: any[]
   ) => any
-    ? // Check if this callable also has extra properties (intersection from plugins)
+    ? // callable with extra props (plugin intersection)?
       HasExtraKeys<T[K]> extends true
       ? TransformFunction<T[K], [...Path, K & string]> &
           AuthClientToQuery<T[K], [...Path, K & string]>

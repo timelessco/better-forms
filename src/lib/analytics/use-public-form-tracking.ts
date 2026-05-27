@@ -33,9 +33,8 @@ export const usePublicFormTracking = ({ formId, enabled = true }: Args): PublicF
   const startedAtRef = useRef<number>(0);
   const vitalsRef = useRef<SessionVitals>({});
 
-  // NOTE: in dev StrictMode this fires twice and creates two visit rows.
-  // Production single-mount makes this a non-issue; the cron aggregation
-  // dedupes by visitorHash so analytics counts remain correct.
+  // NOTE: dev StrictMode fires twice → two visit rows. Non-issue in prod
+  // (single mount); cron dedupes by visitorHash so counts stay correct.
   useEffect(() => {
     if (!enabled) {
       return;
@@ -49,12 +48,10 @@ export const usePublicFormTracking = ({ formId, enabled = true }: Args): PublicF
     setVisitorHash(hash);
     startedAtRef.current = Date.now();
 
-    // Core Web Vitals (RUM): web-vitals reports each metric once it finalizes
-    // (LCP on first interaction/hide, INP/CLS on visibilitychange→hidden, which
-    // fires before the pagehide beacon below). We stash values in a ref and ship
-    // whatever's present on the unload beacon — a metric that never finalizes is
-    // simply omitted. Uses PerformanceObserver buffering, so late registration
-    // here still captures earlier entries.
+    // CWV (RUM): web-vitals reports each metric once finalized (LCP on first
+    // interaction/hide; INP/CLS on visibilitychange→hidden, before the pagehide
+    // beacon). Stashed in a ref, shipped on the unload beacon (unfinalized omitted).
+    // PerformanceObserver buffering means late registration still captures earlier entries.
     onLCP((metric) => {
       vitalsRef.current.lcpMs = Math.round(metric.value);
     });
@@ -85,8 +82,8 @@ export const usePublicFormTracking = ({ formId, enabled = true }: Args): PublicF
     });
 
     const onUnload = () => {
-      // Drain any buffered per-Question events first so the visit-end beacon
-      // doesn't race ahead of (and effectively cancel) their delivery.
+      // Drain buffered per-Question events first so the visit-end beacon
+      // doesn't race ahead of (and cancel) their delivery.
       flushQuestionProgressBuffer();
       const id = visitIdRef.current;
       if (!id) {
