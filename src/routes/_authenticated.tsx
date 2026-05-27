@@ -507,12 +507,12 @@ const AppSidebar = () => {
     setIsOpen: setIsPaletteOpen,
   } = useCommandPalette();
 
+  const [trashDialogOpen, setTrashDialogOpen] = useState(false);
+  const [paletteSearch, setPaletteSearch] = useState("");
+
   const handleOpenSettings = useCallback(() => settingsDialogStore.open(), []);
 
   const handleOpenTrash = useCallback(() => setTrashDialogOpen(true), []);
-
-  const [trashDialogOpen, setTrashDialogOpen] = useState(false);
-  const [paletteSearch, setPaletteSearch] = useState("");
 
   // Subscribe to loader-primed org query (not loader data) to stay active: refetch on focus/reconnect, react to invalidation, no GC while on screen.
   const { data: activeOrg } = useQuery({
