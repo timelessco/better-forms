@@ -69,11 +69,13 @@ export type IframeEvent =
   | { event: "Reform.PageView"; formId: string; page: number }
   | { event: "Reform.Close"; formId: string };
 
-/** Global API exposed on window */
+/** Global API exposed on window. Populated by whichever embed script loaded — popup.js sets the popup methods, widgets/embed.js sets loadEmbeds. */
 interface ReformAPI {
-  openPopup: (formId: string, options?: PopupOptions) => void;
-  closePopup: (formId: string) => void;
-  destroyPopup: (formId: string) => void;
+  openPopup?: (formId: string, options?: PopupOptions) => void;
+  closePopup?: (formId: string) => void;
+  destroyPopup?: (formId: string) => void;
+  /** Standard iframe embed: activate every <iframe data-reform-src> on the page. */
+  loadEmbeds?: () => void;
 }
 
 declare global {
