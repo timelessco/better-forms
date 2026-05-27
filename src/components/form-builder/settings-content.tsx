@@ -20,7 +20,7 @@ import {
   setFormInAppNotificationPreference,
 } from "@/lib/server-fn/notifications";
 import { defaultFormSettings } from "@/types/form-settings";
-import { EyeIcon, EyeOffIcon } from "@/components/ui/icons";
+import { EyeIcon, EyeOffIcon, Loader2Icon } from "@/components/ui/icons";
 import { IconSwap } from "@/components/transitions/icon-swap";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseError } from "@/lib/errors/parse";
@@ -77,6 +77,22 @@ const getBrowserPermissionLabel = (permission: BrowserNotificationPermission) =>
 };
 
 export const SettingsContent = ({ formId, isLocal }: { formId: string; isLocal?: boolean }) => {
+  const cloudForm = useForm(isLocal ? undefined : formId);
+  const localFormResult = useLocalForm(isLocal ? formId : undefined);
+  const formResult = isLocal ? localFormResult : cloudForm;
+  // Gate so useAppForm below initializes from loaded draftSettings, not the
+  // empty defaults it would capture before the collection is ready.
+  if (formResult.data === undefined) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2Icon aria-hidden="true" className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  return <SettingsContentInner formId={formId} isLocal={isLocal} />;
+};
+
+const SettingsContentInner = ({ formId, isLocal }: { formId: string; isLocal?: boolean }) => {
   const cloudForm = useForm(isLocal ? undefined : formId);
   const localFormResult = useLocalForm(isLocal ? formId : undefined);
   const formResult = isLocal ? localFormResult : cloudForm;
