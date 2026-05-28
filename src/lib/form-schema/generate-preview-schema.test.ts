@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
-import { generateZodSchemaFromFields } from "./generate-preview-schema";
+import {
+  generateDefaultValuesFromFields,
+  generateZodSchemaFromFields,
+} from "./generate-preview-schema";
 
 describe("generateZodSchemaFromFields - Date / Time required", () => {
   it("rejects empty Date when required", () => {
@@ -43,5 +46,26 @@ describe("generateZodSchemaFromFields - Date / Time required", () => {
     expect(schema.safeParse({ n: "" }).success).toBe(false);
     expect(schema.safeParse({ n: "5" }).success).toBe(true);
     expect(schema.safeParse({ n: "20" }).success).toBe(false);
+  });
+});
+
+describe("generateDefaultValuesFromFields - repeatable", () => {
+  it("defaults a repeatable scalar field to one empty item", () => {
+    const fields: PlateFormField[] = [
+      { id: "e", name: "e", fieldType: "Email", required: true, isFieldArray: true },
+    ];
+    expect(generateDefaultValuesFromFields(fields)).toEqual({ e: [""] });
+  });
+
+  it("seeds the configured defaultValue as the single item", () => {
+    const fields: PlateFormField[] = [
+      { id: "i", name: "i", fieldType: "Input", isFieldArray: true, defaultValue: "hello" },
+    ];
+    expect(generateDefaultValuesFromFields(fields)).toEqual({ i: ["hello"] });
+  });
+
+  it("non-repeatable scalar still defaults to a string", () => {
+    const fields: PlateFormField[] = [{ id: "i", name: "i", fieldType: "Input" }];
+    expect(generateDefaultValuesFromFields(fields)).toEqual({ i: "" });
   });
 });

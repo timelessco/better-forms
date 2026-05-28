@@ -174,6 +174,11 @@ export const generateDefaultValuesFromFields = (
     if (field.fieldType === "Button") {
       continue;
     }
+    if ("isFieldArray" in field && field.isFieldArray) {
+      const seed = "defaultValue" in field && field.defaultValue ? field.defaultValue : "";
+      defaults[field.name] = [seed];
+      continue;
+    }
     if (
       field.fieldType === "Checkbox" ||
       field.fieldType === "MultiSelect" ||
