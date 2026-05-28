@@ -2,6 +2,17 @@ import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getActiveOrgId } from "@/lib/server-fn/auth-helpers";
+import {
+  aggregateAnalyticsDailyImpl,
+  getFormDropoffImpl,
+  getFormInsightsImpl,
+  getFormVitalsImpl,
+  getInsightsAvailabilityImpl,
+  recordFormVisitImpl,
+  recordQuestionProgressBatchImpl,
+  recordQuestionProgressImpl,
+  updateFormVisitImpl,
+} from "@/lib/server-fn/analytics.server";
 import type {
   InsightsAvailability,
   RecordQuestionProgressBatchInput,
@@ -12,8 +23,9 @@ import type {
   QuestionDropoffMetrics,
 } from "@/types/analytics";
 
-// DB logic lives in analytics.server.ts, dynamically imported in each handler so Start strips it
-// from the client bundle — @/db + postgres driver never reach the browser via this file.
+// DB logic lives in analytics.server.ts (server-only via the .server suffix). Imported
+// statically here but used only inside handlers, so Start prunes it from the client bundle —
+// @/db + postgres driver never reach the browser via this file.
 
 const recordVisitInputSchema = v.object({
   formId: v.pipe(v.string(), v.uuid()),
@@ -27,10 +39,7 @@ const recordVisitInputSchema = v.object({
 
 export const recordFormVisit = createServerFn({ method: "POST" })
   .inputValidator(recordVisitInputSchema)
-  .handler(async ({ data }): Promise<{ visitId: string | null }> => {
-    const { recordFormVisitImpl } = await import("./analytics.server");
-    return recordFormVisitImpl(data);
-  });
+  .handler(async ({ data }): Promise<{ visitId: string | null }> => recordFormVisitImpl(data));
 
 const MAX_DURATION_MS = 86_400_000; // 24h cap as a spam guard for client-supplied values
 
@@ -53,10 +62,7 @@ const updateVisitInputSchema = v.object({
 
 export const updateFormVisit = createServerFn({ method: "POST" })
   .inputValidator(updateVisitInputSchema)
-  .handler(async ({ data }): Promise<{ ok: true }> => {
-    const { updateFormVisitImpl } = await import("./analytics.server");
-    return updateFormVisitImpl(data);
-  });
+  .handler(async ({ data }): Promise<{ ok: true }> => updateFormVisitImpl(data));
 
 const questionProgressInputSchema = v.object({
   visitId: v.pipe(v.string(), v.uuid()),
@@ -73,10 +79,7 @@ const questionProgressInputSchema = v.object({
 
 export const recordQuestionProgress = createServerFn({ method: "POST" })
   .inputValidator(questionProgressInputSchema)
-  .handler(async ({ data }): Promise<{ ok: true }> => {
-    const { recordQuestionProgressImpl } = await import("./analytics.server");
-    return recordQuestionProgressImpl(data);
-  });
+  .handler(async ({ data }): Promise<{ ok: true }> => recordQuestionProgressImpl(data));
 
 const MAX_QUESTION_PROGRESS_BATCH = 20;
 
@@ -98,10 +101,7 @@ export const recordQuestionProgressBatch = createServerFn({ method: "POST" })
     }): Promise<{
       ok: true;
       processed: number;
-    }> => {
-      const { recordQuestionProgressBatchImpl } = await import("./analytics.server");
-      return recordQuestionProgressBatchImpl(data);
-    },
+    }> => recordQuestionProgressBatchImpl(data),
   );
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -116,34 +116,22 @@ const insightsFilterInputSchema = v.object({
 export const getFormInsights = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(insightsFilterInputSchema)
-  .handler(async ({ data, context }): Promise<FormInsightsMetrics> => {
-    const { getFormInsightsImpl } = await import("./analytics.server");
-    return getFormInsightsImpl(data, context, getActiveOrgId(context.session));
-  });
+  .handler(async ({ data, context }): Promise<FormInsightsMetrics> => getFormInsightsImpl(data, context, getActiveOrgId(context.session)));
 
 export const getFormDropoff = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(insightsFilterInputSchema)
-  .handler(async ({ data, context }): Promise<QuestionDropoffMetrics> => {
-    const { getFormDropoffImpl } = await import("./analytics.server");
-    return getFormDropoffImpl(data, context, getActiveOrgId(context.session));
-  });
+  .handler(async ({ data, context }): Promise<QuestionDropoffMetrics> => getFormDropoffImpl(data, context, getActiveOrgId(context.session)));
 
 export const getFormVitals = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(insightsFilterInputSchema)
-  .handler(async ({ data, context }): Promise<FormVitalsMetrics> => {
-    const { getFormVitalsImpl } = await import("./analytics.server");
-    return getFormVitalsImpl(data, context, getActiveOrgId(context.session));
-  });
+  .handler(async ({ data, context }): Promise<FormVitalsMetrics> => getFormVitalsImpl(data, context, getActiveOrgId(context.session)));
 
 export const getInsightsAvailability = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
-  .handler(async ({ data, context }): Promise<InsightsAvailability> => {
-    const { getInsightsAvailabilityImpl } = await import("./analytics.server");
-    return getInsightsAvailabilityImpl(data, context, getActiveOrgId(context.session));
-  });
+  .handler(async ({ data, context }): Promise<InsightsAvailability> => getInsightsAvailabilityImpl(data, context, getActiveOrgId(context.session)));
 
 const aggregateInputSchema = v.object({
   date: v.pipe(v.string(), v.regex(DATE_KEY_PATTERN)),
@@ -151,7 +139,4 @@ const aggregateInputSchema = v.object({
 
 export const aggregateAnalyticsDaily = createServerFn({ method: "POST" })
   .inputValidator(aggregateInputSchema)
-  .handler(async ({ data }) => {
-    const { aggregateAnalyticsDailyImpl } = await import("./analytics.server");
-    return aggregateAnalyticsDailyImpl(data);
-  });
+  .handler(async ({ data }) => aggregateAnalyticsDailyImpl(data));

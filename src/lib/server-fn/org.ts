@@ -1,12 +1,13 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
+import { auth } from "@/lib/auth/auth";
 
 /** Server-only org data for SSR (_authenticated loader). Auth handled by route's authMiddleware.
- * auth lazy-imported in handler: static import would drag @polar-sh/sdk + @/db + pg into the
- * client bundle (this file is statically imported by _authenticated.tsx). */
+ * `auth` (server-only marker) is used only in the handler, so Start prunes it + its @polar-sh/sdk
+ * + @/db + pg deps from the client bundle even though this file is statically imported by
+ * _authenticated.tsx. */
 export const getOrgDataForLayout = createServerFn({ method: "GET" }).handler(async () => {
-  const { auth } = await import("@/lib/auth/auth");
   const headers = getRequestHeaders();
   const [activeOrg, orgsData] = await Promise.all([
     auth.api.getFullOrganization({ headers }),

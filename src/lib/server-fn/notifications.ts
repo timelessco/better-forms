@@ -9,13 +9,14 @@ import {
   forms,
   workspaces,
 } from "@/db/schema";
+import type { FormSubmissionNotificationRow } from "@/db/schema";
 import { db } from "@/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { ErrorCode } from "@/lib/errors/codes";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm } from "./auth-helpers.server";
 
-type NotificationRow = typeof formSubmissionNotifications.$inferSelect;
+type NotificationRow = FormSubmissionNotificationRow;
 
 const serializeSubmissionNotification = (
   row: NotificationRow & {

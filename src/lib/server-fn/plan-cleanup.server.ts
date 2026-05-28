@@ -1,7 +1,7 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { customDomains, formSettings, forms, organization, workspaces } from "@/db/schema";
-import { mergeFormSettings } from "@/lib/server-fn/forms";
+import { mergeFormSettings } from "@/lib/server-fn/merge-form-settings.server";
 import { vercelDomains } from "@/lib/vercel-domains.server";
 
 type DbExecutor = typeof db;
