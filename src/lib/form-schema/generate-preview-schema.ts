@@ -9,6 +9,43 @@ import { z } from "zod";
 import type { ZodType } from "zod";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 
+/** Strict per-item validator for a repeatable scalar field. Empty items are
+ * filtered out before this runs, so every item must be a valid non-empty value. */
+const buildArrayItemSchema = (field: PlateFormField): ZodType => {
+  switch (field.fieldType) {
+    case "Email":
+      return z.email({ error: "Please enter a valid email address" });
+    case "Link": {
+      const urlRegex = /^(https?:\/\/)?[\w.-]+\.\w{2,}(\/\S*)?$/;
+      return z.string().regex(urlRegex, "Please enter a valid URL");
+    }
+    case "Number": {
+      let n = z.coerce.number({ error: "Please enter a valid number" });
+      if (field.allowDecimals === false) n = n.int("Decimals are not allowed");
+      if (typeof field.min === "number")
+        n = n.min(field.min, `Value must be at least ${field.min}`);
+      if (typeof field.max === "number") n = n.max(field.max, `Value must be at most ${field.max}`);
+      return n;
+    }
+    case "Phone":
+      return z.string().refine((v) => isValidPhoneNumber(v), "Please enter a valid phone number");
+    case "Input":
+    case "Textarea": {
+      let s: z.ZodString = z.string().min(1, "This field is required");
+      if ("minLength" in field && field.minLength) {
+        s = s.min(field.minLength, `Minimum ${field.minLength} characters required`);
+      }
+      if ("maxLength" in field && field.maxLength) {
+        s = s.max(field.maxLength, `Maximum ${field.maxLength} characters allowed`);
+      }
+      return s;
+    }
+    default:
+      // Date, Time, and any fallback scalar: non-empty string.
+      return z.string().min(1, "This field is required");
+  }
+};
+
 /**
  * Generates a Zod schema from an array of PlateFormField.
  *
@@ -21,6 +58,15 @@ export const generateZodSchemaFromFields = (fields: PlateFormField[]): z.ZodObje
   for (const field of fields) {
     // Skip Button fields - they don't have validation
     if (field.fieldType === "Button") {
+      continue;
+    }
+
+    if ("isFieldArray" in field && field.isFieldArray) {
+      const item = buildArrayItemSchema(field);
+      schemaShape[field.name] = z.preprocess(
+        (val) => (Array.isArray(val) ? val.filter((v) => v !== "" && v != null) : val),
+        field.required ? z.array(item).min(1, "This field is required") : z.array(item),
+      );
       continue;
     }
 

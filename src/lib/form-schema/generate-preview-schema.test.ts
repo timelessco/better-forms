@@ -49,6 +49,50 @@ describe("generateZodSchemaFromFields - Date / Time required", () => {
   });
 });
 
+describe("generateZodSchemaFromFields - repeatable", () => {
+  const emailArr = (required: boolean): PlateFormField[] => [
+    { id: "e", name: "e", fieldType: "Email", required, isFieldArray: true },
+  ];
+
+  it("required email array rejects when all items empty", () => {
+    const schema = generateZodSchemaFromFields(emailArr(true));
+    expect(schema.safeParse({ e: [""] }).success).toBe(false);
+  });
+
+  it("required email array accepts one valid item (ignores trailing empty)", () => {
+    const schema = generateZodSchemaFromFields(emailArr(true));
+    expect(schema.safeParse({ e: ["a@b.com", ""] }).success).toBe(true);
+  });
+
+  it("rejects a malformed item even among valid ones", () => {
+    const schema = generateZodSchemaFromFields(emailArr(true));
+    expect(schema.safeParse({ e: ["a@b.com", "not-an-email"] }).success).toBe(false);
+  });
+
+  it("optional array passes when entirely empty", () => {
+    const schema = generateZodSchemaFromFields(emailArr(false));
+    expect(schema.safeParse({ e: [""] }).success).toBe(true);
+    expect(schema.safeParse({ e: [] }).success).toBe(true);
+  });
+
+  it("number array validates each item against min/max", () => {
+    const fields: PlateFormField[] = [
+      {
+        id: "n",
+        name: "n",
+        fieldType: "Number",
+        required: true,
+        min: 1,
+        max: 10,
+        isFieldArray: true,
+      },
+    ];
+    const schema = generateZodSchemaFromFields(fields);
+    expect(schema.safeParse({ n: ["5", "9"] }).success).toBe(true);
+    expect(schema.safeParse({ n: ["5", "99"] }).success).toBe(false);
+  });
+});
+
 describe("generateDefaultValuesFromFields - repeatable", () => {
   it("defaults a repeatable scalar field to one empty item", () => {
     const fields: PlateFormField[] = [
