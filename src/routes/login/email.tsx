@@ -1,9 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { Loader2Icon } from "@/components/ui/icons";
 import * as React from "react";
-import * as z from "zod";
+import * as v from "valibot";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { revalidateLogic, useAppForm } from "@/components/ui/tanstack-form";
@@ -11,9 +10,10 @@ import { authClient } from "@/lib/auth/auth-client";
 import { guestMiddleware } from "@/lib/auth/middleware";
 import { isSafeRedirect } from "@/lib/auth/safe-redirect";
 import { Logo } from "@/components/ui/logo";
+import { SuccessCheck } from "@/components/transitions/success-check";
 
-const emailSchema = z.object({
-  email: z.email({ error: "Please enter a valid email address" }),
+const emailSchema = v.object({
+  email: v.pipe(v.string(), v.email("Please enter a valid email address")),
 });
 
 const EmailLoginPage = () => {
@@ -50,7 +50,7 @@ const EmailLoginPage = () => {
   });
 
   const form = useAppForm({
-    defaultValues: { email: "" } as z.input<typeof emailSchema>,
+    defaultValues: { email: "" } as v.InferInput<typeof emailSchema>,
     validationLogic: revalidateLogic(),
     validators: { onDynamic: emailSchema, onDynamicAsyncDebounceMs: 500 },
     onSubmit: async ({ value }) => {
@@ -72,6 +72,7 @@ const EmailLoginPage = () => {
         </header>
 
         <main className="flex flex-col items-center justify-center gap-4">
+          <SuccessCheck size={44} className="text-primary" />
           <div className="space-y-2 text-center">
             <h2 className="text-sm font-semibold text-foreground">Check your email</h2>
             <p className="text-xs text-muted-foreground">
@@ -153,10 +154,8 @@ export const Route = createFileRoute("/login/email")({
   server: {
     middleware: [guestMiddleware],
   },
-  validateSearch: zodValidator(
-    z.object({
-      redirect: z.string().optional(),
-    }),
-  ),
+  validateSearch: v.object({
+    redirect: v.optional(v.string()),
+  }),
   component: EmailLoginPage,
 });

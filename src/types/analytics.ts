@@ -171,11 +171,7 @@ export interface VitalMetricSummary {
   p75: number | null;
   rating: VitalRating | null;
   sampleCount: number;
-  /**
-   * Change vs the immediately-preceding period of equal length (current − prior).
-   * For all three metrics a negative delta is an improvement. Null when either
-   * period lacks samples.
-   */
+  /** Change vs prior equal-length period (current − prior); negative = improvement for all three. Null if either period lacks samples. */
   deltaVsPrev: number | null;
 }
 

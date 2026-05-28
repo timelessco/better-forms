@@ -1,11 +1,6 @@
-// Local `parseError` — mirrors evlog's `parseError` shape but avoids
-// importing from "evlog", whose main entry pulls server-only sub-modules
-// that contaminate the client bundle whenever any transitive client
-// import touches a server-fn file at the top level. Server code can
-// still use evlog's parseError directly if it wants.
-//
-// Returns the same shape so existing call sites don't need to change:
-//   { message, status?, code?, why?, fix?, link?, raw }
+// Local `parseError` — mirrors evlog's shape but avoids importing "evlog"
+// (server-only modules contaminate the client bundle). Server may use evlog's
+// directly. Same shape: { message, status?, code?, why?, fix?, link?, raw }.
 import type { ErrorCode } from "./codes";
 
 export interface ParsedError {
@@ -34,10 +29,8 @@ const pickNumber = (value: unknown, key: string): number | undefined => {
   return undefined;
 };
 
-// FetchError detection: just `data in error` is too eager — AI SDK errors
-// or random payload-bearing objects can carry an unrelated `.data` field.
-// Require either a status-shaped field on the error/data OR an evlog-style
-// envelope (`data.code` is a string).
+// FetchError detection: `data in error` is too eager (AI SDK / random objects
+// carry `.data`). Require a status-shaped field OR evlog envelope (string `data.code`).
 const looksLikeFetchError = (e: Record<string, unknown>): boolean => {
   if (!("data" in e)) return false;
   if ("statusCode" in e || "status" in e) return true;
@@ -83,9 +76,8 @@ export const parseError = (error: unknown): ParsedError => {
   }
 
   if (error instanceof Error) {
-    // StructuredError instances (and any other Error carrying these own
-    // props) round-trip their structured fields here even when caught
-    // in-process (no FetchError wrapper).
+    // StructuredError (+ any Error with these own props) round-trips structured
+    // fields here even when caught in-process (no FetchError wrapper).
     return {
       message: error.message,
       status: pickNumber(error, "status") ?? pickNumber(error, "statusCode"),

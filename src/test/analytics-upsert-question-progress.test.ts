@@ -1,13 +1,6 @@
 /**
- * Pins the contract that `recordQuestionProgressImpl` writes via a single
- * `INSERT … ON CONFLICT (visit_id, question_id) DO UPDATE` against the
- * unique index installed in Task 1.2 — closing the SELECT→INSERT|UPDATE
- * race the old implementation had — and that the new batch impl iterates
- * the same upsert.
- *
- * Tests are DB-free: `@/db` is mocked with a fluent spy that records the
- * insert/values/onConflictDoUpdate call shape so we can assert WHAT was
- * sent to Postgres without touching it.
+ * Pins that recordQuestionProgressImpl writes via one `INSERT … ON CONFLICT (visit_id, question_id) DO UPDATE` (closes the old SELECT→INSERT|UPDATE race); batch impl iterates the same upsert.
+ * DB-free: `@/db` mocked with a fluent spy recording the insert/values/onConflictDoUpdate shape — assert what's sent without touching Postgres.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -104,8 +97,7 @@ describe("recordQuestionProgressImpl upsert", () => {
     // sql`coalesce(existing, excluded.startedAt)` produces a Drizzle SQL chunk.
     expect(setStartedAt).not.toBeInstanceOf(Date);
     expect(setStartedAt).toBeDefined();
-    // completedAt SET branch is also a coalesce SQL chunk that preserves the
-    // existing value when excluded.completedAt is null (event=start case).
+    // completedAt SET is also a coalesce chunk, preserving existing when excluded is null (event=start).
     expect(call.conflict?.set.completedAt).not.toBeInstanceOf(Date);
     expect(call.conflict?.set.completedAt).toBeDefined();
   });
@@ -119,8 +111,7 @@ describe("recordQuestionProgressImpl upsert", () => {
     expect(call.values.completedAt).toBeInstanceOf(Date);
     expect(call.values.startedAt).toBeInstanceOf(Date);
 
-    // On the UPDATE side, completedAt is a coalesce SQL chunk that uses
-    // excluded.completedAt as the fallback — same shape regardless of event.
+    // UPDATE side: completedAt is a coalesce chunk falling back to excluded — same shape for any event.
     expect(call.conflict?.set.completedAt).not.toBeInstanceOf(Date);
     expect(call.conflict?.set.completedAt).toBeDefined();
   });

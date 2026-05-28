@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as v from "valibot";
 
 export const FIELD_TYPES = [
   "input",
@@ -16,32 +16,31 @@ export const FIELD_TYPES = [
   "ranking",
 ] as const;
 
-export const fieldTypeEnum = z.enum(FIELD_TYPES);
+export const fieldTypeEnum = v.picklist(FIELD_TYPES);
 
-export const setHeaderOp = z.object({
-  type: z.literal("set-header"),
-  title: z.string().optional(),
-  iconKeyword: z.string().optional(),
-  coverColor: z.string().optional(),
+export const setHeaderOp = v.object({
+  type: v.literal("set-header"),
+  title: v.optional(v.string()),
+  iconKeyword: v.optional(v.string()),
+  coverColor: v.optional(v.string()),
 });
 
-export const addFieldOp = z.object({
-  type: z.literal("add-field"),
+export const addFieldOp = v.object({
+  type: v.literal("add-field"),
   fieldType: fieldTypeEnum,
-  label: z.string(),
-  required: z.boolean().optional(),
-  placeholder: z.string().optional(),
-  options: z.array(z.string()).optional(),
+  label: v.string(),
+  required: v.optional(v.boolean()),
+  placeholder: v.optional(v.string()),
+  options: v.optional(v.array(v.string())),
 });
 
-export const addSectionOp = z.object({
-  type: z.literal("add-section"),
-  title: z.string(),
-  level: z.enum(["1", "2", "3"]).optional(),
+export const addSectionOp = v.object({
+  type: v.literal("add-section"),
+  title: v.string(),
+  level: v.optional(v.picklist(["1", "2", "3"])),
 });
 
-// Subset of TOKEN_NAMES the AI is expected to emit. Card/popover are excluded —
-// the form theme derives them from base/accent automatically.
+// TOKEN_NAMES subset the AI emits. Card/popover excluded — derived from base/accent.
 export const AI_THEME_TOKEN_KEYS = [
   "background",
   "foreground",
@@ -60,18 +59,17 @@ export const AI_THEME_TOKEN_KEYS = [
   "ring",
 ] as const;
 
-const themeTokensShape: Record<string, z.ZodString> = {};
+const themeTokensShape: Record<string, v.StringSchema<undefined>> = {};
 for (const base of AI_THEME_TOKEN_KEYS) {
-  themeTokensShape[`light:${base}`] = z.string();
-  themeTokensShape[`dark:${base}`] = z.string();
+  themeTokensShape[`light:${base}`] = v.string();
+  themeTokensShape[`dark:${base}`] = v.string();
 }
 
-export const themeTokensSchema = z.object(themeTokensShape);
+export const themeTokensSchema = v.object(themeTokensShape);
 
 export const RADIUS_OPTIONS = ["none", "small", "medium", "large"] as const;
 
-// Limited set the AI may pick from on free plans — mirrors the Customize
-// sidebar's basic Theme section so the server-side gate accepts the write.
+// Free-plan picks — mirror Customize sidebar's basic Theme so the gate accepts it.
 export const FREE_THEME_COLOR_OPTIONS = [
   "neutral",
   "zinc",
@@ -92,41 +90,41 @@ export const FREE_BASE_COLOR_OPTIONS = ["neutral", "zinc", "slate", "stone", "gr
 
 export const FREE_DEFAULT_MODE_OPTIONS = ["light", "dark", "system"] as const;
 
-// Schema the AI emits for free plans — only keys in FREE_CUSTOMIZATION_KEYS
-// (server-side gate). No light:*/dark:* token overrides, no custom CSS, etc.
-export const freeThemeSchema = z.object({
-  themeColor: z.enum(FREE_THEME_COLOR_OPTIONS),
-  baseColor: z.enum(FREE_BASE_COLOR_OPTIONS),
-  font: z.string(),
-  radius: z.enum(RADIUS_OPTIONS),
-  defaultMode: z.enum(FREE_DEFAULT_MODE_OPTIONS),
+// Free-plan schema — only FREE_CUSTOMIZATION_KEYS (gate). No light/dark tokens,
+// no custom CSS.
+export const freeThemeSchema = v.object({
+  themeColor: v.picklist(FREE_THEME_COLOR_OPTIONS),
+  baseColor: v.picklist(FREE_BASE_COLOR_OPTIONS),
+  font: v.string(),
+  radius: v.picklist(RADIUS_OPTIONS),
+  defaultMode: v.picklist(FREE_DEFAULT_MODE_OPTIONS),
 });
 
-export type FreeThemeArgs = z.infer<typeof freeThemeSchema>;
+export type FreeThemeArgs = v.InferOutput<typeof freeThemeSchema>;
 
-export const setThemeOp = z.object({
-  type: z.literal("set-theme"),
-  // Object is optional, but if present all 30 keys must be filled — forces the
-  // model to commit to a complete theme rather than emit tokens: null.
-  tokens: themeTokensSchema.optional(),
-  font: z.string().optional(),
-  radius: z.enum(RADIUS_OPTIONS).optional(),
+export const setThemeOp = v.object({
+  type: v.literal("set-theme"),
+  // Optional, but if present all 30 keys required — forces a complete theme,
+  // not tokens: null.
+  tokens: v.optional(themeTokensSchema),
+  font: v.optional(v.string()),
+  radius: v.optional(v.picklist(RADIUS_OPTIONS)),
 });
 
-export const replaceFieldOp = z.object({
-  type: z.literal("replace-field"),
-  label: z.string().optional(),
-  fieldType: fieldTypeEnum.optional(),
-  placeholder: z.string().optional(),
-  options: z.array(z.string()).optional(),
+export const replaceFieldOp = v.object({
+  type: v.literal("replace-field"),
+  label: v.optional(v.string()),
+  fieldType: v.optional(fieldTypeEnum),
+  placeholder: v.optional(v.string()),
+  options: v.optional(v.array(v.string())),
 });
 
-export const addPageBreakOp = z.object({
-  type: z.literal("add-page-break"),
-  isThankYou: z.boolean().optional(),
+export const addPageBreakOp = v.object({
+  type: v.literal("add-page-break"),
+  isThankYou: v.optional(v.boolean()),
 });
 
-export const opSchema = z.discriminatedUnion("type", [
+export const opSchema = v.variant("type", [
   setHeaderOp,
   addFieldOp,
   addSectionOp,
@@ -135,18 +133,18 @@ export const opSchema = z.discriminatedUnion("type", [
   addPageBreakOp,
 ]);
 
-export const formGenSchema = z.object({
-  ops: z.array(opSchema),
+export const formGenSchema = v.object({
+  ops: v.array(opSchema),
 });
 
-export type SetHeaderOp = z.infer<typeof setHeaderOp>;
-export type AddFieldOp = z.infer<typeof addFieldOp>;
-export type AddSectionOp = z.infer<typeof addSectionOp>;
-export type SetThemeOp = z.infer<typeof setThemeOp>;
-export type ReplaceFieldOp = z.infer<typeof replaceFieldOp>;
-export type AddPageBreakOp = z.infer<typeof addPageBreakOp>;
-export type Op = z.infer<typeof opSchema>;
-export type FormGenResult = z.infer<typeof formGenSchema>;
+export type SetHeaderOp = v.InferOutput<typeof setHeaderOp>;
+export type AddFieldOp = v.InferOutput<typeof addFieldOp>;
+export type AddSectionOp = v.InferOutput<typeof addSectionOp>;
+export type SetThemeOp = v.InferOutput<typeof setThemeOp>;
+export type ReplaceFieldOp = v.InferOutput<typeof replaceFieldOp>;
+export type AddPageBreakOp = v.InferOutput<typeof addPageBreakOp>;
+export type Op = v.InferOutput<typeof opSchema>;
+export type FormGenResult = v.InferOutput<typeof formGenSchema>;
 
 export type PartialOp = Partial<Op> & { type?: Op["type"] };
 

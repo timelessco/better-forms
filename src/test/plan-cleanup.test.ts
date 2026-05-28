@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { customDomains, forms, organization } from "@/db/schema";
-import { mergeFormSettings } from "@/lib/server-fn/forms";
+import { mergeFormSettings } from "@/lib/server-fn/merge-form-settings.server";
 import { applyDowngradeCleanup, applyUpgradeRestore } from "@/lib/server-fn/plan-cleanup.server";
 import {
   cleanupTestOrg,

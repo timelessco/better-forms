@@ -9,9 +9,8 @@ export const ErrorBoundary = ({ error }: ErrorComponentProps) => {
   const router = useRouter();
   const isDev = import.meta.env.DEV;
 
-  // Normalize via parseError once. For structured server errors this gives us
-  // `code`/`why`/`fix`; for plain Errors we still get `.message`. `error.stack`
-  // is only present on real Error instances — read it off the original.
+  // parseError gives code/why/fix for server errors, .message for plain Errors. stack only exists
+  // on real Error instances — read it off the original.
   const parsed = parseError(error);
   const stack = error instanceof Error ? error.stack : undefined;
 

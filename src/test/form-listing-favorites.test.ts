@@ -241,7 +241,6 @@ describe("favorite collection", () => {
 
     const favId = `${memberId}:${formId}`;
 
-    // Insert favorite
     await collection.insert({
       id: favId,
       userId: memberId,
@@ -250,7 +249,6 @@ describe("favorite collection", () => {
     });
     expect(collection.get(favId)).toBeDefined();
 
-    // Delete favorite
     await collection.delete(favId);
     expect(collection.get(favId)).toBeUndefined();
   });

@@ -2,6 +2,7 @@ import { EvilAreaChart } from "@/components/evilcharts/charts/area-chart";
 import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NumberPopIn } from "@/components/transitions/number-pop-in";
 import { cn } from "@/lib/utils";
 import type { VitalRating, WebVitalName } from "@/lib/analytics/vitals";
 import type { FormVitalsMetrics, VitalMetricSummary } from "@/types/analytics";
@@ -39,8 +40,7 @@ const METRICS: readonly MetricMeta[] = [
   },
 ] as const;
 
-// CWV rating colors are a standard traffic-light semantic, so explicit hues are
-// intentional here rather than neutral design tokens.
+// CWV ratings use standard traffic-light semantics; explicit hues intentional, not design tokens.
 const RATING_DOT: Record<VitalRating, string> = {
   good: "bg-emerald-500",
   "needs-improvement": "bg-amber-500",
@@ -124,8 +124,8 @@ const StatTile = ({ meta, summary }: { meta: MetricMeta; summary: VitalMetricSum
         <p className="text-sm font-medium">{meta.label}</p>
       </div>
       <p className="text-xs text-pretty text-muted-foreground">{meta.description}</p>
-      <p className="text-2xl font-semibold text-balance tabular-nums">
-        {formatValue(meta.name, summary.p75)}
+      <p className="text-2xl font-semibold text-balance">
+        <NumberPopIn value={formatValue(meta.name, summary.p75)} className="tabular-nums" />
       </p>
       {delta ? (
         <p

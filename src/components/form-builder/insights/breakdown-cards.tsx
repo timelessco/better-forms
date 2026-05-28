@@ -33,9 +33,7 @@ interface BreakdownDatum extends Record<string, unknown> {
   value: number;
 }
 
-// Fixed OKLCH palette — `--chart-N` tokens flip to a dark blue palette in
-// dark mode which renders as dark blobs against the dark card bg.
-// These values keep the same perceived luminance across themes.
+// Fixed OKLCH palette — `--chart-N` tokens flip dark-blue in dark mode (dark blobs on dark card). These hold luminance across themes.
 const PALETTE: string[] = [
   "oklch(0.62 0.18 250)", // blue
   "oklch(0.7 0.18 145)", // green

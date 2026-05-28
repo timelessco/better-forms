@@ -46,8 +46,7 @@ const buildStandardFieldNodes = (
 ): TElement[] => {
   const label = buildLabelNode(args.label, args.required ?? false);
 
-  // AI-provided placeholder becomes editable text content inside the field;
-  // the node's placeholder attribute stays as the default hint
+  // AI placeholder → editable text content; node's placeholder attr stays the default hint.
   const textContent = args.placeholder ?? "";
   const fieldNode = defaultPlaceholder
     ? ({

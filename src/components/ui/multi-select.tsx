@@ -3,10 +3,10 @@
    producing invalid HTML and React hydration errors. */
 import { useState } from "react";
 
-import { MULTI_SELECT_COLORS } from "@/components/ui/form-option-item-constants";
+import { getMultiSelectColor } from "@/components/ui/form-option-item-constants";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useReanchorThemeProps } from "@/hooks/use-form-theme";
+import { useFormIsDark, useReanchorThemeProps } from "@/hooks/use-form-theme";
 import { cn } from "@/lib/utils";
 
 interface MultiSelectOption {
@@ -48,13 +48,13 @@ export const MultiSelect = ({
 
   const selectedOptions = options.filter((opt) => value.includes(opt.value));
 
-  // PopoverContent portals to document.body, so it loses the .bf-themed
-  // CSS-var context. Re-anchor the theme on the popup.
+  // PopoverContent portals to body, losing .bf-themed CSS vars — re-anchor theme on the popup.
   const themeReanchor = useReanchorThemeProps();
+  // Chip colors follow the form's mode, not the app's global `.dark` (the trigger lives in the
+  // editor canvas; the dropdown re-anchors via themeReanchor but neither strips the app `.dark`).
+  const isDark = useFormIsDark();
 
-  // Arrow-key roving focus across the options. Tab/Shift+Tab still work
-  // (native DOM order); this adds the standard listbox-style ArrowUp/Down +
-  // Home/End for keyboard users who expect a Combobox-like UX.
+  // Roving focus across options: adds listbox-style ArrowUp/Down + Home/End; Tab still works natively.
   const handleOptionsKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
     const buttons = Array.from(
@@ -79,10 +79,8 @@ export const MultiSelect = ({
     }
   };
 
-  // Outer trigger must NOT be a <button> — it contains inner "remove tag"
-  // buttons, and nested interactive elements are invalid HTML / cause
-  // React hydration errors. A div with role=button preserves a11y without
-  // the nesting violation.
+  // Outer trigger can't be a <button> — it holds inner "remove tag" buttons (nested interactive =
+  // invalid HTML / hydration errors). div with role=button keeps a11y without the nesting.
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
@@ -105,7 +103,7 @@ export const MultiSelect = ({
               {selectedOptions.length > 0 ? (
                 selectedOptions.map((opt) => {
                   const colorIndex = options.findIndex((o) => o.value === opt.value);
-                  const color = MULTI_SELECT_COLORS[colorIndex % MULTI_SELECT_COLORS.length];
+                  const color = getMultiSelectColor(colorIndex, isDark);
                   return (
                     <span
                       key={opt.value}
@@ -152,7 +150,7 @@ export const MultiSelect = ({
       >
         {options.map((opt, idx) => {
           const isSelected = value.includes(opt.value);
-          const color = MULTI_SELECT_COLORS[idx % MULTI_SELECT_COLORS.length];
+          const color = getMultiSelectColor(idx, isDark);
           return (
             <button
               key={opt.value}

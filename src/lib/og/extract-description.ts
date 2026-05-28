@@ -9,16 +9,10 @@ type PlateNode = {
   children?: Array<{ text?: string; children?: unknown }>;
 };
 
-/**
- * Extract up to two leading description paragraphs from a Plate.js content
- * tree. Skips the leading `formHeader` block. A `p` whose immediate next
- * block is a form-input type is consumed as that field's label by
- * `transformPlateStateToFormElements` (see `transform-plate-to-form.ts`)
- * and is NOT a description.
- *
- * Returns an empty string when no qualifying paragraph exists. Only `p`
- * blocks count — h1/h2/h3 are static headings, not prose.
- */
+/** Up to 2 leading description paragraphs from a Plate tree. Skips `formHeader`.
+ * A `p` directly before a form-input is that field's label (consumed by
+ * transformPlateStateToFormElements), not a description. Only `p` counts (h1-3
+ * are headings). `""` if none. */
 export const extractOgDescription = (content: unknown): string => {
   if (!Array.isArray(content)) return "";
 

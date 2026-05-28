@@ -17,9 +17,7 @@ const NumberField = ({ element, form, name }: FieldRendererProps<"Number">) => {
                 e.preventDefault();
               }
             }}
-            // Numbers are too ambiguous to autofill reliably (could be age,
-            // amount, quantity, postal code, year, …). "on" lets browsers
-            // skip autofill on no-match instead of being actively suppressed.
+            // Numbers too ambiguous to autofill (age/amount/qty/zip/year). "on" lets browser skip on no-match rather than suppress.
             autoComplete="on"
             inputMode="numeric"
             aria-label={getAriaLabelFallback(element)}

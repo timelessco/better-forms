@@ -21,10 +21,8 @@ interface ImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, "srcSet">
 
 const isVercelBlobUrl = (src: string) => src.includes(".public.blob.vercel-storage.com");
 
-// data:/blob:/same-origin sources can't be optimized by an external CDN.
-// Vercel Blob URLs are served as-is — the only transformer for them is the
-// `/_vercel/image` endpoint, which 404s in local dev and saves little for the
-// small thumbnails we render. Treat them as opaque so we render plain <img>.
+// data:/blob:/same-origin can't use an external CDN. Vercel Blob's only transformer is
+// /_vercel/image, which 404s in dev and barely helps our small thumbnails — treat as opaque (plain <img>).
 const isOpaqueSrc = (src: string) =>
   src.startsWith("data:") || src.startsWith("blob:") || src.startsWith("/") || isVercelBlobUrl(src);
 
@@ -62,8 +60,7 @@ export const Image = ({
 
   const resolvedCdn = cdn; // unpic auto-detects known CDNs (Unsplash, Cloudinary, …) when undefined
 
-  // Cast narrows unpic's discriminated-union props to the layout variant chosen
-  // at the call site; `width`/`height` are required at the wrapper's type.
+  // Cast narrows unpic's union to the call site's layout variant; width/height required here.
   const props = {
     src,
     alt,

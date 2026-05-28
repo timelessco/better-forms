@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { matchSorter } from "match-sorter";
+import { NumberPopIn } from "@/components/transitions/number-pop-in";
 
 import { ColorPicker } from "./color-picker";
 import { iconOptions } from "./icon-data";
@@ -57,7 +58,10 @@ export const IconPickerContent = ({
       <div className="icon-color-container overflow-x-auto pt-2" style={{ scrollbarWidth: "none" }}>
         <ColorPicker onChange={handleColorChange} selectedColor={iconColor} colors={colors} />
       </div>
-      <div className="flex h-[253px] flex-col pt-2 pb-3">
+      <div
+        className="flex h-[253px] flex-col overflow-y-auto pt-2 pb-3"
+        style={{ scrollbarWidth: "none" }}
+      >
         <IconGrid labels={filteredLabels} onSelect={onIconChange} />
         {!isSearching && (
           <IconPagination
@@ -181,7 +185,7 @@ const IconPagination = ({
       prev
     </button>
     <span className="text-13 text-foreground">
-      {currentPage}/{pageCount}
+      <NumberPopIn value={currentPage} />/<NumberPopIn value={pageCount} />
     </span>
     <button
       className="text-13 flex items-center rounded-lg px-2 py-[5px] text-foreground hover:bg-muted disabled:opacity-50"

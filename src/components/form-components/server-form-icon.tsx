@@ -1,9 +1,4 @@
-// Hook-free icon for RSC composite rendering. References the per-icon API
-// endpoint (`/api/icons/{name}.svg`) instead of the full sprite so the SSR'd
-// public form fetches ~1 kB for the single visible logo glyph rather than the
-// full ~40 kB sprite. The /api/icons route extracts one symbol from sprite.svg
-// and caches it; client-side icon usage in the editor still hits the bundled
-// sprite (better when many distinct icons are rendered in one session).
+// Hook-free RSC icon. Uses per-icon endpoint /api/icons/{name}.svg (~1 kB) not the ~40 kB sprite, so SSR'd public form fetches one glyph. Editor still uses bundled sprite (better for many distinct icons per session).
 export const ServerFormIcon = ({
   iconName,
   iconSize = "48",

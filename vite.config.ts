@@ -18,7 +18,7 @@ const setEmbedHeader = (
   res: ServerResponse,
   next: (err?: unknown) => void,
 ) => {
-  if (req.url?.startsWith("/embed/popup.js")) {
+  if (req.url?.startsWith("/embed/popup.js") || req.url?.startsWith("/widgets/embed.js")) {
     res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
   }
   next();
@@ -130,6 +130,12 @@ const config = defineConfig({
       },
       routeRules: {
         "/embed/popup.js": {
+          headers: {
+            "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+            "Access-Control-Allow-Origin": "*",
+          },
+        },
+        "/widgets/embed.js": {
           headers: {
             "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
             "Access-Control-Allow-Origin": "*",

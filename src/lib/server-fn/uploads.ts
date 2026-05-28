@@ -1,20 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createError } from "@/lib/errors/create";
-import { z } from "zod";
+import * as v from "valibot";
 import { putBlob } from "@/integrations/blob";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { ErrorCode } from "@/lib/errors/codes";
 
-/**
- * Upload avatar image to Vercel Blob storage.
- * Accepts base64 image data and returns the public URL.
- */
+/** Upload avatar image (base64) to Vercel Blob; returns public URL. */
 export const uploadAvatar = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      base64: z.string(),
-      filename: z.string().optional(),
+    v.object({
+      base64: v.string(),
+      filename: v.optional(v.string()),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -34,17 +31,14 @@ export const uploadAvatar = createServerFn({ method: "POST" })
     return { url: blob.url };
   });
 
-/**
- * Upload media file (image, video, audio, pdf, etc.) for the form editor canvas.
- * Requires auth. Used by the Plate editor's media placeholder node.
- */
+/** Upload media (image/video/audio/pdf) for the editor canvas (auth required; Plate media placeholder). */
 export const uploadEditorMedia = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      base64: z.string().min(1),
-      filename: z.string().min(1).max(255),
-      contentType: z.string().min(1).max(127),
+    v.object({
+      base64: v.pipe(v.string(), v.minLength(1)),
+      filename: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
+      contentType: v.pipe(v.string(), v.minLength(1), v.maxLength(127)),
     }),
   )
   .handler(async ({ data, context }) => {

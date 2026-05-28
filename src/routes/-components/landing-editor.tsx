@@ -169,8 +169,7 @@ const LocalEditorApp = () => {
   const localFormId = getLocalFormId();
   const { data: savedDocs } = useLocalForm(localFormId);
 
-  // Ensure localStorage record exists so both editor saves and sidebar updates always work.
-  // Runs once on mount — if the record already exists the insert is skipped.
+  // Ensure localStorage record exists (editor saves + sidebar updates). Once on mount; skip insert if present.
   const seededRef = useRef(false);
   if (!seededRef.current) {
     seededRef.current = true;
@@ -198,11 +197,15 @@ const LocalEditorApp = () => {
   }
 
   const resolvedAppTheme = useResolvedTheme();
-  const { hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
+  const { customization, hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
     savedDocs?.[0],
     resolvedAppTheme,
   );
-  const themeCtx = useMemo(() => ({ themeVars, hasCustomization }), [themeVars, hasCustomization]);
+  // Include `customization` so useFormIsDark() can read the form's mode (matches editor-app/preview-mode).
+  const themeCtx = useMemo(
+    () => ({ themeVars, hasCustomization, customization }),
+    [themeVars, hasCustomization, customization],
+  );
 
   const skipSaveRef = useRef(false);
   const headerVisibility = useEditorHeaderVisibilitySafe();
@@ -278,7 +281,7 @@ const LocalEditorApp = () => {
         className={cn(
           "min-h-full w-full overflow-x-hidden bg-background text-foreground",
           hasCustomization && "bf-themed",
-          effectiveTheme === "dark" && "dark",
+          effectiveTheme === "dark" ? "dark" : "bf-light",
         )}
         style={hasCustomization ? themeVars : undefined}
       >
@@ -314,7 +317,7 @@ const LocalPreviewMode = () => {
       className={cn(
         "flex size-full flex-col overflow-x-hidden overflow-y-auto bg-background transition-colors duration-300",
         hasCustomization && "bf-themed",
-        effectiveTheme === "dark" && "dark",
+        effectiveTheme === "dark" ? "dark" : "bf-light",
       )}
       style={hasCustomization ? themeVars : undefined}
     >

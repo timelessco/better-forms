@@ -1,15 +1,7 @@
-// Warm the browser for the popup so clicking the bubble opens an
-// already-ready popup.
-//
-// - preconnect: opens the TCP+TLS connection to the form origin eagerly.
-// - warmupFormOnIntent: on first hover/focus/touch, fires a callback that
-//   builds the full popup hidden — iframe loads + React mounts in the
-//   background. Clicking after that just flips visibility.
-//
-// We used to prefetch the iframe document and its assets via <link rel=
-// "prefetch">. That didn't help: the iframe loads subresources with
-// different credentials mode than the prefetch hints, so the browser
-// treated them as separate cache entries and refetched on click.
+// Warm the browser so clicking the bubble opens an already-ready popup.
+// - preconnect: eager TCP+TLS to form origin.
+// - warmupFormOnIntent: first hover/focus/touch builds the popup hidden (iframe loads, React mounts); click flips visibility.
+// Prefetch via <link rel="prefetch"> failed: iframe subresources use a different credentials mode, so the browser cached them separately and refetched on click.
 
 const ensureLinkTag = (rel: string, href: string, crossOrigin?: string): void => {
   const existing = document.head.querySelector(
@@ -26,23 +18,15 @@ const ensureLinkTag = (rel: string, href: string, crossOrigin?: string): void =>
   document.head.appendChild(link);
 };
 
-/**
- * Inject a preconnect hint for the given origin. No-op when the origin
- * matches the current page (the browser is already connected).
- */
+/** Preconnect hint for origin. No-op when it matches current page (already connected). */
 export const preconnectOrigin = (origin: string): void => {
   if (origin === window.location.origin) return;
   ensureLinkTag("preconnect", origin, "anonymous");
-  // dns-prefetch is a cheap fallback for browsers (mainly older Safari)
-  // that don't act on preconnect aggressively.
+  // dns-prefetch fallback for browsers (older Safari) that ignore preconnect.
   ensureLinkTag("dns-prefetch", origin);
 };
 
-/**
- * Attach one-shot intent listeners to the trigger. On the first hover,
- * focus, or touch, the provided `warmup` callback runs — usually building
- * the full popup hidden so the click after just reveals it.
- */
+/** One-shot intent listeners — first hover/focus/touch runs `warmup` (usually builds the popup hidden so click reveals). */
 export const warmupFormOnIntent = (trigger: HTMLElement, warmup: () => void): void => {
   let fired = false;
   const fire = () => {

@@ -17,10 +17,8 @@ import {
   renderThankYouComponent,
 } from "@/lib/server-fn/public-form-view-rsc.impl";
 
-// Shared RSC-payload builder: takes the already-loaded form record from
-// `loadFormForCustomDomain` and fans out the three render passes (steps,
-// thank-you, header) in parallel. Kept in one place so `/f/$formId` and
-// `/$slug` don't diverge.
+// Shared RSC-payload builder: fans out the three render passes (steps/thank-you/header) in
+// parallel. One place so /f/$formId and /$slug don't diverge.
 const buildPayload = async (base: Awaited<ReturnType<typeof loadFormForCustomDomain>>) => {
   const { steps, thankYouNodes }: PreviewStepResult = base.form
     ? transformPlateForPreview(base.form.content as Value)
@@ -56,8 +54,7 @@ const buildPayload = async (base: Awaited<ReturnType<typeof loadFormForCustomDom
 
 export const runCustomDomainByIdRSC = async (data: { formId: string }, host: string) => {
   if (isAppHost(host)) {
-    // `/f/:id` is reserved for custom domain requests; refuse to serve it
-    // from an app host so stray links can't leak custom-domain content.
+    // /f/:id is custom-domain-only; refuse on app host so stray links can't leak that content.
     throw notFound();
   }
 

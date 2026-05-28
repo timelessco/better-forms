@@ -4,11 +4,7 @@ import { createPublicSubmission } from "@/lib/server-fn/public-submissions";
 const draftKey = (formId: string) => `bf-draft-${formId}`;
 const draftDataKey = (formId: string) => `bf-draft-data-${formId}`;
 
-/**
- * Read the persisted draftId for a form, or generate and persist a fresh one.
- * Returns a fallback UUID (ephemeral, not written to storage) when
- * localStorage is unavailable (e.g. SSR, private mode, disabled cookies).
- */
+/** Read persisted draftId, or generate+persist one. Ephemeral UUID fallback when localStorage unavailable (SSR, private mode). */
 export const getOrCreateDraftId = (formId: string): string => {
   if (typeof window === "undefined") return crypto.randomUUID();
   try {
@@ -41,12 +37,7 @@ export const clearDraftId = (formId: string) => {
   }
 };
 
-/**
- * Local mirror of the in-progress draft. Read on every page load to decide
- * whether to show the resume prompt without a server roundtrip. The server
- * still has the canonical row (for the operator's submissions dashboard);
- * this is just the read-path cache.
- */
+/** Local mirror of in-progress draft — read-path cache for resume prompt, no server roundtrip. Server keeps canonical row. */
 export interface LocalDraft {
   data: Record<string, unknown>;
   lastStepReached: number | null;
@@ -69,7 +60,7 @@ const writeLocalDraft = (formId: string, payload: LocalDraft): void => {
   try {
     localStorage.setItem(draftDataKey(formId), JSON.stringify(payload));
   } catch {
-    // quota / private mode — server save still happened, just no local resume
+    // quota/private mode — server save still happened, just no local resume
   }
 };
 
@@ -79,20 +70,13 @@ interface SaveDraftInput {
 }
 
 /**
- * Hook that returns a stable `saveDraft` function for a given form. Skips the
- * server call when every visible value is empty (prevents creating draft rows
- * for visitors who merely focused+blurred a field without typing).
- *
- * Debouncing is handled upstream by TanStack Form's `onBlurDebounceMs` — this
- * hook just fires the network request.
+ * Stable saveDraft for a form. Skips server call when all values empty (no rows for focus+blur without typing).
+ * Debounce handled upstream by TanStack Form onBlurDebounceMs — this just fires the request.
  */
 export const useDraftAutoSave = (formId: string) => {
   const saveDraft = useCallback(
     async ({ values, lastStepReached }: SaveDraftInput) => {
-      // Strip transient binary values (File/Blob) — FileUploadField sets the
-      // field to a raw File for one tick before the upload listener replaces
-      // it with the URL object. Persisting a File here would JSON-serialize to
-      // `{}` and clobber any previously-saved URL for the same field.
+      // Strip transient File/Blob — raw File lives one tick before upload listener swaps in URL; persisting serializes to `{}` and clobbers saved URL.
       const sanitized: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(values)) {
         if (typeof File !== "undefined" && v instanceof File) continue;
@@ -108,9 +92,7 @@ export const useDraftAutoSave = (formId: string) => {
       });
       if (!hasAnyValue) return;
 
-      // Mirror locally first so a tab closed mid-flight still leaves a
-      // resumable copy. The read-path uses this; the server row is only for
-      // the operator's submissions dashboard.
+      // Mirror locally first — tab closed mid-flight still leaves a resumable copy.
       writeLocalDraft(formId, {
         data: sanitized,
         lastStepReached,
@@ -129,8 +111,7 @@ export const useDraftAutoSave = (formId: string) => {
           },
         });
       } catch (err) {
-        // Drafts are best-effort; never surface a draft save failure to the
-        // user. The next blur (or final submit) will retry implicitly.
+        // Best-effort; never surface to user. Next blur/submit retries implicitly.
         console.error("[Reform] Draft autosave failed:", err);
       }
     },

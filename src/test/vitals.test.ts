@@ -74,8 +74,7 @@ describe("p75FromHistogram", () => {
   });
 
   it("interpolates within a single bucket", () => {
-    // 8 samples all in the [2000,2250) bucket; r = 0.75*8 = 6.
-    // pos = 6/8 = 0.75 -> 2000 + 0.75*250 = 2187.5
+    // 8 samples in [2000,2250); r=6, pos=0.75 -> 2000 + 0.75*250 = 2187.5.
     expect(p75FromHistogram("lcp", { "2000": 8 })).toBeCloseTo(2187.5, 1);
   });
 

@@ -10,11 +10,7 @@ export const moveToPath = (editor: PlateEditor, path: Path): boolean => {
   return false;
 };
 
-/**
- * Find the next block after the given path, skipping form buttons and page breaks.
- * - If next is a "submit" button (last page), return null (stay in place)
- * - If next is a "next/previous" button, skip to first element after page break
- */
+// Next block after path, skipping buttons/page-breaks. Submit button (last page) → null (stay); next/previous → first element after page break.
 export const findNextNonButtonPath = (editor: PlateEditor, currentPath: Path): Path | null => {
   const children = editor.children as TElement[];
   const currentIndex = currentPath[0];

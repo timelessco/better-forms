@@ -25,13 +25,10 @@ interface StepAggregate {
   questions: QuestionDropoffRow[];
 }
 
-// Rolls up per-Question metrics into per-Step metrics, skipping rows with a
-// null stepId (legacy pre-rework data). Aggregation is set-based, not
-// additive: each visit can touch every Question in a Step once, so summing
-// would multiply counts by the Question count and break the funnel reading.
-// terminalDropoff is the exception — each visit terminates at exactly one
-// Question, so summing per-Question terminals across a Step correctly counts
-// visits that gave up somewhere in the Step.
+// Per-Question → per-Step, skipping null-stepId rows (legacy pre-rework). Set-based,
+// not additive: a visit touches every Question once, so summing would multiply by
+// Question count. Exception: terminalDropoff — each visit terminates at one Question,
+// so summing per-Question terminals counts visits that gave up in the Step.
 export const rollupToSteps = (questions: readonly QuestionDropoffRow[]): StepDropoffMetrics[] => {
   const byStep = new Map<string, StepAggregate>();
 
@@ -45,7 +42,7 @@ export const rollupToSteps = (questions: readonly QuestionDropoffRow[]): StepDro
       stepIndex: q.stepIndex,
       viewCount: 0,
       startCount: 0,
-      // Sentinel so the first Math.min iteration becomes the running min.
+      // Sentinel: first Math.min becomes the running min.
       completeCount: Number.POSITIVE_INFINITY,
       dropoffCount: 0,
       terminalDropoffCount: 0,

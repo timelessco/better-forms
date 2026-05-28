@@ -12,9 +12,11 @@ import { cn } from "@/lib/utils";
 
 type OptionVariant = "checkbox" | "multiChoice" | "multiSelect";
 
-import { LETTER_LABELS, MULTI_SELECT_COLORS } from "@/components/ui/form-option-item-constants";
+import { getMultiSelectColor, LETTER_LABELS } from "@/components/ui/form-option-item-constants";
+import { useFormIsDark } from "@/hooks/use-form-theme";
 
 const OptionIcon = ({ variant, index }: { variant: OptionVariant; index: number }) => {
+  const isDark = useFormIsDark();
   switch (variant) {
     case "checkbox":
       return (
@@ -31,7 +33,7 @@ const OptionIcon = ({ variant, index }: { variant: OptionVariant; index: number 
       );
     }
     case "multiSelect": {
-      const color = MULTI_SELECT_COLORS[index % MULTI_SELECT_COLORS.length];
+      const color = getMultiSelectColor(index, isDark);
       return (
         <span
           className={cn(
@@ -53,11 +55,10 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
   const { attributes, element, ...rest } = props;
   const variant = (element.variant as OptionVariant) || "checkbox";
   const editor = useEditorRef();
+  const isDark = useFormIsDark();
 
-  // Subscribe to every editor change so optionIndex follows position after reorder.
-  // props.path is computed by useNodePath which does NOT update on sibling reorder
-  // (slate-react memoizes elements by identity), so we look up the current index
-  // by node identity in editor.children each render.
+  // Subscribe to every editor change so optionIndex tracks reorders. props.path (useNodePath)
+  // doesn't update on reorder (slate-react memoizes by identity); look up index by node identity.
   const version = useEditorVersion();
   const focusIndex = editor.selection?.focus.path[0];
 
@@ -81,9 +82,8 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
     const nextNode = nodes[pathIdx + 1];
     const isLast = !nextNode || nextNode.type !== "formOptionItem";
 
-    // Standalone = no formLabel above AND no sibling option (above or below).
-    // Used to decide whether to anchor the required badge inline on this row,
-    // since a grouped option's badge already floats over the formLabel.
+    // Standalone = no formLabel above AND no sibling option — decides whether to anchor the
+    // required badge inline (grouped options' badge floats over the formLabel instead).
     const prevNode = pathIdx > 0 ? nodes[pathIdx - 1] : null;
     const standalone = idx === 0 && isLast && prevNode?.type !== "formLabel";
 
@@ -109,18 +109,14 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
     // eslint-disable-next-line eslint-plugin-react-hooks/exhaustive-deps -- version forces recompute on every editor change
   }, [editor, element, focusIndex, version]);
 
-  // Suppress the "Add option" ghost while any drag is in progress — Plate
-  // snapshots the option's DOM for the drag preview, and a visible ghost
-  // row would be captured alongside it.
+  // Suppress "Add option" ghost during any drag — Plate snapshots the option DOM for the
+  // preview and would capture a visible ghost row alongside it.
   const draggingId = usePluginOption(DndPlugin, "draggingId") as string | string[] | undefined;
   const isAnyDragging = Array.isArray(draggingId) ? draggingId.length > 0 : Boolean(draggingId);
   const showGhost = isLastInGroup && isGroupFocused && !isAnyDragging;
 
-  // When the ghost is visible, push the NEXT block (pageBreak / formButton / etc.)
-  // down so the ghost doesn't overlap it. We walk up to the block-draggable
-  // wrapper and add margin-top to its next sibling instead of expanding this
-  // element, which would displace the drag-handle gutter (h-full of the block
-  // wrapper).
+  // When ghost is visible, push the next block down so it doesn't overlap. Add margin-top to the
+  // block-draggable wrapper's next sibling, not this element — expanding here displaces the gutter.
   useLayoutEffect(() => {
     let domNode: HTMLElement | null = null;
     try {
@@ -146,10 +142,7 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
     };
   }, [editor, element, showGhost]);
 
-  const colorStyle =
-    variant === "multiSelect"
-      ? MULTI_SELECT_COLORS[optionIndex % MULTI_SELECT_COLORS.length]
-      : null;
+  const colorStyle = variant === "multiSelect" ? getMultiSelectColor(optionIndex, isDark) : null;
 
   return (
     <PlateElement

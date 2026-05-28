@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { TextSwap } from "@/components/transitions/text-swap";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { SettingsTab } from "@/hooks/use-settings-dialog";
 import { useSettingsDialog } from "@/hooks/use-settings-dialog";
@@ -27,12 +28,7 @@ const tabTitles: Record<SettingsTab, string> = {
   domains: "Custom Domains",
 };
 
-/**
- * Renders all four tab panels but only the active one is visible. Each panel
- * is lazily mounted on first activation (so initial dialog open doesn't pay
- * for tabs the user hasn't visited), then kept resident via <Activity> —
- * scroll position, form drafts, and any per-tab effects survive tab switches.
- */
+/** All tab panels render, only active visible. Lazy-mount on first activation, then kept resident via <Activity> — scroll/drafts/effects survive switches. */
 const TabPanels = ({ activeTab }: { activeTab: SettingsTab }) => {
   const [openedAccount, setOpenedAccount] = useState(activeTab === "account");
   const [openedMembers, setOpenedMembers] = useState(activeTab === "members");
@@ -89,12 +85,10 @@ export const SettingsDialog = () => {
       >
         {/* Left Sidebar (top tabs on mobile) */}
         <div className="relative flex w-full shrink-0 flex-col after:absolute after:right-0 after:bottom-0 after:left-0 after:h-[0.5px] after:bg-[var(--color-gray-100)] md:w-[180px] md:after:top-0 md:after:left-auto md:after:h-auto md:after:w-[0.5px]">
-          {/* Settings label */}
           <div className="hidden px-[18px] pt-5 pb-[12.21px] md:block">
             <p className="text-sm font-medium tracking-[0.26px] text-muted-foreground">Settings</p>
           </div>
 
-          {/* Nav items */}
           <nav className="flex flex-row overflow-x-auto px-2 py-2 md:flex-col md:overflow-visible md:py-0">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -119,7 +113,7 @@ export const SettingsDialog = () => {
         >
           <div className="px-5 pt-5 pb-5 md:px-12.25 md:pt-8 md:pb-8">
             <DialogTitle className="mb-4 text-xl font-semibold text-foreground">
-              {tabTitles[activeTab]}
+              <TextSwap key={tabTitles[activeTab]}>{tabTitles[activeTab]}</TextSwap>
             </DialogTitle>
             <TabPanels activeTab={activeTab} />
           </div>

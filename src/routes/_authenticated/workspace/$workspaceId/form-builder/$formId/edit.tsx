@@ -5,16 +5,16 @@ import { useFormVersionContent } from "@/hooks/use-form-versions";
 import { getFormListings } from "@/collections";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import { useVersionHistorySidebar } from "@/hooks/use-version-history-sidebar";
-import { getFormStatus } from "@/lib/server-fn/forms";
-import type { FormStatus } from "@/lib/server-fn/forms";
+import { getFormStatus } from "@/lib/server-fn/forms-queries";
+import type { FormStatus } from "@/lib/server-fn/forms-queries";
 import { cn } from "@/lib/utils";
 import { createFileRoute, isRedirect, redirect, useLocation } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { Loader2Icon } from "@/components/ui/icons";
 import type { Value } from "platejs";
 import { Activity, Suspense, lazy } from "react";
-import { z } from "zod";
-import { zodValidator } from "@tanstack/zod-adapter";
+import * as v from "valibot";
+import { coercedBooleanWithCatch, coercedNumberWithCatch } from "@/lib/valibot-search";
 
 const EditorApp = lazy(() => import("../-components/editor-app"));
 const PreviewMode = lazy(() =>
@@ -76,11 +76,7 @@ const DesignPage = () => {
           )}
         >
           {previewMode && <PreviewMode formId={formId} workspaceId={workspaceId} />}
-          {/* Keep EditorApp's fiber tree, Slate document, and DOM alive across
-              preview toggles via <Activity>. A fresh mount of Plate (50+
-              elements, per-element plugin effects) costs ~600ms; Activity
-              preserves the editor instance and only re-runs effects on the
-              hidden ↔ visible flip. */}
+          {/* <Activity> keeps EditorApp fiber/Slate doc/DOM alive across preview toggles — fresh Plate mount (50+ elements, per-element effects) is ~600ms; only re-runs effects on hidden↔visible flip. */}
           <Activity mode={previewMode ? "hidden" : "visible"}>
             {isViewingVersion && isLoadingVersionContent ? (
               <div className="flex size-full items-center justify-center">
@@ -114,37 +110,32 @@ const DesignPage = () => {
 export const Route = createFileRoute(
   "/_authenticated/workspace/$workspaceId/form-builder/$formId/edit",
 )({
-  validateSearch: zodValidator(
-    z.object({
-      force: z.boolean().optional(),
-      embedType: z.enum(["standard", "popup", "fullpage"]).catch("standard").optional(),
-      embedHeight: z.coerce.number().catch(558).optional(),
-      embedDynamicHeight: z.coerce.boolean().catch(true).optional(),
-      embedDynamicWidth: z.coerce.boolean().catch(false).optional(),
-      embedHideTitle: z.coerce.boolean().catch(false).optional(),
-      embedAlignLeft: z.coerce.boolean().catch(false).optional(),
-      embedTransparent: z.coerce.boolean().catch(false).optional(),
-      embedBranding: z.coerce.boolean().catch(true).optional(),
-      embedPopupPosition: z
-        .enum(["bottom-right", "bottom-left", "center"])
-        .catch("bottom-right")
-        .optional(),
-      embedPopupWidth: z.coerce.number().catch(376).optional(),
-      embedDarkOverlay: z.coerce.boolean().catch(false).optional(),
-      embedEmoji: z.coerce.boolean().catch(true).optional(),
-      embedEmojiIcon: z.string().catch("\uD83D\uDC4B").optional(),
-      embedEmojiAnimation: z.enum(["wave", "bounce", "pulse"]).catch("wave").optional(),
-      embedPopupTrigger: z.enum(["button", "auto", "scroll"]).catch("button").optional(),
-      embedHideOnSubmit: z.coerce.boolean().catch(false).optional(),
-      embedHideOnSubmitDelay: z.coerce.number().catch(0).optional(),
-    }),
-  ),
+  validateSearch: v.object({
+    force: v.optional(v.boolean()),
+    embedType: v.optional(v.fallback(v.picklist(["standard", "popup", "fullpage"]), "standard")),
+    embedHeight: coercedNumberWithCatch(558),
+    embedDynamicHeight: coercedBooleanWithCatch(true),
+    embedDynamicWidth: coercedBooleanWithCatch(false),
+    embedHideTitle: coercedBooleanWithCatch(false),
+    embedAlignLeft: coercedBooleanWithCatch(false),
+    embedTransparent: coercedBooleanWithCatch(false),
+    embedBranding: coercedBooleanWithCatch(true),
+    embedPopupPosition: v.optional(
+      v.fallback(v.picklist(["bottom-right", "bottom-left", "center"]), "bottom-right"),
+    ),
+    embedPopupWidth: coercedNumberWithCatch(376),
+    embedDarkOverlay: coercedBooleanWithCatch(false),
+    embedEmoji: coercedBooleanWithCatch(true),
+    embedEmojiIcon: v.optional(v.fallback(v.string(), "\uD83D\uDC4B")),
+    embedEmojiAnimation: v.optional(v.fallback(v.picklist(["wave", "bounce", "pulse"]), "wave")),
+    embedPopupTrigger: v.optional(v.fallback(v.picklist(["button", "auto", "scroll"]), "button")),
+    embedHideOnSubmit: coercedBooleanWithCatch(false),
+    embedHideOnSubmitDelay: coercedNumberWithCatch(0),
+  }),
   ssr: "data-only",
   // Redirect published forms to submissions (prevents flash of editor)
   beforeLoad: async ({ context, params, search }) => {
-    // Warm the editor-app chunk during route preload (e.g. on Link hover with
-    // preload="intent") and on navigation. Window guard keeps the dynamic
-    // import off the server module graph in `ssr: "data-only"` mode.
+    // Warm editor-app chunk on preload (Link hover) + nav. Window guard keeps import off server module graph in ssr:"data-only".
     if (typeof window !== "undefined") {
       void import("../-components/editor-app");
     }

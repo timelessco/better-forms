@@ -20,19 +20,11 @@ export type PreviewStepResult = {
   thankYouNodes: Value | null;
 };
 
-/**
- * Transforms Plate editor Value into chunked preview segments.
- *
- * Static content (headings, paragraphs, blockquotes, code blocks, etc.)
- * is grouped into StaticSegments rendered by PlateStatic.
- * Form fields (Input, Textarea, Button) become FieldSegments
- * rendered by custom form components.
- *
- * Handles multi-step splitting on pageBreak nodes and
- * thank-you page extraction (isThankYouPage pageBreak).
- */
+/** Plate Value → chunked preview segments. Static content (headings/paragraphs/etc.)
+ * → StaticSegments (PlateStatic); form fields → FieldSegments. Splits on pageBreak
+ * (multi-step) and extracts isThankYouPage pageBreak. */
 export const transformPlateForPreview = (value: Value): PreviewStepResult => {
-  // formHeader is handled separately by extractFormHeader
+  // formHeader handled separately by extractFormHeader.
   let startIdx = 0;
   if (value.length > 0 && value[0].type === "formHeader") {
     startIdx = 1;
@@ -79,17 +71,14 @@ export const transformPlateForPreview = (value: Value): PreviewStepResult => {
   return { steps, thankYouNodes };
 };
 
-/**
- * Walks an array of Plate nodes and produces an ordered list of segments.
- * Consecutive static nodes are grouped into a single StaticSegment.
- * Form nodes (formLabel+formInput, formButton) become FieldSegments.
- */
+/** Plate nodes → ordered segments. Consecutive static nodes grouped into one
+ * StaticSegment; form nodes (formLabel+formInput, formButton) → FieldSegments. */
 const createSegments = (nodes: Value): PreviewSegment[] => {
   const segments: PreviewSegment[] = [];
   let staticBuffer: Value = [];
   let fieldIndex = 0;
 
-  /** Indices of label nodes that have been claimed by an input — skip in default branch */
+  /** Label-node indices claimed by an input — skip in default branch. */
   const consumedIndices = new Set<number>();
 
   const flushStatic = () => {
@@ -99,12 +88,8 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
     }
   };
 
-  /**
-   * Look back at nodes[i-1] to find a label.
-   * If the previous node is in ALLOWED_LABEL_TYPES, extract its text and
-   * mark it as consumed (removing it from the static buffer if present).
-   * Returns { labelText, labelNode } or null.
-   */
+  /** Look back at nodes[i-1] for a label: if in ALLOWED_LABEL_TYPES, extract text,
+   * mark consumed, pop from static buffer if present. Returns {labelText,labelNode} or null. */
   const lookBackForLabel = (
     i: number,
   ): { labelText: string; labelNode: Record<string, unknown> } | null => {
@@ -116,7 +101,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
     const labelText = extractTextContent(prev.children as Array<{ text?: string }>);
     consumedIndices.add(i - 1);
 
-    // Pop the label from the static buffer if it was the most-recently pushed item
+    // Pop label from static buffer if it was the most-recently pushed item.
     if (staticBuffer.length > 0 && staticBuffer[staticBuffer.length - 1] === prev) {
       staticBuffer.pop();
     }
@@ -236,10 +221,9 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
       const baseName = slugify(labelText);
       const name = stableId || `${baseName}_${fieldIndex}`;
 
-      // Single-option checkboxes ("I agree to terms") and switches typically
-      // have no preceding label — the user-facing text lives on the option
-      // item itself. Fall back to the option's own text so the field has a
-      // readable label for downstream consumers (analytics, exports, etc.).
+      // Single-option checkboxes ("I agree") / switches usually lack a preceding
+      // label — text lives on the option item. Fall back to it so downstream
+      // (analytics, exports) gets a readable label.
       const fieldLabel = labelText || options[0]?.label;
 
       segments.push({
@@ -296,13 +280,9 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
   return segments;
 };
 
-/**
- * Re-chunk preview segments for field-by-field presentation: each non-Button
- * field becomes its own step, with preceding static content carried into the
- * same step. Authored Button fields are dropped — the runtime auto-renders a
- * submit/next button per step. If the result is empty (form has no fields),
- * falls back to the original chunking so static-only previews still render.
- */
+/** Re-chunk for field-by-field: each non-Button field = one step, with preceding
+ * static carried along. Drops authored Buttons (runtime auto-renders per step).
+ * Empty result (no fields) falls back to original chunking for static-only previews. */
 export const chunkSegmentsForFieldByField = (steps: PreviewSegment[][]): PreviewSegment[][] => {
   const flattened: PreviewSegment[][] = [];
   let pending: PreviewSegment[] = [];

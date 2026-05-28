@@ -1,6 +1,4 @@
-// Auto-bubble: when the popup.js script tag has `data-form-id`, mount a
-// floating bubble button that opens the popup on click. Config lives on the
-// script tag's data-* attributes.
+// Auto-bubble: popup.js script tag with `data-form-id` mounts a floating button; config from its data-* attrs.
 
 import type { PopupOptions, PopupPosition } from "./types";
 import { preconnectOrigin, warmupFormOnIntent } from "./warmup";
@@ -41,10 +39,7 @@ interface FormMeta {
   icon?: string;
 }
 
-/**
- * Find the popup.js script tag in the DOM. Walks backward so re-injected
- * copies win — the most recent script tag controls the bubble.
- */
+/** Find popup.js script tag. Walks backward so the most recent (re-injected) copy wins. */
 const findScriptTag = (): HTMLScriptElement | null => {
   const scripts = document.getElementsByTagName("script");
   for (let i = scripts.length - 1; i >= 0; i--) {
@@ -115,8 +110,7 @@ const fetchMeta = async (origin: string, formId: string): Promise<FormMeta | nul
  */
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-// Inline default "document" glyph so pages without a custom icon don't hit
-// /api/icons on every page load.
+// Inline default glyph — pages without a custom icon skip /api/icons on every load.
 const buildDefaultIcon = (): SVGElement => {
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("class", "bf-bubble__icon");
@@ -201,12 +195,7 @@ const createBubble = (
   return btn;
 };
 
-/**
- * Read script-tag config and mount a floating bubble.
- * Returns early (no bubble) if the script lacks `data-form-id` or the id is
- * invalid — preserves the current no-bubble behavior for pages that only use
- * the `[data-form-id]`-element click trigger or the `Reform.openPopup()` API.
- */
+/** Read script-tag config, mount a bubble. No-op when `data-form-id` missing/invalid — preserves click-trigger/openPopup-only pages. */
 export const setupAutoBubble = (openPopup: PopupCallback, preMountPopup: PopupCallback): void => {
   const scriptTag = findScriptTag();
   if (!scriptTag) return;
@@ -216,19 +205,13 @@ export const setupAutoBubble = (openPopup: PopupCallback, preMountPopup: PopupCa
 
   const origin = getOriginFromScript(scriptTag);
 
-  // Open the TCP+TLS connection to the form origin eagerly so the iframe
-  // request on click doesn't wait on handshake RTTs.
+  // Eager TCP+TLS to form origin so click-time iframe request skips handshake RTTs.
   preconnectOrigin(origin);
 
-  // Mount immediately with default icon; upgrade once meta arrives so the
-  // bubble never waits on the network to appear.
+  // Mount with default icon now; upgrade when meta arrives — never wait on network to appear.
   const bubble = createBubble(cfg, null, origin);
 
-  // On first hover/focus/touch, pre-mount the real popup hidden. The iframe
-  // loads, React mounts, and the form is ready in the background — clicking
-  // later just reveals it. Prefetching alone didn't work because the iframe
-  // loads subresources with different credentials mode than <link rel="prefetch">,
-  // so the browser treated them as distinct cache entries and refetched on click.
+  // First hover/focus/touch pre-mounts the popup hidden; click reveals. Prefetch alone failed: iframe subresources use a different credentials mode than <link rel="prefetch">, so the browser cached them separately and refetched on click.
   const popupOptions: PopupOptions = {
     position: cfg.position,
     width: cfg.width,

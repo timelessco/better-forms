@@ -5,10 +5,7 @@ import type { createForm, updateForm } from "@/lib/server-fn/forms";
 import { state, stripNulls } from "./_state";
 import type { ServerFnInput, ServerFns } from "./_state";
 
-// Trailing-edge debounce window for customization-only updates. Color picker
-// drags fire `collection.update` ~60 times/sec; we coalesce them into one
-// `updateForm` call per drag burst (250ms after the last change). Other
-// fields (title, content, status) bypass and persist immediately.
+// Trailing-edge debounce: coalesce ~60/sec color-picker drag updates into one updateForm per burst. Other fields persist immediately.
 const FORM_CUSTOMIZATION_DEBOUNCE_MS = 250;
 
 type PendingCustomizationUpdate = {
@@ -31,8 +28,7 @@ export const initCollections = (queryClient: QueryClient, serverFns: ServerFns) 
     pendingCustomizationUpdates.delete(formId);
     try {
       await serverFns.updateForm(bucket.data);
-      // Single refetch for the whole drag burst, replacing the per-handler
-      // auto-refetches we suppressed with `{ refetch: false }`.
+      // Single refetch per burst, replacing the per-handler ones suppressed via `{ refetch: false }`.
       await state.formListings?.utils.refetch();
       for (const r of bucket.resolves) r();
     } catch (err) {
@@ -45,9 +41,7 @@ export const initCollections = (queryClient: QueryClient, serverFns: ServerFns) 
     queryFn: serverFns.getWorkspacesWithForms,
     onInsert: async ({ transaction }) => {
       const ws = transaction.mutations[0].modified;
-      // sortIndex is forwarded so the server writes the workspace row and the
-      // per-user sort entry in a single transaction; that keeps the new
-      // workspace at the top after the refetch reconciles.
+      // Forward sortIndex so server writes row + per-user sort entry in one txn, keeping new workspace on top after refetch.
       await serverFns.createWorkspace({
         id: ws.id,
         organizationId: ws.organizationId,
@@ -90,10 +84,7 @@ export const initCollections = (queryClient: QueryClient, serverFns: ServerFns) 
       const m = transaction.mutations[0];
       const changes = m.changes as Record<string, unknown>;
 
-      // No-op guard: if the only diff is `updatedAt`, the caller intended to
-      // change a field but TanStack DB's structural diff found the new value
-      // equal to the original (e.g. editor's `debouncedSave` writing back the
-      // same content). Don't burn a server roundtrip on a pure timestamp bump.
+      // No-op guard: `updatedAt`-only diff means structural diff found no real change (e.g. debouncedSave rewriting same content). Skip the roundtrip.
       const realKeys = Object.keys(changes).filter((k) => k !== "updatedAt");
       if (realKeys.length === 0) return { refetch: false };
       const isCustomizationOnly = realKeys.length === 1 && realKeys[0] === "customization";
@@ -103,14 +94,8 @@ export const initCollections = (queryClient: QueryClient, serverFns: ServerFns) 
         ...changes,
       }) as ServerFnInput<typeof updateForm>;
 
-      // Customization-only changes (color pickers, scrubbers) are coalesced.
-      // The handler returns a Promise that resolves only once the debounced
-      // server call lands — TanStack DB holds optimistic state until then,
-      // so the UI stays smooth without flashing back to the synced snapshot.
-      // Skip the per-handler auto-refetch (`{ refetch: false }`): during a
-      // drag we'd otherwise fire N concurrent `getFormListings` refetches
-      // (one per pending mutation). The bucket itself triggers a single
-      // refetch after the server call lands.
+      // Coalesce customization-only changes (pickers/scrubbers): handler Promise resolves only when the debounced call lands, so optimistic state holds (no flash-back).
+      // Skip per-handler refetch (`{ refetch: false }`) — would fire N concurrent refetches during a drag; bucket refetches once after the call lands.
       if (!isCustomizationOnly) {
         await serverFns.updateForm(data);
         return;

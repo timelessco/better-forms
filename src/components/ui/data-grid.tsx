@@ -37,10 +37,9 @@ import type {
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
-// Cycle: these files import `useTableContext` / `useDataGrid` back from this
-// file. createTableHook needs them as values at registration time; they only
-// read from us inside their function bodies, so runtime resolution is safe.
-// Same shape as the official TanStack composable-tables example.
+// Cycle: these import useTableContext/useDataGrid back; createTableHook needs them as values
+// at registration but reads only in function bodies, so runtime resolution is safe. Mirrors
+// the official TanStack composable-tables example.
 /* eslint-disable import/no-cycle -- layout components register into tableComponents below */
 import { DataGridColumnVisibility } from "@/components/ui/data-grid-column-visibility";
 import { DataGridTable } from "@/components/ui/data-grid-table";
@@ -67,18 +66,13 @@ export const DATA_GRID_FEATURES = tableFeatures({
 });
 export type DataGridFeatures = typeof DATA_GRID_FEATURES;
 
-// The full `useAppTable` return — includes `state`, the registered
-// `tableComponents` (`table.DataGrid`, `table.DataGridVirtualTable`, etc.),
-// and `table.AppTable` / `table.AppCell` / `table.AppHeader` wrappers.
+// Full useAppTable return — state, registered tableComponents, and AppTable/AppCell/AppHeader wrappers.
 export type DataGridApi<TData extends RowData> = ReturnType<typeof useAppTable<TData>>;
 
-// Subscribes to `table.store` instead of per-slice `table.atoms.<slice>`: in
-// v9 alpha.45 the per-slice derived atoms don't fire reliably when state is
-// owned via `options.state.X` (sync into baseAtoms happens during render and
-// the derived atom doesn't re-track in time). `table.store` is what v9's own
-// `useTable` subscribes to. React Compiler can't track `row.getIsSelected()`
-// reads via the stable Row reference, so the subscription is what forces the
-// re-render on selection changes.
+// Subscribes to table.store, not per-slice atoms: in v9 alpha.45 derived atoms don't fire
+// reliably when state is owned via options.state.X (baseAtoms sync during render). table.store
+// is what v9's own useTable uses; the subscription forces re-render on selection changes since
+// React Compiler can't track row.getIsSelected() via the stable Row reference.
 export const useRowSelected = <T extends RowData>(table: DataGridApi<T>, rowId: string): boolean =>
   useSelector(table.store, (state) => !!state.rowSelection?.[rowId]);
 
@@ -155,9 +149,8 @@ export type DataGridApiResponse<T> = {
   };
 };
 
-// Layout context — only props/recordCount/isLoading. The `table` instance
-// flows separately via `useTableContext()` (from createTableHook). The public
-// `useDataGrid()` hook below merges both for callers that need everything.
+// Layout context — props/recordCount/isLoading only. table flows via useTableContext();
+// useDataGrid() below merges both.
 interface DataGridLayoutContext<TData extends RowData> {
   props: DataGridProps<TData>;
   recordCount: number;
@@ -270,8 +263,7 @@ const DataGrid = <TData extends RowData>({ children, ...props }: DataGridProps<T
     tableClassNames: { ...defaultProps.tableClassNames, ...props.tableClassNames },
   };
 
-  // Stable across table state changes — leaf components subscribe via
-  // `useRowSelected` etc. instead.
+  // Stable across table state changes — leaves subscribe via useRowSelected etc.
   const value = useMemo<DataGridLayoutContext<TData>>(
     () => ({
       props: mergedProps,
@@ -326,20 +318,13 @@ const DataGridContainer = ({
   </div>
 );
 
-// Mirror of `tanstack-form.tsx`'s `createFormHook` setup. All layout
-// components register here, so call sites use `<table.DataGrid>` /
-// `<table.DataGridVirtualTable>` etc. instead of importing each one.
-// `<table.AppTable>` must wrap so `useTableContext()` works inside.
+// Mirror of tanstack-form.tsx's createFormHook. Layout components register here so call sites
+// use <table.DataGrid> etc.; <table.AppTable> must wrap for useTableContext() to work.
 //
-// `cellComponents` / `headerComponents` are intentionally NOT used: those
-// registries only attach to `cell`/`header` inside `<table.AppCell>` /
-// `<table.AppHeader>` render-prop wrappers (the runtime does
-// `Object.assign(cell, cellComponents)` there). Columns rendered via
-// `flexRender` — which is how our body renders — receive a plain `Cell`
-// instance, so `cell.MyComponent` would be `undefined` at runtime even
-// though the types claim otherwise. Standalone components (e.g.
-// `SelectionCheckbox` below) used directly from column defs are simpler
-// and runtime-correct.
+// cellComponents/headerComponents NOT used: they only attach inside <table.AppCell>/<AppHeader>
+// render-prop wrappers (Object.assign(cell, cellComponents)). Our body renders via flexRender,
+// which gets a plain Cell, so cell.MyComponent is undefined at runtime despite the types.
+// Standalone components (SelectionCheckbox below) used directly from column defs are runtime-correct.
 export const {
   useAppTable,
   createAppColumnHelper,
@@ -366,10 +351,8 @@ export const {
   },
 });
 
-// React Compiler caches cell renders against the stable Row reference, so a
-// direct `row.getIsSelected()` read in a column's `cell:` function returns
-// stale state. Subscribing inside this leaf component is what forces just
-// this checkbox to re-render when the row's selection flips.
+// React Compiler caches cell renders against the stable Row ref, so direct row.getIsSelected()
+// in a cell: function reads stale; subscribing here re-renders just this checkbox on selection.
 export const SelectionCheckbox = <TData extends RowData>({
   row,
 }: {

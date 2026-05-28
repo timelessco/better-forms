@@ -12,10 +12,7 @@ export const utcDayKey = (now: Date = new Date()): string => now.toISOString().s
 
 const rowKey = (orgId: string, day: string) => `${orgId}:${day}`;
 
-/**
- * Reads the current AI-generation count for `orgId` on the given UTC day.
- * Returns 0 when no row exists yet. Pure read — does not increment.
- */
+/** AI-generation count for orgId on the UTC day; 0 if no row. Pure read, no increment. */
 export const getAiCount = async (orgId: string, day: string = utcDayKey()): Promise<number> => {
   const [row] = await db
     .select({ count: aiGenerationCounts.count })
@@ -24,10 +21,7 @@ export const getAiCount = async (orgId: string, day: string = utcDayKey()): Prom
   return row?.count ?? 0;
 };
 
-/**
- * Increment-or-insert the per-day counter atomically. Called after a
- * successful AI call so failed calls don't burn quota.
- */
+/** Atomically increment-or-insert the per-day counter. Called after a successful call so failures don't burn quota. */
 export const incrementAiCount = async (orgId: string, day: string = utcDayKey()): Promise<void> => {
   await db
     .insert(aiGenerationCounts)
@@ -56,10 +50,7 @@ export type AiQuotaCheck =
       reason: "daily_limit_exceeded";
     };
 
-/**
- * Checks whether `orgId` may make another AI call right now. Pro/business
- * plans (limit=null) are always allowed; free is capped per PLAN_QUOTAS.
- */
+/** May orgId make another AI call now? Pro/business (limit=null) always allowed; free capped per PLAN_QUOTAS. */
 export const checkAiQuota = async (
   orgId: string,
   plan: ServerPlan,

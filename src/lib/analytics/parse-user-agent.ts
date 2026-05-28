@@ -10,8 +10,7 @@ export interface ParsedUA {
   osVersion: string | null;
 }
 
-// Browser detection regexes — order matters: Edge/Opera before Chrome,
-// Chrome before Safari (Chrome UAs include "Safari/").
+// Order matters: Edge/Opera before Chrome, Chrome before Safari (Chrome UA has "Safari/").
 const RE_EDGE = /Edg(?:e|A|iOS)?\/([\d.]+)/;
 const RE_OPERA = /(?:OPR|Opera)\/([\d.]+)/;
 const RE_FIREFOX = /Firefox\/([\d.]+)/;
@@ -19,7 +18,7 @@ const RE_CHROME = /Chrome\/([\d.]+)/;
 const RE_SAFARI_VERSION = /Version\/([\d.]+).+Safari/;
 const RE_SAFARI_FALLBACK = /Safari\/([\d.]+)/;
 
-// OS detection regexes — order matters: iOS before macOS, Android before Linux.
+// Order matters: iOS before macOS, Android before Linux.
 const RE_IPHONE = /iPhone OS (\d+(?:[._]\d+)*)/;
 const RE_IPAD = /(?:iPad;.*?CPU OS |CPU iPad OS )(\d+(?:[._]\d+)*)/;
 const RE_ANDROID = /Android (\d+(?:\.\d+)*)/;
@@ -27,9 +26,8 @@ const RE_WINDOWS = /Windows NT (\d+(?:\.\d+)*)/;
 const RE_MACOS = /Mac OS X (\d+(?:[._]\d+)*)/;
 const RE_LINUX = /Linux/;
 
-// Device detection.
-// NOTE: iPadOS 13+ defaults to a "Macintosh" UA with no iPad token. We classify
-// these as macOS/desktop in v1; client hints would be needed to detect them.
+// NOTE: iPadOS 13+ sends a "Macintosh" UA w/ no iPad token → classified macOS/desktop
+// in v1 (client hints needed to detect).
 const RE_IPAD_TOKEN = /iPad/;
 const RE_IPHONE_TOKEN = /iPhone|iPod/;
 const RE_ANDROID_TOKEN = /Android/;
@@ -80,7 +78,7 @@ const detectBrowser = (ua: string): { browser: BrowserName; browserVersion: stri
 const normalizeVersion = (raw: string): string => raw.replace(RE_UNDERSCORE, ".");
 
 const detectOS = (ua: string): { os: OSName; osVersion: string | null } => {
-  // iOS first — iPad/iPhone tokens may also coexist with Mac substring.
+  // iOS first — iPad/iPhone tokens can coexist with Mac substring.
   const ipadMatch = ua.match(RE_IPAD);
   if (ipadMatch || RE_IPAD_TOKEN.test(ua)) {
     return {

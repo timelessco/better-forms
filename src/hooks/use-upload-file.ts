@@ -70,9 +70,7 @@ export const useUploadFile = ({ onUploadComplete, onUploadError }: UseUploadFile
     } catch (error) {
       const parsed = parseError(error);
       const message = parsed.message || "Something went wrong, please try again later.";
-      // For known upload error codes, append the structured `fix` hint when
-      // available so the user gets a clear next step (e.g. "Try a file under
-      // 10 MB.") in the toast description.
+      // Known upload codes: append structured `fix` hint as toast description for a clear next step.
       const knownUploadCode =
         parsed.code === "uploads/too-large" ||
         parsed.code === "uploads/mime-not-allowed" ||

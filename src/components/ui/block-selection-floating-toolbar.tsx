@@ -8,11 +8,7 @@ import { Toolbar, ToolbarGroup } from "./toolbar";
 
 const EMPTY_RECT = { x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0 };
 
-/**
- * Floating toolbar that appears when the user has blocks selected (but no text
- * range selection). The built-in Plate floating toolbar only triggers on
- * expanded text selection, so this sibling covers the block-selection case.
- */
+/** Floating toolbar for block selection (no text range) — Plate's built-in only fires on text selection. */
 export const BlockSelectionFloatingToolbar = () => {
   const editor = useEditorRef();
   const selectedNodes = useBlockSelectionNodes();

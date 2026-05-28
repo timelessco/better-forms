@@ -229,11 +229,7 @@ const DataGridApiVirtualBody = <TData extends RowData>({
   return <>{renderedRows}</>;
 };
 
-/**
- * Memoized virtual body: skip re-renders during active column resize.
- * Column widths update via CSS variables on the <table> element,
- * so the browser handles width changes without React re-renders.
- */
+/** Memoized virtual body: skip re-renders during column resize — widths update via CSS vars on <table>. */
 const MemoizedVirtualBody = memo(
   DataGridApiVirtualBody,
   (_prev, next) => !!next.table.state.columnResizing.isResizingColumn,

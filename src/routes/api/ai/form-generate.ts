@@ -2,12 +2,13 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, generateText, streamObject, tool } from "ai";
 import type { UIMessage } from "ai";
+import { valibotSchema } from "@ai-sdk/valibot";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import type { RequestLogger } from "evlog";
 import { createAILogger } from "evlog/ai";
 import { identifyUser } from "evlog/better-auth";
 import { useRequest as getNitroRequest } from "nitro/context";
-import { z } from "zod";
+import * as v from "valibot";
 import { apiAuthMiddleware } from "@/lib/auth/middleware";
 import {
   formGenSchema,
@@ -85,8 +86,7 @@ export const Route = createFileRoute("/api/ai/form-generate")({
 
         const baseModel = await getModel();
 
-        // Wrap the model so every AI SDK call on this request adds token usage,
-        // tool calls, streaming metrics, and estimated cost onto the wide event.
+        // Wrap model so every AI SDK call adds token usage, tool calls, streaming metrics, cost to the wide event.
         const req = getNitroRequest() as { context?: { log?: RequestLogger } };
         const log = req.context?.log as RequestLogger;
         const ai = createAILogger(log, { cost: AI_COST_MAP });
@@ -95,9 +95,7 @@ export const Route = createFileRoute("/api/ai/form-generate")({
         const mode = body.mode ?? "create";
         log?.set({ formGen: { mode } });
 
-        // Resolve plan + active org up front for every mode. Used by:
-        // 1. Theme mode → pickThemePromptForPlan (full vs limited tool).
-        // 2. All modes → AI rate-limit check (free=5/day, pro/business=∞).
+        // Resolve plan + org up front: theme mode → pickThemePromptForPlan (full vs limited tool); all modes → rate-limit (free=5/day, pro/business=∞).
         let resolvedPlan: ServerPlan = "free";
         let resolvedOrgId: string | null = null;
         let planLookupError: string | null = null;
@@ -114,10 +112,7 @@ export const Route = createFileRoute("/api/ai/form-generate")({
             resolvedOrgId = getActiveOrgId(session as never);
             const userEmail =
               (session as { user?: { email?: string } } | null)?.user?.email ?? null;
-            // Self-heal: if the DB column is stale (webhook missed), Polar
-            // is consulted with the user's email; on drift the column is
-            // rewritten to the real plan. Fast path (column already paid)
-            // skips the Polar round-trip.
+            // Self-heal stale plan column (missed webhook): consult Polar by email, rewrite column on drift. Fast path (already paid) skips Polar.
             resolvedPlan = await getOrgPlanWithPolarSync(resolvedOrgId, userEmail);
             if (log) {
               const sessionData = (session as { session: Record<string, unknown> }).session;
@@ -155,8 +150,7 @@ export const Route = createFileRoute("/api/ai/form-generate")({
         } catch (e) {
           planLookupError = e instanceof Error ? e.message : String(e);
           logger("[ai-plan] lookup threw — falling back to free", planLookupError);
-          // Fall through with resolvedPlan="free", resolvedOrgId=null;
-          // null orgId skips quota tracking but still gates with free path.
+          // Fall through free/null orgId — skips quota tracking, still gates as free.
         }
 
         // Rate-limit check. Pro/business get null limit → always allowed.
@@ -170,12 +164,7 @@ export const Route = createFileRoute("/api/ai/form-generate")({
             limit: quota.limit,
           });
           if (!quota.allowed) {
-            // Wire-compatible with `parseError(err).code` on the client. The
-            // AI SDK's `useObject` doesn't route through ofetch, so it
-            // serializes the response body into Error.message as a string.
-            // `code` is included here so a client-side `JSON.parse(msg)`
-            // can branch on the stable identifier instead of substring
-            // matching `error: AI_DAILY_LIMIT_ERROR` (kept for back-compat).
+            // Wire-compatible with client parseError(err).code. useObject bypasses ofetch — body lands in Error.message string. `code` lets client JSON.parse + branch on stable id vs substring-matching AI_DAILY_LIMIT_ERROR (kept for back-compat).
             return new Response(
               JSON.stringify({
                 code: "quota/ai-daily-limit",
@@ -236,19 +225,16 @@ export const Route = createFileRoute("/api/ai/form-generate")({
         const modelMessages = await convertToModelMessages(messages);
 
         // ── Theme mode: tool-call (one-shot, non-streaming) ─────────────────
-        // Theme is atomic — no benefit to streaming, and tool-call gives the
-        // model a clear contract. Pro plans get the full-fidelity tool with
-        // 30 light:/dark: token overrides; free plans get the limited tool
-        // whose output stays inside the gate-allowed customization keys.
+        // Theme atomic — no streaming benefit; tool-call gives clear contract. Pro: full tool (30 light:/dark: tokens). Free: limited tool, output stays in gate-allowed keys.
         if (mode === "theme") {
           if (themePick.isPro) {
-            const setFormThemeArgs = z.object({
+            const setFormThemeArgs = v.object({
               tokens: themeTokensSchema,
-              font: z.string(),
-              radius: z.enum(RADIUS_OPTIONS),
+              font: v.string(),
+              radius: v.picklist(RADIUS_OPTIONS),
             });
 
-            let captured: z.infer<typeof setFormThemeArgs> | null = null;
+            let captured: v.InferOutput<typeof setFormThemeArgs> | null = null;
 
             await generateText({
               model,
@@ -259,8 +245,8 @@ export const Route = createFileRoute("/api/ai/form-generate")({
                 [themePick.toolName]: tool({
                   description:
                     "Apply a complete visual theme to the form (colors, font, radius). Call exactly once with all 30 token values, font, and radius.",
-                  inputSchema: setFormThemeArgs,
-                  execute: async (args) => {
+                  inputSchema: valibotSchema(setFormThemeArgs),
+                  execute: async (args: v.InferOutput<typeof setFormThemeArgs>) => {
                     captured = args;
                     return { ok: true };
                   },
@@ -268,10 +254,8 @@ export const Route = createFileRoute("/api/ai/form-generate")({
               },
             });
 
-            // Re-bind to a const so TS narrows after the null check (the
-            // assignment lives in a closure, so flow analysis can't reach it
-            // through the original `let`).
-            const captured2 = captured as z.infer<typeof setFormThemeArgs> | null;
+            // Re-bind to const so TS narrows past null check — assignment in closure, flow analysis can't reach via the `let`.
+            const captured2 = captured as v.InferOutput<typeof setFormThemeArgs> | null;
             if (!captured2) {
               return new Response(JSON.stringify({ error: "model_did_not_emit_theme" }), {
                 status: 502,
@@ -291,7 +275,7 @@ export const Route = createFileRoute("/api/ai/form-generate")({
           }
 
           // Free plan: limited tool — themeColor + baseColor + font + radius + defaultMode.
-          let captured: z.infer<typeof freeThemeSchema> | null = null;
+          let captured: v.InferOutput<typeof freeThemeSchema> | null = null;
 
           await generateText({
             model,
@@ -302,8 +286,8 @@ export const Route = createFileRoute("/api/ai/form-generate")({
               [themePick.toolName]: tool({
                 description:
                   "Apply a basic theme available on the free plan. Call exactly once with themeColor, baseColor, font, radius, and defaultMode — each value must be from the allowed list in the system prompt.",
-                inputSchema: freeThemeSchema,
-                execute: async (args) => {
+                inputSchema: valibotSchema(freeThemeSchema),
+                execute: async (args: v.InferOutput<typeof freeThemeSchema>) => {
                   captured = args;
                   return { ok: true };
                 },
@@ -311,7 +295,7 @@ export const Route = createFileRoute("/api/ai/form-generate")({
             },
           });
 
-          const capturedFree = captured as z.infer<typeof freeThemeSchema> | null;
+          const capturedFree = captured as v.InferOutput<typeof freeThemeSchema> | null;
           if (!capturedFree) {
             return new Response(JSON.stringify({ error: "model_did_not_emit_theme" }), {
               status: 502,
@@ -333,14 +317,12 @@ export const Route = createFileRoute("/api/ai/form-generate")({
         // ── All other modes: structured-output streaming ────────────────────
         const result = streamObject({
           model,
-          schema: formGenSchema,
+          schema: valibotSchema(formGenSchema),
           system: systemWithContext,
           messages: modelMessages,
         });
 
-        // Streaming hands the response off to the client; we increment once
-        // we know the model accepted the request. If the stream errors out
-        // mid-way, that still counts as a generation (work was performed).
+        // Increment once model accepts request; mid-stream error still counts (work performed).
         if (resolvedOrgId)
           void incrementAiCount(resolvedOrgId).catch((e) =>
             logger("[ai-quota] increment failed", e),

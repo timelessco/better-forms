@@ -1,26 +1,20 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
+import { auth } from "@/lib/auth/auth";
 
-/**
- * Server-only: fetches org data with request headers for SSR.
- * Used by _authenticated loader - must stay in server fn to preserve client boundary.
- * Auth is handled by the route's authMiddleware — no need to re-validate session here.
- *
- * `auth` is lazy-imported inside the handler body. Static-importing it here
- * would drag `@polar-sh/sdk` + `@/db` + `pg` into the client bundle (this
- * file is statically imported by `_authenticated.tsx`).
- */
+/** Server-only org data for SSR (_authenticated loader). Auth handled by route's authMiddleware.
+ * `auth` (server-only marker) is used only in the handler, so Start prunes it + its @polar-sh/sdk
+ * + @/db + pg deps from the client bundle even though this file is statically imported by
+ * _authenticated.tsx. */
 export const getOrgDataForLayout = createServerFn({ method: "GET" }).handler(async () => {
-  const { auth } = await import("@/lib/auth/auth");
   const headers = getRequestHeaders();
   const [activeOrg, orgsData] = await Promise.all([
     auth.api.getFullOrganization({ headers }),
     auth.api.listOrganizations({ headers }),
   ]);
 
-  // Activate first org server-side to avoid client-side setActive loops
-  // (e.g. after magic link login)
+  // Activate first org server-side to avoid client setActive loops (e.g. after magic-link login).
   if (!activeOrg && orgsData && orgsData.length > 0) {
     const activated = await auth.api.setActiveOrganization({
       headers,

@@ -10,11 +10,7 @@ const FOCUSABLE_SELECTOR = [
   "[contenteditable=true]",
 ].join(",");
 
-/**
- * Cycle Tab/Shift+Tab focus inside `container`. The trap is passive: it only
- * intervenes when focus is already inside the container, so users can still
- * click out to reach surrounding UI.
- */
+/** Cycle Tab/Shift+Tab focus inside `container`. Passive — only intervenes when focus is already inside, so click-out still works. */
 export const useFocusTrap = (enabled: boolean, container: HTMLElement | null) => {
   useEffect(() => {
     if (!enabled || !container) return;

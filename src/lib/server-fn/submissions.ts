@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, count, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
-import { z } from "zod";
+import * as v from "valibot";
 import type { Value } from "platejs";
 import { formSettings, forms, formVersions, submissions } from "@/db/schema";
+import type { SubmissionRow } from "@/db/schema";
 import { db } from "@/db";
 import {
   getEditableFields,
@@ -23,20 +24,17 @@ export type SerializedSubmission = {
   updatedAt: string;
 };
 
-const serializeSubmission = (s: typeof submissions.$inferSelect) => ({
+const serializeSubmission = (s: SubmissionRow) => ({
   ...s,
   createdAt: s.createdAt.toISOString(),
   updatedAt: s.updatedAt.toISOString(),
   data: s.data as Record<string, object>,
 });
 
-// Purge the form's CDN cache iff a submission delete could have re-opened the
-// limit-reached gate — i.e. the form was published AND has limitSubmissions
-// turned on. Cheap fire-and-forget; over-purges in the "count was nowhere
-// near the cap" case but cost is one Vercel API call.
+// Purge CDN iff a delete could re-open the limit-reached gate (published AND limitSubmissions on).
+// Cheap fire-and-forget; over-purges when count far from cap, but cost is one Vercel API call.
 const maybePurgeAfterSubmissionDelete = async (formId: string) => {
-  // Read the LIVE settings — only published `limitSubmissions` matters for
-  // the public renderer's gate; the user's draft is irrelevant here.
+  // Read LIVE settings: only published limitSubmissions matters for the public gate, not draft.
   const [row] = await db
     .select({
       lastPublishedVersionId: forms.lastPublishedVersionId,
@@ -52,7 +50,9 @@ const maybePurgeAfterSubmissionDelete = async (formId: string) => {
 
 export const deleteSubmission = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ id: z.uuid(), formId: z.uuid() }))
+  .inputValidator(
+    v.object({ id: v.pipe(v.string(), v.uuid()), formId: v.pipe(v.string(), v.uuid()) }),
+  )
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authForm(data.formId, context.session.user.id, orgId);
@@ -64,9 +64,9 @@ export const deleteSubmission = createServerFn({ method: "POST" })
 export const deleteSubmissionsBulk = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      formId: z.uuid(),
-      submissionIds: z.array(z.uuid()),
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
+      submissionIds: v.array(v.pipe(v.string(), v.uuid())),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -86,11 +86,14 @@ export const SUBMISSIONS_PAGE_SIZE = 50;
 export const getSubmissionsByFormIdPaginated = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      formId: z.uuid(),
-      cursor: z.object({ createdAt: z.string(), id: z.string() }).optional(),
-      limit: z.number().int().min(1).max(100).default(SUBMISSIONS_PAGE_SIZE),
-      search: z.string().optional(),
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
+      cursor: v.optional(v.object({ createdAt: v.string(), id: v.string() })),
+      limit: v.optional(
+        v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100)),
+        SUBMISSIONS_PAGE_SIZE,
+      ),
+      search: v.optional(v.string()),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -142,7 +145,7 @@ export const getSubmissionsByFormIdPaginated = createServerFn({ method: "GET" })
 
 export const getSubmissionsCount = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ formId: z.uuid() }))
+  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authForm(data.formId, context.session.user.id, orgId);
@@ -155,16 +158,11 @@ export const getSubmissionsCount = createServerFn({ method: "GET" })
     return { total: result?.total ?? 0 };
   });
 
-/**
- * Bootstrap data for the submissions page: published form content, total count,
- * and a complete name → label map across ALL historical versions.
- *
- * Replaces three separate queries (published version, count, historical labels)
- * with one round-trip and removes the orphan-detection waterfall.
- */
+/** Bootstrap for submissions page: published form content, total count, name→label map across ALL
+ * historical versions. One round-trip replacing three queries; no orphan-detection waterfall. */
 export const getSubmissionsBootstrap = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ formId: z.uuid() }))
+  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authForm(data.formId, context.session.user.id, orgId);

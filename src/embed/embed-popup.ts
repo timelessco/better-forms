@@ -1,12 +1,9 @@
 /**
- * Reform Popup Embed Script
- *
- * This script provides the ability to embed Reform as popups on external websites.
- *
+ * Reform Popup Embed Script — embeds Reform as popups on external sites.
  * Usage:
- * 1. Include this script: <script async src="https://yoursite.com/embed/popup.js"></script>
- * 2. Add trigger elements: <button data-form-id="your-form-id">Open Form</button>
- * 3. Or use the JS API: Reform.openPopup('your-form-id', options)
+ * 1. <script async src="https://yoursite.com/embed/popup.js"></script>
+ * 2. <button data-form-id="your-form-id">Open Form</button>
+ * 3. or JS API: Reform.openPopup('your-form-id', options)
  */
 
 import { setupAutoBubble } from "./lib/bubble";
@@ -24,9 +21,7 @@ import { injectStyles } from "./lib/styles";
 import { checkHashTrigger, setupClickTriggers, setupHashChangeListener } from "./lib/triggers";
 import type { IframeEvent, PopupInstance, PopupOptions } from "./lib/types";
 
-// Registry of active popup instances. Instances may be in "hidden" state
-// (pre-mounted on hover) — they live here so message handlers and `closePopup`
-// treat them uniformly.
+// Active popups, incl. "hidden" (hover pre-mounted) — handlers + closePopup treat all uniformly.
 const activePopups = new Map<string, PopupInstance>();
 
 const fireOnOpen = (options: PopupOptions): void => {
@@ -38,11 +33,7 @@ const fireOnOpen = (options: PopupOptions): void => {
   }
 };
 
-/**
- * Pre-mount the popup in a hidden state. The iframe loads, React mounts,
- * and the form is ready — all while the user is still hovering. On click,
- * `openPopup` just flips visibility; no spinner, no height jump, no refetch.
- */
+/** Pre-mount popup hidden — iframe loads + React mounts during hover. Click just flips visibility; no spinner/height-jump/refetch. */
 export const preMountPopup = (formId: string, options: PopupOptions = {}): void => {
   if (activePopups.has(formId)) return;
 
@@ -67,11 +58,7 @@ export const preMountPopup = (formId: string, options: PopupOptions = {}): void 
   });
 };
 
-/**
- * Open a popup for the given form. If a pre-mounted instance exists (from
- * hover warmup), reveal it instead of building a new one — the iframe is
- * already loaded and the form is already rendered.
- */
+/** Open popup. If a hover-warmup instance exists, reveal it instead of rebuilding (iframe already loaded). */
 export const openPopup = (formId: string, options: PopupOptions = {}): void => {
   const existing = activePopups.get(formId);
 
@@ -81,9 +68,7 @@ export const openPopup = (formId: string, options: PopupOptions = {}): void => {
       return;
     }
 
-    // Promote hidden instance. The caller's options (onOpen/onClose/onSubmit)
-    // are authoritative now — the pre-mount used bubble-provided defaults
-    // without these callbacks.
+    // Promote hidden instance; caller options now authoritative (pre-mount lacked these callbacks).
     existing.options = options;
     existing.hidden = false;
     if (existing.overlay) {
@@ -113,18 +98,13 @@ export const openPopup = (formId: string, options: PopupOptions = {}): void => {
   fireOnOpen(options);
 };
 
-/**
- * Close the popup for the given form
- */
 export const closePopup = (formId: string): void => {
   const instance = activePopups.get(formId);
   if (!instance || instance.hidden) {
     return;
   }
 
-  // Hide instead of destroy: keeps the iframe alive so reopening is a pure
-  // style flip. Without this, every close+open cycle re-downloads the form
-  // document, CSS, all lazy field chunks, and fonts.
+  // Hide, don't destroy — keeps iframe alive so reopen is a style flip, not a full re-download.
   if (instance.overlay) {
     hideOverlay(instance.overlay);
   }
@@ -139,11 +119,7 @@ export const closePopup = (formId: string): void => {
   }
 };
 
-/**
- * Fully tear down a popup instance — removes the iframe from the DOM and
- * drops it from the registry. Use this for long-lived single-page apps that
- * want to reclaim memory; normal close/reopen flows should use `closePopup`.
- */
+/** Tear down popup — removes iframe + drops from registry. For long-lived SPAs reclaiming memory; normal flows use closePopup. */
 export const destroyPopup = (formId: string): void => {
   const instance = activePopups.get(formId);
   if (!instance) {
@@ -183,9 +159,7 @@ const handleMessage = (event: MessageEvent): void => {
 
   switch (data.event) {
     case "Reform.FormLoaded":
-      // Hide spinner as soon as SSR HTML is parsed — the iframe `load` event
-      // waits for every CSS/JS chunk, leaving the veil up after the form is
-      // already visible.
+      // Hide spinner on SSR-HTML parse — iframe `load` waits for all chunks, leaving veil up after form is visible.
       if (instance.loadingEl) {
         hideLoading(instance.loadingEl);
       }

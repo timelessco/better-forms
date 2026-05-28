@@ -1,15 +1,12 @@
-import { useRef } from "react";
-
 import { useResolvedTheme } from "@/components/theme-provider";
+import { useEditorTheme } from "@/contexts/editor-theme-context";
 import { getThemeStyleVars } from "@/lib/theme/generate-theme-css";
 import { DEFAULT_ICON, SPRITE_PATH } from "@/lib/config/app-config";
 import { cn, DEFAULT_ICON_NAME, isValidUrl } from "@/lib/utils";
 import { BLACK_COLOR, iconMap, WHITE_COLOR } from "./icon-data";
 import type { IconPickerPreviewProps } from "./types";
 
-/**
- * Swap white/black in dark mode for visibility
- */
+/** Swap white/black in dark mode for visibility. */
 const getAdjustedColor = (color: string | undefined, isDarkMode: boolean) => {
   if (!isDarkMode || !color) {
     return color;
@@ -26,12 +23,8 @@ const getAdjustedColor = (color: string | undefined, isDarkMode: boolean) => {
   return color;
 };
 
-// Cross-document `<use>` only clones the symbol's own subtree, so color is
-// driven via CSS `color` (inheritable into the referenced `fill="currentColor"`)
-// rather than the `fill` attribute (not inheritable across the reference).
-// References the full sprite because the framework's static-asset middleware
-// intercepts `Sec-Fetch-Dest: image` requests before route handlers can serve
-// a per-icon endpoint; the sprite gzips to ~306 KB and is cached as immutable.
+// Cross-doc `<use>` clones only the symbol's subtree; color via CSS `color` (inherits into `fill="currentColor"`), not `fill` (doesn't inherit across ref).
+// Full sprite because static-asset middleware intercepts `Sec-Fetch-Dest: image` before per-icon routes; sprite gzips ~306 KB, cached immutable.
 const StandaloneIcon = ({ name, color, size }: { name: string; color: string; size: string }) => (
   <svg height={size} style={{ color }} viewBox="0 0 18 18" width={size}>
     <use href={`${SPRITE_PATH}#${name}`} />
@@ -53,10 +46,8 @@ const RenderedIcon = ({
   matchedIcon,
   standaloneIcon,
 }: RenderedIconProps) => {
-  // The /api/icons route resolves names directly from the full sprite, so the
-  // curated iconMap (236 names) doesn't gate the standalone path — picking an
-  // icon that's in the sprite but not in iconMap (e.g. star-01, asterisk-01)
-  // must still render.
+  // /api/icons resolves from the full sprite, so curated iconMap (236 names) doesn't gate standalone:
+  // sprite-only icons (e.g. star-01, asterisk-01) must still render.
   if (standaloneIcon && icon) {
     return <StandaloneIcon name={icon} color={color} size={iconSize} />;
   }
@@ -71,15 +62,19 @@ export const IconPickerPreview = ({
   useThemeColor = false,
   standaloneIcon = false,
 }: IconPickerPreviewProps) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const isDarkMode = ref.current?.closest(".dark") != null;
+  // Dark/light comes from the FORM's resolved mode (customization.mode), not the
+  // app theme — a light form must render light icons even inside a dark editor.
+  // Falls back to app theme only when the form has no customization (matches the
+  // canvas's effectiveTheme). No ref/closest: that finds the app's <html.dark>.
+  const appTheme = useResolvedTheme();
+  const formMode = useEditorTheme().customization?.mode;
+  const isDarkMode = (formMode ?? appTheme) === "dark";
 
   const matchedIcon = icon ? iconMap.get(icon) : undefined;
 
   if (useThemeColor) {
     return (
       <div
-        ref={ref}
         className="flex items-center justify-center rounded-full bg-primary text-primary-foreground"
         style={{
           width: `${size}px`,
@@ -102,7 +97,6 @@ export const IconPickerPreview = ({
 
   return (
     <div
-      ref={ref}
       className="flex items-center justify-center rounded-full"
       style={{
         backgroundColor: adjustedBgColor,
@@ -121,10 +115,7 @@ export const IconPickerPreview = ({
   );
 };
 
-/**
- * Renders a form icon with optional theme customization.
- * Handles URL images, sprite icons, and the default-icon sentinel.
- */
+/** Form icon w/ optional theme customization; handles URL images, sprite icons, default-icon sentinel. */
 export const ThemedFormIcon = ({
   icon,
   customization,

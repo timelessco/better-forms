@@ -38,24 +38,21 @@ export const BlockDraggable: RenderNodeWrapper = (props) => {
       return { isAfterButton: false, isHidden: false, enabled: false };
     }
 
-    // Check if block is strictly after a form button in the same page section
-    // Logic: Find nearest preceding button. If no PageBreak exists between that button and this block, it's invalid.
+    // Invalid if block sits after nearest preceding button with no PageBreak between them.
     let isAfterButton = false;
     let blockIsHidden = false;
 
     const children = editor.children as TElement[];
     const currentIndex = path[0];
 
-    // Find nearest preceding button (Strictly "Action" buttons: Next or Submit)
-    // We ignore "Previous" buttons because they are allowed to be followed by a Next/Submit button.
+    // Nearest preceding action button (Next/Submit). Skip Previous — [Previous][Next] is valid.
     let nearestButtonIndex = -1;
     for (let i = currentIndex - 1; i >= 0; i--) {
       const node = children[i];
       if (!node) continue;
       if (node.type === "formButton") {
         const role = (node as TElement & { buttonRole?: string }).buttonRole;
-        // If role is previous, we don't count it as a "terminator".
-        // (We assume the structure [Previous] [Next] is valid, so [Next] is not "after" a terminator)
+        // Previous isn't a terminator.
         if (role === "previous") continue;
 
         nearestButtonIndex = i;
@@ -64,19 +61,18 @@ export const BlockDraggable: RenderNodeWrapper = (props) => {
     }
 
     if (nearestButtonIndex !== -1) {
-      // Found a preceding button. Check for intervening page breaks.
+      // Preceding button found — check for intervening page breaks.
       const hasPageBreak = children
         .slice(nearestButtonIndex + 1, currentIndex)
         .some((n) => n?.type === "pageBreak");
 
       if (!hasPageBreak) {
-        // No page break between button and this block.
-        // This block is "orphaned" after the button.
+        // No page break — block orphaned after button.
         isAfterButton = true;
         const node = element;
         const isThankYou = node.type === "pageBreak" && node.isThankYouPage === true;
 
-        // Special case: PageBreak itself is valid immediately after button
+        // PageBreak is valid immediately after button.
         if (node.type === "pageBreak") {
           blockIsHidden = false;
           isAfterButton = false; // PageBreak allows starting new section
@@ -110,9 +106,8 @@ export const BlockDraggable: RenderNodeWrapper = (props) => {
   }, [editor, element, path]);
 
   if (isHidden) {
-    // Use height:0 to keep it in DOM for normalization but invisible to user
-    // opacity:0 and pointer-events:none ensures no interaction
-    // We avoid display:none to prevent potential selection issues if cursor is forced there
+    // height:0 + opacity:0 + pointer-events:none keeps it in DOM for normalization but inert.
+    // Avoid display:none — selection issues if cursor forced there.
     return (innerProps) => (
       <div className="pointer-events-none h-0 overflow-hidden opacity-0" aria-hidden="true">
         {innerProps.children}
@@ -144,11 +139,9 @@ const Draggable = (props: PlateElementProps) => {
     return "clear-both";
   }, [isFormButton, element]);
 
-  // Confine non-checkbox option items (multiChoice, multiSelect, ranking) to
-  // their own option group. They only make sense as items within a labeled
-  // list, so dragging one out of the run of consecutive `formOptionItem`
-  // siblings would orphan it. Checkbox variant stays unrestricted because it
-  // can act as a standalone agreement-style input.
+  // Confine non-checkbox option items (multiChoice/multiSelect/ranking) to their
+  // run of consecutive formOptionItem siblings — dragging out orphans them.
+  // Checkbox variant unrestricted: works standalone as agreement input.
   const canDropNode = React.useCallback(
     ({
       dragEntry,
@@ -163,9 +156,7 @@ const Draggable = (props: PlateElementProps) => {
       const dragVariant = (dragNode as TElement & { variant?: string }).variant ?? "checkbox";
       if (dragVariant === "checkbox") return true;
 
-      // Group lookup only makes sense at top-level paths. If either side is
-      // nested (column/table), don't constrain — those flows have their own
-      // rules upstream.
+      // Group lookup is top-level only; nested (column/table) constrained upstream.
       if (dragPath.length !== 1) return true;
       const [, dropPath] = dropEntry;
       if (dropPath.length !== 1) return true;
@@ -227,10 +218,8 @@ const Draggable = (props: PlateElementProps) => {
     // eslint-disable-next-line eslint-plugin-react-hooks/exhaustive-deps -- only on isAboutToDrag change
   }, [isAboutToDrag]);
 
-  // Once the drag is officially in flight, hide the live preview node so it
-  // doesn't double up with the cursor-following HTML5 drag image. The HTML5
-  // backend publishes isDragging via setTimeout(0) AFTER the screenshot is
-  // captured, so hiding here can't blank the drag image.
+  // Drag in flight: hide live preview so it doesn't double the HTML5 drag image.
+  // Backend publishes isDragging via setTimeout(0) AFTER screenshot, so this can't blank it.
   // eslint-disable-next-line react-doctor/no-effect-event-handler -- reacts to react-dnd async state transitions; not a discrete user event
   React.useEffect(() => {
     if (isDragging) {
@@ -276,10 +265,8 @@ const Draggable = (props: PlateElementProps) => {
   const isFormInput = FORM_INPUT_NODE_TYPES.has(element.type);
   const wrapperChromeAttrs = isFormButton || isFormHeader ? { "data-bf-chrome": "" } : {};
 
-  // Standalone = not preceded by a formLabel. Drives breathing-room padding on
-  // the wrapper so stacked label-less inputs don't collide. Computed inline
-  // (O(1) sibling lookup) — memoizing would need editor.children as a dep,
-  // which changes on every edit and defeats the memo.
+  // Standalone = no preceding formLabel; drives padding so stacked label-less inputs don't collide.
+  // Inline (O(1)) — memoizing needs editor.children dep, which changes every edit and defeats it.
   const isStandaloneInput = (() => {
     if (!isFormInput) return false;
     if (element.type === "formTextarea" || element.type === "formFileUpload") return false;
@@ -288,7 +275,7 @@ const Draggable = (props: PlateElementProps) => {
     const prev = (editor.children as TElement[])[idx - 1];
     if (!prev) return true;
     if (prev.type === "formLabel") return false;
-    // Option items cluster under a single label — inherit standalone from first.
+    // Option items cluster under one label — inherit standalone from first.
     if (element.type === "formOptionItem" && prev.type === "formOptionItem") return false;
     return true;
   })();
@@ -469,11 +456,9 @@ const DragHandle = React.memo(function DragHandle({
         .getApi(BlockSelectionPlugin)
         .blockSelection.getNodes({ sort: true });
 
-      // Drag handle targets ONE specific block. Only use blockSelection when it
-      // explicitly contains the clicked block (multi-select drag); otherwise
-      // drag the clicked element alone. Falling back to editor.api.blocks (the
-      // text-caret range) bleeds the entire range into the drag preview, which
-      // is what produces the "drag the whole editor" giant ghost.
+      // Drag handle targets ONE block. Use blockSelection only when it contains the clicked
+      // block (multi-select); else drag it alone. editor.api.blocks (text-caret range) bleeds
+      // the whole range into the preview → "drag the whole editor" giant ghost.
       let selectionNodes: typeof blockSelection;
       if (blockSelection.length > 0 && blockSelection.some(([node]) => node.id === element.id)) {
         selectionNodes = blockSelection;
@@ -510,9 +495,8 @@ const DragHandle = React.memo(function DragHandle({
       .getApi(BlockSelectionPlugin)
       .blockSelection.getNodes({ sort: true });
 
-    // Mirror the mousedown logic: only honor blockSelection when it explicitly
-    // includes the hovered block. Otherwise treat as single-block to avoid
-    // computing a multi-block previewTop offset from an unrelated text range.
+    // Mirror mousedown: honor blockSelection only when it includes the hovered block;
+    // else single-block, to avoid a multi-block previewTop offset from an unrelated range.
     let selectedBlocks: typeof blockSelection;
     if (blockSelection.length > 0 && blockSelection.some(([node]) => node.id === element.id)) {
       selectedBlocks = blockSelection;
@@ -584,13 +568,9 @@ const DropLine = React.memo(function DropLine({
 
   if (!dropLine) return null;
 
-  // Suppress indicator only when the drop would be a true no-op. Plate's
-  // onDropNode rejects:
-  //   - direction "top":    dragPath === hovered - 1 (source is already the prev sibling)
-  //   - direction "bottom": dragPath === hovered + 1 (source is already the next sibling)
-  // and dragPath === hovered (hovering on self). Drop on self is also a no-op.
-  // Earlier this check used a different dropPath formula and ended up hiding
-  // the drop line when dragging UP onto N-1 — the line only appeared on N-2.
+  // Suppress indicator only on true no-op drops (Plate's onDropNode rejects these):
+  // top: dragPath === hovered-1; bottom: dragPath === hovered+1; self: dragPath === hovered.
+  // Earlier dropPath formula hid the line dragging UP onto N-1 (only appeared on N-2).
   if (draggingId) {
     const ids = Array.isArray(draggingId) ? draggingId : [draggingId];
     const primaryId = ids[0];
@@ -632,10 +612,7 @@ const DropLine = React.memo(function DropLine({
   );
 });
 
-/**
- * Remove data attributes from the element to avoid recognized as slate
- * elements incorrectly.
- */
+/** Strip data-slate/data-block-id attrs so the clone isn't misread as a slate element. */
 const removeDataAttributes = (element: HTMLElement) => {
   Array.from(element.attributes).forEach((attr) => {
     if (attr.name.startsWith("data-slate") || attr.name.startsWith("data-block-id")) {
@@ -649,15 +626,9 @@ const removeDataAttributes = (element: HTMLElement) => {
 };
 
 /**
- * Strip nodes that break the HTML5 drag-image snapshot.
- *
- * Base UI's Checkbox/Radio primitives render a visually-hidden `<input>` next
- * to the visible control with `position: fixed`. When we cloneNode the block
- * for the drag preview, that fixed-positioned descendant escapes the cloned
- * subtree's box and causes Chromium to snapshot a viewport-sized region as
- * the drag image (the "giant preview" for checkboxes). Removing the hidden
- * inputs (and any other position:fixed descendants we accidentally cloned)
- * keeps the drag image bounded to the actual block.
+ * Strip nodes that break the HTML5 drag-image snapshot. Base UI Checkbox/Radio render a
+ * position:fixed hidden <input>; cloned for the preview it escapes the clone's box and makes
+ * Chromium snapshot a viewport-sized region ("giant preview"). Remove fixed descendants.
  */
 const stripDragPreviewArtifacts = (element: HTMLElement) => {
   Array.from(element.querySelectorAll("input")).forEach((input) => {
@@ -689,8 +660,7 @@ const applyScrollCompensation = (original: Element, cloned: HTMLElement) => {
     }
 
     const originalStyles = window.getComputedStyle(original);
-    // Writes target two distinct elements (cloned vs innerContainer) so
-    // cssText/Object.assign don't help — keep one style write per element.
+    // Two distinct elements (cloned vs innerContainer) — cssText/Object.assign can't batch.
     cloned.style.setProperty("padding", "0");
     innerContainer.style.setProperty("padding", originalStyles.padding);
 

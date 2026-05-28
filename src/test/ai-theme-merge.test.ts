@@ -31,8 +31,7 @@ describe("mergeThemeIntoCustomization (theme-mode optimistic write)", () => {
   it("merges a free-tier theme into an empty customization without triggering the Pro gate", () => {
     const merged = mergeThemeIntoCustomization({}, freeThemePayload);
 
-    // Sanity: every key the free tool returns lands in customization, plus
-    // the preset marker so the editor's preset selector flips to "custom".
+    // Every free-tool key lands in customization, plus the preset marker flipping the selector to "custom".
     expect(merged).toMatchObject({
       ...freeThemePayload,
       preset: "custom",
@@ -63,10 +62,7 @@ describe("mergeThemeIntoCustomization (theme-mode optimistic write)", () => {
   });
 
   it("strips stale Pro-tier keys when merging a free-tier theme (no key carry-over)", () => {
-    // A user who was previously Pro (or whose org.plan column is stale) may
-    // already have light:/dark: tokens in customization. A free-tier AI
-    // write must not drag those forward, otherwise the optimistic update
-    // hits the Pro gate at the server.
+    // Ex-Pro (or stale org.plan) may have light:/dark: tokens; free-tier write must not drag them forward or the optimistic update hits the server Pro gate.
     const merged = mergeThemeIntoCustomization(
       {
         "light:primary": "#abcdef",
@@ -96,10 +92,7 @@ describe("mergeThemeIntoCustomization (theme-mode optimistic write)", () => {
   });
 
   it("keeps existing Pro-tier keys when merging a Pro-tier theme (Pro users retain their full customization)", () => {
-    // The Pro-tier path emits light:/dark: tokens. Merging into existing
-    // customization with light: keys is the Pro-user steady state — those
-    // keys must be preserved (and overwritten where the new theme provides
-    // a fresh value), NOT stripped.
+    // Pro path emits light:/dark: tokens; merging onto existing light: keys (Pro steady state) must preserve/overwrite them, not strip.
     const merged = mergeThemeIntoCustomization(
       { "light:secondary": "#eeeeee", titleFont: "Lora" },
       proThemePayload,
@@ -114,11 +107,7 @@ describe("mergeThemeIntoCustomization (theme-mode optimistic write)", () => {
 
 describe("streaming-path / theme-mode parity (backwards compat after refactor)", () => {
   it("a streaming SetThemeOp with full Pro tokens produces the same customization as the theme-mode Pro path", () => {
-    // The AI emits a SetThemeOp (streaming, non-theme modes) shaped like
-    // { tokens, font, radius }. The theme-mode endpoint pre-flattens that
-    // same data into { ...tokens, font, radius }. After merging both into
-    // an empty customization, the resulting records must be identical
-    // (modulo nothing — no field should drift between the two code paths).
+    // Streaming SetThemeOp { tokens, font, radius } vs theme-mode's pre-flattened { ...tokens, font, radius } must merge to identical records — no field drift between paths.
     const tokens: Record<string, string> = {
       "light:primary": "#2563eb",
       "dark:primary": "#3b82f6",
@@ -155,11 +144,7 @@ describe("streaming-path / theme-mode parity (backwards compat after refactor)",
   });
 
   it("preserves prior free-tier customization (themeColor) across both paths identically when the new payload is free-tier", () => {
-    // When the new theme is free-tier, both paths preserve free-tier keys
-    // from `current`. (Note: the theme-mode path additionally strips
-    // non-free keys from `current`; the streaming path doesn't, since
-    // streaming doesn't currently plan-branch. That divergence is tested
-    // separately above.)
+    // Free-tier theme: both paths preserve free keys from `current`. (Theme-mode also strips non-free keys; streaming doesn't plan-branch — divergence tested above.)
     const op: SetThemeOp = { type: "set-theme", radius: "large" };
 
     const current = { themeColor: "rose" };

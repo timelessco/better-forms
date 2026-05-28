@@ -1,10 +1,7 @@
 /**
- * Resolve a visit's traffic source for the Sources breakdown.
- *
- * Priority: an explicit `utm_source` tag wins; otherwise we attribute from the
- * referrer (web domain or Android in-app package). Loopback/dev hosts and a
- * missing referrer resolve to "direct". Pure + isomorphic so the aggregation
- * cron and the read path agree.
+ * Resolve a visit's traffic source. Priority: utm_source wins; else referrer
+ * (web domain or Android in-app package); loopback/missing → "direct".
+ * Pure + isomorphic so cron and read path agree.
  */
 
 interface SourceInput {
@@ -12,7 +9,7 @@ interface SourceInput {
   referrer?: string | null;
 }
 
-// Exact host (minus a leading "www.") OR Android in-app package → canonical token.
+// Exact host (no "www.") OR Android in-app package → canonical token.
 const SOURCE_BY_HOST: Record<string, string> = {
   // Web hosts
   "twitter.com": "twitter",
@@ -54,7 +51,7 @@ const SOURCE_BY_HOST: Record<string, string> = {
   "org.telegram.messenger": "telegram",
 };
 
-// Search engines span many ccTLDs (google.co.in, …) — match by host prefix.
+// Search engines span many ccTLDs (google.co.in) — match by host prefix.
 const SEARCH_PREFIXES: readonly [string, string][] = [
   ["google.", "google"],
   ["bing.", "bing"],
@@ -65,7 +62,7 @@ const SEARCH_PREFIXES: readonly [string, string][] = [
   ["baidu.", "baidu"],
 ];
 
-// Loopback / dev hosts are the form owner's own machine, not a real source.
+// Loopback/dev hosts = owner's own machine, not a real source.
 const SELF_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]);
 const ANDROID_APP_PREFIX = "android-app://";
 const WWW_PREFIX_RE = /^www\./;
@@ -98,7 +95,7 @@ export const resolveSource = ({ utmSource, referrer }: SourceInput): string => {
   if (!referrer) {
     return "direct";
   }
-  // Android in-app referrers carry the app's package id as the "host".
+  // Android in-app referrers carry the package id as the "host".
   if (referrer.startsWith(ANDROID_APP_PREFIX)) {
     const pkg = referrer.slice(ANDROID_APP_PREFIX.length).split("/")[0]?.toLowerCase() ?? "";
     if (!pkg) {

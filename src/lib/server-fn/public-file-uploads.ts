@@ -4,7 +4,7 @@ import { getRequestIP } from "@tanstack/react-start/server";
 import { and, eq, sql } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
 import type { Value } from "platejs";
-import { z } from "zod";
+import * as v from "valibot";
 import { forms, formVersions, uploadRateLimits } from "@/db/schema";
 import { db } from "@/db";
 import type { ErrorCode } from "@/lib/errors/codes";
@@ -19,27 +19,20 @@ import {
   resolveAllowedSubtypes,
 } from "@/lib/form-schema/file-upload-types";
 
-/**
- * Public form file uploads — NO auth required.
- *
- * Hardened by:
- *   1. Postgres-backed per-IP rate limit
- *   2. Form must exist + be published + contain a FileUpload field with the given name
- *   3. MIME allowlist validation against the field's `accept` setting
- *   4. Max size validation
- */
+/** Public form file uploads — NO auth. Hardened by: (1) Postgres per-IP rate limit; (2) form must
+ * exist + be published + have a FileUpload field of that name; (3) MIME allowlist vs field accept;
+ * (4) max size. */
 
 const WINDOW_MINUTES = 10;
 const MAX_PER_WINDOW = 20;
 const CLEANUP_PROBABILITY = 0.01;
-// Hard upper bound — even if a field is configured higher, refuse beyond this.
+// Hard upper bound: refuse beyond this even if a field is configured higher.
 const HARD_MAX_FILE_BYTES = 50 * 1024 * 1024;
 const DEFAULT_ACCEPT = "image/*,.pdf,.doc,.docx";
 
 const getClientIp = (): string => getRequestIP({ xForwardedFor: true }) ?? "unknown";
 
-// Inlined as a SQL literal because Postgres can't concatenate a parameterized
-// integer with text inside an interval cast. Safe: it's a build-time constant.
+// SQL literal: Postgres can't concat a parameterized int with text in an interval cast. Build-time constant, safe.
 const WINDOW_INTERVAL_SQL = sql.raw(`interval '${WINDOW_MINUTES} minutes'`);
 
 const checkUploadRateLimit = async (ip: string): Promise<void> => {
@@ -49,8 +42,7 @@ const checkUploadRateLimit = async (ip: string): Promise<void> => {
     );
   }
 
-  // Atomic upsert: insert with count=1, or on conflict either reset (window expired)
-  // or increment.
+  // Atomic upsert: insert count=1, or on conflict reset (window expired) or increment.
   const result = await db
     .insert(uploadRateLimits)
     .values({ ip, count: 1 })
@@ -163,9 +155,8 @@ const assertFormFileField = async (
       internal: { formId, fieldName },
     });
   }
-  // Prefer the granular allowedFileTypes/allowedFileExtensions set by the
-  // block menu. Fall back to a legacy `accept` string if present, then to the
-  // hardcoded default for forms that predate the type picker.
+  // Prefer granular allowedFileTypes/Extensions (block menu); else legacy accept; else default
+  // for forms predating the type picker.
   const allowedFileTypes = "allowedFileTypes" in field ? field.allowedFileTypes : undefined;
   const allowedFileExtensions =
     "allowedFileExtensions" in field ? field.allowedFileExtensions : undefined;
@@ -195,13 +186,13 @@ const decodeBase64 = (dataUrl: string): Buffer => {
 
 export const uploadFormFile = createServerFn({ method: "POST" })
   .inputValidator(
-    z.object({
-      formId: z.uuid(),
-      draftId: z.uuid(),
-      fieldName: z.string().min(1),
-      filename: z.string().min(1).max(255),
-      contentType: z.string().min(1).max(127),
-      base64: z.string().min(1),
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
+      draftId: v.pipe(v.string(), v.uuid()),
+      fieldName: v.pipe(v.string(), v.minLength(1)),
+      filename: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
+      contentType: v.pipe(v.string(), v.minLength(1), v.maxLength(127)),
+      base64: v.pipe(v.string(), v.minLength(1)),
     }),
   )
   .handler(async ({ data }) => {

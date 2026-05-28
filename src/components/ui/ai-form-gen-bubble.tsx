@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
+import { IconSwap } from "@/components/transitions/icon-swap";
 import { ImageIcon, Loader2Icon, SparklesIcon, XIcon } from "@/components/ui/icons";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
@@ -129,7 +130,11 @@ export const AIFormGenBubble = ({
       )}
       <div className="flex items-center gap-2">
         <div className="flex shrink-0 items-center text-muted-foreground">
-          {isGenerating ? <Loader2Icon className="animate-spin" /> : <SparklesIcon />}
+          <IconSwap
+            state={isGenerating ? "b" : "a"}
+            iconA={<SparklesIcon />}
+            iconB={<Loader2Icon className="animate-spin" />}
+          />
         </div>
 
         <input

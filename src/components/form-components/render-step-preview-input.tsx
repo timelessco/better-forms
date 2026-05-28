@@ -15,17 +15,13 @@ import type { FieldType } from "./fields/shared";
 const isFieldArrayElement = (element: PlateFormField): boolean =>
   "isFieldArray" in element && (element as { isFieldArray?: boolean }).isFieldArray === true;
 
-// Editor preview supplies an eager (static-import) renderer here to avoid the
-// lazy-chunk flash when stepping between pages. Live form leaves it null and
-// keeps code-splitting.
+// Editor preview supplies an eager (static-import) renderer to avoid lazy-chunk flash between pages. Live form leaves null, keeps code-splitting.
 export const PreviewRendererContext = createContext<React.ComponentType<{
   element: PlateFormField;
   form: AppForm;
 }> | null>(null);
 
-// One chunk per field type. A form that only uses Input + Textarea pulls only
-// those two chunks — PhoneInput, DatePicker, MultiSelect, useFileUpload, etc.
-// stay out of the critical path.
+// One chunk per field type — Input+Textarea form pulls only those two; PhoneInput/DatePicker/MultiSelect/useFileUpload stay off critical path.
 const FIELD_RENDERERS: Record<
   FieldType,
   React.LazyExoticComponent<React.ComponentType<{ element: never; form: AppForm }>>
@@ -58,11 +54,7 @@ export const PreviewInputShell = ({
   children: React.ReactNode;
 }) => {
   const { label, required, labelType } = getFieldLabelProps(element);
-  // Group fields (Checkbox/MultiChoice/Ranking) render N controls and have no
-  // single labelable input — wrap them in role=group with aria-labelledby
-  // pointing at the visible label/heading id. For all other field types the
-  // standard `<label htmlFor>` / heading + `aria-labelledby` wiring handles
-  // accessibility (the field component itself reads it via element.name).
+  // Group fields (Checkbox/MultiChoice/Ranking) render N controls, no single labelable input — wrap in role=group + aria-labelledby. Others: <label htmlFor>/heading wiring (field reads via element.name). Repeatable scalars also group-label.
   const isGroup =
     ("fieldType" in element && GROUP_FIELD_TYPES.has(element.fieldType)) ||
     isFieldArrayElement(element);
@@ -84,9 +76,7 @@ export const PreviewInputShell = ({
   );
 };
 
-// Just the field input (lazy-loaded) with no label/wrapper. Used by the RSC
-// flow where the server-rendered composite already provides the surrounding
-// `<div data-bf-input>` + label.
+// Lazy field input, no label/wrapper. For RSC flow where server composite provides surrounding <div data-bf-input> + label.
 export const RenderFieldComponent = ({ element, form }: RenderStepPreviewInputProps) => {
   if (element.fieldType === "Button") return null;
   const Component = FIELD_RENDERERS[element.fieldType as FieldType];

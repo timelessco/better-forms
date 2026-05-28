@@ -42,13 +42,8 @@ const DEFAULT_EDITOR_VALUE = normalizeNodeId([
 ]);
 
 /**
- * Outer component: fetches data and guards against rendering
- * the editor before the collection data has loaded.
- *
- * This split is necessary because React hooks always execute regardless
- * of early returns. Without it, `usePlateEditor` would be called with
- * DEFAULT_EDITOR_VALUE on the first render (while data is loading),
- * and the editor would never update because `resetKey` doesn't change.
+ * Outer: fetch data, guard editor render until collection loaded.
+ * Split needed because hooks run regardless of early returns — else usePlateEditor gets DEFAULT_EDITOR_VALUE on first render and never updates (resetKey static).
  */
 const EditorApp = ({
   formId,
@@ -88,10 +83,7 @@ const EditorApp = ({
 };
 export default EditorApp;
 
-/**
- * Inner component: only mounts once data is available.
- * `usePlateEditor` is guaranteed to receive real content from its first call.
- */
+/** Inner: mounts only once data ready, so usePlateEditor gets real content on first call. */
 const EditorAppInner = ({
   formId,
   workspaceId,
@@ -123,8 +115,7 @@ const EditorAppInner = ({
   const headerVisibility = useEditorHeaderVisibilitySafe();
   const [resetKey, setResetKey] = useState(0);
 
-  // Detect version content transitions (enter/exit/switch version view).
-  // Uses render-time setState — same pattern as the external change detector below.
+  // Detect version transitions (enter/exit/switch). Render-time setState — same pattern as external change detector below.
   const prevVersionContentRef = useRef(versionContent);
   const justExitedVersionRef = useRef(false);
   if (prevVersionContentRef.current !== versionContent) {
@@ -135,30 +126,21 @@ const EditorAppInner = ({
       skipSaveRef.current = true;
       justExitedVersionRef.current = false;
     } else {
-      // Exiting version view — don't reset yet. Mark that we exited so the
-      // external change detector forces a reset once savedDocs is available.
+      // Exiting version — don't reset yet; flag so external change detector resets once savedDocs ready.
       lastKnownContentRef.current = null;
       justExitedVersionRef.current = true;
     }
   }
 
-  // React Compiler memoizes this on `savedContent`'s reference. Immer (used by
-  // TanStack DB) preserves unchanged-field references across structural
-  // updates, so during a customization-only mutation `savedDocs[0]?.content`
-  // is the same reference and `contentStr` stays stable — no spurious
-  // resetKey bumps, no Plate remount loop.
+  // Memoized on savedContent ref. Immer (TanStack DB) keeps unchanged-field refs, so customization-only mutation leaves content ref stable → no spurious resetKey bump / Plate remount loop.
   const savedContent = savedDocs?.[0]?.content;
   const contentStr = savedContent ? JSON.stringify(savedContent) : null;
 
-  // Detect external content change (discard, restore, remote sync) and recreate editor.
-  // setState during render is a documented React pattern — React aborts this
-  // render and immediately re-renders with the new state.
-  // Skip detection while we have a pending save — the sync-back is our own edit.
+  // Detect external content change (discard/restore/remote sync) → recreate editor. setState-during-render is documented React (aborts + re-renders). Skip while pending save — sync-back is our edit.
   if (!versionContent && contentStr !== null && !pendingValueRef.current) {
     if (lastKnownContentRef.current === null) {
       lastKnownContentRef.current = contentStr;
-      // Force reset when returning from version view so editor picks up
-      // the (potentially restored) content from savedDocs
+      // Force reset on return from version view so editor picks up (maybe restored) savedDocs content.
       if (justExitedVersionRef.current) {
         setResetKey((k) => k + 1);
         skipSaveRef.current = true;
@@ -171,8 +153,7 @@ const EditorAppInner = ({
     }
   }
 
-  // Compute initial content from liveQuery - single source of truth.
-  // ID normalization is handled by NodeIdPlugin in EditorKit.
+  // Initial content from liveQuery (single source of truth). ID normalization via NodeIdPlugin in EditorKit.
   const initialContent = useMemo(() => {
     if (versionContent) return versionContent;
 
@@ -211,8 +192,7 @@ const EditorAppInner = ({
       const collection = getFormListings();
       if (!collection.get(formId)) return; // Not in collection yet — next onChange will retry
 
-      // Update the ref so external-change detection recognizes
-      // the upcoming sync-back as our own edit
+      // Update ref so external-change detection sees upcoming sync-back as our edit.
       lastKnownContentRef.current = JSON.stringify(val);
       pendingValueRef.current = null;
 
@@ -239,10 +219,7 @@ const EditorAppInner = ({
         return;
       }
 
-      // Plate fires onChange on selection/focus changes too (clicking into the
-      // color picker, opening a popover, etc.) with the same content. Skip the
-      // save when content is unchanged so we don't queue a server roundtrip
-      // for a pure updatedAt bump.
+      // Plate fires onChange on selection/focus too (color picker, popover) with same content. Skip save when unchanged — avoids roundtrip for a pure updatedAt bump.
       const serialized = JSON.stringify(value);
       if (serialized === lastKnownContentRef.current) return;
 
@@ -300,7 +277,7 @@ const EditorAppInner = ({
         className={cn(
           "min-h-full w-full overflow-x-hidden bg-background text-foreground",
           hasCustomization && "bf-themed",
-          effectiveTheme === "dark" && "dark",
+          effectiveTheme === "dark" ? "dark" : "bf-light",
         )}
         style={hasCustomization ? themeVars : undefined}
       >
@@ -315,11 +292,7 @@ const EditorAppInner = ({
   );
 };
 
-// Memoized Plate subtree. Customization-driven re-renders of `EditorAppInner`
-// (theme variables, dark-class flips, etc.) update the wrapper div above but
-// stop dead here — Plate and its selection/AI/etc. plugins don't see the
-// updates, so their useEffects don't repeatedly mount/unmount and we don't
-// hit React's update-depth limit during heavy color-picker drags.
+// Memoized Plate subtree. Customization re-renders of EditorAppInner (theme vars, dark flips) update the wrapper but stop here — plugins don't see them, no useEffect mount/unmount thrash or update-depth limit on color-picker drags.
 const PlateEditorTree = memo(
   ({
     editor,

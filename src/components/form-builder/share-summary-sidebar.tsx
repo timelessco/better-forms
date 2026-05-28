@@ -31,9 +31,8 @@ import { EmbedCodeDialog, searchToFormValues, formValuesToSearch, tabs } from ".
 import { EmbedPreviewMockup } from "./embed-preview-mockup";
 import type { FormSettings as FormSettingsType, PresentationMode } from "@/types/form-settings";
 
-// Memo'd at module scope so parent re-renders don't tear down these subtrees.
-// EmbedPreviewMockup only receives primitives, so shallow-equal props skip render
-// (e.g. dragging Popup Width doesn't change any prop it consumes).
+// Memo'd at module scope so parent re-renders don't tear down subtrees. EmbedPreviewMockup takes only
+// primitives, so shallow-equal props skip render (dragging Popup Width changes nothing it consumes).
 const MemoEmbedPreviewMockup = memo(EmbedPreviewMockup);
 const MemoEmbedConfigPanel = memo(EmbedConfigPanel);
 
@@ -55,8 +54,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
   const [codeDialogOpen, setCodeDialogOpen] = useState(false);
   const handleOpenCodeDialog = useCallback(() => setCodeDialogOpen(true), []);
 
-  // The Share sidebar is an editing surface — show the working draft so
-  // toggles reflect the user's pending edits, not the last-published state.
+  // Editing surface: show working draft so toggles reflect pending edits, not last-published state.
   const docSettings: Partial<FormSettingsType> | null | undefined =
     doc?.draftSettings ?? doc?.liveSettings;
 
@@ -78,8 +76,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
     },
   });
 
-  // Persist toggles into the single `settings` JSONB so every embed reflects
-  // the change immediately via form settings.
+  // Persist toggles into the single `settings` JSONB so every embed reflects the change immediately.
   const docPresentationMode: PresentationMode = docSettings?.presentationMode ?? "card";
   const docProgressBar = Boolean(docSettings?.progressBar);
   const docBranding = Boolean(docSettings?.branding ?? true);
@@ -129,11 +126,9 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
   const handleAnalyticsChange = useCallback(
     (value: boolean) => {
       if (docAnalytics === value) return;
-      // Optimistic local update so the toggle UI reacts instantly.
+      // Optimistic local update so toggle UI reacts instantly.
       updateSettings({ analytics: value });
-      // Server write — flips BOTH draftSettings AND the live `formSettings`
-      // row so `isAnalyticsEnabled` (which the recorders/readers read) updates
-      // immediately, no republish needed.
+      // Server write flips BOTH draftSettings AND live `formSettings` so `isAnalyticsEnabled` updates now, no republish.
       setFormAnalytics({ data: { formId, enabled: value } })
         .then(() => {
           void invalidateInsightsQueries(queryClient, formId);

@@ -548,9 +548,8 @@ export const FormHeaderElement = (props: PlateElementProps) => {
 
   const [iconPopoverOpen, setIconPopoverOpen] = useState(false);
   const [iconTab, setIconTab] = useState("icon");
-  // Lazy-mount Upload tab on first activation, then keep its tree alive via
-  // <Activity> so drag-state and any in-flight upload survive Icon ↔ Upload
-  // tab switches.
+  // Lazy-mount Upload tab on first use, then keep alive via <Activity> so drag-state and
+  // in-flight uploads survive Icon ↔ Upload switches.
   const [openedUploadTab, setOpenedUploadTab] = useState(false);
   if (iconTab === "upload" && !openedUploadTab) setOpenedUploadTab(true);
   const [coverPopoverOpen, setCoverPopoverOpen] = useState(false);

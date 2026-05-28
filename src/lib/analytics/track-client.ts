@@ -21,8 +21,7 @@ type UpdateVisitArgs = {
   submissionId?: string | null;
   visitEndedAt?: string | null;
   durationMs?: number | null;
-  // Core Web Vitals for the session, sent on the unload beacon. Each is
-  // optional/null — a metric may never finalize (e.g. no interaction => no INP).
+  // CWV, sent on unload beacon. Null when a metric never finalizes (e.g. no interaction → no INP).
   lcpMs?: number | null;
   inpMs?: number | null;
   cls?: number | null;
@@ -68,18 +67,11 @@ export const fireUpdateVisit = (args: UpdateVisitArgs): void => {
   });
 };
 
-/** Unload-time visit update.
- *
- * Uses `navigator.sendBeacon` against the dedicated REST endpoint at
- * `/api/track/visit-end` so the request survives `beforeunload` / `pagehide`
- * even when the browser tears down the tab's fetch loop. The serverFn
- * endpoint can't be used here — it expects a SEROVAL-encoded payload, which
- * would force `application/json` and trigger a CORS preflight that
- * sendBeacon refuses. Sending a `text/plain` blob keeps the request
- * CORS-safelisted; the server route parses the body as JSON itself.
- *
- * Falls back to the regular serverFn if `sendBeacon` is unavailable or
- * refuses the request (queue full, body too large). */
+/** Unload-time visit update via `navigator.sendBeacon` → `/api/track/visit-end`,
+ * surviving beforeunload/pagehide fetch-loop teardown. Can't use the serverFn:
+ * its SEROVAL payload forces application/json → CORS preflight that sendBeacon
+ * refuses; a text/plain blob stays CORS-safelisted (route parses JSON itself).
+ * Falls back to fireUpdateVisit if sendBeacon is unavailable/refuses (queue full, body too large). */
 export const fireUpdateVisitBeacon = (args: UpdateVisitArgs): void => {
   if (typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") {
     fireUpdateVisit(args);
@@ -117,9 +109,8 @@ const flushQuestionProgressNow = (): void => {
     }
     return;
   }
-  // Collapse intra-batch duplicates: keep only the latest entry per
-  // (visitId, questionId, event). Useful when StrictMode double-fires in
-  // dev or when redundant focus events stack up.
+  // Collapse intra-batch dups: latest per (visitId, questionId, event).
+  // Handles StrictMode double-fire / stacked focus events.
   const dedup = new Map<string, QuestionProgressArgs>();
   for (const item of QUESTION_PROGRESS_BUFFER) {
     dedup.set(`${item.visitId}::${item.questionId}::${item.event}`, item);
@@ -150,13 +141,8 @@ export const enqueueQuestionProgress = (args: QuestionProgressArgs): void => {
   }
 };
 
-// NOTE: The question-progress buffer flushes via the regular serverFn
-// (`recordQuestionProgressBatch`), which is NOT unload-safe — the browser
-// may tear down the fetch loop before the request lands. The
-// `usePublicFormTracking` hook (`use-public-form-tracking.ts`) calls this
-// manual flush from its `beforeunload`/`pagehide` handlers as a best-effort
-// drain; a dedicated beacon-friendly REST route can be added later if
-// real-world data loss proves material. See ADR-0002.
-/** Drain the question-progress buffer immediately. Call before Step submit
- * or page unload so dropoff data isn't lost. */
+// NOTE: flushes via serverFn recordQuestionProgressBatch, NOT unload-safe (fetch loop
+// may tear down first). usePublicFormTracking calls this from beforeunload/pagehide as
+// best-effort drain; beacon-friendly route could be added if data loss proves material. ADR-0002.
+/** Drain the question-progress buffer now. Call before Step submit or unload. */
 export const flushQuestionProgressBuffer = flushQuestionProgressNow;

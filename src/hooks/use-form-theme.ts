@@ -1,8 +1,21 @@
 import { useMemo } from "react";
 import type { CSSProperties } from "react";
+import { useResolvedTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { useEditorTheme } from "@/contexts/editor-theme-context";
 import type { EditorThemeValue } from "@/contexts/editor-theme-context";
+
+/**
+ * True when the FORM's resolved mode is dark (`customization.mode`), falling back to the app
+ * theme only when the form has no customization. Use on form-preview surfaces that must follow
+ * the form theme rather than the app's global `.dark` (e.g. chips/badges that would otherwise
+ * pick up `dark:` variants from the app's <html.dark>).
+ */
+export const useFormIsDark = (): boolean => {
+  const appTheme = useResolvedTheme();
+  const formMode = useEditorTheme().customization?.mode;
+  return (formMode ?? appTheme) === "dark";
+};
 
 type UseFormThemeContextValueArgs = {
   themeVars: CSSProperties;
@@ -12,11 +25,7 @@ type UseFormThemeContextValueArgs = {
   updateThemeColor?: (themeColor: string) => void;
 };
 
-/**
- * Memoizes the EditorThemeProvider value so the editor app and preview mode
- * publish a stable context object — without this, every parent render creates
- * a fresh object and propagates through context to every consumer.
- */
+/** Memoizes EditorThemeProvider value — stable context object; else every parent render re-notifies all consumers. */
 export const useFormThemeContextValue = ({
   themeVars,
   hasCustomization,
@@ -34,12 +43,8 @@ export const useFormThemeContextValue = ({
   );
 
 /**
- * Returns the className/style pair to slap on portaled popover/dropdown
- * content so theme tokens reach inside the portal. Without this, content
- * portaled to document.body loses CSS-var inheritance from `.bf-themed`.
- *
- * Caller spreads:
- *   <PopoverContent className={cn(myClasses, theme.className)} style={theme.style} />
+ * className/style pair for portaled popover/dropdown content — carries theme tokens into the portal (document.body loses `.bf-themed` CSS-var inheritance).
+ * Spread: <PopoverContent className={cn(myClasses, theme.className)} style={theme.style} />
  */
 export const useReanchorThemeProps = (
   baseClassName?: string,

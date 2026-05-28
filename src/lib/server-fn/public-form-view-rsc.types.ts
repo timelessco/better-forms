@@ -1,10 +1,7 @@
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 
-/**
- * Pure-type declarations for the public-form-view RSC slot contracts.
- * Lives in a `.types.ts` file so the client can import these without
- * pulling the server fn module (which transitively imports drizzle/pg).
- */
+/** Pure-type RSC slot contracts. In a .types.ts so the client can import without pulling the
+ * server fn module (which imports drizzle/pg). */
 
 export type FieldSlotProps = {
   fieldId: string;

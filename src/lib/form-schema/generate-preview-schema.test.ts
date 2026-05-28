@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as v from "valibot";
 
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 import {
@@ -10,21 +11,21 @@ describe("generateZodSchemaFromFields - Date / Time required", () => {
   it("rejects empty Date when required", () => {
     const fields: PlateFormField[] = [{ id: "d", name: "d", fieldType: "Date", required: true }];
     const schema = generateZodSchemaFromFields(fields);
-    const result = schema.safeParse({ d: "" });
+    const result = v.safeParse(schema, { d: "" });
     expect(result.success).toBe(false);
   });
 
   it("rejects empty Time when required", () => {
     const fields: PlateFormField[] = [{ id: "t", name: "t", fieldType: "Time", required: true }];
     const schema = generateZodSchemaFromFields(fields);
-    const result = schema.safeParse({ t: "" });
+    const result = v.safeParse(schema, { t: "" });
     expect(result.success).toBe(false);
   });
 
   it("accepts empty Date when not required", () => {
     const fields: PlateFormField[] = [{ id: "d", name: "d", fieldType: "Date", required: false }];
     const schema = generateZodSchemaFromFields(fields);
-    const result = schema.safeParse({ d: "" });
+    const result = v.safeParse(schema, { d: "" });
     expect(result.success).toBe(true);
   });
 
@@ -33,9 +34,9 @@ describe("generateZodSchemaFromFields - Date / Time required", () => {
       { id: "n", name: "n", fieldType: "Number", required: true, min: 3, max: 4 },
     ];
     const schema = generateZodSchemaFromFields(fields);
-    expect(schema.safeParse({ n: 2 }).success).toBe(false);
-    expect(schema.safeParse({ n: 3 }).success).toBe(true);
-    expect(schema.safeParse({ n: 5 }).success).toBe(false);
+    expect(v.safeParse(schema, { n: 2 }).success).toBe(false);
+    expect(v.safeParse(schema, { n: 3 }).success).toBe(true);
+    expect(v.safeParse(schema, { n: 5 }).success).toBe(false);
   });
 
   it("rejects empty string for required Number (regression: Number('') is 0)", () => {
@@ -43,9 +44,9 @@ describe("generateZodSchemaFromFields - Date / Time required", () => {
       { id: "n", name: "n", fieldType: "Number", required: true, min: 3, max: 12 },
     ];
     const schema = generateZodSchemaFromFields(fields);
-    expect(schema.safeParse({ n: "" }).success).toBe(false);
-    expect(schema.safeParse({ n: "5" }).success).toBe(true);
-    expect(schema.safeParse({ n: "20" }).success).toBe(false);
+    expect(v.safeParse(schema, { n: "" }).success).toBe(false);
+    expect(v.safeParse(schema, { n: "5" }).success).toBe(true);
+    expect(v.safeParse(schema, { n: "20" }).success).toBe(false);
   });
 });
 
@@ -56,28 +57,28 @@ describe("generateZodSchemaFromFields - repeatable", () => {
 
   it("required email array rejects when all items empty", () => {
     const schema = generateZodSchemaFromFields(emailArr(true));
-    expect(schema.safeParse({ e: [""] }).success).toBe(false);
+    expect(v.safeParse(schema, { e: [""] }).success).toBe(false);
   });
 
   it("required email array rejects when any item is empty (per-item required)", () => {
     const schema = generateZodSchemaFromFields(emailArr(true));
-    expect(schema.safeParse({ e: ["a@b.com", ""] }).success).toBe(false);
+    expect(v.safeParse(schema, { e: ["a@b.com", ""] }).success).toBe(false);
   });
 
   it("required email array accepts when every item is a valid email", () => {
     const schema = generateZodSchemaFromFields(emailArr(true));
-    expect(schema.safeParse({ e: ["a@b.com", "c@d.com"] }).success).toBe(true);
+    expect(v.safeParse(schema, { e: ["a@b.com", "c@d.com"] }).success).toBe(true);
   });
 
   it("rejects a malformed item even among valid ones", () => {
     const schema = generateZodSchemaFromFields(emailArr(true));
-    expect(schema.safeParse({ e: ["a@b.com", "not-an-email"] }).success).toBe(false);
+    expect(v.safeParse(schema, { e: ["a@b.com", "not-an-email"] }).success).toBe(false);
   });
 
   it("optional array passes when entirely empty", () => {
     const schema = generateZodSchemaFromFields(emailArr(false));
-    expect(schema.safeParse({ e: [""] }).success).toBe(true);
-    expect(schema.safeParse({ e: [] }).success).toBe(true);
+    expect(v.safeParse(schema, { e: [""] }).success).toBe(true);
+    expect(v.safeParse(schema, { e: [] }).success).toBe(true);
   });
 
   it("number array validates each item against min/max", () => {
@@ -93,8 +94,8 @@ describe("generateZodSchemaFromFields - repeatable", () => {
       },
     ];
     const schema = generateZodSchemaFromFields(fields);
-    expect(schema.safeParse({ n: ["5", "9"] }).success).toBe(true);
-    expect(schema.safeParse({ n: ["5", "99"] }).success).toBe(false);
+    expect(v.safeParse(schema, { n: ["5", "9"] }).success).toBe(true);
+    expect(v.safeParse(schema, { n: ["5", "99"] }).success).toBe(false);
   });
 });
 

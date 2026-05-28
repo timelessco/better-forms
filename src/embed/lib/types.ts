@@ -1,7 +1,3 @@
-/**
- * Reform Popup Embed - Type Definitions
- */
-
 export type PopupPosition = "bottom-right" | "bottom-left" | "center";
 export type PopupLayout = "default" | "modal";
 export type EmojiAnimation = "wave" | "bounce" | "pulse" | "none";
@@ -53,16 +49,11 @@ export interface PopupInstance {
   container: HTMLElement;
   iframe: HTMLIFrameElement;
   overlay?: HTMLElement;
-  /** Spinner element shown over the empty iframe; hidden once the form's
-   *  SSR'd HTML is parsed (via `Reform.FormLoaded`) or the iframe's own
-   *  `load` event fires — whichever comes first. */
+  /** Spinner over empty iframe; hidden on `Reform.FormLoaded` (SSR parsed) or iframe `load`, whichever first. */
   loadingEl?: HTMLElement;
   /** True while pre-mounted on hover but not yet revealed to the user. */
   hidden?: boolean;
-  /** Highest content height the iframe has reported this session. Popup
-   *  height is monotonically non-decreasing — when the form transitions
-   *  from a tall step (e.g. all fields) to a short one (Thank You), the
-   *  popup keeps the larger size so the chrome doesn't jump/shrink. */
+  /** Highest reported content height this session. Popup height monotonic non-decreasing — tall→short step (e.g. Thank You) keeps larger size, no chrome jump. */
   maxContentHeight?: number;
 }
 
@@ -78,11 +69,13 @@ export type IframeEvent =
   | { event: "Reform.PageView"; formId: string; page: number }
   | { event: "Reform.Close"; formId: string };
 
-/** Global API exposed on window */
+/** Global API exposed on window. Populated by whichever embed script loaded — popup.js sets the popup methods, widgets/embed.js sets loadEmbeds. */
 interface ReformAPI {
-  openPopup: (formId: string, options?: PopupOptions) => void;
-  closePopup: (formId: string) => void;
-  destroyPopup: (formId: string) => void;
+  openPopup?: (formId: string, options?: PopupOptions) => void;
+  closePopup?: (formId: string) => void;
+  destroyPopup?: (formId: string) => void;
+  /** Standard iframe embed: activate every <iframe data-reform-src> on the page. */
+  loadEmbeds?: () => void;
 }
 
 declare global {

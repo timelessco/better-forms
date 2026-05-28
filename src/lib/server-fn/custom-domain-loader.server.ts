@@ -14,10 +14,7 @@ import { buildOgImageUrl } from "@/lib/og/url";
 import { buildPublicFormSettings } from "@/types/form-settings";
 import type { DomainMeta, ResolvedDomain } from "./custom-domain-loader";
 
-/**
- * Look up a verified custom domain by hostname.
- * Throws notFound() if no matching verified domain exists.
- */
+/** Look up a verified custom domain by hostname; throws notFound() if none. */
 export const resolveCustomDomain = async (host: string): Promise<ResolvedDomain> => {
   const hostname = host.split(":")[0]; // strip port
 
@@ -47,11 +44,8 @@ export const resolveCustomDomain = async (host: string): Promise<ResolvedDomain>
   return domain;
 };
 
-/**
- * Dev-friendly fallback: when the request is from an app host (localhost,
- * Vercel preview), look up the custom domain assigned to a form by slug.
- * Lets developers preview custom-domain forms without simulating the host.
- */
+/** Dev fallback: on an app host (localhost/Vercel preview), look up the form's custom domain by
+ * slug so devs can preview custom-domain forms without simulating the host. */
 export const resolveDomainForSlug = async (slug: string): Promise<ResolvedDomain> => {
   const [row] = await db
     .select({
@@ -82,11 +76,10 @@ export const resolveDomainForSlug = async (slug: string): Promise<ResolvedDomain
 };
 
 /**
- * Load a published form that belongs to a specific custom domain's organization.
- *
+ * Load a published form belonging to a custom domain's org.
  * @param domain - resolved custom domain record
- * @param value  - the slug or form UUID to look up
- * @param lookupBy - whether `value` is a "slug" or "id"
+ * @param value  - slug or form UUID
+ * @param lookupBy - "slug" or "id"
  */
 export const loadFormForCustomDomain = async (
   domain: ResolvedDomain,

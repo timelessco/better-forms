@@ -1,10 +1,7 @@
 import { createHash } from "node:crypto";
 
-/**
- * Bump when the OG card template changes (layout, fonts, colors, sizing).
- * The next HTML render will emit a new URL for every form, naturally
- * invalidating every form's edge-cached OG image without manual purge.
- */
+/** Bump on any OG template change — next render emits new URLs, invalidating
+ * every edge-cached OG image without manual purge. */
 export const TEMPLATE_VERSION = 3;
 
 export type OgHashInput = {
@@ -12,10 +9,8 @@ export type OgHashInput = {
   description: string;
 };
 
-/**
- * Content-addressed short hash. Mixed with TEMPLATE_VERSION so a template
- * design change invalidates every form's URL on next HTML render.
- */
+/** Content-addressed short hash, mixed with TEMPLATE_VERSION so a template change
+ * rotates every URL. */
 export const computeOgHash = ({ title, description }: OgHashInput): string => {
   const payload = `${TEMPLATE_VERSION}\n${title}\n${description}`;
   const buf = createHash("sha256").update(payload).digest();

@@ -1,4 +1,5 @@
 import { CheckCircle2, Clock, MousePointerClick, TrendingUp, Users } from "lucide-react";
+import { NumberPopIn } from "@/components/transitions/number-pop-in";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { numberFormatter } from "@/lib/analytics/format";
@@ -42,7 +43,9 @@ const MetricCard = ({ label, value, Icon }: MetricCardProps) => (
         <Icon className="size-4" aria-hidden={true} />
         <span className="text-xs font-medium tracking-wide uppercase">{label}</span>
       </div>
-      <span className="text-2xl font-semibold text-foreground tabular-nums">{value}</span>
+      <span className="text-2xl font-semibold text-foreground">
+        <NumberPopIn value={value} className="tabular-nums" />
+      </span>
     </CardContent>
   </Card>
 );

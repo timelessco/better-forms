@@ -1,23 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
-import { z } from "zod";
+import * as v from "valibot";
 import { db } from "@/db";
 import { member } from "@/db/schema";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { polarClient } from "@/lib/auth/auth";
 import type { ErrorCode } from "@/lib/errors/codes";
 
-/**
- * Opens Polar's hosted customer portal for an organization-scoped customer.
- *
- * The Better Auth `authClient.customer.portal()` looks up the Polar customer
- * by `externalId = user.id`, but our subscriptions are purchased with
- * `referenceId: orgId` so the customer in Polar is keyed by **org** id.
- * We bypass the adapter and create a customer session directly via the SDK.
- */
+/** Opens Polar's hosted portal for an org-scoped customer. Better Auth's customer.portal() looks
+ * up by externalId = user.id, but subs are bought with referenceId: orgId so the Polar customer is
+ * keyed by org. Bypass the adapter and create a customer session via the SDK directly. */
 export const openOrgBillingPortal = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ orgId: z.string() }))
+  .inputValidator(v.object({ orgId: v.string() }))
   .handler(async ({ data, context }) => {
     const [membership] = await db
       .select()
@@ -37,13 +33,10 @@ export const openOrgBillingPortal = createServerFn({ method: "POST" })
       });
     }
 
-    const { polarClient } = await import("@/lib/auth/auth");
     const email = context.session.user.email;
 
-    // The Polar customer for this org's subscription has no `externalId` set
-    // (the @polar-sh/better-auth checkout flow created it with email only,
-    // and `referenceId` lives on the subscription's metadata, not the customer).
-    // Look up the customer by email, then mint a session with `customerId`.
+    // Customer has no externalId (checkout created it with email only; referenceId lives on the
+    // subscription's metadata, not the customer). Look up by email, then mint a session by customerId.
     const list = await polarClient.customers.list({ email, limit: 1 });
     const customer = list.result.items[0];
     if (!customer) {

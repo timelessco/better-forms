@@ -2,11 +2,8 @@ export interface DnsInstruction {
   type: "A" | "CNAME" | "TXT";
   /** FQDN as Vercel returns it (e.g. `_vercel.acme.com`). */
   name: string;
-  /**
-   * Relative form within the apex (e.g. `_vercel`). Set only when `name` is a
-   * FQDN under the apex and differs from `name`. Used by DNS-provider UIs that
-   * auto-append the zone (Cloudflare, Namecheap, GoDaddy, etc.).
-   */
+  /** Name relative to apex (e.g. `_vercel`). Set only when `name` is a FQDN under
+   * the apex. For DNS UIs that auto-append the zone (Cloudflare, GoDaddy, etc.). */
   shortName?: string;
   value: string;
 }
@@ -19,24 +16,16 @@ export interface VercelVerificationChallenge {
 
 const APEX_LABEL_COUNT = 2;
 
-/**
- * True when `domain` has at least one subdomain label above the apex.
- * `acme.com` → false. `forms.acme.com` → true.
- *
- * We block apex domains in `addDomain` because the most common tenant scenario
- * is "forms.acme.com" alongside an existing marketing site at the apex —
- * accepting `acme.com` would let a tenant accidentally hijack their own site.
- */
+/** True if `domain` has a label above the apex. `acme.com`→false,
+ * `forms.acme.com`→true. apex-hijack guard: bare apex blocked in `addDomain`
+ * so a tenant can't clobber their own marketing site. */
 export const isSubdomain = (domain: string): boolean => {
   if (!domain) return false;
   const labels = domain.split(".").filter(Boolean);
   return labels.length > APEX_LABEL_COUNT;
 };
 
-/**
- * The apex zone for a domain — the rightmost two labels.
- * `forms.acme.com` → `acme.com`. `acme.com` → `acme.com`.
- */
+/** Apex zone: rightmost two labels. `forms.acme.com` → `acme.com`. */
 const apexOf = (domain: string): string => {
   const labels = domain.split(".").filter(Boolean);
   return labels.slice(-APEX_LABEL_COUNT).join(".");
@@ -55,9 +44,8 @@ export const getDnsInstructions = (
   domain: string,
   verification?: VercelVerificationChallenge[],
 ): DnsInstruction[] => {
-  // The routing record (CNAME for subdomains, A for apex) is ALWAYS required —
-  // a TXT _vercel record proves ownership but doesn't make the hostname
-  // resolve. Without the routing record, visitors get NXDOMAIN.
+  // Routing record (CNAME/subdomain, A/apex) ALWAYS required — TXT proves
+  // ownership but doesn't resolve; without it visitors get NXDOMAIN.
   const labels = domain.split(".");
   const routing: DnsInstruction =
     labels.length <= APEX_LABEL_COUNT
@@ -71,7 +59,7 @@ export const getDnsInstructions = (
   const apex = apexOf(domain);
 
   if (verification && verification.length > 0) {
-    // TXT first so the user adds it before pressing Verify, then routing.
+    // TXT first (added before Verify), then routing.
     return [
       ...verification.map((v) =>
         withShortName(

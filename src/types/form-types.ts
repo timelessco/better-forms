@@ -127,9 +127,7 @@ type Divider = {
 type PageBreak = {
   fieldType: "PageBreak";
   name: string;
-  /**
-   * Whether this page break marks the thank you page
-   */
+  /** Marks the thank-you page. */
   isThankYouPage: boolean;
   static: true;
 };
@@ -162,10 +160,7 @@ type FormFieldElement =
   | Slider
   | DatePicker;
 
-/**
- * StaticFormElement is a type that represents a static form element
- * that is not editable by the user
- */
+/** Static (non-user-editable) form element. */
 export type StaticFormElement = H1 | H2 | H3 | Divider | PageBreak | Description | Legend;
 
 export type FormElement =
@@ -195,14 +190,7 @@ export type FormArray = {
   entries: FormArrayEntry[];
 };
 
-/**
- * DropElement is a function that is used to drop an element to the form elements array
- * USE CASES
- * - Element: i is required
- * - Nested Element: i, j is required
- * - Element in MS form: i, stepIndex is required
- * - Nested Element in MS form: i, j, stepIndex is required
- */
+/** Drop an element into the form array. Required indices: element=i; nested=i,j; MS=i,stepIndex; MS nested=i,j,stepIndex. */
 type DropElementOptions = {
   fieldIndex: number;
   j?: number;

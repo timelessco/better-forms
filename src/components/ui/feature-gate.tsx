@@ -11,10 +11,7 @@ type FeatureGateProps = {
   children: React.ReactNode;
   fallback?: React.ReactNode;
   tooltipSide?: "top" | "bottom" | "left" | "right";
-  /**
-   * "inline" (default): wraps children in inline-flex, for disabling a single switch/input.
-   * "block": wraps children as a block with an overlay link, for gating a section of controls.
-   */
+  /** "inline" (default): inline-flex, disables a single switch/input. "block": overlay link, gates a section. */
   variant?: "inline" | "block";
 };
 

@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ImageResponse } from "@vercel/og";
 import { and, eq } from "drizzle-orm";
-// `?raw` inlines the sprite at build time so the function bundle on Vercel
-// (where /var/task has no public/) can extract <symbol> bodies for OG icons.
+// `?raw` inlines sprite at build time — Vercel /var/task has no public/ for OG icon <symbol> extraction.
 import spriteSvg from "../../../../../public/sprite.svg?raw";
 import { db } from "@/db";
 import { formVersions, forms } from "@/db/schema";
@@ -21,8 +20,7 @@ const NOT_FOUND_HEADERS = {
   "Content-Type": "text/plain",
 };
 
-// Short TTL on errors so a transient failure doesn't poison the edge cache for
-// a year (the success path uses `immutable, max-age=31536000`).
+// Short error TTL so a transient failure doesn't poison edge cache for a year (success path is immutable 1y).
 const ERROR_HEADERS = {
   "Cache-Control": "public, max-age=30, s-maxage=30",
   "Content-Type": "text/plain",
@@ -85,10 +83,7 @@ export const Route = createFileRoute("/api/og/$shortId/$hash")({
           return new Response("hash_mismatch", { status: 404, headers: NOT_FOUND_HEADERS });
         }
 
-        // Resolve the form's icon to something Satori can rasterize via <img>.
-        // Sprite names (e.g. "fingerprint-03") are extracted from the bundled
-        // sprite into a data URL; uploaded images come through as absolute URLs;
-        // anything else falls back to the `f.` brand mark inside OgCard.
+        // Resolve icon for Satori <img>: sprite names → data URL; uploads → absolute URL; else `f.` brand mark in OgCard.
         let iconUrl: string | null = null;
         if (isIconUrl(og.icon)) {
           iconUrl = og.icon;
@@ -96,9 +91,7 @@ export const Route = createFileRoute("/api/og/$shortId/$hash")({
           iconUrl = buildIconDataUrl(spriteSvg, og.icon, ICON_FILL);
         }
 
-        // Buffer the streaming PNG so render errors surface here instead of
-        // silently truncating the body to 0 bytes (which the edge then caches
-        // as `immutable` for a year).
+        // Buffer streaming PNG so render errors surface here, not as a 0-byte body the edge caches immutable for a year.
         try {
           const image = new ImageResponse(
             <OgCard

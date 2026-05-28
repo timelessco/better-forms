@@ -7,8 +7,7 @@ import { logger } from "@/lib/utils";
 import { isServerPlan } from "./plan-helpers";
 import type { ServerPlan } from "./plan-helpers";
 
-// Reads the cached `organization.plan` (synced by Polar webhooks); falls back
-// to 'free' for unknown orgs or unexpected column values.
+// Reads cached organization.plan (Polar-webhook-synced); falls back to 'free' for unknown/bad values.
 export const getOrgPlan = async (orgId: string): Promise<ServerPlan> => {
   const [row] = await db
     .select({ plan: organization.plan })
@@ -24,14 +23,9 @@ export const getOrgPlan = async (orgId: string): Promise<ServerPlan> => {
   return resolved;
 };
 
-/**
- * Plan resolver with self-heal: reads `organization.plan` first; if it says
- * "free" (which can be stale when a Polar upgrade webhook didn't reach this
- * env), falls back to verifying with Polar using the caller's email. If
- * Polar shows an active paid subscription for this org, writes it back to
- * the DB and returns the corrected plan. The fast path (no email passed,
- * or column already paid) skips the Polar round-trip entirely.
- */
+/** Self-healing plan resolver: reads organization.plan; if "free" (stale if an upgrade webhook
+ * missed this env), verifies with Polar by email and writes back the corrected plan. Fast path
+ * (no email, or column already paid) skips the Polar round-trip. */
 export const getOrgPlanWithPolarSync = async (
   orgId: string,
   userEmail: string | null,
@@ -43,10 +37,8 @@ export const getOrgPlanWithPolarSync = async (
   try {
     const { polarClient } = await import("@/lib/auth/auth");
 
-    // Polar customers are keyed by email in this project (see
-    // openOrgBillingPortal). The user's active subs across all their
-    // customers — we filter to ones whose metadata.referenceId matches
-    // this org.
+    // Polar customers keyed by email here (see openOrgBillingPortal); filter active subs across
+    // all their customers to ones whose metadata.referenceId matches this org.
     const customerList = await polarClient.customers.list({ email: userEmail, limit: 5 });
     const customers = customerList.result.items;
     if (customers.length === 0) {

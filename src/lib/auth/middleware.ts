@@ -5,8 +5,8 @@ import { createError } from "@/lib/errors/create";
 import type { RequestLogger } from "evlog";
 import { identifyUser } from "evlog/better-auth";
 import type { ErrorCode } from "@/lib/errors/codes";
-// Aliased — `useRequest` is a Nitro AsyncLocalStorage accessor, not a React hook,
-// but oxlint's react-hooks/rules-of-hooks flags it by name.
+// Aliased: `useRequest` is a Nitro ALS accessor, not a React hook — oxlint
+// rules-of-hooks flags it by name.
 import { useRequest as getNitroRequest } from "nitro/context";
 import { auth } from "@/lib/auth/auth";
 import { planUnlocks } from "@/lib/config/plan-gates";
@@ -15,15 +15,12 @@ import { formSettingsFeatureGates } from "@/lib/server-fn/plan-helpers";
 import type { FormProSettingsInput } from "@/lib/server-fn/plan-helpers";
 import { getOrgPlan } from "@/lib/server-fn/plan-helpers.server";
 
-// Tag the active request's evlog wide event with the resolved Better Auth
-// user/session and the active org's id/role. SYNCHRONOUS by design — any
-// `await` here loses the tag because TanStack Start streams responses and
-// evlog emits the wide event when the stream opens; tags arriving after
-// that emit are dropped with the "log.set() called after the wide event
-// was emitted" warning. Org `plan` is intentionally not tagged here for
-// the same reason (would require an async DB read); slice by `activeOrganizationId`
-// in observability and join with the plan column out-of-band if needed.
-// No-op when evlog isn't installed for the request or session is null.
+// Tag evlog wide event with user/session + org id/role. SYNCHRONOUS by design:
+// any `await` loses the tag — TanStack Start streams, evlog emits the wide event
+// when the stream opens, later tags are dropped ("log.set() after wide event").
+// `plan` not tagged for the same reason (needs async DB read) — slice by
+// activeOrganizationId and join the plan column out-of-band. No-op without evlog
+// or null session.
 const tagLoggerWithSession = (
   session: { user: Record<string, unknown>; session: Record<string, unknown> } | null,
 ) => {
@@ -40,11 +37,10 @@ const tagLoggerWithSession = (
   const userAgent = typeof sessionData.userAgent === "string" ? sessionData.userAgent : null;
 
   identifyUser(log, session, {
-    // Trim the wide event: only keep the user fields we actually filter logs
-    // by. `userId` is still emitted as a top-level field by identifyUser.
-    // `name` deliberately omitted — PII without observability value.
+    // Keep only filtered-on fields (`userId` still emitted top-level). `name`
+    // omitted — PII, no observability value.
     fields: ["emailVerified"],
-    // Suppress the full session block; we re-add just ip + userAgent via extend.
+    // Suppress full session; re-add just ip + userAgent via extend.
     session: false,
     extend: () => ({
       ...((ipAddress || userAgent) && {
@@ -59,11 +55,8 @@ const tagLoggerWithSession = (
   });
 };
 
-// Paths that are valid serverFn / API endpoints but not user-navigable. If the
-// auth middleware fires for a request to one of these (e.g. a serverFn invoked
-// from a route loader during SSR), sending it back as the post-login redirect
-// target lands the user on a blank serverFn endpoint after login. Filter them
-// out so we only ever round-trip the user through a real page route.
+// serverFn/API paths — valid endpoints but not user-navigable. Using one as the
+// post-login redirect lands the user on a blank endpoint, so filter them out.
 const INTERNAL_PATH_PREFIX = /^\/(?:_|api\/)/;
 
 export const pickPostLoginRedirect = (pathname: string, headers: Headers): string => {
@@ -124,9 +117,8 @@ export const formProSettingsMiddleware = createMiddleware({ type: "function" })
     return next();
   });
 
-// API-route variant of authMiddleware: returns JSON 401 instead of throwing a
-// redirect — API consumers expect a status code, not an HTML login page (and
-// `useObject`/fetch can't follow a 302 to HTML and recover).
+// API variant: JSON 401 not a redirect — consumers want a status, not HTML;
+// useObject/fetch can't follow a 302 to HTML and recover.
 export const apiAuthMiddleware = createMiddleware().server(async ({ next }) => {
   const headers = getRequestHeaders();
   const session = await auth.api.getSession({ headers });
@@ -144,8 +136,8 @@ export const apiAuthMiddleware = createMiddleware().server(async ({ next }) => {
 });
 
 export const guestMiddleware = createMiddleware().server(async ({ next }) => {
-  // O(1) cookie check instead of DB round-trip (~1.97s saving)
-  // authMiddleware on /dashboard will do full session validation + email verification
+  // O(1) cookie check, not a DB round-trip (~1.97s saved). authMiddleware on
+  // /dashboard does full session + email validation.
   const hasSession =
     getCookie("better-auth.session_token") || getCookie("__Secure-better-auth.session_token");
 

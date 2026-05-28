@@ -16,15 +16,12 @@ const safeSet = (storage: Storage | undefined, key: string, value: string): void
   try {
     storage?.setItem(key, value);
   } catch {
-    // Storage unavailable (private mode, quota, blocked) — swallow.
+    // Storage unavailable (private mode, quota, blocked).
   }
 };
 
-/**
- * Returns a stable per-visitor UUID stored in localStorage under "bf_vid".
- * SSR-safe: returns "" when window is undefined.
- * Falls back to an in-module memoized UUID when localStorage is unavailable.
- */
+/** Stable per-visitor UUID in localStorage "bf_vid". SSR-safe (""); falls back
+ * to in-module memoized UUID when localStorage unavailable. */
 export const getOrCreateVisitorHash = (): string => {
   if (typeof window === "undefined") {
     return "";
@@ -43,11 +40,8 @@ export const getOrCreateVisitorHash = (): string => {
   return fresh;
 };
 
-/**
- * Returns a per-tab-session UUID stored in sessionStorage under "bf_sid".
- * SSR-safe: returns "" when window is undefined.
- * Falls back to an in-module memoized UUID when sessionStorage is unavailable.
- */
+/** Per-tab-session UUID in sessionStorage "bf_sid". SSR-safe (""); falls back
+ * to in-module memoized UUID when sessionStorage unavailable. */
 export const getOrCreateSessionId = (): string => {
   if (typeof window === "undefined") {
     return "";

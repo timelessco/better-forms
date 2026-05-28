@@ -423,8 +423,7 @@ const CustomBar = (props: CustomBarProps) => {
   });
   const cursorStyle = isClickable || enableHoverHighlight ? { cursor: "pointer" } : undefined;
 
-  // For stripped: top corners rounded, bottom flat [topLeft, topRight, bottomRight, bottomLeft]
-  // For others: all corners rounded
+  // stripped: top corners rounded, bottom flat [TL, TR, BR, BL]; else all rounded.
   const radius: RectRadius = isStripped ? [barRadius, barRadius, 0, 0] : barRadius;
 
   return (
@@ -890,9 +889,7 @@ const generateEasedGradientStops = (
     return { offset: `${(t * 100).toFixed(0)}%`, opacity: Number(opacity.toFixed(3)) };
   });
 
-/**
- * Hook to manage loading data with pixel-perfect shimmer synchronization.
- */
+/** Loading data synced to shimmer exit. */
 export function useLoadingData(isLoading: boolean, loadingBars: number = 12) {
   const [loadingDataKey, setLoadingDataKey] = useState(false);
 
@@ -911,9 +908,7 @@ export function useLoadingData(isLoading: boolean, loadingBars: number = 12) {
   return { loadingData, onShimmerExit };
 }
 
-/**
- * Loading bar pattern with animated skeleton effect
- */
+/** Animated skeleton shimmer pattern. */
 const LoadingBarPatternStyle = ({
   chartId,
   onShimmerExit,

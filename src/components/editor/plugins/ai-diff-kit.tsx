@@ -5,11 +5,7 @@ import { cn } from "@/lib/utils";
 
 export type AIDiffMark = "insert" | "remove";
 
-/**
- * Element-level marker that the diff wrapper reads. The AI-generation hook
- * stamps this on nodes after a stream lands so the user sees a red/green diff
- * preview before accepting or discarding.
- */
+// Element-level marker read by diff wrapper. AI-gen hook stamps it post-stream for the red/green accept/discard preview.
 export const AI_DIFF_KEY = "aiDiff" as const;
 
 const renderDiffWrapper: RenderNodeWrapper = ({ element }) => {

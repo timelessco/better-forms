@@ -2,8 +2,9 @@ import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
-import { z } from "zod";
+import * as v from "valibot";
 import { customDomains, forms, member } from "@/db/schema";
+import type { CustomDomainRow } from "@/db/schema";
 import { db } from "@/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { ErrorCode } from "@/lib/errors/codes";
@@ -17,7 +18,7 @@ import {
 import { DOMAIN_LIMITS } from "@/lib/config/plan-config";
 import { isSubdomain } from "@/lib/dns-instructions";
 
-const serializeDomain = (domain: typeof customDomains.$inferSelect) => ({
+const serializeDomain = (domain: CustomDomainRow) => ({
   ...domain,
   createdAt: domain.createdAt.toISOString(),
   updatedAt: domain.updatedAt.toISOString(),
@@ -25,7 +26,7 @@ const serializeDomain = (domain: typeof customDomains.$inferSelect) => ({
 
 export const listOrgDomains = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ orgId: z.string() }))
+  .inputValidator(v.object({ orgId: v.string() }))
   .handler(async ({ data, context }) => {
     const [membership] = await db
       .select()
@@ -56,9 +57,9 @@ export const listOrgDomains = createServerFn({ method: "POST" })
 export const addDomain = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      orgId: z.string(),
-      domain: z.string(),
+    v.object({
+      orgId: v.string(),
+      domain: v.string(),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -149,7 +150,7 @@ export const addDomain = createServerFn({ method: "POST" })
 
 export const removeDomain = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ domainId: z.string() }))
+  .inputValidator(v.object({ domainId: v.string() }))
   .handler(async ({ data, context }) => {
     const [domain] = await db
       .select()
@@ -195,9 +196,8 @@ export const removeDomain = createServerFn({ method: "POST" })
       // Continue with DB cleanup even if Vercel fails
     }
 
-    // Clear customDomainId on all forms and delete domain atomically.
-    // Capture the ever-published forms whose canonical URL just changed so
-    // we can purge their CDN tags after commit.
+    // Clear customDomainId on all forms + delete domain atomically; capture ever-published
+    // forms (canonical URL changed) to purge CDN tags post-commit.
     const everPublished = await db.transaction(async (tx) => {
       const affected = await tx
         .update(forms)
@@ -245,7 +245,7 @@ const assertCanReadDomain = async (domainId: string, userId: string) => {
 
 export const checkDomainStatus = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ domainId: z.string() }))
+  .inputValidator(v.object({ domainId: v.string() }))
   .handler(async ({ data, context }) => {
     await assertCanReadDomain(data.domainId, context.session.user.id);
     return refreshDomainStatusFromVercel(data.domainId);
@@ -253,7 +253,7 @@ export const checkDomainStatus = createServerFn({ method: "POST" })
 
 export const recheckDomainStatus = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ domainId: z.string() }))
+  .inputValidator(v.object({ domainId: v.string() }))
   .handler(async ({ data, context }) => {
     await assertCanReadDomain(data.domainId, context.session.user.id);
     return triggerDomainVerification(data.domainId);
@@ -262,11 +262,11 @@ export const recheckDomainStatus = createServerFn({ method: "POST" })
 export const updateDomainMeta = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      domainId: z.string(),
-      siteTitle: z.string().optional(),
-      faviconUrl: z.string().optional(),
-      ogImageUrl: z.string().optional(),
+    v.object({
+      domainId: v.string(),
+      siteTitle: v.optional(v.string()),
+      faviconUrl: v.optional(v.string()),
+      ogImageUrl: v.optional(v.string()),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -315,8 +315,7 @@ export const updateDomainMeta = createServerFn({ method: "POST" })
         .set({ ...updateFields, updatedAt: new Date() })
         .where(eq(customDomains.id, domainId))
         .returning();
-      // Same transaction so a concurrent assignFormDomain can't slip a form
-      // in between the meta UPDATE and the bound-forms read.
+      // Same transaction so a concurrent assignFormDomain can't slip a form between meta UPDATE and read.
       const bound = await tx
         .select({ id: forms.id })
         .from(forms)
@@ -324,15 +323,14 @@ export const updateDomainMeta = createServerFn({ method: "POST" })
       return { updated: updatedRow, boundFormIds: bound.map((f) => f.id) };
     });
 
-    // siteTitle / faviconUrl / ogImageUrl land in the rendered <head> of
-    // every bound form's public response.
+    // siteTitle/faviconUrl/ogImageUrl land in every bound form's rendered <head>.
     await purgeFormCacheBatch(boundFormIds);
 
     return serializeDomain(updated);
   });
 
 export const getDomainByHost = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ host: z.string() }))
+  .inputValidator(v.object({ host: v.string() }))
   .handler(async ({ data }) => {
     const [domain] = await db
       .select({

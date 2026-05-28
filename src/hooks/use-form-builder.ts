@@ -4,10 +4,7 @@ interface DefaultValues {
   [key: string]: unknown;
 }
 
-/**
- * Extended AppForm type that includes additional state and component properties
- * used for rendering form elements.
- */
+/** AppForm extended with state + component props for rendering form elements. */
 export type AppForm = ReturnType<typeof useAppForm> & {
   baseStore: {
     state: {

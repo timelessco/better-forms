@@ -105,8 +105,7 @@ const AIFormGenMenu = () => {
   );
 
   const getSelectionContext = useCallback((): string | null => {
-    // For multi-block selections, send the full text of every selected block
-    // to the server, not just the short preview we show in the chip.
+    // Multi-block selection: send full text of every block to server, not just the chip preview.
     if (blockSelectionNodes.length > 0) {
       const parts: string[] = [];
       for (const entry of blockSelectionNodes) {

@@ -19,14 +19,13 @@ export type FormListing = {
   submissionCount: number;
   /** Working draft of behavioral settings (forms.draftSettings). */
   draftSettings?: FormSettings;
-  /** Live published settings (form_settings.settings). Null when the form
-   *  has never been published — first publish creates this row. */
+  /** Live published settings (form_settings.settings). Null until first publish creates the row. */
   liveSettings?: FormSettings | null;
   slug?: string | null;
   customDomainId?: string | null;
   publishedContentHash?: string | null;
   lastPublishedVersionId?: string | null;
-  // Heavy fields — populated on-demand when editor opens a form (enrichment)
+  // Heavy fields — enrichment populates on-demand when editor opens a form.
   content?: unknown[];
   schemaName?: string | null;
   cover?: string | null;
@@ -52,9 +51,7 @@ type FormListingCollectionConfig = {
 export const createFormListingCollection = (config: FormListingCollectionConfig) => {
   const { queryClient, queryFn, onInsert, onUpdate, onDelete } = config;
 
-  // Closure ref set after collection creation — used by enrichedQueryFn
-  // to merge lightweight listing data with existing enriched records,
-  // preventing refetches from wiping heavy fields (content, settings, etc.).
+  // Closure ref (set post-creation): enrichedQueryFn merges lightweight listings onto enriched records so refetches don't wipe heavy fields.
   let collectionRef: { get: (id: string | number) => FormListing | undefined } | null = null;
 
   const enrichedQueryFn = async () => {

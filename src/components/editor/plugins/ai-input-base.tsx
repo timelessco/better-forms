@@ -116,8 +116,7 @@ export const triggerAIInput = (editor: SlateEditor) => {
 };
 
 export const hideAIInput = (editor: SlateEditor) => {
-  // Safety net: strip lingering aiDiff marks if an edge-case close path skipped
-  // the explicit accept/rollback flow. Usually a no-op.
+  // Safety net: strip lingering aiDiff marks if a close path skipped accept/rollback. Usually no-op.
   const diffEntries = Array.from(
     editor.api.nodes({
       at: [],

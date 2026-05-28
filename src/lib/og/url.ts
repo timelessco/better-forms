@@ -7,15 +7,9 @@ export type BuildOgImageUrlInput = {
   description: string;
 };
 
-/**
- * Returns the absolute, content-addressed URL for a form's OG image.
- *
- * Always anchored at APP_WEBSITE_URL — share-card crawlers fetch this
- * URL regardless of which domain (central or custom) served the HTML.
- * The hash makes the URL change exactly when title or description does,
- * so an unchanged republish keeps the URL (and the edge cache hit) and
- * a content-changed republish rotates to a fresh URL.
- */
+/** Absolute content-addressed OG image URL. Always at APP_WEBSITE_URL (crawlers
+ * fetch it regardless of which domain served the HTML). Hash changes iff
+ * title/description does — unchanged republish keeps the URL + edge cache. */
 export const buildOgImageUrl = ({ shortId, title, description }: BuildOgImageUrlInput): string => {
   const hash = computeOgHash({ title, description });
   return `${APP_WEBSITE_URL}/api/og/${shortId}/${hash}.png`;

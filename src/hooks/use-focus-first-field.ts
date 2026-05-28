@@ -1,17 +1,11 @@
 import type { RefObject } from "react";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
-// Scope to [data-bf-input] (each question's wrapper) so the form-level
-// Next/Submit button — which lives outside that wrapper — is never picked.
-// Widget triggers (DatePicker <button>, MultiSelect role="button" div) need
-// explicit matches; native inputs/textarea/select cover the rest. Base UI
-// <Checkbox> renders role="checkbox", so checkbox/multichoice groups focus
-// their first option.
+// Scoped to [data-bf-input] so the outside Next/Submit button is never picked. role=button/checkbox/combobox match widget triggers; native inputs cover the rest.
 const FOCUSABLE_FIELD_SELECTOR =
   '[data-bf-input] :is(input:not([type="hidden"]), textarea, select, button, [role="checkbox"], [role="button"], [role="combobox"])';
 
-// Two rAFs: mount commits, then paint, then we focus. Beats a hardcoded
-// timeout that races transitions of unknown duration.
+// Two rAFs: commit, paint, then focus. Beats a timeout racing transitions of unknown duration.
 export const useFocusFirstField = (formRef: RefObject<HTMLFormElement | null>) => {
   useMountEffect(() => {
     let cancelled = false;

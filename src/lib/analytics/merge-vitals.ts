@@ -8,7 +8,7 @@ import {
 } from "./vitals";
 import type { VitalHistogram, WebVitalName } from "./vitals";
 
-/** The three histogram columns this read-model needs off a daily row. */
+/** Histogram columns this read-model needs off a daily row. */
 export interface VitalsDailyRow {
   date: string;
   lcpHistogram: VitalHistogram;
@@ -16,7 +16,7 @@ export interface VitalsDailyRow {
   clsHistogram: VitalHistogram;
 }
 
-/** The three per-session vitals samples this read-model needs off a raw visit. */
+/** Per-session vitals samples this read-model needs off a raw visit. */
 export interface VitalsRawRow {
   lcpMs: number | null;
   inpMs: number | null;

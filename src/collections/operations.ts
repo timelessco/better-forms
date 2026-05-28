@@ -130,9 +130,7 @@ export const duplicateFormById = (formId: string): { form: Form; persisted: Prom
 export const updateFormStatus = async (id: string, status: "draft" | "published" | "archived") => {
   const { formListings, queryClient, serverFns } = getInit();
 
-  // Archived rows live outside the main `formListings` collection (server fn
-  // filters them out). Optimistically remove from the live collection, persist
-  // the status change, then prime the trash query so the dialog reflects it.
+  // Archived rows live outside `formListings` (server filters them). Optimistically remove, persist, then prime the trash query.
   if (status === "archived") {
     const existing = formListings.get(id);
     if (!existing) return;
@@ -142,10 +140,7 @@ export const updateFormStatus = async (id: string, status: "draft" | "published"
         await serverFns.updateForm(
           stripNulls({ ...existing, status: "archived" } as Record<string, unknown>) as never,
         );
-        // Refetch the active listings so the now-archived row is gone from
-        // the server snapshot before TanStack DB drops our optimistic delete —
-        // otherwise the collection falls back to the cached pre-archive
-        // snapshot and the form reappears in the UI.
+        // Refetch so the archived row is gone from the server snapshot before TanStack DB drops the optimistic delete — else it falls back to the pre-archive snapshot and the form reappears.
         await Promise.all([
           formListings.utils.refetch(),
           queryClient.invalidateQueries({ queryKey: ["form-listings-archived"] }),
@@ -164,10 +159,7 @@ export const updateFormStatus = async (id: string, status: "draft" | "published"
   });
 };
 
-// Restore: form is currently in the archived listings (Query cache), not in
-// `formListings`. Persist the status flip server-side, then refetch the live
-// collection so the restored form shows up in the sidebar, and invalidate the
-// trash listing.
+// Restore: form is in the archived Query cache, not `formListings`. Persist flip, refetch live collection (shows in sidebar), invalidate trash.
 export const restoreFormLocal = async (id: string) => {
   const { formListings, queryClient, serverFns } = getInit();
   const archived = queryClient.getQueryData<FormListing[]>(["form-listings-archived"]);
@@ -181,18 +173,14 @@ export const restoreFormLocal = async (id: string) => {
   ]);
 };
 
-// Hard-delete from trash: form lives in the archived query cache, never
-// touched the `formListings` collection in this session. Call the server
-// directly and refresh the trash list.
+// Hard-delete from trash: form lives in the archived cache, never in `formListings` this session. Hit server directly, refresh trash.
 export const permanentDeleteFormLocal = async (id: string) => {
   const { queryClient, serverFns } = getInit();
   await serverFns.deleteForm({ id });
   await queryClient.invalidateQueries({ queryKey: ["form-listings-archived"] });
 };
 
-// Optimistically removes the rows from `formListings` so the sidebar
-// updates immediately, then persists the status flip and invalidates the
-// trash query so the next dialog open is fresh.
+// Optimistically remove rows from `formListings` (instant sidebar update), persist flip, invalidate trash query.
 export const bulkArchiveFormsLocal = async (ids: string[]) => {
   if (ids.length === 0) return { archived: 0 };
   const { formListings, queryClient, serverFns } = getInit();
@@ -202,9 +190,7 @@ export const bulkArchiveFormsLocal = async (ids: string[]) => {
     mutationFn: async () => {
       const result = await serverFns.bulkArchiveForms({ ids });
       archived = result.archived;
-      // Refetch listings so the archived rows are gone from the server
-      // snapshot before TanStack DB drops the optimistic deletes (see same
-      // pattern in updateFormStatus).
+      // Refetch so archived rows are gone from the server snapshot before TanStack DB drops the optimistic deletes (same pattern as updateFormStatus).
       await Promise.all([
         formListings.utils.refetch(),
         queryClient.invalidateQueries({ queryKey: ["form-listings-archived"] }),
@@ -221,8 +207,7 @@ export const bulkArchiveFormsLocal = async (ids: string[]) => {
   return { archived };
 };
 
-// The rows aren't in `formListings` (server filters archived), so we just hit
-// the server and invalidate the trash listing.
+// Rows aren't in `formListings` (server filters archived) — hit server, invalidate trash.
 export const bulkPermanentDeleteFormsLocal = async (ids: string[]) => {
   if (ids.length === 0) return { deleted: 0 };
   const { queryClient, serverFns } = getInit();

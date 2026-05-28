@@ -60,8 +60,7 @@ describe("rollupToSteps", () => {
     expect(step.startCount).toBe(80);
     expect(step.completeCount).toBe(50);
     expect(step.dropoffCount).toBe(50);
-    // terminalDropoff is the one count that still sums across Questions in
-    // a Step — each visit terminates at exactly one Question.
+    // terminalDropoff is the only count that sums across Questions in a Step — each visit terminates at exactly one.
     expect(step.terminalDropoffCount).toBe(8);
     expect(step.dropoffRate).toBe(50);
     expect(step.completionRate).toBe(50);

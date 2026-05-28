@@ -1,7 +1,4 @@
-/**
- * Unified font registry for self-hosted and Google Fonts.
- * Google Fonts are loaded dynamically at runtime — zero bundle cost.
- */
+/** Unified registry for self-hosted + Google Fonts (loaded at runtime, zero bundle cost). */
 
 export interface FontEntry {
   cssValue: string;
@@ -152,9 +149,7 @@ export const FONT_MAP: Record<string, string> = Object.fromEntries(
   Object.entries(FONT_REGISTRY).map(([name, entry]) => [name, entry.cssValue]),
 );
 
-/**
- * Returns the Google Fonts CSS API URL for a font name, or null if self-hosted.
- */
+/** Google Fonts CSS API URL for a font name, or null if self-hosted. */
 export const getGoogleFontUrl = (fontName: string): string | null => {
   const entry = FONT_REGISTRY[fontName];
   if (!entry?.googleFamily) return null;

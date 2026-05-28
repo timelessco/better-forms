@@ -1,17 +1,10 @@
 import { setResponseHeader } from "@tanstack/react-start/server";
 import { vercel, vercelProjectId, vercelTeamId } from "@/integrations/vercel";
-// Feature flag for the public-form edge cache. Previously OFF because
-// purges appeared to succeed via the Vercel API but cached responses kept
-// serving stale content. Root cause was emitting `Cache-Tag` (Fastly/
-// Akamai convention) instead of Vercel's `Vercel-Cache-Tag` — the edge
-// stored responses untagged, so `invalidateByTags` matched nothing.
-// Now emits `Vercel-Cache-Tag` (the documented Vercel header) and
-// `Vercel-CDN-Cache-Control` for the Cache-Control header (edge-only,
-// not sent to clients). `addCacheTag()` from `@vercel/functions` would
-// also work in production, but its `cache` subpath has a CJS interop
-// bug with Vite 7's module runner that crashes dev (`Cannot read
-// properties of undefined (reading '__cjs_module_runner_transform')`).
-// Direct header is identical at the edge and dev-safe.
+// Public-form edge-cache flag. Was OFF: purges "succeeded" but stayed stale because we
+// emitted Cache-Tag (Fastly/Akamai) not Vercel-Cache-Tag, so edge stored responses untagged
+// and invalidateByTags matched nothing. Now emit Vercel-Cache-Tag + Vercel-CDN-Cache-Control
+// (edge-only). @vercel/functions addCacheTag() works in prod but its cache subpath has a CJS
+// interop bug that crashes Vite 7 dev; direct header is identical at the edge and dev-safe.
 const isCdnCacheEnabled = (): boolean =>
   process.env.ENABLE_FORM_CDN_CACHE === "1" || process.env.ENABLE_FORM_CDN_CACHE === "true";
 
@@ -23,33 +16,27 @@ const PUBLIC_CACHE_CONTROL_ENABLED = [
   "must-revalidate",
 ].join(", ");
 
-// Used for both gated forms (always) and all forms when the CDN flag is off.
+// For gated forms (always) and all forms when CDN flag off.
 const PRIVATE_CACHE_CONTROL = "private, no-store";
 
 export const formCacheTag = (formId: string) => `form:${formId}`;
 
-// Header object form for routes that build their own `Response`. Mirrors
-// the side-effect form (`applyFormCacheHeaders`) for use in handlers that
-// return a constructed `Response` rather than relying on request-context.
+// Header-object form for routes that build their own Response (mirrors applyFormCacheHeaders).
 export const formCacheHeaders = (
   formId: string,
   { gated }: { gated: boolean },
 ): Record<string, string> => {
   if (gated || !isCdnCacheEnabled()) return { "Cache-Control": PRIVATE_CACHE_CONTROL };
   return {
-    // Vercel-CDN-Cache-Control targets only the edge — `Cache-Control`
-    // would also reach client browsers and downstream proxies, which we
-    // don't want at s-maxage=1y. The edge respects this header in
-    // preference to `Cache-Control` when both are present.
+    // Vercel-CDN-Cache-Control is edge-only; plain Cache-Control would also hit browsers/proxies
+    // (unwanted at s-maxage=1y). Edge prefers this header over Cache-Control when both present.
     "Vercel-CDN-Cache-Control": PUBLIC_CACHE_CONTROL_ENABLED,
     "Vercel-Cache-Tag": formCacheTag(formId),
   };
 };
 
-// Attach cache headers to the current public-form response. `gated` covers
-// password-protected forms, closed forms, over-limit forms, and error
-// responses — all of which must bypass the shared cache to avoid leaking
-// per-viewer state or stale gate decisions.
+// Attach cache headers to current public-form response. gated (password/closed/over-limit/error)
+// must bypass the shared cache to avoid leaking per-viewer state or stale gate decisions.
 export const applyFormCacheHeaders = (formId: string, { gated }: { gated: boolean }) => {
   if (gated || !isCdnCacheEnabled()) {
     setResponseHeader("Cache-Control", PRIVATE_CACHE_CONTROL);
@@ -59,10 +46,9 @@ export const applyFormCacheHeaders = (formId: string, { gated }: { gated: boolea
   setResponseHeader("Vercel-Cache-Tag", formCacheTag(formId));
 };
 
-// DEBUG: awaited (not waitUntil) and verbose-logged so we can read Vercel
-// function logs to confirm the purge fires per publish. Raw `console.*`
-// is intentional — `@/lib/utils:logger` no-ops in production, which would
-// defeat the diagnostic. Revert to waitUntil + logger once verified.
+// DEBUG: awaited (not waitUntil) + verbose-logged to confirm purge fires per publish in Vercel
+// logs. Raw console.* intentional — logger no-ops in prod, defeating the diagnostic. Revert to
+// waitUntil + logger once verified.
 const log = (msg: string, data?: unknown) =>
   data === undefined
     ? console.log(`[cdn-cache:purge] ${msg}`)

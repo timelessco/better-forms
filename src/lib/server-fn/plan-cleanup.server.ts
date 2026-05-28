@@ -1,44 +1,34 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { customDomains, formSettings, forms, organization, workspaces } from "@/db/schema";
-import { mergeFormSettings } from "@/lib/server-fn/forms";
+import { mergeFormSettings } from "@/lib/server-fn/merge-form-settings.server";
 import { vercelDomains } from "@/lib/vercel-domains.server";
 
 type DbExecutor = typeof db;
 
-/**
- * Idempotent: running twice produces the same final state. The
- * `ne(status, 'suspended')` filter is what protects `previousStatus` from
- * being overwritten on a re-run.
- *
- * Detaches each non-suspended domain from the Vercel project (best-effort).
- * Account-level domains are kept so re-upgrade is fast.
- */
+/** Idempotent: ne(status,'suspended') filter protects previousStatus from re-run overwrite.
+ * Detaches each non-suspended domain from Vercel (best-effort); keeps account-level domains
+ * so re-upgrade is fast. */
 export const applyDowngradeCleanup = async (
   orgId: string,
   executor: DbExecutor = db,
 ): Promise<void> => {
-  // Snapshot domains BEFORE the transaction so we know what to detach on
-  // Vercel even though their DB state will change.
+  // Snapshot domains before the transaction (DB state changes) to know what to detach on Vercel.
   const toDetach = await executor
     .select({ domain: customDomains.domain })
     .from(customDomains)
     .where(and(eq(customDomains.organizationId, orgId), ne(customDomains.status, "suspended")));
 
-  // Best-effort: a Vercel outage shouldn't block the local downgrade. The
-  // record is still marked suspended below, so it won't serve traffic.
+  // Best-effort: Vercel outage mustn't block downgrade; record marked suspended below won't serve.
   await Promise.allSettled(toDetach.map((d) => vercelDomains.detach(d.domain)));
 
   await executor.transaction(async (tx) => {
     await tx.update(organization).set({ plan: "free" }).where(eq(organization.id, orgId));
 
-    // `customization` is intentionally preserved — UI re-gates editing on free,
-    // and clearing stored values would surprise a user who later re-upgrades.
-    // Pro-gated keys are reset via a jsonb merge so the rest of `settings`
-    // (language, redirect, password, etc.) stays untouched. Reset BOTH the
-    // working draft (so the editor reflects the downgrade) AND the live
-    // formSettings rows (so the public renderer immediately stops serving
-    // pro-only features).
+    // customization preserved (UI re-gates on free; clearing would surprise a re-upgrader).
+    // Pro-gated keys reset via jsonb merge so rest of settings (language/redirect/password)
+    // stays. Reset both draft (editor reflects downgrade) and live formSettings (public renderer
+    // stops serving pro features immediately).
     const proResetPatch = {
       analytics: false,
       dataRetention: false,
@@ -83,18 +73,10 @@ export const applyDowngradeCleanup = async (
   });
 };
 
-/**
- * Form columns are NOT auto-restored — re-flipping Pro features the user
- * implicitly opted out of during downgrade would be surprising.
- *
- * Re-attaches each suspended domain to the Vercel project (best-effort) so
- * SSL/routing is back in place. The account-level domain was preserved on
- * downgrade, so this typically returns verified=true without a fresh TXT.
- *
- * `targetPlan` defaults to "pro" for backwards compatibility with existing tests
- * and the most common upgrade path; pass "business" when handling a Business
- * subscription event.
- */
+/** Form columns NOT auto-restored — re-flipping Pro features the user implicitly dropped would
+ * surprise. Re-attaches each suspended domain to Vercel (best-effort) for SSL/routing; account
+ * domain preserved on downgrade so usually verified=true without fresh TXT.
+ * targetPlan defaults to "pro" (back-compat + common path); pass "business" for Business events. */
 export const applyUpgradeRestore = async (
   orgId: string,
   executor: DbExecutor = db,
@@ -110,8 +92,7 @@ export const applyUpgradeRestore = async (
   await executor.transaction(async (tx) => {
     await tx.update(organization).set({ plan: targetPlan }).where(eq(organization.id, orgId));
 
-    // Suspended rows without a recorded previousStatus (manual DB edit)
-    // fall back to 'pending' so they re-verify before serving.
+    // Suspended rows lacking previousStatus (manual DB edit) → 'pending' so they re-verify first.
     await tx
       .update(customDomains)
       .set({

@@ -1,5 +1,5 @@
-import { useRef } from "react";
-
+import { useResolvedTheme } from "@/components/theme-provider";
+import { useEditorTheme } from "@/contexts/editor-theme-context";
 import { cn } from "@/lib/utils";
 
 // prettier-ignore
@@ -18,12 +18,14 @@ type ColorPickerProps = {
 };
 
 export const ColorPicker = ({ onChange, selectedColor, colors }: ColorPickerProps) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const isDark = ref.current?.closest(".dark") != null;
+  // Dark/light from the FORM's resolved mode, not the app theme (see icon-picker-preview).
+  const appTheme = useResolvedTheme();
+  const formMode = useEditorTheme().customization?.mode;
+  const isDark = (formMode ?? appTheme) === "dark";
 
   const COLORS = colors || DEFAULT_COLORS;
 
-  // Swap first two colors (white/black) in dark mode for better visibility (only for default palette)
+  // Swap white/black in dark mode for visibility (default palette only).
   const displayColors =
     !colors && isDark && COLORS.length >= 2 ? [COLORS[1], COLORS[0], ...COLORS.slice(2)] : COLORS;
 
@@ -47,7 +49,7 @@ export const ColorPicker = ({ onChange, selectedColor, colors }: ColorPickerProp
   const baseLightColor = !colors ? COLORS[0] : null;
 
   return (
-    <div ref={ref} className={cn("flex", "cursor-pointer", "items-center", "space-x-1")}>
+    <div className={cn("flex", "cursor-pointer", "items-center", "space-x-1")}>
       {displayColors.map((colorItem) => (
         <div
           className={cn("rounded-md", "p-1", "hover:bg-muted", {

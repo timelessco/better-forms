@@ -13,13 +13,15 @@ import {
 import { BlockSelection } from "@/components/ui/block-selection";
 import { TagIcon, XIcon } from "@/components/ui/icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useFormIsDark } from "@/hooks/use-form-theme";
 import { cn } from "@/lib/utils";
 
-import { MULTI_SELECT_COLORS } from "./form-option-item-constants";
+import { getMultiSelectColor } from "./form-option-item-constants";
 
 export const FormMultiSelectInputElement = ({ children, ...props }: PlateElementProps) => {
   const { attributes, element, ...rest } = props;
   const editor = useEditorRef();
+  const isDark = useFormIsDark();
   const options = (element.options as string[]) ?? [];
   const elementId = (element as { id?: string }).id;
   const inputRef = useRef<HTMLInputElement>(null);
@@ -155,8 +157,7 @@ export const FormMultiSelectInputElement = ({ children, ...props }: PlateElement
         }
       }
     } else if (e.key === "Tab" || e.key === "ArrowDown" || e.key === "ArrowUp") {
-      // ArrowLeft/Right should navigate within the input natively; Up/Down and Tab
-      // bridge to block-level navigation.
+      // Left/Right navigate the input natively; Up/Down and Tab bridge to block navigation.
       const goPrev = e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey);
       e.preventDefault();
       e.stopPropagation();
@@ -217,7 +218,7 @@ export const FormMultiSelectInputElement = ({ children, ...props }: PlateElement
         onMouseDown={(e) => e.stopPropagation()}
       >
         {options.map((opt, optIndex) => {
-          const color = MULTI_SELECT_COLORS[optIndex % MULTI_SELECT_COLORS.length];
+          const color = getMultiSelectColor(optIndex, isDark);
           const isChipFocused = focusedChipIndex === optIndex;
           return (
             <span
