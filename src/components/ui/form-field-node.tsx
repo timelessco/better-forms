@@ -56,33 +56,45 @@ export const FormFieldElement = (allProps: PlateElementProps) => {
 
   const placeholder = (element.placeholder as string | undefined) ?? variant.defaultPlaceholder;
   const Icon = variant.icon;
+  const isFieldArray = (element as { isFieldArray?: boolean }).isFieldArray === true;
 
   return (
-    <PlateElement
-      attributes={{ ...attributes, placeholder, "data-bf-input": "true" }}
-      className={cn(
-        "relative flex h-7 w-full max-w-[464px] cursor-text items-center gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-[8px] pl-[10px] text-sm caret-current elevation-sm",
-        isSelected && focused && "ring-[3px] ring-ring/50",
-      )}
-      element={element}
-      {...rest}
-    >
-      <span className="line-clamp-1 min-w-0 flex-1 break-all text-muted-foreground/50 outline-none">
-        {children}
-      </span>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <span
-              className="ml-1 flex shrink-0 items-center justify-center text-muted-foreground select-none"
-              contentEditable={false}
-            />
-          }
+    <div className="w-full max-w-[464px]">
+      <PlateElement
+        attributes={{ ...attributes, placeholder, "data-bf-input": "true" }}
+        className={cn(
+          "relative flex h-7 w-full cursor-text items-center gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-[8px] pl-[10px] text-sm caret-current elevation-sm",
+          isSelected && focused && "ring-[3px] ring-ring/50",
+        )}
+        element={element}
+        {...rest}
+      >
+        <span className="line-clamp-1 min-w-0 flex-1 break-all text-muted-foreground/50 outline-none">
+          {children}
+        </span>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <span
+                className="ml-1 flex shrink-0 items-center justify-center text-muted-foreground select-none"
+                contentEditable={false}
+              />
+            }
+          >
+            <Icon className="size-3.5" />
+          </TooltipTrigger>
+          <TooltipContent side="left">{variant.label}</TooltipContent>
+        </Tooltip>
+      </PlateElement>
+      {isFieldArray && (
+        <span
+          contentEditable={false}
+          className="mt-1 flex w-fit cursor-default items-center gap-1 text-[13px] text-muted-foreground/60 select-none"
+          aria-hidden="true"
         >
-          <Icon className="size-3.5" />
-        </TooltipTrigger>
-        <TooltipContent side="left">{variant.label}</TooltipContent>
-      </Tooltip>
-    </PlateElement>
+          <span>+</span> Add item
+        </span>
+      )}
+    </div>
   );
 };

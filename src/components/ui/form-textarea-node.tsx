@@ -11,33 +11,45 @@ export const FormTextareaElement = ({ children, ...props }: PlateElementProps) =
   const { attributes, element, ...rest } = props;
   const placeholder = element.placeholder as string | undefined;
   const { focused, isSelected } = useFormInputNode(element);
+  const isFieldArray = (element as { isFieldArray?: boolean }).isFieldArray === true;
 
   return (
-    <PlateElement
-      attributes={{ ...attributes, placeholder, "data-bf-input": "true" }}
-      className={cn(
-        "relative flex min-h-24 w-full max-w-[464px] cursor-text items-start gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-[8px] pl-[10px] text-sm caret-current elevation-sm before:top-2.5",
-        isSelected && focused && "ring-[3px] ring-ring/50",
-      )}
-      element={element}
-      {...rest}
-    >
-      <span className="block min-w-px flex-1 pt-2.5 pb-2 text-muted-foreground/50 outline-none">
-        {children}
-      </span>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <span
-              contentEditable={false}
-              className="mt-3 ml-1 flex shrink-0 items-center justify-center self-start text-muted-foreground select-none"
-            />
-          }
+    <div className="w-full max-w-[464px]">
+      <PlateElement
+        attributes={{ ...attributes, placeholder, "data-bf-input": "true" }}
+        className={cn(
+          "relative flex min-h-24 w-full cursor-text items-start gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-[8px] pl-[10px] text-sm caret-current elevation-sm before:top-2.5",
+          isSelected && focused && "ring-[3px] ring-ring/50",
+        )}
+        element={element}
+        {...rest}
+      >
+        <span className="block min-w-px flex-1 pt-2.5 pb-2 text-muted-foreground/50 outline-none">
+          {children}
+        </span>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <span
+                contentEditable={false}
+                className="mt-3 ml-1 flex shrink-0 items-center justify-center self-start text-muted-foreground select-none"
+              />
+            }
+          >
+            <AlignLeftIcon className="size-3.5" />
+          </TooltipTrigger>
+          <TooltipContent side="left">Long answer</TooltipContent>
+        </Tooltip>
+      </PlateElement>
+      {isFieldArray && (
+        <span
+          contentEditable={false}
+          className="mt-1 flex w-fit cursor-default items-center gap-1 text-[13px] text-muted-foreground/60 select-none"
+          aria-hidden="true"
         >
-          <AlignLeftIcon className="size-3.5" />
-        </TooltipTrigger>
-        <TooltipContent side="left">Long answer</TooltipContent>
-      </Tooltip>
-    </PlateElement>
+          <span>+</span> Add item
+        </span>
+      )}
+    </div>
   );
 };
