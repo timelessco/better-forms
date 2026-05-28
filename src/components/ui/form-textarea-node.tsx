@@ -12,6 +12,10 @@ export const FormTextareaElement = ({ children, ...props }: PlateElementProps) =
   const placeholder = element.placeholder as string | undefined;
   const { focused, isSelected } = useFormInputNode(element);
   const isFieldArray = (element as { isFieldArray?: boolean }).isFieldArray === true;
+  const addLabelText = (() => {
+    const label = (element as { label?: string }).label;
+    return `Add${label ? ` ${label.toLowerCase()}` : " item"}`;
+  })();
 
   return (
     <div className="w-full max-w-[464px]">
@@ -44,10 +48,11 @@ export const FormTextareaElement = ({ children, ...props }: PlateElementProps) =
       {isFieldArray && (
         <span
           contentEditable={false}
-          className="mt-1 flex w-fit cursor-default items-center gap-1 text-[13px] text-muted-foreground/60 select-none"
           aria-hidden="true"
+          className="mt-2 inline-flex h-7 w-fit cursor-default items-center gap-1.5 rounded-lg border-none bg-secondary px-2.5 text-[0.8rem] font-normal text-secondary-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] select-none"
         >
-          <span>+</span> Add item
+          <span aria-hidden="true">+</span>
+          {addLabelText}
         </span>
       )}
     </div>
