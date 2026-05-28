@@ -97,7 +97,7 @@ const RepeatableFieldBody = ({
         // Array index is the stable identity here — items are primitive
         // strings with no id, and TanStack's array docs key by index.
         // eslint-disable-next-line @eslint-react/no-array-index-key
-        <div key={i} className="flex items-start gap-2">
+        <div key={i} className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
             <Suspense fallback={<FieldSkeleton fieldType={element.fieldType as FieldType} />}>
               <ItemComponent
@@ -113,7 +113,7 @@ const RepeatableFieldBody = ({
               aria-label="Remove item"
               onClick={() => arrayField.removeValue(i)}
               className={cn(
-                "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-[8px]",
+                "flex size-7 shrink-0 items-center justify-center rounded-[8px]",
                 "text-muted-foreground hover:bg-secondary hover:text-foreground",
               )}
             >
