@@ -49,6 +49,7 @@ export type PlateFormField =
       minLength?: number;
       maxLength?: number;
       defaultValue?: string;
+      isFieldArray?: boolean;
     }
   | {
       id: string;
@@ -61,6 +62,7 @@ export type PlateFormField =
       minLength?: number;
       maxLength?: number;
       defaultValue?: string;
+      isFieldArray?: boolean;
     }
   | {
       id: string;
@@ -70,6 +72,7 @@ export type PlateFormField =
       labelType?: string;
       placeholder?: string;
       required?: boolean;
+      isFieldArray?: boolean;
     }
   | {
       id: string;
@@ -79,6 +82,7 @@ export type PlateFormField =
       labelType?: string;
       placeholder?: string;
       required?: boolean;
+      isFieldArray?: boolean;
     }
   | {
       id: string;
@@ -92,6 +96,7 @@ export type PlateFormField =
       max?: number;
       allowDecimals?: boolean;
       defaultValue?: string;
+      isFieldArray?: boolean;
     }
   | {
       id: string;
@@ -101,6 +106,7 @@ export type PlateFormField =
       labelType?: string;
       placeholder?: string;
       required?: boolean;
+      isFieldArray?: boolean;
     }
   | {
       id: string;
@@ -110,6 +116,7 @@ export type PlateFormField =
       labelType?: string;
       placeholder?: string;
       required?: boolean;
+      isFieldArray?: boolean;
     }
   | {
       id: string;
@@ -119,6 +126,7 @@ export type PlateFormField =
       labelType?: string;
       placeholder?: string;
       required?: boolean;
+      isFieldArray?: boolean;
     }
   | {
       id: string;
@@ -411,6 +419,7 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
       const minLength = node.minLength as number | undefined;
       const maxLength = node.maxLength as number | undefined;
       const defaultValue = node.defaultValue as string | undefined;
+      const isFieldArray = node.isFieldArray === true ? true : undefined;
 
       const stableId =
         (label?.labelNode as { id?: string } | undefined)?.id ?? (node as { id?: string }).id;
@@ -430,6 +439,7 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
         minLength,
         maxLength,
         defaultValue,
+        isFieldArray,
         ...fileUploadFields,
         ...numberFields,
       } as PlateFormField);

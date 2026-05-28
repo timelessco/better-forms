@@ -141,6 +141,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
       const minLength = node.minLength as number | undefined;
       const maxLength = node.maxLength as number | undefined;
       const defaultValue = node.defaultValue as string | undefined;
+      const isFieldArray = node.isFieldArray === true ? true : undefined;
 
       const stableId =
         (label?.labelNode as { id?: string } | undefined)?.id ?? (node as { id?: string }).id;
@@ -163,6 +164,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
           minLength,
           maxLength,
           defaultValue,
+          isFieldArray,
           ...fileUploadFields,
           ...numberFields,
         } as PlateFormField,
