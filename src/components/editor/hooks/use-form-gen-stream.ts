@@ -1,6 +1,7 @@
 "use client";
 
 import { experimental_useObject as useObject } from "@ai-sdk/react";
+import { valibotSchema } from "@ai-sdk/valibot";
 import { useMutation } from "@tanstack/react-query";
 import { PathApi } from "platejs";
 import type { TElement } from "platejs";
@@ -383,8 +384,7 @@ export const useFormGenStream = ({
 
   const hook = useObject({
     api: "/api/ai/form-generate",
-    // eslint-disable-next-line typescript-eslint/no-explicit-any -- AI SDK schema generic mismatches with Zod v4
-    schema: formGenSchema as any,
+    schema: valibotSchema(formGenSchema),
     onFinish: ({ object: finalObject }: { object: FormGenResult | undefined }) => {
       // Apply set-theme atomically once full theme arrived (skip partial-state churn while streaming).
       applyFinalThemeOps(finalObject);

@@ -1,3 +1,4 @@
+import "@tanstack/react-start/server-only";
 import { Resend } from "resend";
 import { APP_NAME } from "@/lib/config/app-config";
 import { logger } from "@/lib/utils";

@@ -9,7 +9,7 @@ import {
   enrichFormDetail,
 } from "@/collections";
 import { localFormCollection } from "@/collections/local/form";
-import { archivedFormListingsQueryOptions } from "@/lib/server-fn/forms";
+import { archivedFormListingsQueryOptions } from "@/lib/server-fn/forms-queries";
 
 export const useOrgWorkspaces = (organizationId?: string) =>
   useLiveQuery(

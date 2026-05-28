@@ -3,10 +3,10 @@
    producing invalid HTML and React hydration errors. */
 import { useState } from "react";
 
-import { MULTI_SELECT_COLORS } from "@/components/ui/form-option-item-constants";
+import { getMultiSelectColor } from "@/components/ui/form-option-item-constants";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useReanchorThemeProps } from "@/hooks/use-form-theme";
+import { useFormIsDark, useReanchorThemeProps } from "@/hooks/use-form-theme";
 import { cn } from "@/lib/utils";
 
 interface MultiSelectOption {
@@ -50,6 +50,9 @@ export const MultiSelect = ({
 
   // PopoverContent portals to body, losing .bf-themed CSS vars — re-anchor theme on the popup.
   const themeReanchor = useReanchorThemeProps();
+  // Chip colors follow the form's mode, not the app's global `.dark` (the trigger lives in the
+  // editor canvas; the dropdown re-anchors via themeReanchor but neither strips the app `.dark`).
+  const isDark = useFormIsDark();
 
   // Roving focus across options: adds listbox-style ArrowUp/Down + Home/End; Tab still works natively.
   const handleOptionsKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -100,7 +103,7 @@ export const MultiSelect = ({
               {selectedOptions.length > 0 ? (
                 selectedOptions.map((opt) => {
                   const colorIndex = options.findIndex((o) => o.value === opt.value);
-                  const color = MULTI_SELECT_COLORS[colorIndex % MULTI_SELECT_COLORS.length];
+                  const color = getMultiSelectColor(colorIndex, isDark);
                   return (
                     <span
                       key={opt.value}
@@ -147,7 +150,7 @@ export const MultiSelect = ({
       >
         {options.map((opt, idx) => {
           const isSelected = value.includes(opt.value);
-          const color = MULTI_SELECT_COLORS[idx % MULTI_SELECT_COLORS.length];
+          const color = getMultiSelectColor(idx, isDark);
           return (
             <button
               key={opt.value}

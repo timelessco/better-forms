@@ -58,7 +58,10 @@ export const IconPickerContent = ({
       <div className="icon-color-container overflow-x-auto pt-2" style={{ scrollbarWidth: "none" }}>
         <ColorPicker onChange={handleColorChange} selectedColor={iconColor} colors={colors} />
       </div>
-      <div className="flex h-[253px] flex-col pt-2 pb-3">
+      <div
+        className="flex h-[253px] flex-col overflow-y-auto pt-2 pb-3"
+        style={{ scrollbarWidth: "none" }}
+      >
         <IconGrid labels={filteredLabels} onSelect={onIconChange} />
         {!isSearching && (
           <IconPagination

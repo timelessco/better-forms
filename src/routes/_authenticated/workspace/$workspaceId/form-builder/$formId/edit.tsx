@@ -5,16 +5,16 @@ import { useFormVersionContent } from "@/hooks/use-form-versions";
 import { getFormListings } from "@/collections";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import { useVersionHistorySidebar } from "@/hooks/use-version-history-sidebar";
-import { getFormStatus } from "@/lib/server-fn/forms";
-import type { FormStatus } from "@/lib/server-fn/forms";
+import { getFormStatus } from "@/lib/server-fn/forms-queries";
+import type { FormStatus } from "@/lib/server-fn/forms-queries";
 import { cn } from "@/lib/utils";
 import { createFileRoute, isRedirect, redirect, useLocation } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { Loader2Icon } from "@/components/ui/icons";
 import type { Value } from "platejs";
 import { Activity, Suspense, lazy } from "react";
-import { z } from "zod";
-import { zodValidator } from "@tanstack/zod-adapter";
+import * as v from "valibot";
+import { coercedBooleanWithCatch, coercedNumberWithCatch } from "@/lib/valibot-search";
 
 const EditorApp = lazy(() => import("../-components/editor-app"));
 const PreviewMode = lazy(() =>
@@ -110,31 +110,28 @@ const DesignPage = () => {
 export const Route = createFileRoute(
   "/_authenticated/workspace/$workspaceId/form-builder/$formId/edit",
 )({
-  validateSearch: zodValidator(
-    z.object({
-      force: z.boolean().optional(),
-      embedType: z.enum(["standard", "popup", "fullpage"]).catch("standard").optional(),
-      embedHeight: z.coerce.number().catch(558).optional(),
-      embedDynamicHeight: z.coerce.boolean().catch(true).optional(),
-      embedDynamicWidth: z.coerce.boolean().catch(false).optional(),
-      embedHideTitle: z.coerce.boolean().catch(false).optional(),
-      embedAlignLeft: z.coerce.boolean().catch(false).optional(),
-      embedTransparent: z.coerce.boolean().catch(false).optional(),
-      embedBranding: z.coerce.boolean().catch(true).optional(),
-      embedPopupPosition: z
-        .enum(["bottom-right", "bottom-left", "center"])
-        .catch("bottom-right")
-        .optional(),
-      embedPopupWidth: z.coerce.number().catch(376).optional(),
-      embedDarkOverlay: z.coerce.boolean().catch(false).optional(),
-      embedEmoji: z.coerce.boolean().catch(true).optional(),
-      embedEmojiIcon: z.string().catch("\uD83D\uDC4B").optional(),
-      embedEmojiAnimation: z.enum(["wave", "bounce", "pulse"]).catch("wave").optional(),
-      embedPopupTrigger: z.enum(["button", "auto", "scroll"]).catch("button").optional(),
-      embedHideOnSubmit: z.coerce.boolean().catch(false).optional(),
-      embedHideOnSubmitDelay: z.coerce.number().catch(0).optional(),
-    }),
-  ),
+  validateSearch: v.object({
+    force: v.optional(v.boolean()),
+    embedType: v.optional(v.fallback(v.picklist(["standard", "popup", "fullpage"]), "standard")),
+    embedHeight: coercedNumberWithCatch(558),
+    embedDynamicHeight: coercedBooleanWithCatch(true),
+    embedDynamicWidth: coercedBooleanWithCatch(false),
+    embedHideTitle: coercedBooleanWithCatch(false),
+    embedAlignLeft: coercedBooleanWithCatch(false),
+    embedTransparent: coercedBooleanWithCatch(false),
+    embedBranding: coercedBooleanWithCatch(true),
+    embedPopupPosition: v.optional(
+      v.fallback(v.picklist(["bottom-right", "bottom-left", "center"]), "bottom-right"),
+    ),
+    embedPopupWidth: coercedNumberWithCatch(376),
+    embedDarkOverlay: coercedBooleanWithCatch(false),
+    embedEmoji: coercedBooleanWithCatch(true),
+    embedEmojiIcon: v.optional(v.fallback(v.string(), "\uD83D\uDC4B")),
+    embedEmojiAnimation: v.optional(v.fallback(v.picklist(["wave", "bounce", "pulse"]), "wave")),
+    embedPopupTrigger: v.optional(v.fallback(v.picklist(["button", "auto", "scroll"]), "button")),
+    embedHideOnSubmit: coercedBooleanWithCatch(false),
+    embedHideOnSubmitDelay: coercedNumberWithCatch(0),
+  }),
   ssr: "data-only",
   // Redirect published forms to submissions (prevents flash of editor)
   beforeLoad: async ({ context, params, search }) => {

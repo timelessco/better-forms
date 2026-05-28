@@ -12,9 +12,11 @@ import { cn } from "@/lib/utils";
 
 type OptionVariant = "checkbox" | "multiChoice" | "multiSelect";
 
-import { LETTER_LABELS, MULTI_SELECT_COLORS } from "@/components/ui/form-option-item-constants";
+import { getMultiSelectColor, LETTER_LABELS } from "@/components/ui/form-option-item-constants";
+import { useFormIsDark } from "@/hooks/use-form-theme";
 
 const OptionIcon = ({ variant, index }: { variant: OptionVariant; index: number }) => {
+  const isDark = useFormIsDark();
   switch (variant) {
     case "checkbox":
       return (
@@ -31,7 +33,7 @@ const OptionIcon = ({ variant, index }: { variant: OptionVariant; index: number 
       );
     }
     case "multiSelect": {
-      const color = MULTI_SELECT_COLORS[index % MULTI_SELECT_COLORS.length];
+      const color = getMultiSelectColor(index, isDark);
       return (
         <span
           className={cn(
@@ -53,6 +55,7 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
   const { attributes, element, ...rest } = props;
   const variant = (element.variant as OptionVariant) || "checkbox";
   const editor = useEditorRef();
+  const isDark = useFormIsDark();
 
   // Subscribe to every editor change so optionIndex tracks reorders. props.path (useNodePath)
   // doesn't update on reorder (slate-react memoizes by identity); look up index by node identity.
@@ -139,10 +142,7 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
     };
   }, [editor, element, showGhost]);
 
-  const colorStyle =
-    variant === "multiSelect"
-      ? MULTI_SELECT_COLORS[optionIndex % MULTI_SELECT_COLORS.length]
-      : null;
+  const colorStyle = variant === "multiSelect" ? getMultiSelectColor(optionIndex, isDark) : null;
 
   return (
     <PlateElement

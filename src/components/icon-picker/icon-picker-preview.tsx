@@ -1,6 +1,5 @@
-import { useRef } from "react";
-
 import { useResolvedTheme } from "@/components/theme-provider";
+import { useEditorTheme } from "@/contexts/editor-theme-context";
 import { getThemeStyleVars } from "@/lib/theme/generate-theme-css";
 import { DEFAULT_ICON, SPRITE_PATH } from "@/lib/config/app-config";
 import { cn, DEFAULT_ICON_NAME, isValidUrl } from "@/lib/utils";
@@ -63,15 +62,19 @@ export const IconPickerPreview = ({
   useThemeColor = false,
   standaloneIcon = false,
 }: IconPickerPreviewProps) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const isDarkMode = ref.current?.closest(".dark") != null;
+  // Dark/light comes from the FORM's resolved mode (customization.mode), not the
+  // app theme — a light form must render light icons even inside a dark editor.
+  // Falls back to app theme only when the form has no customization (matches the
+  // canvas's effectiveTheme). No ref/closest: that finds the app's <html.dark>.
+  const appTheme = useResolvedTheme();
+  const formMode = useEditorTheme().customization?.mode;
+  const isDarkMode = (formMode ?? appTheme) === "dark";
 
   const matchedIcon = icon ? iconMap.get(icon) : undefined;
 
   if (useThemeColor) {
     return (
       <div
-        ref={ref}
         className="flex items-center justify-center rounded-full bg-primary text-primary-foreground"
         style={{
           width: `${size}px`,
@@ -94,7 +97,6 @@ export const IconPickerPreview = ({
 
   return (
     <div
-      ref={ref}
       className="flex items-center justify-center rounded-full"
       style={{
         backgroundColor: adjustedBgColor,

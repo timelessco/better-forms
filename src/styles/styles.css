@@ -8,7 +8,10 @@
    keeps the utility classes it applies to rendered Markdown elements. */
 @source "../../node_modules/streamdown/dist/*.js";
 
-@custom-variant dark (&:is(.dark *));
+/* `dark:` applies under a `.dark` ancestor, EXCEPT inside a `.bf-light` subtree. The form
+   preview adds `.bf-light` to a light form so the app's global `<html.dark>` can't leak its
+   `dark:` styles (checkbox borders, button hovers, chips, etc.) into a light-themed form. */
+@custom-variant dark (&:is(.dark *):not(.bf-light *));
 
 @layer base {
   ::-webkit-scrollbar {
@@ -158,7 +161,10 @@
     U+1EA0-1EF9, U+20AB;
 }
 
-@custom-variant dark (&:is(.dark *));
+/* `dark:` applies under a `.dark` ancestor, EXCEPT inside a `.bf-light` subtree. The form
+   preview adds `.bf-light` to a light form so the app's global `<html.dark>` can't leak its
+   `dark:` styles (checkbox borders, button hovers, chips, etc.) into a light-themed form. */
+@custom-variant dark (&:is(.dark *):not(.bf-light *));
 
 :root {
 
@@ -887,6 +893,11 @@
   font-size: var(--bf-title-font-size);
   letter-spacing: var(--bf-title-letter-spacing);
   font-style: var(--bf-title-font-style, normal);
+}
+
+/* hideTitle embed option: hide only the title text; cover + icon (avatar) stay visible. */
+[data-bf-hide-title] [data-bf-title] {
+  display: none !important;
 }
 
 /* Font-size: editor blocks (inputs, labels, buttons, textareas, paragraphs — NOT headings/header) */

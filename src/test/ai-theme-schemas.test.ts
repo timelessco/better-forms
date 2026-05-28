@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as v from "valibot";
 import { freeThemeSchema, themeTokensSchema, AI_THEME_TOKEN_KEYS } from "@/lib/ai/ops-schema";
 
 describe("freeThemeSchema", () => {
@@ -11,26 +12,26 @@ describe("freeThemeSchema", () => {
   };
 
   it("accepts a fully valid payload", () => {
-    expect(freeThemeSchema.safeParse(valid).success).toBeTruthy();
+    expect(v.safeParse(freeThemeSchema, valid).success).toBeTruthy();
   });
 
   it("rejects an out-of-enum themeColor", () => {
-    const result = freeThemeSchema.safeParse({ ...valid, themeColor: "magenta" });
+    const result = v.safeParse(freeThemeSchema, { ...valid, themeColor: "magenta" });
     expect(result.success).toBeFalsy();
   });
 
   it("rejects an out-of-enum baseColor (e.g. a theme color slipping in)", () => {
-    const result = freeThemeSchema.safeParse({ ...valid, baseColor: "blue" });
+    const result = v.safeParse(freeThemeSchema, { ...valid, baseColor: "blue" });
     expect(result.success).toBeFalsy();
   });
 
   it("rejects an out-of-enum radius", () => {
-    const result = freeThemeSchema.safeParse({ ...valid, radius: "round" });
+    const result = v.safeParse(freeThemeSchema, { ...valid, radius: "round" });
     expect(result.success).toBeFalsy();
   });
 
   it("rejects an out-of-enum defaultMode", () => {
-    const result = freeThemeSchema.safeParse({ ...valid, defaultMode: "auto" });
+    const result = v.safeParse(freeThemeSchema, { ...valid, defaultMode: "auto" });
     expect(result.success).toBeFalsy();
   });
 
@@ -38,13 +39,15 @@ describe("freeThemeSchema", () => {
     for (const key of Object.keys(valid)) {
       const partial = { ...valid } as Record<string, unknown>;
       delete partial[key];
-      expect(freeThemeSchema.safeParse(partial).success).toBeFalsy();
+      expect(v.safeParse(freeThemeSchema, partial).success).toBeFalsy();
     }
   });
 
   it("accepts any non-empty string for font (Google Fonts catalog is open)", () => {
-    expect(freeThemeSchema.safeParse({ ...valid, font: "Playfair Display" }).success).toBeTruthy();
-    expect(freeThemeSchema.safeParse({ ...valid, font: "JetBrains Mono" }).success).toBeTruthy();
+    expect(
+      v.safeParse(freeThemeSchema, { ...valid, font: "Playfair Display" }).success,
+    ).toBeTruthy();
+    expect(v.safeParse(freeThemeSchema, { ...valid, font: "JetBrains Mono" }).success).toBeTruthy();
   });
 });
 
@@ -59,7 +62,7 @@ describe("themeTokensSchema", () => {
   })();
 
   it("accepts a fully populated 30-key payload", () => {
-    expect(themeTokensSchema.safeParse(fullTokens).success).toBeTruthy();
+    expect(v.safeParse(themeTokensSchema, fullTokens).success).toBeTruthy();
   });
 
   it("rejects a partial payload (15 keys missing)", () => {
@@ -67,17 +70,17 @@ describe("themeTokensSchema", () => {
     for (const key of AI_THEME_TOKEN_KEYS) {
       half[`light:${key}`] = "#ffffff";
     }
-    expect(themeTokensSchema.safeParse(half).success).toBeFalsy();
+    expect(v.safeParse(themeTokensSchema, half).success).toBeFalsy();
   });
 
   it("rejects a payload missing a single required key", () => {
     const missingOne = { ...fullTokens };
     delete (missingOne as Record<string, unknown>)["light:primary"];
-    expect(themeTokensSchema.safeParse(missingOne).success).toBeFalsy();
+    expect(v.safeParse(themeTokensSchema, missingOne).success).toBeFalsy();
   });
 
   it("rejects a payload with non-string token values", () => {
     const badType = { ...fullTokens, "light:primary": 123 } as unknown;
-    expect(themeTokensSchema.safeParse(badType).success).toBeFalsy();
+    expect(v.safeParse(themeTokensSchema, badType).success).toBeFalsy();
   });
 });

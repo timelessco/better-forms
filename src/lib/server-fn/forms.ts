@@ -1,9 +1,9 @@
-import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { and, count, eq, inArray, ne, sql } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
-import { z } from "zod";
+import * as v from "valibot";
 import { customDomains, formSettings, forms, member, submissions, workspaces } from "@/db/schema";
+import type { FormRow } from "@/db/schema";
 import { RESERVED_SLUGS } from "@/lib/config/plan-config";
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { db } from "@/db";
@@ -14,6 +14,7 @@ import { defaultFormSettings } from "@/types/form-settings";
 import type { FormSettings } from "@/types/form-settings";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm, authFormsBulk } from "./auth-helpers.server";
+import { mergeFormSettings } from "./merge-form-settings.server";
 import { getOrgPlan, getOrgPlanWithPolarSync } from "./plan-helpers.server";
 import { generateShortId } from "@/lib/short-id";
 
@@ -30,7 +31,7 @@ const isShortIdCollision = (err: unknown): boolean =>
   "constraint_name" in err &&
   (err as { constraint_name: unknown }).constraint_name === SHORT_ID_CONSTRAINT;
 
-const serializeForm = (form: typeof forms.$inferSelect) => ({
+const serializeForm = (form: FormRow) => ({
   ...form,
   createdAt: form.createdAt.toISOString(),
   updatedAt: form.updatedAt.toISOString(),
@@ -38,27 +39,22 @@ const serializeForm = (form: typeof forms.$inferSelect) => ({
   customization: (form.customization ?? {}) as Record<string, object>,
 });
 
-/** Shallow-merge settings patch into forms.draftSettings JSONB (working draft only;
- * live settings served to public renderers live in form_settings). */
-export const mergeFormSettings = (patch: Partial<FormSettings>) =>
-  sql`${forms.draftSettings} || ${JSON.stringify(patch)}::jsonb`;
-
 export const createForm = createServerFn({ method: "POST" })
   .middleware([authMiddleware, formProSettingsMiddleware])
   .inputValidator(
-    z.object({
-      id: z.uuid(),
-      workspaceId: z.uuid(),
-      title: z.string().optional(),
-      formName: z.string().optional(),
-      schemaName: z.string().optional(),
-      content: z.array(z.unknown()).optional(),
-      icon: z.string().nullable().optional(),
-      cover: z.string().nullable().optional(),
-      status: z.enum(["draft", "published", "archived"]).optional(),
-      draftSettings: z.custom<FormSettings>().optional(),
-      customization: z.record(z.string(), z.unknown()).optional(),
-      sortIndex: z.string().nullable().optional(),
+    v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      workspaceId: v.pipe(v.string(), v.uuid()),
+      title: v.optional(v.string()),
+      formName: v.optional(v.string()),
+      schemaName: v.optional(v.string()),
+      content: v.optional(v.array(v.any())),
+      icon: v.optional(v.nullable(v.string())),
+      cover: v.optional(v.nullable(v.string())),
+      status: v.optional(v.picklist(["draft", "published", "archived"])),
+      draftSettings: v.optional(v.custom<FormSettings>(() => true)),
+      customization: v.optional(v.record(v.string(), v.any())),
+      sortIndex: v.optional(v.nullable(v.string())),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -107,20 +103,20 @@ export const createForm = createServerFn({ method: "POST" })
 export const updateForm = createServerFn({ method: "POST" })
   .middleware([authMiddleware, formProSettingsMiddleware])
   .inputValidator(
-    z.object({
-      id: z.uuid(),
-      workspaceId: z.uuid().optional(),
-      title: z.string().optional(),
-      formName: z.string().optional(),
-      schemaName: z.string().optional(),
-      content: z.array(z.unknown()).optional(),
-      icon: z.string().nullable().optional(),
-      cover: z.string().nullable().optional(),
-      status: z.enum(["draft", "published", "archived"]).optional(),
-      updatedAt: z.string().optional(),
-      draftSettings: z.custom<Partial<FormSettings>>().optional(),
-      customization: z.record(z.string(), z.unknown()).optional(),
-      sortIndex: z.string().nullable().optional(),
+    v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      workspaceId: v.optional(v.pipe(v.string(), v.uuid())),
+      title: v.optional(v.string()),
+      formName: v.optional(v.string()),
+      schemaName: v.optional(v.string()),
+      content: v.optional(v.array(v.any())),
+      icon: v.optional(v.nullable(v.string())),
+      cover: v.optional(v.nullable(v.string())),
+      status: v.optional(v.picklist(["draft", "published", "archived"])),
+      updatedAt: v.optional(v.string()),
+      draftSettings: v.optional(v.custom<Partial<FormSettings>>(() => true)),
+      customization: v.optional(v.record(v.string(), v.any())),
+      sortIndex: v.optional(v.nullable(v.string())),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -153,7 +149,7 @@ export const updateForm = createServerFn({ method: "POST" })
  * updated too so share sidebar reflects it without a form-listings-sync roundtrip. */
 export const setFormAnalytics = createServerFn({ method: "POST" })
   .middleware([authMiddleware, formProSettingsMiddleware])
-  .inputValidator(z.object({ formId: z.uuid(), enabled: z.boolean() }))
+  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()), enabled: v.boolean() }))
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authForm(data.formId, context.session.user.id, orgId);
@@ -208,7 +204,7 @@ export const setFormAnalytics = createServerFn({ method: "POST" })
 
 export const deleteForm = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ id: z.uuid() }))
+  .inputValidator(v.object({ id: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authForm(data.id, context.session.user.id, orgId);
@@ -222,7 +218,11 @@ export const deleteForm = createServerFn({ method: "POST" })
 // Bulk soft-delete (move to trash). Capped at 200 to keep statements bounded.
 export const bulkArchiveForms = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ ids: z.array(z.uuid()).min(1).max(200) }))
+  .inputValidator(
+    v.object({
+      ids: v.pipe(v.array(v.pipe(v.string(), v.uuid())), v.minLength(1), v.maxLength(200)),
+    }),
+  )
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authFormsBulk(data.ids, context.session.user.id, orgId);
@@ -242,7 +242,11 @@ export const bulkArchiveForms = createServerFn({ method: "POST" })
 // Bulk hard-delete from trash.
 export const bulkDeleteForms = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ ids: z.array(z.uuid()).min(1).max(200) }))
+  .inputValidator(
+    v.object({
+      ids: v.pipe(v.array(v.pipe(v.string(), v.uuid())), v.minLength(1), v.maxLength(200)),
+    }),
+  )
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authFormsBulk(data.ids, context.session.user.id, orgId);
@@ -330,16 +334,9 @@ export const getArchivedFormListings = createServerFn({ method: "GET" })
     }));
   });
 
-export const archivedFormListingsQueryOptions = () =>
-  queryOptions({
-    queryKey: ["form-listings-archived"],
-    queryFn: ({ signal }) => getArchivedFormListings({ signal }),
-    staleTime: 1000 * 60, // 1 min — refetched on dialog reopen anyway
-  });
-
-const _getFormById = createServerFn({ method: "GET" })
+export const _getFormById = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ id: z.uuid() }))
+  .inputValidator(v.object({ id: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     const [_, [form]] = await Promise.all([
@@ -361,20 +358,6 @@ const _getFormById = createServerFn({ method: "GET" })
     return { form: serializeForm(form) };
   });
 
-export const getFormbyIdQueryOption = (formId: string) =>
-  queryOptions({
-    queryKey: ["forms", formId],
-    queryFn: ({ signal }) => _getFormById({ data: { id: formId }, signal }),
-    staleTime: 1000 * 60 * 10, // 10 minutes
-  });
-
-export type FormStatus = "draft" | "published" | "archived";
-type FormStatusQueryResult = {
-  form?: {
-    status?: FormStatus;
-  };
-};
-
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
 const generateSlug = (title: string): string =>
@@ -389,7 +372,7 @@ const generateSlug = (title: string): string =>
 /** @public - consumed by upcoming domain settings UI */
 export const updateFormSlug = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ formId: z.uuid(), slug: z.string() }))
+  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()), slug: v.string() }))
   .handler(async ({ data, context }) => {
     const { formId, slug } = data;
     const orgId = getActiveOrgId(context.session);
@@ -501,9 +484,9 @@ export const updateFormSlug = createServerFn({ method: "POST" })
 export const assignFormDomain = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      formId: z.uuid(),
-      customDomainId: z.string().nullable(),
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
+      customDomainId: v.nullable(v.string()),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -604,15 +587,3 @@ export const assignFormDomain = createServerFn({ method: "POST" })
 
     return { form: serializeForm(updatedForm) };
   });
-
-export const getFormStatus = async (
-  queryClient: import("@tanstack/react-query").QueryClient,
-  formId: string,
-): Promise<FormStatus | undefined> => {
-  const result = (await queryClient.ensureQueryData({
-    ...getFormbyIdQueryOption(formId),
-    revalidateIfStale: true,
-  })) as FormStatusQueryResult;
-
-  return result.form?.status;
-};

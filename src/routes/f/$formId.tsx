@@ -1,7 +1,7 @@
 import { createFileRoute, isNotFound, notFound } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { z } from "zod";
-import { zodValidator } from "@tanstack/zod-adapter";
+import * as v from "valibot";
+import { optionalCoercedBoolean } from "@/lib/valibot-search";
 import { PublicFormPage } from "@/routes/forms/-components/public-form-page";
 import type { PublicFormEmbedConfig } from "@/routes/forms/-components/public-form-page";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
@@ -133,19 +133,17 @@ const CustomDomainFormIdRoute = () => {
 };
 
 export const Route = createFileRoute("/f/$formId")({
-  validateSearch: zodValidator(
-    z.object({
-      // No `.default()` — would 307-redirect bare URLs to defaults-appended canonical, breaking link-preview crawlers.
-      transparentBackground: z.boolean().optional(),
-      transparent: z.coerce.boolean().optional(),
-      popup: z.coerce.boolean().optional(),
-      hideTitle: z.coerce.boolean().optional(),
-      alignLeft: z.coerce.boolean().optional(),
-      originPage: z.string().optional(),
-      dynamicHeight: z.coerce.boolean().optional(),
-      dynamicWidth: z.coerce.boolean().optional(),
-    }),
-  ),
+  // No `.default()` — would 307-redirect bare URLs to defaults-appended canonical, breaking link-preview crawlers.
+  validateSearch: v.object({
+    transparentBackground: v.optional(v.boolean()),
+    transparent: optionalCoercedBoolean,
+    popup: optionalCoercedBoolean,
+    hideTitle: optionalCoercedBoolean,
+    alignLeft: optionalCoercedBoolean,
+    originPage: v.optional(v.string()),
+    dynamicHeight: optionalCoercedBoolean,
+    dynamicWidth: optionalCoercedBoolean,
+  }),
   loader: async ({ params }) => {
     try {
       return await getCustomDomainFormByIdRSC({ data: { formId: params.formId } });

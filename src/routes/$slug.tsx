@@ -1,7 +1,7 @@
 import { createFileRoute, isNotFound, notFound } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { z } from "zod";
-import { zodValidator } from "@tanstack/zod-adapter";
+import * as v from "valibot";
+import { coercedBooleanWithDefault, optionalCoercedBoolean } from "@/lib/valibot-search";
 import { PublicFormPage } from "@/routes/forms/-components/public-form-page";
 import type { PublicFormEmbedConfig } from "@/routes/forms/-components/public-form-page";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
@@ -126,18 +126,16 @@ const CustomDomainSlugRoute = () => {
 };
 
 export const Route = createFileRoute("/$slug")({
-  validateSearch: zodValidator(
-    z.object({
-      transparentBackground: z.boolean().optional().default(false),
-      transparent: z.coerce.boolean().optional(),
-      popup: z.coerce.boolean().optional().default(false),
-      hideTitle: z.coerce.boolean().optional().default(false),
-      alignLeft: z.coerce.boolean().optional().default(false),
-      originPage: z.string().optional(),
-      dynamicHeight: z.coerce.boolean().optional().default(false),
-      dynamicWidth: z.coerce.boolean().optional().default(false),
-    }),
-  ),
+  validateSearch: v.object({
+    transparentBackground: v.optional(v.boolean(), false),
+    transparent: optionalCoercedBoolean,
+    popup: coercedBooleanWithDefault(false),
+    hideTitle: coercedBooleanWithDefault(false),
+    alignLeft: coercedBooleanWithDefault(false),
+    originPage: v.optional(v.string()),
+    dynamicHeight: coercedBooleanWithDefault(false),
+    dynamicWidth: coercedBooleanWithDefault(false),
+  }),
   loader: async ({ params }) => {
     try {
       return await getCustomDomainFormBySlugRSC({ data: { slug: params.slug } });

@@ -277,7 +277,7 @@ const EditorAppInner = ({
         className={cn(
           "min-h-full w-full overflow-x-hidden bg-background text-foreground",
           hasCustomization && "bf-themed",
-          effectiveTheme === "dark" && "dark",
+          effectiveTheme === "dark" ? "dark" : "bf-light",
         )}
         style={hasCustomization ? themeVars : undefined}
       >

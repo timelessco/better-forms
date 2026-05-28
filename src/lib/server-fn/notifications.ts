@@ -2,20 +2,21 @@ import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { and, asc, desc, eq, ne } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
-import { z } from "zod";
+import * as v from "valibot";
 import {
   formNotificationPreferences,
   formSubmissionNotifications,
   forms,
   workspaces,
 } from "@/db/schema";
+import type { FormSubmissionNotificationRow } from "@/db/schema";
 import { db } from "@/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { ErrorCode } from "@/lib/errors/codes";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm } from "./auth-helpers.server";
 
-type NotificationRow = typeof formSubmissionNotifications.$inferSelect;
+type NotificationRow = FormSubmissionNotificationRow;
 
 const serializeSubmissionNotification = (
   row: NotificationRow & {
@@ -90,7 +91,7 @@ export const getSubmissionNotificationsQueryOptions = () =>
 
 export const getFormInAppNotificationPreference = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ formId: z.uuid() }))
+  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     const userId = context.session.user.id;
@@ -145,9 +146,9 @@ export const getFormInAppNotificationPreferenceQueryOptions = (formId: string) =
 export const setFormInAppNotificationPreference = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      formId: z.uuid(),
-      enabled: z.boolean(),
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
+      enabled: v.boolean(),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -212,7 +213,7 @@ export const setFormInAppNotificationPreference = createServerFn({ method: "POST
 
 export const markSubmissionNotificationRead = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ formId: z.uuid() }))
+  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const userId = context.session.user.id;
     const now = new Date();
@@ -237,7 +238,7 @@ export const markSubmissionNotificationRead = createServerFn({ method: "POST" })
 
 export const clearSubmissionNotification = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ formId: z.uuid() }))
+  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const userId = context.session.user.id;
 

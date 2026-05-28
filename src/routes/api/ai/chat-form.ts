@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getRequestHeaders, getRequestIP } from "@tanstack/react-start/server";
 import { generateText, tool } from "ai";
 import { and, eq } from "drizzle-orm";
-import { z } from "zod";
+import * as v from "valibot";
+import { valibotSchema } from "@ai-sdk/valibot";
 import { db } from "@/db";
 import { formSettings, forms, formVersions, organization, workspaces } from "@/db/schema";
 import { auth } from "@/lib/auth/auth";
@@ -48,24 +49,21 @@ const getModel = async () => {
   return openai(modelId);
 };
 
-const bodySchema = z.object({
-  intent: z.enum(["start", "advance", "parse-and-advance", "finish"]),
-  formId: z.uuid(),
-  submissionId: z.string().min(1),
-  currentQuestionId: z.string().optional(),
-  userText: z.string().max(4000).optional(),
-  // Client-driven prior-answer threading — lets the AI personalize prose
-  // (e.g. address the Respondent by name once they've given it).
+const bodySchema = v.object({
+  intent: v.picklist(["start", "advance", "parse-and-advance", "finish"]),
+  formId: v.pipe(v.string(), v.uuid()),
+  submissionId: v.pipe(v.string(), v.minLength(1)),
+  currentQuestionId: v.optional(v.string()),
+  userText: v.optional(v.pipe(v.string(), v.maxLength(4000))),
+  // Client-driven prior-answer threading — personalize prose with prior values (e.g. address by name).
   // Server is read-only against this map; the submission table owns truth.
-  priorAnswers: z.record(z.string(), z.unknown()).optional(),
-  // Optional Zod-validation error from the previous parse attempt. When set,
-  // the system prompt tells the AI exactly why the prior parse failed so it
-  // can produce a more specific re-ask (e.g. "I need a URL with https://").
-  validationError: z.string().max(500).optional(),
-  isPreview: z.boolean().optional(),
+  priorAnswers: v.optional(v.record(v.string(), v.unknown())),
+  // Prior parse error feedback so the system prompt can guide a more specific re-ask.
+  validationError: v.optional(v.pipe(v.string(), v.maxLength(500))),
+  isPreview: v.optional(v.boolean()),
 });
 
-type ChatFormBody = z.infer<typeof bodySchema>;
+type ChatFormBody = v.InferOutput<typeof bodySchema>;
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -73,18 +71,17 @@ const json = (status: number, body: unknown) =>
     headers: { "Content-Type": "application/json" },
   });
 
-const askQuestionInput = z.object({
-  prompt: z.string().min(1),
-  ackPrior: z.string().optional(),
+const askQuestionInput = v.object({
+  prompt: v.pipe(v.string(), v.minLength(1)),
+  ackPrior: v.optional(v.string()),
 });
-const confirmParseInput = z.object({
-  parsedValue: z.unknown(),
-  prompt: z.string().min(1),
-  // Set when the Respondent explicitly declines / has no value / asks to skip,
-  // so the client can skip an optional Question immediately instead of re-asking.
-  declined: z.boolean().optional(),
+const confirmParseInput = v.object({
+  parsedValue: v.unknown(),
+  prompt: v.pipe(v.string(), v.minLength(1)),
+  // Set when Respondent declines / has no value / asks to skip — client skips optional Question instead of re-asking.
+  declined: v.optional(v.boolean()),
 });
-const closingInput = z.object({ message: z.string().min(1) });
+const closingInput = v.object({ message: v.pipe(v.string(), v.minLength(1)) });
 
 type FormLoadResult = {
   formId: string;
@@ -173,18 +170,18 @@ const callAiWithRetry = async (
     askQuestion: tool({
       description:
         "Ask the Respondent the current Question. `prompt` is the natural-language prose to render in a chat bubble. `ackPrior` is an optional brief acknowledgement of the prior Answer.",
-      inputSchema: askQuestionInput,
+      inputSchema: valibotSchema(askQuestionInput),
       execute: async (args) => ({ ok: true, args }),
     }),
     confirmParse: tool({
       description:
         "Parse the Respondent's free-text reply into the strict value type for the current Question. `parsedValue` is the structured value; `prompt` is the prose for the next Question. Set `declined: true` (and leave `parsedValue` empty) when the Respondent explicitly declines, says they don't have one, or asks to skip — do NOT set it for a genuine attempt to answer or a question about the form.",
-      inputSchema: confirmParseInput,
+      inputSchema: valibotSchema(confirmParseInput),
       execute: async (args) => ({ ok: true, args }),
     }),
     closing: tool({
       description: "Render the closing message after the final Question is answered.",
-      inputSchema: closingInput,
+      inputSchema: valibotSchema(closingInput),
       execute: async (args) => ({ ok: true, args }),
     }),
   };
@@ -208,11 +205,11 @@ const callAiWithRetry = async (
     });
     for (const tc of result.toolCalls ?? []) {
       if (tc.toolName === "askQuestion") {
-        captured = { tool: "askQuestion", args: askQuestionInput.parse(tc.input) };
+        captured = { tool: "askQuestion", args: v.parse(askQuestionInput, tc.input) };
       } else if (tc.toolName === "confirmParse") {
-        captured = { tool: "confirmParse", args: confirmParseInput.parse(tc.input) };
+        captured = { tool: "confirmParse", args: v.parse(confirmParseInput, tc.input) };
       } else if (tc.toolName === "closing") {
-        captured = { tool: "closing", args: closingInput.parse(tc.input) };
+        captured = { tool: "closing", args: v.parse(closingInput, tc.input) };
       }
     }
   };
@@ -248,7 +245,7 @@ export const Route = createFileRoute("/api/ai/chat-form")({
 
         let body: ChatFormBody;
         try {
-          body = bodySchema.parse(await request.json());
+          body = v.parse(bodySchema, await request.json());
         } catch (err) {
           return json(400, { error: "invalid_body", detail: String(err) });
         }

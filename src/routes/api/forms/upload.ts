@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { handleUpload } from "@vercel/blob/client";
 import type { HandleUploadBody } from "@vercel/blob/client";
-import { z } from "zod";
+import * as v from "valibot";
 import { createError } from "@/lib/errors/create";
 import type { ErrorCode } from "@/lib/errors/codes";
 import { parseError } from "@/lib/errors/parse";
@@ -25,10 +25,10 @@ import {
  * also can't reach localhost without a tunnel.)
  */
 
-const clientPayloadSchema = z.object({
-  formId: z.uuid(),
-  draftId: z.uuid(),
-  fieldName: z.string().min(1),
+const clientPayloadSchema = v.object({
+  formId: v.pipe(v.string(), v.uuid()),
+  draftId: v.pipe(v.string(), v.uuid()),
+  fieldName: v.pipe(v.string(), v.minLength(1)),
 });
 
 export const Route = createFileRoute("/api/forms/upload")({
@@ -42,7 +42,7 @@ export const Route = createFileRoute("/api/forms/upload")({
             body,
             token: process.env.BETTER_FORM_READ_WRITE_TOKEN,
             onBeforeGenerateToken: async (pathname, clientPayloadRaw) => {
-              const payload = clientPayloadSchema.parse(JSON.parse(clientPayloadRaw ?? "{}"));
+              const payload = v.parse(clientPayloadSchema, JSON.parse(clientPayloadRaw ?? "{}"));
 
               await checkUploadRateLimit(getClientIp());
               const { allowedContentTypes, maxFileBytes } = await assertFormFileField(

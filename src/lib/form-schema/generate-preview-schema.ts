@@ -1,16 +1,20 @@
-/** Build a Zod schema from Plate-node validation props for preview-mode validation. */
+/** Build a valibot schema from Plate-node validation props for preview-mode validation. */
 import { isValidPhoneNumber } from "react-phone-number-input";
-import { z } from "zod";
-import type { ZodType } from "zod";
+import * as v from "valibot";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 
+// Re-export alias kept for callers — name stays stable even though impl is valibot.
+type AnyValibotSchema = v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>;
+
 /**
- * Zod schema from PlateFormField[].
+ * Valibot schema from PlateFormField[].
  * @param fields - form fields w/ validation props
- * @returns Zod object schema
+ * @returns valibot object schema
  */
-export const generateZodSchemaFromFields = (fields: PlateFormField[]): z.ZodObject => {
-  const schemaShape: Record<string, ZodType> = {};
+export const generateZodSchemaFromFields = (
+  fields: PlateFormField[],
+): v.ObjectSchema<v.ObjectEntries, undefined> => {
+  const schemaShape: v.ObjectEntries = {};
 
   for (const field of fields) {
     // Skip Button fields - they don't have validation
@@ -18,141 +22,219 @@ export const generateZodSchemaFromFields = (fields: PlateFormField[]): z.ZodObje
       continue;
     }
 
-    let fieldSchema: ZodType;
+    let fieldSchema: AnyValibotSchema;
 
     switch (field.fieldType) {
       case "Email":
         fieldSchema = field.required
-          ? z
-              .email({ error: "Please enter a valid email address" })
-              .min(1, "This field is required")
-          : z.union([z.literal(""), z.email({ error: "Please enter a valid email address" })]);
+          ? v.pipe(
+              v.string(),
+              v.nonEmpty("This field is required"),
+              v.email("Please enter a valid email address"),
+            )
+          : v.union([
+              v.literal(""),
+              v.pipe(v.string(), v.email("Please enter a valid email address")),
+            ]);
         break;
       case "Link": {
         const urlRegex = /^(https?:\/\/)?[\w.-]+\.\w{2,}(\/\S*)?$/;
         fieldSchema = field.required
-          ? z
-              .string({ error: "This field is required" })
-              .min(1, "This field is required")
-              .regex(urlRegex, "Please enter a valid URL")
-          : z.union([z.literal(""), z.string().regex(urlRegex, "Please enter a valid URL")]);
+          ? v.pipe(
+              v.string(),
+              v.nonEmpty("This field is required"),
+              v.regex(urlRegex, "Please enter a valid URL"),
+            )
+          : v.union([
+              v.literal(""),
+              v.pipe(v.string(), v.regex(urlRegex, "Please enter a valid URL")),
+            ]);
         break;
       }
       case "Number": {
-        let numberSchema = z.coerce.number({ error: "Please enter a valid number" });
-        if (field.allowDecimals === false) {
-          numberSchema = numberSchema.int("Decimals are not allowed");
-        }
-        if (typeof field.min === "number") {
-          numberSchema = numberSchema.min(field.min, `Value must be at least ${field.min}`);
-        }
-        if (typeof field.max === "number") {
-          numberSchema = numberSchema.max(field.max, `Value must be at most ${field.max}`);
-        }
-        // `Number("") === 0` → a required empty input would pass. Preprocess
-        // "" → undefined so the number schema rejects it as required.
+        // Coerce string/number → number, guard "" → undefined (Number("")===0 would pass without this).
+        const coerceNum = (val: unknown): number | undefined => {
+          if (val === "" || val === null || val === undefined) return undefined;
+          return Number(val);
+        };
+        // Build number schema with optional int/min/max validations.
+        const buildNumSchema = (): AnyValibotSchema => {
+          const base = v.pipe(
+            v.unknown(),
+            v.transform(coerceNum),
+            // Cast: transform output is number|undefined; number() rejects undefined — correct behavior.
+            v.number("Please enter a valid number") as unknown as v.TransformAction<
+              unknown,
+              number
+            >,
+          );
+          if (
+            field.allowDecimals === false &&
+            typeof field.min === "number" &&
+            typeof field.max === "number"
+          ) {
+            return v.pipe(
+              base,
+              v.integer("Decimals are not allowed"),
+              v.minValue(field.min, `Value must be at least ${field.min}`),
+              v.maxValue(field.max, `Value must be at most ${field.max}`),
+            );
+          }
+          if (field.allowDecimals === false && typeof field.min === "number") {
+            return v.pipe(
+              base,
+              v.integer("Decimals are not allowed"),
+              v.minValue(field.min, `Value must be at least ${field.min}`),
+            );
+          }
+          if (field.allowDecimals === false && typeof field.max === "number") {
+            return v.pipe(
+              base,
+              v.integer("Decimals are not allowed"),
+              v.maxValue(field.max, `Value must be at most ${field.max}`),
+            );
+          }
+          if (field.allowDecimals === false) {
+            return v.pipe(base, v.integer("Decimals are not allowed"));
+          }
+          if (typeof field.min === "number" && typeof field.max === "number") {
+            return v.pipe(
+              base,
+              v.minValue(field.min, `Value must be at least ${field.min}`),
+              v.maxValue(field.max, `Value must be at most ${field.max}`),
+            );
+          }
+          if (typeof field.min === "number") {
+            return v.pipe(base, v.minValue(field.min, `Value must be at least ${field.min}`));
+          }
+          if (typeof field.max === "number") {
+            return v.pipe(base, v.maxValue(field.max, `Value must be at most ${field.max}`));
+          }
+          return base;
+        };
+        const numSchema = buildNumSchema();
         fieldSchema = field.required
-          ? z.preprocess(
-              (val) => (val === "" || val === null || val === undefined ? undefined : val),
-              numberSchema,
-            )
-          : z.union([z.literal(""), numberSchema]);
+          ? numSchema
+          : // Accept "" as literal pass-through; otherwise coerce+validate.
+            v.union([v.literal(""), numSchema]);
         break;
       }
       case "Phone": {
         // PhoneInput emits E.164 (e.g. "+919360992440"). Validate format via
         // libphonenumber, not stale char-count limits from the old text UI.
-        const phoneSchema = z
-          .string()
-          .refine((v) => isValidPhoneNumber(v), "Please enter a valid phone number");
+        const phoneSchema = v.pipe(
+          v.string(),
+          v.check((val) => isValidPhoneNumber(val), "Please enter a valid phone number"),
+        );
         fieldSchema = field.required
-          ? z.string().min(1, "This field is required").pipe(phoneSchema)
-          : z.union([z.literal(""), phoneSchema]);
+          ? v.pipe(
+              v.string(),
+              v.nonEmpty("This field is required"),
+              v.check((val) => isValidPhoneNumber(val), "Please enter a valid phone number"),
+            )
+          : v.union([v.literal(""), phoneSchema]);
         break;
       }
       case "Date":
         fieldSchema = field.required
-          ? z.string({ error: "This field is required" }).nonempty("Please select a date")
-          : z.string().optional();
+          ? v.pipe(v.string(), v.nonEmpty("Please select a date"))
+          : v.optional(v.string());
         break;
       case "Time":
         fieldSchema = field.required
-          ? z.string({ error: "This field is required" }).nonempty("Please select a time")
-          : z.string().optional();
+          ? v.pipe(v.string(), v.nonEmpty("Please select a time"))
+          : v.optional(v.string());
         break;
       case "FileUpload": {
-        const uploadedFileSchema = z.object({
-          url: z.string(),
-          name: z.string(),
-          size: z.number(),
-          type: z.string(),
+        const uploadedFileSchema = v.object({
+          url: v.string(),
+          name: v.string(),
+          size: v.number(),
+          type: v.string(),
         });
         fieldSchema = field.required
-          ? uploadedFileSchema.refine((v) => v && v.url.length > 0, {
-              message: "Please upload a file",
-            })
-          : z.union([z.literal(""), uploadedFileSchema]).optional();
+          ? v.pipe(
+              uploadedFileSchema,
+              v.check((val) => Boolean(val?.url && val.url.length > 0), "Please upload a file"),
+            )
+          : v.optional(v.union([v.literal(""), uploadedFileSchema]));
         break;
       }
       case "Checkbox":
       case "MultiSelect":
         if (field.required) {
-          fieldSchema = z.array(z.string()).nonempty("Please select at least one option");
+          fieldSchema = v.pipe(
+            v.array(v.string()),
+            v.nonEmpty("Please select at least one option"),
+          );
         } else {
-          fieldSchema = z.array(z.string()).default([]);
+          fieldSchema = v.optional(v.array(v.string()), []);
         }
         break;
       case "MultiChoice":
         if (field.required) {
-          fieldSchema = z.string().min(1, "Please select an option");
+          fieldSchema = v.pipe(v.string(), v.minLength(1, "Please select an option"));
         } else {
-          fieldSchema = z.string().default("");
+          fieldSchema = v.optional(v.string(), "");
         }
         break;
       case "Ranking":
         if (field.required) {
-          fieldSchema = z.array(z.string()).nonempty("Please rank the options");
+          fieldSchema = v.pipe(v.array(v.string()), v.nonEmpty("Please rank the options"));
         } else {
-          fieldSchema = z.array(z.string()).default([]);
+          fieldSchema = v.optional(v.array(v.string()), []);
         }
         break;
       default: {
         // Input, Textarea, Phone, and other string-based types
-        let schema: z.ZodString = z.string();
+        const pipes: v.MinLengthAction<string, number, string>[] = [];
 
         if ("minLength" in field && field.minLength !== undefined && field.minLength > 0) {
-          schema = schema.min(field.minLength, `Minimum ${field.minLength} characters required`);
-        }
-
-        if ("maxLength" in field && field.maxLength !== undefined && field.maxLength > 0) {
-          schema = schema.max(field.maxLength, `Maximum ${field.maxLength} characters allowed`);
+          pipes.push(
+            v.minLength(field.minLength, `Minimum ${field.minLength} characters required`),
+          );
         }
 
         // Required fields must have at least 1 character
         if (field.required && !("minLength" in field && field.minLength !== undefined)) {
-          schema = schema.min(1, "This field is required");
+          pipes.push(v.minLength(1, "This field is required"));
         }
 
-        fieldSchema = schema;
+        const maxPipes: v.MaxLengthAction<string, number, string>[] = [];
+        if ("maxLength" in field && field.maxLength !== undefined && field.maxLength > 0) {
+          maxPipes.push(
+            v.maxLength(field.maxLength, `Maximum ${field.maxLength} characters allowed`),
+          );
+        }
+
+        if (pipes.length > 0 && maxPipes.length > 0) {
+          fieldSchema = v.pipe(v.string(), pipes[0], maxPipes[0]);
+        } else if (pipes.length > 0) {
+          fieldSchema = v.pipe(v.string(), pipes[0]);
+        } else if (maxPipes.length > 0) {
+          fieldSchema = v.pipe(v.string(), maxPipes[0]);
+        } else {
+          fieldSchema = v.string();
+        }
         break;
       }
     }
 
     if (field.required) {
-      schemaShape[field.name] = fieldSchema;
+      schemaShape[field.name] = fieldSchema as v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>;
     } else {
       // Treat `null` the same as "no answer" (undefined) for optional fields.
       // AI Chat records skipped Questions as `null`; when those Answers carry
       // into the standard form, array/file schemas would otherwise reject them
-      // ("expected array, received null"). Coerce null → undefined first.
-      schemaShape[field.name] = z.preprocess(
-        (v) => (v === null ? undefined : v),
-        fieldSchema.optional(),
+      // ("expected array, received null"). `nullish` accepts null + undefined,
+      // and wraps even already-optional schemas so a stored `null` parses.
+      schemaShape[field.name] = v.nullish(
+        fieldSchema as v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>,
       );
     }
   }
 
-  return z.object(schemaShape);
+  return v.object(schemaShape);
 };
 
 /**

@@ -147,7 +147,7 @@ import {
 import { HOTKEYS } from "@/lib/hotkeys";
 import { cn } from "@/lib/utils";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { formatForDisplay, useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
+import { formatForDisplay, HotkeysProvider, useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import type { QueryClient } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Outlet, useLocation, useParams, useRouter } from "@tanstack/react-router";
@@ -289,7 +289,7 @@ const initCollectionsOnClient = createClientOnlyFn((queryClient: QueryClient) =>
     }),
     getFormListings: () => getFormListingsServer(),
     getFormDetail: async (formId: string) => {
-      const { getFormbyIdQueryOption } = await import("@/lib/server-fn/forms");
+      const { getFormbyIdQueryOption } = await import("@/lib/server-fn/forms-queries");
       const result = await queryClient.ensureQueryData(getFormbyIdQueryOption(formId));
       // oxlint-disable-next-line typescript-eslint/no-explicit-any -- server type bridge
       return (result as { form?: any })?.form ?? null;
@@ -328,14 +328,18 @@ const AuthLayout = () => {
   const pathname = useLocation({ select: (s) => s.pathname });
   const isEditRoute = pathname.includes("/form-builder/") && pathname.endsWith("/edit");
 
+  // HotkeysProvider mounted here (not in __root) so @tanstack/react-hotkeys (~44.6 kB gz) only
+  // lands in the authenticated chunk — public-form routes ($shortId, $slug, f/$formId) skip it.
   return (
-    <SidebarProvider style={{ "--app-header-height": "40px" } as React.CSSProperties}>
-      <EditorHeaderVisibilityProvider enabled={isEditRoute}>
-        <MinimalSidebarProvider>
-          <AuthLayoutContent />
-        </MinimalSidebarProvider>
-      </EditorHeaderVisibilityProvider>
-    </SidebarProvider>
+    <HotkeysProvider defaultOptions={{ hotkey: { preventDefault: true } }}>
+      <SidebarProvider style={{ "--app-header-height": "40px" } as React.CSSProperties}>
+        <EditorHeaderVisibilityProvider enabled={isEditRoute}>
+          <MinimalSidebarProvider>
+            <AuthLayoutContent />
+          </MinimalSidebarProvider>
+        </EditorHeaderVisibilityProvider>
+      </SidebarProvider>
+    </HotkeysProvider>
   );
 };
 
@@ -507,12 +511,12 @@ const AppSidebar = () => {
     setIsOpen: setIsPaletteOpen,
   } = useCommandPalette();
 
+  const [trashDialogOpen, setTrashDialogOpen] = useState(false);
+  const [paletteSearch, setPaletteSearch] = useState("");
+
   const handleOpenSettings = useCallback(() => settingsDialogStore.open(), []);
 
   const handleOpenTrash = useCallback(() => setTrashDialogOpen(true), []);
-
-  const [trashDialogOpen, setTrashDialogOpen] = useState(false);
-  const [paletteSearch, setPaletteSearch] = useState("");
 
   // Subscribe to loader-primed org query (not loader data) to stay active: refetch on focus/reconnect, react to invalidation, no GC while on screen.
   const { data: activeOrg } = useQuery({

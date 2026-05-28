@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, count, eq, sql } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
-import { z } from "zod";
+import * as v from "valibot";
 import type { Value } from "platejs";
 import {
   formVisits,
@@ -21,6 +21,7 @@ import {
 import type { ErrorCode } from "@/lib/errors/codes";
 import { isServerPlan } from "./plan-helpers";
 import { recordOwnerSubmissionNotification } from "./notifications-helpers.server";
+import { sendFormSubmissionNotification, sendRespondentConfirmation } from "@/integrations/email";
 
 type VersionSettings = {
   closeForm?: boolean;
@@ -92,13 +93,13 @@ const getAllowedFieldNames = (versionId: string | null, content: Value): Set<str
  */
 export const createPublicSubmission = createServerFn({ method: "POST" })
   .inputValidator(
-    z.object({
-      formId: z.uuid(),
-      data: z.record(z.string(), z.any()),
-      isCompleted: z.boolean().default(true),
-      draftId: z.uuid().optional(),
-      lastStepReached: z.number().int().min(0).optional(),
-      visitId: z.uuid().nullish(),
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
+      data: v.record(v.string(), v.any()),
+      isCompleted: v.optional(v.boolean(), true),
+      draftId: v.optional(v.pipe(v.string(), v.uuid())),
+      lastStepReached: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+      visitId: v.nullish(v.pipe(v.string(), v.uuid())),
     }),
   )
   .handler(async ({ data }) => {
@@ -381,9 +382,6 @@ const sendEmailNotifications = async (
   submissionId: string,
   submissionData: Record<string, unknown>,
 ) => {
-  const { sendFormSubmissionNotification, sendRespondentConfirmation } =
-    await import("@/integrations/email");
-
   if (settings.selfEmailNotifications) {
     let toEmail = settings.notificationEmail;
 

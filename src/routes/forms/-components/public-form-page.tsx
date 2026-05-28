@@ -654,25 +654,20 @@ const PublicFormMain = ({
         isFullHeight
           ? "relative h-screen overflow-hidden"
           : cn("overflow-x-hidden", settings.branding ? "pb-16" : "pb-8"),
-        // AI Chat reserves space for the fixed branding footer so the composer
-        // isn't hidden behind it.
+        // AI Chat reserves space for fixed branding footer so composer isn't hidden behind it.
         isAiChat && settings.branding && "pb-12",
         form.customization && Object.keys(form.customization).length > 0 && "bf-themed",
-        // Don't apply min-h-screen for popup or dynamic-height embeds — it
-        // stretches the form to 100vh of the iframe viewport, creating a
-        // second inner scrollbar on top of the host page's scroll.
+        // No min-h-screen for popup/dynamic-height embeds — 100vh of iframe viewport adds a second inner scrollbar over host scroll.
         !isPopup && !dynamicHeight && !isFullHeight && "min-h-screen",
         transparentBackground || isPopup ? "bg-transparent" : "bg-background",
         alignLeft && "text-left",
       )}
       style={dynamicWidth ? ({ "--bf-page-width": "100%" } as React.CSSProperties) : undefined}
+      data-bf-hide-title={hideTitle ? "" : undefined}
       aria-live="polite"
     >
       {themeToggle && (
-        // Theme toggle only matters when the viewer clicks/focuses it. Defer
-        // hydration to first interaction so the icon paints from SSR HTML
-        // without dragging its handler chunk into the critical path. Safe
-        // because the pre-hydration script already sets the .dark class.
+        // Toggle only matters on click/focus. Defer hydration to first interaction — icon paints from SSR HTML, handler chunk off critical path. Safe: pre-hydration script sets .dark.
         <Hydrate when={interaction({ events: ["pointerdown", "focusin"] })}>
           <ThemeToggleButton themeToggle={themeToggle} />
         </Hydrate>
@@ -691,8 +686,7 @@ const PublicFormMain = ({
           settings={settings}
           handleSubmit={handleSubmit}
           onSwitchToStandard={onSwitchToAiChatFallback}
-          // AI Chat resumes in-chat (recap bubble), so it auto-resumes any draft
-          // without the banner prompt the standard form uses.
+          // AI Chat resumes in-chat (recap bubble) — auto-resume drafts without the banner prompt.
           initialAnswers={
             draftState.status === "resumed" || draftState.status === "prompt"
               ? draftState.draft.data
@@ -705,7 +699,7 @@ const PublicFormMain = ({
           steps={rsc.steps}
           thankYou={(rsc.thankYou as string | null) ?? null}
           stepCount={rsc.stepCount}
-          header={hideTitle ? null : rsc.header}
+          header={hideTitle && !(form.cover || form.icon) ? null : rsc.header}
           onSubmit={handleSubmit}
           settings={settings}
           formId={formId}
@@ -728,8 +722,7 @@ const PublicFormMain = ({
       )}
       {submitError && <SubmitErrorToast submitError={submitError} />}
       {settings.branding && (
-        // Static fixed-bottom link with no client behavior — ship SSR HTML
-        // and skip hydration entirely.
+        // Static link, no client behavior — SSR HTML only, skip hydration.
         <Hydrate when={never()}>
           <BrandingFooter />
         </Hydrate>
