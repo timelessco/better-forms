@@ -116,22 +116,34 @@ const insightsFilterInputSchema = v.object({
 export const getFormInsights = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(insightsFilterInputSchema)
-  .handler(async ({ data, context }): Promise<FormInsightsMetrics> => getFormInsightsImpl(data, context, getActiveOrgId(context.session)));
+  .handler(
+    async ({ data, context }): Promise<FormInsightsMetrics> =>
+      getFormInsightsImpl(data, context, getActiveOrgId(context.session)),
+  );
 
 export const getFormDropoff = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(insightsFilterInputSchema)
-  .handler(async ({ data, context }): Promise<QuestionDropoffMetrics> => getFormDropoffImpl(data, context, getActiveOrgId(context.session)));
+  .handler(
+    async ({ data, context }): Promise<QuestionDropoffMetrics> =>
+      getFormDropoffImpl(data, context, getActiveOrgId(context.session)),
+  );
 
 export const getFormVitals = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(insightsFilterInputSchema)
-  .handler(async ({ data, context }): Promise<FormVitalsMetrics> => getFormVitalsImpl(data, context, getActiveOrgId(context.session)));
+  .handler(
+    async ({ data, context }): Promise<FormVitalsMetrics> =>
+      getFormVitalsImpl(data, context, getActiveOrgId(context.session)),
+  );
 
 export const getInsightsAvailability = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
-  .handler(async ({ data, context }): Promise<InsightsAvailability> => getInsightsAvailabilityImpl(data, context, getActiveOrgId(context.session)));
+  .handler(
+    async ({ data, context }): Promise<InsightsAvailability> =>
+      getInsightsAvailabilityImpl(data, context, getActiveOrgId(context.session)),
+  );
 
 const aggregateInputSchema = v.object({
   date: v.pipe(v.string(), v.regex(DATE_KEY_PATTERN)),

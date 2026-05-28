@@ -5,7 +5,6 @@ import { NotFound } from "@/components/ui/not-found";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Session } from "@/lib/auth/auth";
 import { seo } from "@/lib/seo";
-import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
@@ -56,21 +55,19 @@ const RootDocument = ({ children }: { children: React.ReactNode }) => (
       suppressHydrationWarning
       className="min-h-screen bg-background font-sans text-foreground antialiased"
     >
-      <HotkeysProvider defaultOptions={{ hotkey: { preventDefault: true } }}>
-        <ThemeProvider defaultTheme="system">
-          <TooltipProvider>
-            {children}
-            <Suspense fallback={null}>
-              <Toaster richColors />
+      <ThemeProvider defaultTheme="system">
+        <TooltipProvider>
+          {children}
+          <Suspense fallback={null}>
+            <Toaster richColors />
+          </Suspense>
+          {process.env.NODE_ENV === "development" && (
+            <Suspense>
+              <LazyDevtools />
             </Suspense>
-            {process.env.NODE_ENV === "development" && (
-              <Suspense>
-                <LazyDevtools />
-              </Suspense>
-            )}
-          </TooltipProvider>
-        </ThemeProvider>
-      </HotkeysProvider>
+          )}
+        </TooltipProvider>
+      </ThemeProvider>
       <Scripts />
     </body>
   </html>
