@@ -1,11 +1,15 @@
 /* eslint-disable eslint/func-style, eslint-plugin-react/jsx-no-constructed-context-values */
 import { Combobox as ComboboxPrimitive } from "@base-ui/react";
+import { useQuery } from "@tanstack/react-query";
+import phoneExamples from "libphonenumber-js/mobile/examples";
 import { Search } from "lucide-react";
 import { createContext, use, useMemo, useState } from "react";
 import * as BasePhoneInput from "react-phone-number-input";
 
 import { useMounted } from "@/hooks/use-mounted";
 import { useReanchorThemeProps } from "@/hooks/use-form-theme";
+import { getVisitorCountry } from "@/lib/server-fn/geo";
+import { getTimezoneCountry } from "@/lib/timezone-country";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,10 +26,68 @@ import { ChevronDownIcon } from "@/components/ui/icons";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+const NON_DIGIT_REGEX = /\D/g;
+
 const getBrowserDefaultCountry = (): BasePhoneInput.Country | undefined => {
   if (typeof navigator === "undefined") return undefined;
   const region = navigator.language.split(/[-_]/)[1]?.toUpperCase();
   return region && BasePhoneInput.isSupportedCountry(region) ? region : undefined;
+};
+
+/**
+ * Resolve the initial country for the phone field, preferring the
+ * Respondent's actual location over their browser UI language:
+ *   1. an explicit `defaultCountry` prop, if supplied;
+ *   2. Vercel edge geo-IP (`x-vercel-ip-country`) — authoritative, but only
+ *      available after a client round-trip (the public form HTML is shared /
+ *      CDN-cached, so geo can't be baked into the first paint);
+ *   3. the browser timezone — a synchronous, location-based guess that makes
+ *      the first paint correct for most visitors (e.g. `Asia/Kolkata` → `IN`),
+ *      then geo-IP confirms/overrides it;
+ *   4. the browser locale's region — last resort, and only once the geo query
+ *      has settled with no result, so an `en-US` browser doesn't flash a US
+ *      country before geo/timezone resolve.
+ */
+const useResolvedDefaultCountry = (
+  override: BasePhoneInput.Country | undefined,
+): BasePhoneInput.Country | undefined => {
+  const mounted = useMounted();
+  const { data: geoCountry, isPending: geoPending } = useQuery({
+    queryKey: ["visitor-country"],
+    queryFn: () => getVisitorCountry(),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  if (override) return override;
+  if (geoCountry && BasePhoneInput.isSupportedCountry(geoCountry)) return geoCountry;
+  // Browser APIs (timezone / locale) only exist client-side; stay undefined
+  // through SSR and the first hydration render to avoid a mismatch.
+  if (!mounted) return undefined;
+  const timezoneCountry = getTimezoneCountry();
+  if (timezoneCountry && BasePhoneInput.isSupportedCountry(timezoneCountry)) {
+    return timezoneCountry;
+  }
+  return geoPending ? undefined : getBrowserDefaultCountry();
+};
+
+/**
+ * A country-appropriate example number to use as the field placeholder, in
+ * NATIONAL format — mirroring what the Respondent types (the calling code
+ * lives in the country selector, not the input). e.g. `IN` → "081234 56789",
+ * `US` → "(201) 555-0123". Falls back to `undefined` for unknown countries so
+ * the caller can use its own placeholder. Formatting reuses
+ * react-phone-number-input's already-loaded metadata, so only the small
+ * example-numbers map is added to the bundle.
+ */
+const getExamplePlaceholder = (country: BasePhoneInput.Country): string | undefined => {
+  const nationalNumber = phoneExamples[country];
+  if (!nationalNumber || !BasePhoneInput.isSupportedCountry(country)) return undefined;
+  const e164 =
+    `+${BasePhoneInput.getCountryCallingCode(country)}${nationalNumber}` as BasePhoneInput.Value;
+  return BasePhoneInput.formatPhoneNumber(e164) || undefined;
 };
 
 type PhoneInputSize = "sm" | "default" | "lg";
@@ -57,15 +119,29 @@ function PhoneInput({
   popupClassName,
   scrollAreaClassName,
   onChange,
+  onCountryChange,
   value,
+  placeholder,
   defaultCountry: defaultCountryProp,
   ...props
 }: PhoneInputProps) {
   const phoneInputSize = variant || "default";
-  // react-phone-number-input reads defaultCountry once on mount; wait for hydration to derive
-  // from navigator.language, then key the component to remount with the resolved value.
-  const mounted = useMounted();
-  const defaultCountry = defaultCountryProp ?? (mounted ? getBrowserDefaultCountry() : undefined);
+  // `defaultCountry` is read once on mount by react-phone-number-input, so
+  // we resolve it after hydration (geo-IP first, browser locale as a settled
+  // fallback) and key the underlying component so it remounts with the
+  // resolved value.
+  const defaultCountry = useResolvedDefaultCountry(defaultCountryProp);
+  // Track the country actually shown in the selector (changes when the
+  // Respondent picks a different one, or when an entered value implies one)
+  // so the placeholder example always matches it.
+  const [selectedCountry, setSelectedCountry] = useState<BasePhoneInput.Country | undefined>(
+    undefined,
+  );
+  const activeCountry = selectedCountry ?? defaultCountry;
+  const examplePlaceholder = useMemo(
+    () => (activeCountry ? getExamplePlaceholder(activeCountry) : undefined),
+    [activeCountry],
+  );
   return (
     <PhoneInputContext.Provider
       value={{ variant: phoneInputSize, popupClassName, scrollAreaClassName }}
@@ -89,7 +165,12 @@ function PhoneInput({
         smartCaret={false}
         value={value || undefined}
         defaultCountry={defaultCountry}
+        placeholder={examplePlaceholder ?? placeholder}
         onChange={(next) => onChange?.(next || ("" as BasePhoneInput.Value))}
+        onCountryChange={(country) => {
+          setSelectedCountry(country ?? undefined);
+          onCountryChange?.(country);
+        }}
         {...props}
       />
     </PhoneInputContext.Provider>
@@ -143,15 +224,25 @@ function CountrySelect({
   const themeReanchor = useReanchorThemeProps();
 
   const filteredCountries = useMemo(() => {
-    if (!searchValue) return countryList;
-    return countryList.filter(({ label }) =>
-      label.toLowerCase().includes(searchValue.toLowerCase()),
-    );
+    const query = searchValue.trim().toLowerCase();
+    if (!query) return countryList;
+    // Match by country name OR calling code, so a Respondent who knows their
+    // dialing code (e.g. "91" or "+91") can type it directly, not just the name.
+    const digits = query.replace(NON_DIGIT_REGEX, "");
+    return countryList.filter(({ label, value }) => {
+      if (label.toLowerCase().includes(query)) return true;
+      if (!digits || !value || !BasePhoneInput.isSupportedCountry(value)) return false;
+      return BasePhoneInput.getCountryCallingCode(value).startsWith(digits);
+    });
   }, [countryList, searchValue]);
 
   return (
     <Combobox
       items={filteredCountries}
+      // We filter manually (by name OR calling code) above, so disable base-ui's
+      // built-in filter — it auto-matches the item `label` only, which would
+      // re-hide calling-code matches like "91".
+      filter={null}
       value={selectedCountry || ""}
       onValueChange={(country: BasePhoneInput.Country | null) => {
         if (country) {

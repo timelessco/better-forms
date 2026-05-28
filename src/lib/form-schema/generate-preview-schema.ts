@@ -23,7 +23,6 @@ export const generateZodSchemaFromFields = (
     }
 
     let fieldSchema: AnyValibotSchema;
-    let isAlreadyOptional = false;
 
     switch (field.fieldType) {
       case "Email":
@@ -140,13 +139,11 @@ export const generateZodSchemaFromFields = (
         fieldSchema = field.required
           ? v.pipe(v.string(), v.nonEmpty("Please select a date"))
           : v.optional(v.string());
-        if (!field.required) isAlreadyOptional = true;
         break;
       case "Time":
         fieldSchema = field.required
           ? v.pipe(v.string(), v.nonEmpty("Please select a time"))
           : v.optional(v.string());
-        if (!field.required) isAlreadyOptional = true;
         break;
       case "FileUpload": {
         const uploadedFileSchema = v.object({
@@ -161,7 +158,6 @@ export const generateZodSchemaFromFields = (
               v.check((val) => Boolean(val?.url && val.url.length > 0), "Please upload a file"),
             )
           : v.optional(v.union([v.literal(""), uploadedFileSchema]));
-        if (!field.required) isAlreadyOptional = true;
         break;
       }
       case "Checkbox":
@@ -173,7 +169,6 @@ export const generateZodSchemaFromFields = (
           );
         } else {
           fieldSchema = v.optional(v.array(v.string()), []);
-          isAlreadyOptional = true;
         }
         break;
       case "MultiChoice":
@@ -181,7 +176,6 @@ export const generateZodSchemaFromFields = (
           fieldSchema = v.pipe(v.string(), v.minLength(1, "Please select an option"));
         } else {
           fieldSchema = v.optional(v.string(), "");
-          isAlreadyOptional = true;
         }
         break;
       case "Ranking":
@@ -189,7 +183,6 @@ export const generateZodSchemaFromFields = (
           fieldSchema = v.pipe(v.array(v.string()), v.nonEmpty("Please rank the options"));
         } else {
           fieldSchema = v.optional(v.array(v.string()), []);
-          isAlreadyOptional = true;
         }
         break;
       default: {
@@ -227,10 +220,15 @@ export const generateZodSchemaFromFields = (
       }
     }
 
-    if (field.required || isAlreadyOptional) {
+    if (field.required) {
       schemaShape[field.name] = fieldSchema as v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>;
     } else {
-      schemaShape[field.name] = v.optional(
+      // Treat `null` the same as "no answer" (undefined) for optional fields.
+      // AI Chat records skipped Questions as `null`; when those Answers carry
+      // into the standard form, array/file schemas would otherwise reject them
+      // ("expected array, received null"). `nullish` accepts null + undefined,
+      // and wraps even already-optional schemas so a stored `null` parses.
+      schemaShape[field.name] = v.nullish(
         fieldSchema as v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>,
       );
     }

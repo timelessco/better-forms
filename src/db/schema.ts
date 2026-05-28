@@ -847,6 +847,48 @@ export const aiGenerationCounts = pgTable(
   (t) => [index("idx_ai_generation_counts_org_day").on(t.organizationId, t.periodDay)],
 );
 
+// Tracks AI Chat Sessions for dedup + cap counting. One row per
+// (submission_id) ensures resuming an Incomplete Submission does not
+// re-count against the Org-Month cap (see CONTEXT.md "Chat Session"). Cap
+// check sums COUNT(*) over (organization_id, period_month).
+export const aiChatSessions = pgTable(
+  "ai_chat_sessions",
+  {
+    submissionId: text("submission_id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    periodMonth: text("period_month").notNull(), // YYYY-MM (UTC)
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_ai_chat_sessions_org_month").on(t.organizationId, t.periodMonth)],
+);
+
+// Per-Org-Day counter for builder-side AI Chat preview calls. Same shape as
+// ai_generation_counts — `id` format `${organizationId}:${YYYY-MM-DD}`.
+export const aiChatPreviewCounts = pgTable(
+  "ai_chat_preview_counts",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    periodDay: text("period_day").notNull(), // YYYY-MM-DD (UTC)
+    count: integer("count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_ai_chat_preview_counts_org_day").on(t.organizationId, t.periodDay)],
+);
+
+// Per-IP token-bucket rate limit for /api/ai/chat-form. Mirrors
+// upload_rate_limits but for AI Chat traffic. Refilled lazily on read.
+export const aiChatRateLimits = pgTable("ai_chat_rate_limits", {
+  ip: text("ip").primaryKey(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull().defaultNow(),
+  count: integer("count").notNull().default(0),
+});
+
 // Row types — import these via `import type` from client-reachable server-fn modules
 // so a `typeof <table>.$inferSelect` annotation doesn't pull the table value (and
 // thus drizzle-orm) into the client bundle. Server-only marker above keeps values out.

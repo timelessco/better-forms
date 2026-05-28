@@ -1,8 +1,7 @@
 import { StaticContentBlock } from "@/components/form-components/static-content-block";
+import { FormShareCard } from "@/components/form-components/form-share-card";
 import { StepForm } from "@/components/form-components/step-form";
 import { ProgressBar } from "@/routes/forms/-components/progress-bar";
-import { Button } from "@/components/ui/button";
-import { CopyButton } from "@/components/ui/copy-button";
 import { StepFormProvider, useStepForm } from "@/contexts/step-form-context";
 import type { PublicFormTracking, TrackingBase } from "@/contexts/step-form-context";
 import { useTranslation } from "@/contexts/translation-context";
@@ -279,59 +278,17 @@ const PreviewFormHeader = ({
   );
 };
 
-// "Share with others" row (link + copy) on thank-you page.
-const ShareWithOthers = ({ shareUrl }: { shareUrl: string }) => (
-  <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-2 pt-4">
-    <p className="text-sm text-muted-foreground">Share with others</p>
-    <div className="flex h-[30px] w-full items-center gap-[6px] rounded-lg bg-muted/60 py-[3px] pr-[3px] pl-[10px]">
-      <span className="min-w-0 flex-1 truncate text-sm font-normal text-muted-foreground">
-        {shareUrl}
-      </span>
-      <CopyButton
-        text={shareUrl}
-        variant="ghost"
-        size="sm"
-        className="h-6 shrink-0 gap-1 rounded-[5px] border-none bg-background px-2 text-sm text-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] [&_svg]:size-[13px]"
-      >
-        Copy
-      </CopyButton>
-    </div>
+/**
+ * Thank-you page is static-only — rendered entirely via PlateStatic.
+ */
+const RenderThankYouContent = ({ nodes, shareUrl }: { nodes: Value; shareUrl?: string }) => (
+  <div data-bf-field-list>
+    <StaticContentBlock nodes={nodes} />
+    {shareUrl && <FormShareCard shareUrl={shareUrl} />}
   </div>
 );
 
-// Thank-you page is static-only — rendered via PlateStatic.
-const RenderThankYouContent = ({
-  nodes,
-  onReset,
-  shareUrl,
-}: {
-  nodes: Value;
-  onReset?: () => void;
-  shareUrl?: string;
-}) => {
-  const { t } = useTranslation();
-  return (
-    <div data-bf-field-list>
-      <StaticContentBlock nodes={nodes} />
-      {onReset && (
-        <div className="flex justify-center pt-4">
-          <Button
-            type="button"
-            onClick={onReset}
-            variant="outline"
-            size="sm"
-            className="rounded-lg"
-          >
-            {t("submitAnother")}
-          </Button>
-        </div>
-      )}
-      {shareUrl && <ShareWithOthers shareUrl={shareUrl} />}
-    </div>
-  );
-};
-
-const DefaultThankYou = ({ onReset, shareUrl }: { onReset?: () => void; shareUrl?: string }) => {
+const DefaultThankYou = ({ shareUrl }: { shareUrl?: string }) => {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -340,12 +297,7 @@ const DefaultThankYou = ({ onReset, shareUrl }: { onReset?: () => void; shareUrl
       </div>
       <h2 className="mb-2 text-2xl font-semibold">{t("thankYou")}</h2>
       <p className="mb-6 text-muted-foreground">{t("responseSubmitted")}</p>
-      {onReset && (
-        <Button type="button" onClick={onReset} variant="outline" size="sm" className="rounded-lg">
-          {t("submitAnother")}
-        </Button>
-      )}
-      {shareUrl && <ShareWithOthers shareUrl={shareUrl} />}
+      {shareUrl && <FormShareCard shareUrl={shareUrl} />}
     </div>
   );
 };
@@ -506,17 +458,11 @@ const useRedirectCountdown = (isSubmitted: boolean, settings?: PublicFormSetting
 
 interface ThankYouViewProps {
   thankYouNodes: Value | null;
-  onReset?: () => void;
   shareUrl?: string;
   redirectCountdown: number | null;
 }
 
-const ThankYouView = ({
-  thankYouNodes,
-  onReset,
-  shareUrl,
-  redirectCountdown,
-}: ThankYouViewProps) => {
+const ThankYouView = ({ thankYouNodes, shareUrl, redirectCountdown }: ThankYouViewProps) => {
   const { t } = useTranslation();
   return (
     <LazyMotion features={domAnimation} strict>
@@ -526,9 +472,9 @@ const ThankYouView = ({
         transition={{ duration: 0.3 }}
       >
         {thankYouNodes && thankYouNodes.length > 0 ? (
-          <RenderThankYouContent nodes={thankYouNodes} onReset={onReset} shareUrl={shareUrl} />
+          <RenderThankYouContent nodes={thankYouNodes} shareUrl={shareUrl} />
         ) : (
-          <DefaultThankYou onReset={onReset} shareUrl={shareUrl} />
+          <DefaultThankYou shareUrl={shareUrl} />
         )}
         {redirectCountdown !== null && (
           <p className="mt-4 text-center text-muted-foreground">
@@ -629,7 +575,7 @@ const FieldByFieldLayout = ({
   shareUrl,
   redirectCountdown,
 }: LayoutProps) => {
-  const { currentStep, totalSteps, isSubmitted, direction, reset } = useStepForm();
+  const { currentStep, totalSteps, isSubmitted, direction } = useStepForm();
   const hasCustomization = !!(customization && Object.keys(customization).length > 0);
   const coverIsImage = cover && isValidUrl(cover);
   const coverIsColor = cover && isHexColor(cover);
@@ -723,7 +669,6 @@ const FieldByFieldLayout = ({
           {isSubmitted ? (
             <ThankYouView
               thankYouNodes={thankYouNodes}
-              onReset={reset}
               shareUrl={shareUrl}
               redirectCountdown={redirectCountdown}
             />
@@ -856,7 +801,7 @@ const FormPreviewContent = (props: {
   boundToParent?: boolean;
   shortId?: string;
 }) => {
-  const { isSubmitted, reset } = useStepForm();
+  const { isSubmitted } = useStepForm();
   const { shortId, settings, layout, isFieldByField, ...rest } = {
     ...props,
     isFieldByField: props.settings?.presentationMode === "field-by-field",
@@ -890,7 +835,6 @@ const FormPreviewContent = (props: {
         >
           <ThankYouView
             thankYouNodes={rest.thankYouNodes}
-            onReset={reset}
             shareUrl={shareUrl}
             redirectCountdown={redirectCountdown}
           />

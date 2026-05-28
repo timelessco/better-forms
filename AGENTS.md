@@ -2,6 +2,8 @@
 
 Reform is a TanStack Start (Router + Vite) + React 19 app with TanStack DB collections, Drizzle ORM, Better Auth, Polar billing, the Plate.js editor, and the AI SDK.
 
+**DON'T USE ASKQUESTION TOOL**
+
 ## STOP — Package manager rules (read first)
 
 **Never run `bun`, `bun x`, `bun run`, or `bunx` in this repository.** This includes invoking binaries: no `bun x tsc`, `bun x vitest`, `bun x oxlint`, `bun x knip`, `bun x prettier`, etc. Use `pnpm` / `pnpm exec` for everything. Mise installs `node` 24.x; pnpm-installed binaries shell out to node and will not work under Bun's runtime.

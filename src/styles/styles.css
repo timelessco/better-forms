@@ -4,6 +4,10 @@
 @import "./inter-v.css";
 @import "./transitions.css";
 
+/* Streamdown renders Markdown in AI Chat bubbles — include its dist so Tailwind
+   keeps the utility classes it applies to rendered Markdown elements. */
+@source "../../node_modules/streamdown/dist/*.js";
+
 /* `dark:` applies under a `.dark` ancestor, EXCEPT inside a `.bf-light` subtree. The form
    preview adds `.bf-light` to a light form so the app's global `<html.dark>` can't leak its
    `dark:` styles (checkbox borders, button hovers, chips, etc.) into a light-themed form. */

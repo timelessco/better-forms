@@ -1,10 +1,7 @@
-import { createServerFn } from "@tanstack/react-start";
-import { putBlob } from "@/integrations/blob";
 import { getRequestIP } from "@tanstack/react-start/server";
 import { and, eq, sql } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
 import type { Value } from "platejs";
-import * as v from "valibot";
 import { forms, formVersions, uploadRateLimits } from "@/db/schema";
 import { db } from "@/db";
 import type { ErrorCode } from "@/lib/errors/codes";
@@ -13,29 +10,43 @@ import {
   transformPlateStateToFormElements,
 } from "@/lib/editor/transform-plate-to-form";
 import {
+  acceptStringToContentTypes,
   buildAcceptString,
   DEFAULT_MAX_FILE_SIZE_MB,
-  getExtensionForMime,
+  MAX_FILE_SIZE_HARD_CAP_MB,
   resolveAllowedSubtypes,
 } from "@/lib/form-schema/file-upload-types";
 
-/** Public form file uploads — NO auth. Hardened by: (1) Postgres per-IP rate limit; (2) form must
- * exist + be published + have a FileUpload field of that name; (3) MIME allowlist vs field accept;
- * (4) max size. */
+/**
+ * Public form file uploads — NO auth required.
+ *
+ * These guards back the `/api/forms/upload` Vercel Blob client-upload token
+ * route (its `onBeforeGenerateToken`). The file bytes never transit our
+ * server: the browser uploads directly to Blob with a short-lived token we
+ * mint only after these checks pass — which lifts the old ~4.5 MB serverless
+ * request-body ceiling, so the `HARD_MAX_FILE_BYTES` cap below is now actually
+ * enforceable.
+ *
+ * Hardened by:
+ *   1. Postgres-backed per-IP rate limit
+ *   2. Form must exist + be published + contain a FileUpload field with the given name
+ *   3. MIME allowlist (returned as `allowedContentTypes`, enforced by Blob)
+ *   4. Max size (returned as `maximumSizeInBytes`, enforced by Blob)
+ */
 
 const WINDOW_MINUTES = 10;
 const MAX_PER_WINDOW = 20;
 const CLEANUP_PROBABILITY = 0.01;
-// Hard upper bound: refuse beyond this even if a field is configured higher.
-const HARD_MAX_FILE_BYTES = 50 * 1024 * 1024;
+// Hard upper bound — even if a field is configured higher, refuse beyond this.
+const HARD_MAX_FILE_BYTES = MAX_FILE_SIZE_HARD_CAP_MB * 1024 * 1024;
 const DEFAULT_ACCEPT = "image/*,.pdf,.doc,.docx";
 
-const getClientIp = (): string => getRequestIP({ xForwardedFor: true }) ?? "unknown";
+export const getClientIp = (): string => getRequestIP({ xForwardedFor: true }) ?? "unknown";
 
 // SQL literal: Postgres can't concat a parameterized int with text in an interval cast. Build-time constant, safe.
 const WINDOW_INTERVAL_SQL = sql.raw(`interval '${WINDOW_MINUTES} minutes'`);
 
-const checkUploadRateLimit = async (ip: string): Promise<void> => {
+export const checkUploadRateLimit = async (ip: string): Promise<void> => {
   if (Math.random() < CLEANUP_PROBABILITY) {
     await db.execute(
       sql`DELETE FROM upload_rate_limits WHERE window_start < now() - interval '1 hour'`,
@@ -76,30 +87,10 @@ const checkUploadRateLimit = async (ip: string): Promise<void> => {
   }
 };
 
-const isMimeAllowed = (contentType: string, accept: string): boolean => {
-  const tokens = accept
-    .split(",")
-    .map((t) => t.trim().toLowerCase())
-    .filter((t) => t.length > 0);
-  const mime = contentType.toLowerCase();
-  for (const token of tokens) {
-    if (token.endsWith("/*")) {
-      const prefix = token.slice(0, -1); // "image/"
-      if (mime.startsWith(prefix)) return true;
-    } else if (token.startsWith(".")) {
-      const ext = getExtensionForMime(mime);
-      if (ext && `.${ext}` === token) return true;
-    } else if (token === mime) {
-      return true;
-    }
-  }
-  return false;
-};
-
-const assertFormFileField = async (
+export const assertFormFileField = async (
   formId: string,
   fieldName: string,
-): Promise<{ accept: string; maxFileBytes: number }> => {
+): Promise<{ accept: string; allowedContentTypes: string[]; maxFileBytes: number }> => {
   const [form] = await db
     .select({
       status: forms.status,
@@ -176,77 +167,5 @@ const assertFormFileField = async (
       : DEFAULT_MAX_FILE_SIZE_MB;
   const maxFileBytes = Math.min(fieldMaxFileSize * 1024 * 1024, HARD_MAX_FILE_BYTES);
 
-  return { accept, maxFileBytes };
-};
-
-const decodeBase64 = (dataUrl: string): Buffer => {
-  const base64 = dataUrl.replace(/^data:[^;]+;base64,/, "");
-  return Buffer.from(base64, "base64");
-};
-
-export const uploadFormFile = createServerFn({ method: "POST" })
-  .inputValidator(
-    v.object({
-      formId: v.pipe(v.string(), v.uuid()),
-      draftId: v.pipe(v.string(), v.uuid()),
-      fieldName: v.pipe(v.string(), v.minLength(1)),
-      filename: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
-      contentType: v.pipe(v.string(), v.minLength(1), v.maxLength(127)),
-      base64: v.pipe(v.string(), v.minLength(1)),
-    }),
-  )
-  .handler(async ({ data }) => {
-    await checkUploadRateLimit(getClientIp());
-
-    const { accept, maxFileBytes } = await assertFormFileField(data.formId, data.fieldName);
-
-    if (!isMimeAllowed(data.contentType, accept)) {
-      throw createError({
-        code: "uploads/mime-not-allowed" satisfies ErrorCode,
-        status: 400,
-        message: "This file type isn't allowed for this field",
-        why: "Provided content-type doesn't match the field's accept list",
-        fix: "Upload a file with one of the allowed types",
-        internal: { contentType: data.contentType, accept },
-      });
-    }
-
-    const buffer = decodeBase64(data.base64);
-    if (buffer.length === 0) {
-      throw createError({
-        code: "uploads/empty-file" satisfies ErrorCode,
-        status: 400,
-        message: "The uploaded file is empty",
-        why: "Decoded base64 buffer is zero bytes",
-        fix: "Choose a non-empty file and try again",
-      });
-    }
-    if (buffer.length > maxFileBytes) {
-      throw createError({
-        code: "uploads/too-large" satisfies ErrorCode,
-        status: 400,
-        message: "This file is larger than allowed for this field",
-        why: "Buffer length exceeds the field's maxFileBytes limit",
-        fix: "Compress the file or pick a smaller one",
-        internal: { byteSize: buffer.length, maxFileBytes },
-      });
-    }
-
-    const ext = getExtensionForMime(data.contentType) ?? "bin";
-    const key = `submissions/${data.formId}/${data.draftId}/${crypto.randomUUID()}.${ext}`;
-    const blob = await putBlob(key, buffer, data.contentType);
-
-    return {
-      url: blob.url,
-      name: data.filename,
-      size: buffer.length,
-      type: data.contentType,
-    };
-  });
-
-export type UploadedFormFile = {
-  url: string;
-  name: string;
-  size: number;
-  type: string;
+  return { accept, allowedContentTypes: acceptStringToContentTypes(accept), maxFileBytes };
 };

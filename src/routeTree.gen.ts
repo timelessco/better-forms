@@ -20,10 +20,12 @@ import { Route as FFormIdRouteImport } from './routes/f/$formId'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as ApiTrackVisitEndRouteImport } from './routes/api/track/visit-end'
 import { Route as ApiIconsNameRouteImport } from './routes/api/icons/$name'
+import { Route as ApiFormsUploadRouteImport } from './routes/api/forms/upload'
 import { Route as ApiCronPurgeArchivedFormsRouteImport } from './routes/api/cron/purge-archived-forms'
 import { Route as ApiCronAggregateAnalyticsRouteImport } from './routes/api/cron/aggregate-analytics'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiAiFormGenerateRouteImport } from './routes/api/ai/form-generate'
+import { Route as ApiAiChatFormRouteImport } from './routes/api/ai/chat-form'
 import { Route as AuthenticatedWorkspaceWorkspaceIdRouteRouteImport } from './routes/_authenticated/workspace/$workspaceId/route'
 import { Route as ApiOgShortIdHashRouteImport } from './routes/api/og/$shortId/$hash'
 import { Route as ApiFormsShortIdMetaRouteImport } from './routes/api/forms/$shortId/meta'
@@ -87,6 +89,11 @@ const ApiIconsNameRoute = ApiIconsNameRouteImport.update({
   path: '/api/icons/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFormsUploadRoute = ApiFormsUploadRouteImport.update({
+  id: '/api/forms/upload',
+  path: '/api/forms/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCronPurgeArchivedFormsRoute =
   ApiCronPurgeArchivedFormsRouteImport.update({
     id: '/api/cron/purge-archived-forms',
@@ -107,6 +114,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 const ApiAiFormGenerateRoute = ApiAiFormGenerateRouteImport.update({
   id: '/api/ai/form-generate',
   path: '/api/ai/form-generate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiChatFormRoute = ApiAiChatFormRouteImport.update({
+  id: '/api/ai/chat-form',
+  path: '/api/ai/chat-form',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedWorkspaceWorkspaceIdRouteRoute =
@@ -172,10 +184,12 @@ export interface FileRoutesByFullPath {
   '/login/email': typeof LoginEmailRoute
   '/login/': typeof LoginIndexRoute
   '/workspace/$workspaceId': typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
+  '/api/ai/chat-form': typeof ApiAiChatFormRoute
   '/api/ai/form-generate': typeof ApiAiFormGenerateRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
+  '/api/forms/upload': typeof ApiFormsUploadRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/api/track/visit-end': typeof ApiTrackVisitEndRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
@@ -196,10 +210,12 @@ export interface FileRoutesByTo {
   '/login/email': typeof LoginEmailRoute
   '/login': typeof LoginIndexRoute
   '/workspace/$workspaceId': typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
+  '/api/ai/chat-form': typeof ApiAiChatFormRoute
   '/api/ai/form-generate': typeof ApiAiFormGenerateRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
+  '/api/forms/upload': typeof ApiFormsUploadRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/api/track/visit-end': typeof ApiTrackVisitEndRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
@@ -222,10 +238,12 @@ export interface FileRoutesById {
   '/login/email': typeof LoginEmailRoute
   '/login/': typeof LoginIndexRoute
   '/_authenticated/workspace/$workspaceId': typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
+  '/api/ai/chat-form': typeof ApiAiChatFormRoute
   '/api/ai/form-generate': typeof ApiAiFormGenerateRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
+  '/api/forms/upload': typeof ApiFormsUploadRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/api/track/visit-end': typeof ApiTrackVisitEndRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
@@ -248,10 +266,12 @@ export interface FileRouteTypes {
     | '/login/email'
     | '/login/'
     | '/workspace/$workspaceId'
+    | '/api/ai/chat-form'
     | '/api/ai/form-generate'
     | '/api/auth/$'
     | '/api/cron/aggregate-analytics'
     | '/api/cron/purge-archived-forms'
+    | '/api/forms/upload'
     | '/api/icons/$name'
     | '/api/track/visit-end'
     | '/api/forms/$shortId/meta'
@@ -272,10 +292,12 @@ export interface FileRouteTypes {
     | '/login/email'
     | '/login'
     | '/workspace/$workspaceId'
+    | '/api/ai/chat-form'
     | '/api/ai/form-generate'
     | '/api/auth/$'
     | '/api/cron/aggregate-analytics'
     | '/api/cron/purge-archived-forms'
+    | '/api/forms/upload'
     | '/api/icons/$name'
     | '/api/track/visit-end'
     | '/api/forms/$shortId/meta'
@@ -297,10 +319,12 @@ export interface FileRouteTypes {
     | '/login/email'
     | '/login/'
     | '/_authenticated/workspace/$workspaceId'
+    | '/api/ai/chat-form'
     | '/api/ai/form-generate'
     | '/api/auth/$'
     | '/api/cron/aggregate-analytics'
     | '/api/cron/purge-archived-forms'
+    | '/api/forms/upload'
     | '/api/icons/$name'
     | '/api/track/visit-end'
     | '/api/forms/$shortId/meta'
@@ -321,10 +345,12 @@ export interface RootRouteChildren {
   FormsShortIdRoute: typeof FormsShortIdRoute
   LoginEmailRoute: typeof LoginEmailRoute
   LoginIndexRoute: typeof LoginIndexRoute
+  ApiAiChatFormRoute: typeof ApiAiChatFormRoute
   ApiAiFormGenerateRoute: typeof ApiAiFormGenerateRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCronAggregateAnalyticsRoute: typeof ApiCronAggregateAnalyticsRoute
   ApiCronPurgeArchivedFormsRoute: typeof ApiCronPurgeArchivedFormsRoute
+  ApiFormsUploadRoute: typeof ApiFormsUploadRoute
   ApiIconsNameRoute: typeof ApiIconsNameRoute
   ApiTrackVisitEndRoute: typeof ApiTrackVisitEndRoute
   ApiFormsShortIdMetaRoute: typeof ApiFormsShortIdMetaRoute
@@ -410,6 +436,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiIconsNameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/forms/upload': {
+      id: '/api/forms/upload'
+      path: '/api/forms/upload'
+      fullPath: '/api/forms/upload'
+      preLoaderRoute: typeof ApiFormsUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/cron/purge-archived-forms': {
       id: '/api/cron/purge-archived-forms'
       path: '/api/cron/purge-archived-forms'
@@ -436,6 +469,13 @@ declare module '@tanstack/react-router' {
       path: '/api/ai/form-generate'
       fullPath: '/api/ai/form-generate'
       preLoaderRoute: typeof ApiAiFormGenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/chat-form': {
+      id: '/api/ai/chat-form'
+      path: '/api/ai/chat-form'
+      fullPath: '/api/ai/chat-form'
+      preLoaderRoute: typeof ApiAiChatFormRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/workspace/$workspaceId': {
@@ -560,10 +600,12 @@ const rootRouteChildren: RootRouteChildren = {
   FormsShortIdRoute: FormsShortIdRoute,
   LoginEmailRoute: LoginEmailRoute,
   LoginIndexRoute: LoginIndexRoute,
+  ApiAiChatFormRoute: ApiAiChatFormRoute,
   ApiAiFormGenerateRoute: ApiAiFormGenerateRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCronAggregateAnalyticsRoute: ApiCronAggregateAnalyticsRoute,
   ApiCronPurgeArchivedFormsRoute: ApiCronPurgeArchivedFormsRoute,
+  ApiFormsUploadRoute: ApiFormsUploadRoute,
   ApiIconsNameRoute: ApiIconsNameRoute,
   ApiTrackVisitEndRoute: ApiTrackVisitEndRoute,
   ApiFormsShortIdMetaRoute: ApiFormsShortIdMetaRoute,

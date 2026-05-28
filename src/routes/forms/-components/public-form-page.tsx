@@ -6,7 +6,15 @@ import {
   SunIcon,
 } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Value } from "platejs";
+import { transformPlateStateToFormElements } from "@/lib/editor/transform-plate-to-form";
+
+const AiChatForm = lazy(() =>
+  import("@/components/form-components/ai-chat-form/ai-chat-form").then((m) => ({
+    default: m.AiChatForm,
+  })),
+);
 import { FormPreviewRSC } from "@/components/form-components/form-preview-rsc";
 import type { StepRSC } from "@/components/form-components/form-preview-rsc";
 import { BrandingFooter } from "./branding-footer";
@@ -14,7 +22,12 @@ import { AlreadySubmitted, FormClosed } from "@/routes/forms/-components/form-cl
 import { PasswordGate } from "@/routes/forms/-components/password-gate";
 import { TranslationProvider, useTranslation } from "@/contexts/translation-context";
 import { createPublicSubmission } from "@/lib/server-fn/public-submissions";
-import { clearDraftId, readDraftId, readLocalDraft } from "@/hooks/use-draft-autosave";
+import {
+  clearDraftId,
+  getOrCreateDraftId,
+  readDraftId,
+  readLocalDraft,
+} from "@/hooks/use-draft-autosave";
 import { usePublicFormTracking } from "@/lib/analytics/use-public-form-tracking";
 import { getTranslations } from "@/lib/translations";
 import { cn } from "@/lib/utils";
@@ -313,8 +326,22 @@ export const PublicFormPage = ({
 
   useTransparentBackground(transparentBackground, isPopup);
 
-  // Field-by-field popups: suppress iframe scrollbars (single centered field needs none; else macOS overlay scrollbar shows).
-  const isFieldByFieldPopup = isPopup && form?.settings?.presentationMode === "field-by-field";
+  // Local in-session escape: AI Chat → card (the standard scrolling form),
+  // without persisting to settings. Toggled by AiChatForm via
+  // `onSwitchToStandard`. Card (not field-by-field) so it's a plain full-page
+  // form with no full-pane cover background.
+  const [aiChatFallback, setAiChatFallback] = useState(false);
+  const effectivePresentationMode =
+    form?.settings?.presentationMode === "ai-chat" && aiChatFallback
+      ? "card"
+      : form?.settings?.presentationMode;
+
+  // For field-by-field and ai-chat popups, suppress iframe-level scrollbars —
+  // the single visible field is centered within the available height, so no
+  // scroll is needed and the macOS overlay scrollbar would otherwise appear.
+  const isFieldByFieldPopup =
+    isPopup &&
+    (effectivePresentationMode === "field-by-field" || effectivePresentationMode === "ai-chat");
   useFieldByFieldOverflowLock(isFieldByFieldPopup);
 
   useIframeResizeNotifier(isPopup, dynamicHeight, formId, containerRef);
@@ -416,12 +443,17 @@ export const PublicFormPage = ({
     );
   }
 
-  const settings = form.settings ?? defaultPublicFormSettings;
+  const baseSettings = form.settings ?? defaultPublicFormSettings;
+  const settings: PublicFormSettings =
+    baseSettings.presentationMode === "ai-chat" && aiChatFallback
+      ? { ...baseSettings, presentationMode: "card" }
+      : baseSettings;
 
   const formContent = (
     <PublicFormMain
       containerRef={containerRef}
       settings={settings}
+      onSwitchToAiChatFallback={() => setAiChatFallback(true)}
       form={form}
       transparentBackground={transparentBackground}
       isPopup={isPopup}
@@ -518,9 +550,47 @@ const SubmitErrorToast = ({ submitError }: { submitError: string }) => (
   </div>
 );
 
+interface AiChatBodyProps {
+  formId: string;
+  shortId: string;
+  content: Value;
+  settings: PublicFormSettings;
+  handleSubmit: (values: Record<string, unknown>) => Promise<void>;
+  onSwitchToStandard: () => void;
+  initialAnswers: Record<string, unknown> | undefined;
+}
+
+const AiChatBody = ({
+  formId,
+  shortId,
+  content,
+  settings,
+  handleSubmit,
+  onSwitchToStandard,
+  initialAnswers,
+}: AiChatBodyProps) => {
+  const elements = useMemo(() => transformPlateStateToFormElements(content), [content]);
+  const submissionId = useMemo(() => getOrCreateDraftId(formId), [formId]);
+  return (
+    <Suspense fallback={null}>
+      <AiChatForm
+        formId={formId}
+        shortId={shortId}
+        submissionId={submissionId}
+        content={elements}
+        settings={settings}
+        onSubmit={handleSubmit}
+        onSwitchToStandard={onSwitchToStandard}
+        initialAnswers={initialAnswers}
+      />
+    </Suspense>
+  );
+};
+
 interface PublicFormMainProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   settings: PublicFormSettings;
+  onSwitchToAiChatFallback: () => void;
   form: PublicForm;
   transparentBackground: boolean;
   isPopup: boolean;
@@ -551,6 +621,7 @@ interface PublicFormMainProps {
 const PublicFormMain = ({
   containerRef,
   settings,
+  onSwitchToAiChatFallback,
   form,
   transparentBackground,
   isPopup,
@@ -569,67 +640,93 @@ const PublicFormMain = ({
   trackingBase,
   resumeProps,
   submitError,
-}: PublicFormMainProps) => (
-  <main
-    ref={containerRef}
-    id="bf-form-container"
-    className={cn(
-      "text-foreground",
-      settings.presentationMode === "field-by-field"
-        ? "relative h-screen overflow-hidden"
-        : cn("overflow-x-hidden", settings.branding ? "pb-16" : "pb-8"),
-      form.customization && Object.keys(form.customization).length > 0 && "bf-themed",
-      // No min-h-screen for popup/dynamic-height embeds — 100vh of iframe viewport adds a second inner scrollbar over host scroll.
-      !isPopup &&
-        !dynamicHeight &&
-        settings.presentationMode !== "field-by-field" &&
-        "min-h-screen",
-      transparentBackground || isPopup ? "bg-transparent" : "bg-background",
-      alignLeft && "text-left",
-    )}
-    style={dynamicWidth ? ({ "--bf-page-width": "100%" } as React.CSSProperties) : undefined}
-    data-bf-hide-title={hideTitle ? "" : undefined}
-    aria-live="polite"
-  >
-    {themeToggle && (
-      // Toggle only matters on click/focus. Defer hydration to first interaction — icon paints from SSR HTML, handler chunk off critical path. Safe: pre-hydration script sets .dark.
-      <Hydrate when={interaction({ events: ["pointerdown", "focusin"] })}>
-        <ThemeToggleButton themeToggle={themeToggle} />
-      </Hydrate>
-    )}
-    {draftState.status === "prompt" && (
-      <DraftResumePrompt handleResumeDraft={handleResumeDraft} handleStartOver={handleStartOver} />
-    )}
-    <FormPreviewRSC
-      key={previewKey}
-      steps={rsc.steps}
-      thankYou={(rsc.thankYou as string | null) ?? null}
-      stepCount={rsc.stepCount}
-      header={hideTitle && !(form.cover || form.icon) ? null : rsc.header}
-      onSubmit={handleSubmit}
-      settings={settings}
-      formId={formId}
-      trackingBase={trackingBase}
-      fieldByFieldMeta={
-        settings.presentationMode === "field-by-field"
-          ? {
-              title: form.title,
-              icon: form.icon,
-              iconColor: rsc.formHeaderIconColor ?? null,
-              cover: form.cover,
-              hideTitle,
-              isPopup,
-            }
-          : undefined
-      }
-      {...resumeProps}
-    />
-    {submitError && <SubmitErrorToast submitError={submitError} />}
-    {settings.branding && (
-      // Static link, no client behavior — SSR HTML only, skip hydration.
-      <Hydrate when={never()}>
-        <BrandingFooter />
-      </Hydrate>
-    )}
-  </main>
-);
+}: PublicFormMainProps) => {
+  const isAiChat = settings.presentationMode === "ai-chat";
+  // AI Chat and field-by-field own the full viewport height (chat scrolls
+  // internally, composer pinned to the bottom); card forms scroll the page.
+  const isFullHeight = isAiChat || settings.presentationMode === "field-by-field";
+  return (
+    <main
+      ref={containerRef}
+      id="bf-form-container"
+      className={cn(
+        "text-foreground",
+        isFullHeight
+          ? "relative h-screen overflow-hidden"
+          : cn("overflow-x-hidden", settings.branding ? "pb-16" : "pb-8"),
+        // AI Chat reserves space for fixed branding footer so composer isn't hidden behind it.
+        isAiChat && settings.branding && "pb-12",
+        form.customization && Object.keys(form.customization).length > 0 && "bf-themed",
+        // No min-h-screen for popup/dynamic-height embeds — 100vh of iframe viewport adds a second inner scrollbar over host scroll.
+        !isPopup && !dynamicHeight && !isFullHeight && "min-h-screen",
+        transparentBackground || isPopup ? "bg-transparent" : "bg-background",
+        alignLeft && "text-left",
+      )}
+      style={dynamicWidth ? ({ "--bf-page-width": "100%" } as React.CSSProperties) : undefined}
+      data-bf-hide-title={hideTitle ? "" : undefined}
+      aria-live="polite"
+    >
+      {themeToggle && (
+        // Toggle only matters on click/focus. Defer hydration to first interaction — icon paints from SSR HTML, handler chunk off critical path. Safe: pre-hydration script sets .dark.
+        <Hydrate when={interaction({ events: ["pointerdown", "focusin"] })}>
+          <ThemeToggleButton themeToggle={themeToggle} />
+        </Hydrate>
+      )}
+      {draftState.status === "prompt" && !isAiChat && (
+        <DraftResumePrompt
+          handleResumeDraft={handleResumeDraft}
+          handleStartOver={handleStartOver}
+        />
+      )}
+      {isAiChat ? (
+        <AiChatBody
+          formId={formId}
+          shortId={form.shortId}
+          content={form.content as Value}
+          settings={settings}
+          handleSubmit={handleSubmit}
+          onSwitchToStandard={onSwitchToAiChatFallback}
+          // AI Chat resumes in-chat (recap bubble) — auto-resume drafts without the banner prompt.
+          initialAnswers={
+            draftState.status === "resumed" || draftState.status === "prompt"
+              ? draftState.draft.data
+              : undefined
+          }
+        />
+      ) : (
+        <FormPreviewRSC
+          key={previewKey}
+          steps={rsc.steps}
+          thankYou={(rsc.thankYou as string | null) ?? null}
+          stepCount={rsc.stepCount}
+          header={hideTitle && !(form.cover || form.icon) ? null : rsc.header}
+          onSubmit={handleSubmit}
+          settings={settings}
+          formId={formId}
+          shortId={form.shortId}
+          trackingBase={trackingBase}
+          fieldByFieldMeta={
+            settings.presentationMode === "field-by-field"
+              ? {
+                  title: form.title,
+                  icon: form.icon,
+                  iconColor: rsc.formHeaderIconColor ?? null,
+                  cover: form.cover,
+                  hideTitle,
+                  isPopup,
+                }
+              : undefined
+          }
+          {...resumeProps}
+        />
+      )}
+      {submitError && <SubmitErrorToast submitError={submitError} />}
+      {settings.branding && (
+        // Static link, no client behavior — SSR HTML only, skip hydration.
+        <Hydrate when={never()}>
+          <BrandingFooter />
+        </Hydrate>
+      )}
+    </main>
+  );
+};

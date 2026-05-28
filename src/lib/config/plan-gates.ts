@@ -9,7 +9,8 @@ export type FeatureGate =
   | "respondentEmailNotifications"
   | "dataRetention"
   | "disableBranding"
-  | "customization";
+  | "customization"
+  | "aiChatPresentation";
 
 export const PLAN_GATES: Record<FeatureGate, ServerPlan> = {
   analytics: "pro",
@@ -18,6 +19,7 @@ export const PLAN_GATES: Record<FeatureGate, ServerPlan> = {
   dataRetention: "pro",
   disableBranding: "pro",
   customization: "pro",
+  aiChatPresentation: "pro",
 };
 
 export const PLAN_RANK: Record<ServerPlan, number> = {
@@ -35,17 +37,27 @@ export const planUnlocks = (plan: ServerPlan, feature: FeatureGate): boolean =>
 export type PlanQuota = {
   /** Hard cap on AI form-generate calls per org per UTC day. */
   aiGenerationsPerDay: number | null;
+  /** Hard cap on AI Chat Sessions per org per UTC month. `null` = blocked. */
+  aiChatSessionsPerMonth: number | null;
+  /** Hard cap on builder-side AI Chat preview calls per org per UTC day. */
+  aiChatPreviewPerDay: number | null;
 };
 
 export const PLAN_QUOTAS: Record<ServerPlan, PlanQuota> = {
   free: {
     aiGenerationsPerDay: 5,
+    aiChatSessionsPerMonth: null,
+    aiChatPreviewPerDay: null,
   },
   pro: {
     aiGenerationsPerDay: null,
+    aiChatSessionsPerMonth: 500,
+    aiChatPreviewPerDay: 100,
   },
   business: {
     aiGenerationsPerDay: null,
+    aiChatSessionsPerMonth: 5000,
+    aiChatPreviewPerDay: 100,
   },
 };
 

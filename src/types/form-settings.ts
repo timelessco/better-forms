@@ -6,7 +6,9 @@ export type PopupAnimation = "fade" | "slide" | "scale";
 
 export type EmbedType = "standard" | "popup" | "fullPage";
 
-export type PresentationMode = "card" | "field-by-field";
+export type PresentationMode = "card" | "field-by-field" | "ai-chat";
+
+export type AiChatTone = "formal" | "friendly" | "playful";
 
 /** Canonical shape of `forms.settings` JSONB — all behavioral config. Theme tokens live in `forms.customization`, not here. */
 export interface FormSettings {
@@ -16,6 +18,8 @@ export interface FormSettings {
   redirectDelay: number;
   progressBar: boolean;
   presentationMode: PresentationMode;
+  aiChatTone: AiChatTone;
+  aiChatGreeting: string | null;
   branding: boolean;
   analytics: boolean;
   dataRetention: boolean;
@@ -43,6 +47,8 @@ export interface FormSettings {
 export interface PublicFormSettings {
   progressBar: boolean;
   presentationMode: PresentationMode;
+  aiChatTone: AiChatTone;
+  aiChatGreeting: string | null;
   branding: boolean;
   saveAnswersForLater: boolean;
   redirectOnCompletion: boolean;
@@ -63,6 +69,8 @@ export interface PublicFormSettings {
 export const defaultPublicFormSettings: PublicFormSettings = {
   progressBar: false,
   presentationMode: "card",
+  aiChatTone: "friendly",
+  aiChatGreeting: null,
   branding: true,
   saveAnswersForLater: true,
   redirectOnCompletion: false,
@@ -102,6 +110,8 @@ export const defaultFormSettings: FormSettings = {
   redirectDelay: 0,
   progressBar: false,
   presentationMode: "card",
+  aiChatTone: "friendly",
+  aiChatGreeting: null,
   branding: true,
   analytics: false,
   dataRetention: false,

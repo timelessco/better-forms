@@ -11,6 +11,7 @@ export type FormProSettingsInput = {
   dataRetention?: boolean;
   analytics?: boolean;
   customization?: Record<string, unknown> | null;
+  presentationMode?: string;
 };
 
 // Free-plan customization keys (basic Theme controls). Anything outside (per-mode colors,
@@ -50,6 +51,11 @@ const FORM_INPUT_GATES: ReadonlyArray<{
     field: "customization",
     gate: "customization",
     isActive: customizationRequiresPro,
+  },
+  {
+    field: "presentationMode",
+    gate: "aiChatPresentation",
+    isActive: (v) => v === "ai-chat",
   },
 ];
 
