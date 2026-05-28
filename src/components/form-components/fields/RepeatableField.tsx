@@ -62,22 +62,30 @@ const RepeatableFieldBody = ({
   const items = Array.isArray(rawValue) ? rawValue : [];
   const itemCount = items.length;
 
-  // Required UX: a repeatable field always shows at least one input. When the
-  // stored value isn't a usable array (legacy scalar / undefined / empty), seed
-  // one item so the respondent has somewhere to type. Reads the LIVE array
-  // length out of TanStack form state instead of the closure-captured
-  // `itemCount` — under React StrictMode the effect is invoked twice with the
-  // same closure, so a closure-based check would push the seed twice (the
-  // second invocation runs before React commits the first push) and the field
-  // would default to TWO items.
+  // Editor-configured row floor. The first `lockedRows` rows ALWAYS render and
+  // cannot be removed by the Respondent (creator's contract — "always collect
+  // these N values"). Anything the Respondent adds beyond that via "+ Add"
+  // is theirs to remove.
+  const rawLockedRows = (element as { initialRows?: number }).initialRows;
+  const lockedRows =
+    typeof rawLockedRows === "number" && rawLockedRows > 0 ? Math.floor(rawLockedRows) : 1;
+
+  // Required UX: a repeatable field always shows at least `lockedRows` inputs.
+  // When the stored value isn't a usable array (legacy scalar / undefined / too
+  // short), seed enough empty items so the Respondent always has the
+  // creator-promised floor to type into. Reads the LIVE array length out of
+  // TanStack form state instead of the closure-captured `itemCount` — under
+  // React StrictMode the effect is invoked twice with the same closure, so a
+  // closure-based check would push the seed twice (the second invocation runs
+  // before React commits the first push) and the field would over-seed.
   const seed = getSeedValue(element);
   useEffect(() => {
     const live = arrayField.state.value;
     const liveCount = Array.isArray(live) ? live.length : 0;
-    if (liveCount === 0) {
+    for (let i = liveCount; i < lockedRows; i++) {
       arrayField.pushValue(seed);
     }
-  }, [itemCount, arrayField, seed]);
+  }, [itemCount, arrayField, seed, lockedRows]);
 
   const label = "label" in element ? element.label : undefined;
   const addLabel = `Add${label ? ` ${label.toLowerCase()}` : " item"}`;
@@ -107,7 +115,7 @@ const RepeatableFieldBody = ({
               />
             </Suspense>
           </div>
-          {itemCount > 1 && (
+          {i >= lockedRows && (
             <button
               type="button"
               aria-label="Remove item"
