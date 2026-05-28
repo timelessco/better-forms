@@ -64,9 +64,25 @@ export const useStepPreviewForm = ({
     // Merge context data — for back-nav to previous step.
     const merged: Record<string, unknown> = { ...fieldDefaults };
     for (const field of fields) {
-      if (field.name in formData) {
-        merged[field.name] = formData[field.name];
+      if (!(field.name in formData)) continue;
+      const persisted = formData[field.name];
+      // For repeatable fields, pad short persisted arrays up to the
+      // editor-configured `initialRows` minimum. Without this, a creator
+      // bumping `initialRows` from 1 → 4 wouldn't see 4 rows in preview if
+      // localStorage already holds 2 values from a prior Next-click.
+      if ("isFieldArray" in field && field.isFieldArray === true && Array.isArray(persisted)) {
+        const rawRows = "initialRows" in field ? field.initialRows : undefined;
+        const minRows = typeof rawRows === "number" && rawRows > 0 ? Math.floor(rawRows) : 1;
+        if (persisted.length < minRows) {
+          const seed = "defaultValue" in field && field.defaultValue ? field.defaultValue : "";
+          merged[field.name] = [
+            ...persisted,
+            ...Array.from({ length: minRows - persisted.length }, () => seed),
+          ];
+          continue;
+        }
       }
+      merged[field.name] = persisted;
     }
     return merged;
   }, [fields, formData]);
