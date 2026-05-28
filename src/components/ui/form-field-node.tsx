@@ -62,7 +62,7 @@ export const FormFieldElement = (allProps: PlateElementProps) => {
   const addLabelText = `Add${fieldLabel ? ` ${fieldLabel.toLowerCase()}` : " item"}`;
 
   return (
-    <div className="w-full max-w-[464px]">
+    <div className="w-full">
       <PlateElement
         attributes={{ ...attributes, placeholder, "data-bf-input": "true" }}
         className={cn(
