@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 
+import { Button } from "@/components/ui/button";
 import type { AppForm } from "@/hooks/use-form-builder";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 import { cn } from "@/lib/utils";
@@ -82,17 +83,19 @@ export const RepeatableField = ({
                 )}
               </div>
             ))}
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => arrayField.pushValue("")}
-              className="flex w-fit items-center gap-1 text-sm text-primary hover:underline"
+              className="mt-1 w-fit"
+              prefix={<span aria-hidden="true">+</span>}
             >
-              <span aria-hidden="true">+</span>
               {(() => {
                 const label = "label" in element ? element.label : undefined;
                 return `Add${label ? ` ${label.toLowerCase()}` : " item"}`;
               })()}
-            </button>
+            </Button>
           </div>
         );
       }}
