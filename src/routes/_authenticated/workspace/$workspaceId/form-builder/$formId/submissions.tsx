@@ -133,6 +133,12 @@ const FileTypeIcon = ({ type, className }: { type: string; className?: string })
 const csvFormat = (value: unknown): string => {
   if (isUploadedFileValue(value)) return value.url;
   if (value === null || value === undefined) return "";
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => csvFormat(v))
+      .filter((s) => s !== "")
+      .join("; ");
+  }
   if (typeof value === "object") {
     try {
       return JSON.stringify(value);
@@ -142,6 +148,19 @@ const csvFormat = (value: unknown): string => {
   }
   return String(value);
 };
+
+// Field types eligible for the Repeatable toggle — used to gate the
+// scalar-array chip renderer so we don't disturb MultiSelect's colored chips.
+const SCALAR_CELL_TYPES = new Set([
+  "Input",
+  "Textarea",
+  "Email",
+  "Phone",
+  "Number",
+  "Link",
+  "Date",
+  "Time",
+]);
 
 type FieldOption = { value: string; label: string };
 
@@ -165,6 +184,27 @@ const SubmissionCell = ({
   const text = formatSubmissionValue(value);
   if (text === "-") {
     return <span className="text-[13px] text-muted-foreground">-</span>;
+  }
+
+  // Repeatable scalar fields land here as arrays — render as chips before
+  // hitting the per-type renderers below (a single mailto: for two emails or
+  // an "Invalid Date" for an array of dates would otherwise be wrong).
+  if (Array.isArray(value) && SCALAR_CELL_TYPES.has(fieldType)) {
+    const arr = value.filter((v) => v !== "" && v != null);
+    if (arr.length === 0) return <span className="text-[13px] text-muted-foreground">-</span>;
+    return (
+      <div className="flex max-w-[300px] flex-wrap gap-1">
+        {arr.map((item, i) => (
+          <span
+            // eslint-disable-next-line @eslint-react/no-array-index-key
+            key={i}
+            className="inline-flex items-center rounded-md bg-secondary px-1.5 py-0.5 text-[11px] text-secondary-foreground"
+          >
+            {labelFor(item)}
+          </span>
+        ))}
+      </div>
+    );
   }
 
   switch (fieldType) {
