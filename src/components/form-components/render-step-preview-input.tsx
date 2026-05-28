@@ -3,6 +3,7 @@ import { createContext, lazy, Suspense } from "react";
 import type { AppForm } from "@/hooks/use-form-builder";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 import { FieldSkeleton } from "./field-skeleton";
+import { RepeatableField } from "./fields/RepeatableField";
 import {
   FieldLabelText,
   GROUP_FIELD_TYPES,
@@ -10,6 +11,9 @@ import {
   getFieldLabelProps,
 } from "./fields/shared";
 import type { FieldType } from "./fields/shared";
+
+const isFieldArrayElement = (element: PlateFormField): boolean =>
+  "isFieldArray" in element && (element as { isFieldArray?: boolean }).isFieldArray === true;
 
 // Editor preview supplies an eager (static-import) renderer here to avoid the
 // lazy-chunk flash when stepping between pages. Live form leaves it null and
@@ -59,7 +63,9 @@ export const PreviewInputShell = ({
   // pointing at the visible label/heading id. For all other field types the
   // standard `<label htmlFor>` / heading + `aria-labelledby` wiring handles
   // accessibility (the field component itself reads it via element.name).
-  const isGroup = "fieldType" in element && GROUP_FIELD_TYPES.has(element.fieldType);
+  const isGroup =
+    ("fieldType" in element && GROUP_FIELD_TYPES.has(element.fieldType)) ||
+    isFieldArrayElement(element);
   const groupAriaProps =
     isGroup && label
       ? { role: "group" as const, "aria-labelledby": fieldLabelId(element.name) }
@@ -85,6 +91,9 @@ export const RenderFieldComponent = ({ element, form }: RenderStepPreviewInputPr
   if (element.fieldType === "Button") return null;
   const Component = FIELD_RENDERERS[element.fieldType as FieldType];
   if (!Component) return null;
+  if (isFieldArrayElement(element)) {
+    return <RepeatableField element={element} form={form} ItemComponent={Component as never} />;
+  }
   return (
     <Suspense fallback={<FieldSkeleton fieldType={element.fieldType as FieldType} />}>
       <Component element={element as never} form={form} />
@@ -96,11 +105,16 @@ export const RenderStepPreviewInput = ({ element, form }: RenderStepPreviewInput
   if (element.fieldType === "Button") return null;
   const Component = FIELD_RENDERERS[element.fieldType as FieldType];
   if (!Component) return null;
+  const isFieldArray = isFieldArrayElement(element);
   return (
     <PreviewInputShell element={element}>
-      <Suspense fallback={<FieldSkeleton fieldType={element.fieldType as FieldType} />}>
-        <Component element={element as never} form={form} />
-      </Suspense>
+      {isFieldArray ? (
+        <RepeatableField element={element} form={form} ItemComponent={Component as never} />
+      ) : (
+        <Suspense fallback={<FieldSkeleton fieldType={element.fieldType as FieldType} />}>
+          <Component element={element as never} form={form} />
+        </Suspense>
+      )}
     </PreviewInputShell>
   );
 };
