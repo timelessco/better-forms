@@ -4,18 +4,19 @@ import { PlateElement } from "platejs/react";
 
 import { AlignLeftIcon } from "@/components/ui/icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useFormInputNode } from "@/hooks/use-form-input-node";
+import { useFieldLabelText, useFormInputNode } from "@/hooks/use-form-input-node";
 import { cn } from "@/lib/utils";
 
 export const FormTextareaElement = ({ children, ...props }: PlateElementProps) => {
   const { attributes, element, ...rest } = props;
   const placeholder = element.placeholder as string | undefined;
   const { focused, isSelected } = useFormInputNode(element);
+  // Pulled from the preceding label block so the editor's add-item indicator
+  // reads e.g. "Add full name" (matching the live preview) instead of the
+  // generic "Add item". Hook subscribes to label edits and updates live.
+  const fieldLabel = useFieldLabelText(element);
   const isFieldArray = (element as { isFieldArray?: boolean }).isFieldArray === true;
-  const addLabelText = (() => {
-    const label = (element as { label?: string }).label;
-    return `Add${label ? ` ${label.toLowerCase()}` : " item"}`;
-  })();
+  const addLabelText = `Add${fieldLabel ? ` ${fieldLabel.toLowerCase()}` : " item"}`;
 
   return (
     <div className="w-full max-w-[464px]">

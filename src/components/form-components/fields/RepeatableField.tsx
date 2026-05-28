@@ -64,12 +64,17 @@ const RepeatableFieldBody = ({
 
   // Required UX: a repeatable field always shows at least one input. When the
   // stored value isn't a usable array (legacy scalar / undefined / empty), seed
-  // one item so the respondent has somewhere to type. Effect runs once per
-  // empty observation; pushing flips the dependency and the effect bails next
-  // render.
+  // one item so the respondent has somewhere to type. Reads the LIVE array
+  // length out of TanStack form state instead of the closure-captured
+  // `itemCount` — under React StrictMode the effect is invoked twice with the
+  // same closure, so a closure-based check would push the seed twice (the
+  // second invocation runs before React commits the first push) and the field
+  // would default to TWO items.
   const seed = getSeedValue(element);
   useEffect(() => {
-    if (itemCount === 0) {
+    const live = arrayField.state.value;
+    const liveCount = Array.isArray(live) ? live.length : 0;
+    if (liveCount === 0) {
       arrayField.pushValue(seed);
     }
   }, [itemCount, arrayField, seed]);

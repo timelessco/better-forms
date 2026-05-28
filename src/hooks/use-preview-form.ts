@@ -105,7 +105,13 @@ export const useStepPreviewForm = ({
       onDynamic: validationSchema,
       onDynamicAsyncDebounceMs: 300,
     },
-    // Draft autosave: merge step values into in-progress submission. onBlurDebounceMs collapses rapid tabbing. `start` event lives on focus, not blur — see ADR-0002.
+    // Draft autosave: merge step values into in-progress submission. Two
+    // triggers, both debounced to keep write volume sane:
+    //   - onBlur: covers tab-out / close-without-typing for typed inputs
+    //     (`start` event lives on focus, not blur — see ADR-0002);
+    //   - onChange: covers value changes that don't blur an input, notably
+    //     `pushValue`/`removeValue` on repeatable array fields — otherwise an
+    //     empty added row would be dropped on the next mount.
     listeners: {
       onBlur: ({ formApi }) => {
         if (formId) {
@@ -116,6 +122,15 @@ export const useStepPreviewForm = ({
         }
       },
       onBlurDebounceMs: 1000,
+      onChange: ({ formApi }) => {
+        if (formId) {
+          void saveDraft({
+            values: { ...formData, ...formApi.state.values },
+            lastStepReached: stepIndex,
+          });
+        }
+      },
+      onChangeDebounceMs: 1000,
     },
     onSubmit: async ({ value }) => {
       // Errors bubble to public-form-page (inline banner); no toast — keeps published bundle sonner-free.
