@@ -62,18 +62,16 @@ export const generateZodSchemaFromFields = (fields: PlateFormField[]): z.ZodObje
     }
 
     if ("isFieldArray" in field && field.isFieldArray) {
-      // Each item is either empty (skipped) or a strictly-valid value of the
-      // field's type. Wrapping with `union([literal(""), …])` keeps array
-      // indices intact in error paths — preprocess-filter would shift them and
-      // break per-item <FieldError /> routing when a leading item is empty.
-      const item = z.union([z.literal(""), buildArrayItemSchema(field)]);
-      let arraySchema: ZodType = z.array(item);
-      if (field.required) {
-        arraySchema = (arraySchema as z.ZodArray<typeof item>).refine(
-          (arr) => arr.some((v) => v !== "" && v != null),
-          { message: "This field is required" },
-        );
-      }
+      // Required: validate every item strictly (so empty items each get their
+      // own per-index "This field is required" error, routed to <FieldError />
+      // inside the item component).
+      // Optional: accept empty items via union, only flag genuinely-malformed
+      // non-empty values.
+      const strictItem = buildArrayItemSchema(field);
+      const item = field.required ? strictItem : z.union([z.literal(""), strictItem]);
+      const arraySchema = field.required
+        ? z.array(item).min(1, "This field is required")
+        : z.array(item);
       schemaShape[field.name] = arraySchema;
       continue;
     }

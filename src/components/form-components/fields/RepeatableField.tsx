@@ -77,10 +77,9 @@ const RepeatableFieldBody = ({
   const label = "label" in element ? element.label : undefined;
   const addLabel = `Add${label ? ` ${label.toLowerCase()}` : " item"}`;
 
-  // Errors raised at the *array* root (e.g. `required` → "This field is
-  // required" when every item is empty) have nowhere to attach in the per-item
-  // <FieldError />s, so we surface them here. Per-item errors continue to flow
-  // through the item's own field at `${element.name}[i]`.
+  // Errors raised at the *array* root (e.g. `min(1)` when the array is somehow
+  // empty) shouldn't normally happen now that auto-seed guarantees ≥1 item and
+  // per-item rules cover required/format. Keep the fallback for safety.
   const arrayErrors = arrayField.state.meta.errors;
   const arrayErrorMessage =
     arrayField.state.meta.isTouched && arrayErrors.length > 0

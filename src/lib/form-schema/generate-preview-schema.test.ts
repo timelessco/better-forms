@@ -59,9 +59,14 @@ describe("generateZodSchemaFromFields - repeatable", () => {
     expect(schema.safeParse({ e: [""] }).success).toBe(false);
   });
 
-  it("required email array accepts one valid item (ignores trailing empty)", () => {
+  it("required email array rejects when any item is empty (per-item required)", () => {
     const schema = generateZodSchemaFromFields(emailArr(true));
-    expect(schema.safeParse({ e: ["a@b.com", ""] }).success).toBe(true);
+    expect(schema.safeParse({ e: ["a@b.com", ""] }).success).toBe(false);
+  });
+
+  it("required email array accepts when every item is a valid email", () => {
+    const schema = generateZodSchemaFromFields(emailArr(true));
+    expect(schema.safeParse({ e: ["a@b.com", "c@d.com"] }).success).toBe(true);
   });
 
   it("rejects a malformed item even among valid ones", () => {
