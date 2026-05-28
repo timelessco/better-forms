@@ -1,11 +1,11 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import type { FieldType } from "./fields/shared";
 
-const InputSkeleton = () => <Skeleton className="h-7 w-full max-w-[464px] rounded-[8px]" />;
+const InputSkeleton = () => <Skeleton className="h-7 w-full rounded-[8px]" />;
 
-const TextareaSkeleton = () => <Skeleton className="h-24 w-full max-w-[464px] rounded-[8px]" />;
+const TextareaSkeleton = () => <Skeleton className="h-24 w-full rounded-[8px]" />;
 
-const FileUploadSkeleton = () => <Skeleton className="h-20 w-full max-w-[464px] rounded-[8px]" />;
+const FileUploadSkeleton = () => <Skeleton className="h-20 w-full rounded-[8px]" />;
 
 const OptionListSkeleton = ({ withBadge = false }: { withBadge?: boolean }) => (
   <div className="flex flex-col gap-2">

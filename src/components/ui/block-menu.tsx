@@ -56,6 +56,17 @@ type BlockFieldType =
 
 const TEXT_LIKE_TYPES = new Set(["formInput", "formTextarea", "formEmail", "formLink"]);
 
+// Block-menu field-type buckets that map to the 8 scalar PlateFormField types
+// eligible for the Repeatable toggle. Keep in sync with the scalar variants
+// listed in `transform-plate-to-form.ts`.
+const REPEATABLE_BLOCK_FIELD_TYPES = new Set<BlockFieldType>([
+  "textLike",
+  "formPhone",
+  "formNumber",
+  "formDate",
+  "formTime",
+]);
+
 const getFieldType = (node: { type?: string; variant?: string } | undefined): BlockFieldType => {
   if (!node?.type) return "unknown";
   const t = node.type;
@@ -224,6 +235,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
   });
   const {
     handleToggleRequired,
+    handleToggleFieldArray,
     handleUpdateMinLength,
     handleUpdateMaxLength,
     handleUpdateMinValue,
@@ -301,6 +313,8 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
   }, [isOpen, api.blockMenu]);
 
   const isRequired = Boolean(inputNode?.required);
+  const isFieldArray = Boolean(inputNode?.isFieldArray);
+  const canBeFieldArray = REPEATABLE_BLOCK_FIELD_TYPES.has(fieldType);
   const hasDefaultValue = inputNode?.defaultValue !== undefined;
   const currentDefaultValue = inputNode?.defaultValue;
 
@@ -407,6 +421,21 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
             </DropdownMenuItem>
           )}
 
+          {canBeFieldArray && (
+            <DropdownMenuItem closeOnClick={false} onClick={handleToggleFieldArray}>
+              <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
+                Repeatable
+              </span>
+              <Switch
+                aria-label="Repeatable"
+                size="sm"
+                checked={isFieldArray}
+                onCheckedChange={handleToggleFieldArray}
+                onClick={handleStopPropagation}
+              />
+            </DropdownMenuItem>
+          )}
+
           <FieldTypeSettings
             fieldType={fieldType}
             inputNode={inputNode}
@@ -459,6 +488,7 @@ type EditorRef = ReturnType<typeof useEditorPlugin<typeof BlockMenuPlugin>>["edi
 interface BlockMenuInputNode {
   type?: string;
   required?: boolean;
+  isFieldArray?: boolean;
   defaultValue?: string;
   minLength?: number;
   maxLength?: number;
@@ -498,6 +528,17 @@ const useBlockMenuFieldHandlers = ({
     const currentRequired = Boolean(inputNode?.required);
     editor.tf.setNodes({ required: !currentRequired }, { at: inputPath });
   }, [getInputPath, inputNode?.required, editor.tf]);
+
+  const handleToggleFieldArray = React.useCallback(() => {
+    const inputPath = getInputPath();
+    if (!inputPath) return;
+    const current = Boolean(inputNode?.isFieldArray);
+    if (current) {
+      editor.tf.unsetNodes(["isFieldArray"], { at: inputPath });
+    } else {
+      editor.tf.setNodes({ isFieldArray: true }, { at: inputPath });
+    }
+  }, [getInputPath, inputNode?.isFieldArray, editor.tf]);
 
   const updateNumericNode = React.useCallback(
     (key: string, value: string) => {
@@ -651,6 +692,7 @@ const useBlockMenuFieldHandlers = ({
 
   return {
     handleToggleRequired,
+    handleToggleFieldArray,
     handleUpdateMinLength,
     handleUpdateMaxLength,
     handleUpdateMinValue,
@@ -1155,6 +1197,7 @@ interface BlockMenuFirstNode {
   type?: string;
   variant?: string;
   required?: boolean;
+  isFieldArray?: boolean;
   placeholder?: string;
   minLength?: number;
   maxLength?: number;

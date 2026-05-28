@@ -1,19 +1,23 @@
-import { getAriaLabelFallback, getAriaLabelledBy } from "./shared";
+import { fieldLabelId, getAriaLabelFallback, getAriaLabelledBy } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
-const TimeField = ({ element, form }: FieldRendererProps<"Time">) => (
-  <form.AppField name={element.name}>
-    {(f) => (
-      <>
-        <f.TimePicker
-          id={element.name}
-          aria-label={getAriaLabelFallback(element)}
-          aria-labelledby={getAriaLabelledBy(element)}
-        />
-        <f.FieldError />
-      </>
-    )}
-  </form.AppField>
-);
+const TimeField = ({ element, form, name }: FieldRendererProps<"Time">) => {
+  const fieldName = name ?? element.name;
+  const isArrayItem = name !== undefined;
+  return (
+    <form.AppField name={fieldName}>
+      {(f) => (
+        <>
+          <f.TimePicker
+            id={fieldName}
+            aria-label={getAriaLabelFallback(element)}
+            aria-labelledby={isArrayItem ? fieldLabelId(element.name) : getAriaLabelledBy(element)}
+          />
+          <f.FieldError />
+        </>
+      )}
+    </form.AppField>
+  );
+};
 
 export default TimeField;

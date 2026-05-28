@@ -75,7 +75,15 @@ const DesignPage = () => {
             previewMode ? "h-full overflow-hidden" : "overflow-y-auto",
           )}
         >
-          {previewMode && <PreviewMode formId={formId} workspaceId={workspaceId} />}
+          {/* Mirror the editor side and keep PreviewMode mounted across toggles
+              once the user has previewed at least once. Without this, every
+              editor↔preview toggle unmounted the preview and wiped the
+              in-progress respondent state (typed values, cleared values, added
+              repeatable-field rows) — only past Continue-clicks survived
+              because `useFormPersistence` only writes on step advance. */}
+          <Activity mode={previewMode ? "visible" : "hidden"}>
+            <PreviewMode formId={formId} workspaceId={workspaceId} />
+          </Activity>
           {/* <Activity> keeps EditorApp fiber/Slate doc/DOM alive across preview toggles — fresh Plate mount (50+ elements, per-element effects) is ~600ms; only re-runs effects on hidden↔visible flip. */}
           <Activity mode={previewMode ? "hidden" : "visible"}>
             {isViewingVersion && isLoadingVersionContent ? (

@@ -11,6 +11,9 @@ export type FieldRendererProps<
 > = {
   element: Extract<PlateFormField, { fieldType: T }>;
   form: AppForm;
+  /** When rendered as one item of a repeatable field, the indexed binding name
+   * (e.g. "emails[0]"). Falls back to `element.name` for standalone fields. */
+  name?: string;
 };
 
 export const getFieldLabelProps = (element: PlateFormField) => ({

@@ -6,6 +6,107 @@ import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 // Re-export alias kept for callers — name stays stable even though impl is valibot.
 type AnyValibotSchema = v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>;
 
+/** Strict per-item validator for a repeatable scalar field. Every item must be
+ * a valid non-empty value of the field's type. Branches inline rather than
+ * accumulating into an array because valibot's v.pipe is strongly typed and
+ * spread arrays of mixed PipeItems don't satisfy its generics. */
+const buildArrayItemSchema = (field: PlateFormField): AnyValibotSchema => {
+  switch (field.fieldType) {
+    case "Email":
+      return v.pipe(
+        v.string(),
+        v.nonEmpty("This field is required"),
+        v.email("Please enter a valid email address"),
+      );
+    case "Link": {
+      const urlRegex = /^(https?:\/\/)?[\w.-]+\.\w{2,}(\/\S*)?$/;
+      return v.pipe(
+        v.string(),
+        v.nonEmpty("This field is required"),
+        v.regex(urlRegex, "Please enter a valid URL"),
+      );
+    }
+    case "Number": {
+      // Coerce string/number → number, guard "" → undefined (Number("")===0 would pass otherwise).
+      const coerceNum = (val: unknown): number | undefined => {
+        if (val === "" || val === null || val === undefined) return undefined;
+        return Number(val);
+      };
+      const base = v.pipe(
+        v.unknown(),
+        v.transform(coerceNum),
+        v.number("Please enter a valid number") as unknown as v.TransformAction<unknown, number>,
+      );
+      const intCheck = v.integer("Decimals are not allowed");
+      const minMsg = (min: number) => `Value must be at least ${min}`;
+      const maxMsg = (max: number) => `Value must be at most ${max}`;
+      const noInt = field.allowDecimals !== false;
+      if (typeof field.min === "number" && typeof field.max === "number") {
+        return noInt
+          ? v.pipe(
+              base,
+              v.minValue(field.min, minMsg(field.min)),
+              v.maxValue(field.max, maxMsg(field.max)),
+            )
+          : v.pipe(
+              base,
+              intCheck,
+              v.minValue(field.min, minMsg(field.min)),
+              v.maxValue(field.max, maxMsg(field.max)),
+            );
+      }
+      if (typeof field.min === "number") {
+        return noInt
+          ? v.pipe(base, v.minValue(field.min, minMsg(field.min)))
+          : v.pipe(base, intCheck, v.minValue(field.min, minMsg(field.min)));
+      }
+      if (typeof field.max === "number") {
+        return noInt
+          ? v.pipe(base, v.maxValue(field.max, maxMsg(field.max)))
+          : v.pipe(base, intCheck, v.maxValue(field.max, maxMsg(field.max)));
+      }
+      return noInt ? base : v.pipe(base, intCheck);
+    }
+    case "Phone":
+      return v.pipe(
+        v.string(),
+        v.nonEmpty("This field is required"),
+        v.check((val) => isValidPhoneNumber(val), "Please enter a valid phone number"),
+      );
+    case "Input":
+    case "Textarea": {
+      const hasMin = "minLength" in field && field.minLength;
+      const hasMax = "maxLength" in field && field.maxLength;
+      if (hasMin && hasMax) {
+        return v.pipe(
+          v.string(),
+          v.nonEmpty("This field is required"),
+          v.minLength(field.minLength!, `Minimum ${field.minLength} characters required`),
+          v.maxLength(field.maxLength!, `Maximum ${field.maxLength} characters allowed`),
+        );
+      }
+      if (hasMin) {
+        return v.pipe(
+          v.string(),
+          v.nonEmpty("This field is required"),
+          v.minLength(field.minLength!, `Minimum ${field.minLength} characters required`),
+        );
+      }
+      if (hasMax) {
+        return v.pipe(
+          v.string(),
+          v.nonEmpty("This field is required"),
+          v.maxLength(field.maxLength!, `Maximum ${field.maxLength} characters allowed`),
+        );
+      }
+      return v.pipe(v.string(), v.nonEmpty("This field is required"));
+    }
+    default:
+      // Date, Time, and any fallback scalar: non-empty string.
+      return v.pipe(v.string(), v.nonEmpty("This field is required"));
+  }
+};
+
 /**
  * Valibot schema from PlateFormField[].
  * @param fields - form fields w/ validation props
@@ -19,6 +120,22 @@ export const generateZodSchemaFromFields = (
   for (const field of fields) {
     // Skip Button fields - they don't have validation
     if (field.fieldType === "Button") {
+      continue;
+    }
+
+    if ("isFieldArray" in field && field.isFieldArray) {
+      // Required: validate every item strictly (so empty items each get their
+      // own per-index "This field is required" error routed to <FieldError />
+      // inside the item component). Optional: accept empty items via union;
+      // only flag genuinely-malformed non-empty values.
+      const strictItem = buildArrayItemSchema(field);
+      const item = field.required
+        ? strictItem
+        : (v.union([v.literal(""), strictItem]) as AnyValibotSchema);
+      const arraySchema: AnyValibotSchema = field.required
+        ? v.pipe(v.array(item), v.nonEmpty("This field is required"))
+        : v.array(item);
+      schemaShape[field.name] = arraySchema;
       continue;
     }
 
@@ -252,6 +369,15 @@ export const generateDefaultValuesFromFields = (
   for (const field of fields) {
     // Skip Button fields - they don't have form values
     if (field.fieldType === "Button") {
+      continue;
+    }
+    if ("isFieldArray" in field && field.isFieldArray) {
+      const seed = "defaultValue" in field && field.defaultValue ? field.defaultValue : "";
+      // Honor the editor-configured row count (each click of "+ Add" in the
+      // editor bumps this) so the published form opens with that many rows.
+      const rawRows = "initialRows" in field ? field.initialRows : undefined;
+      const rows = typeof rawRows === "number" && rawRows > 0 ? Math.floor(rawRows) : 1;
+      defaults[field.name] = Array.from({ length: rows }, () => seed);
       continue;
     }
     if (

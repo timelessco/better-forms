@@ -636,6 +636,13 @@ const FieldByFieldLayout = ({
   const isLastStep = currentStep === steps.length - 1;
   const currentStepSegments = steps[currentStep] || [];
   const currentStepQuestions = stepQuestions[currentStep] || [];
+  // Re-mount StepForm when the field config changes (creator edits e.g.
+  // initialRows / placeholder / required) so TanStack form re-reads
+  // defaultValues — without this, edits in the builder don't reflect in the
+  // preview because useAppForm captures defaults only at first mount.
+  // Derived from `steps` + `currentStep` (stable refs) instead of
+  // `currentStepSegments` (re-created via `|| []` each render).
+  const segmentsKey = useMemo(() => JSON.stringify(steps[currentStep] || []), [steps, currentStep]);
 
   // Popup: avatar already the bubble, hide inside (space + no dup).
   const hasIcon = !!icon && !isPopup;
@@ -744,7 +751,7 @@ const FieldByFieldLayout = ({
                   className="w-full"
                 >
                   <StepForm
-                    key={currentStep}
+                    key={`${currentStep}:${segmentsKey}`}
                     stepIndex={currentStep}
                     segments={currentStepSegments}
                     questions={currentStepQuestions}
@@ -777,6 +784,13 @@ const LinearLayout = ({
   const isLastStep = currentStep === steps.length - 1;
   const currentStepSegments = steps[currentStep] || [];
   const currentStepQuestions = stepQuestions[currentStep] || [];
+  // Re-mount StepForm when the field config changes (creator edits e.g.
+  // initialRows / placeholder / required) so TanStack form re-reads
+  // defaultValues — without this, edits in the builder don't reflect in the
+  // preview because useAppForm captures defaults only at first mount.
+  // Derived from `steps` + `currentStep` (stable refs) instead of
+  // `currentStepSegments` (re-created via `|| []` each render).
+  const segmentsKey = useMemo(() => JSON.stringify(steps[currentStep] || []), [steps, currentStep]);
 
   return (
     <div className="w-full">
@@ -826,7 +840,7 @@ const LinearLayout = ({
               className="w-full"
             >
               <StepForm
-                key={currentStep}
+                key={`${currentStep}:${segmentsKey}`}
                 stepIndex={currentStep}
                 segments={currentStepSegments}
                 questions={currentStepQuestions}
