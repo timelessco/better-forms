@@ -12,7 +12,10 @@ import type { FieldType } from "./shared";
 // `mode="array"` + `pushValue`/`removeValue`. Narrow-cast here rather than
 // widening the global AppForm type and breaking every scalar call site.
 type ArrayFieldApi = {
-  state: { value: unknown };
+  state: {
+    value: unknown;
+    meta: { errors: unknown[]; isTouched: boolean };
+  };
   pushValue: (value: unknown) => void;
   removeValue: (index: number) => void;
 };
@@ -23,6 +26,15 @@ type ArrayAppField = React.ComponentType<{
 }>;
 
 type ItemComponent = React.ComponentType<{ element: never; form: AppForm; name?: string }>;
+
+const extractErrorMessage = (err: unknown): string | null => {
+  if (typeof err === "string") return err;
+  if (err && typeof err === "object" && "message" in err) {
+    const msg = (err as { message?: unknown }).message;
+    return typeof msg === "string" ? msg : null;
+  }
+  return null;
+};
 
 const getSeedValue = (element: PlateFormField): string => {
   if ("defaultValue" in element && typeof element.defaultValue === "string") {
@@ -64,6 +76,16 @@ const RepeatableFieldBody = ({
 
   const label = "label" in element ? element.label : undefined;
   const addLabel = `Add${label ? ` ${label.toLowerCase()}` : " item"}`;
+
+  // Errors raised at the *array* root (e.g. `required` → "This field is
+  // required" when every item is empty) have nowhere to attach in the per-item
+  // <FieldError />s, so we surface them here. Per-item errors continue to flow
+  // through the item's own field at `${element.name}[i]`.
+  const arrayErrors = arrayField.state.meta.errors;
+  const arrayErrorMessage =
+    arrayField.state.meta.isTouched && arrayErrors.length > 0
+      ? extractErrorMessage(arrayErrors[0])
+      : null;
 
   return (
     <div className="flex flex-col gap-2">
@@ -114,6 +136,11 @@ const RepeatableFieldBody = ({
       >
         {addLabel}
       </Button>
+      {arrayErrorMessage && (
+        <p className="mt-1.5 text-sm text-destructive" role="alert">
+          {arrayErrorMessage}
+        </p>
+      )}
     </div>
   );
 };
