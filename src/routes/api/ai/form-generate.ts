@@ -2,12 +2,13 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, generateText, streamObject, tool } from "ai";
 import type { UIMessage } from "ai";
+import { valibotSchema } from "@ai-sdk/valibot";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import type { RequestLogger } from "evlog";
 import { createAILogger } from "evlog/ai";
 import { identifyUser } from "evlog/better-auth";
 import { useRequest as getNitroRequest } from "nitro/context";
-import { z } from "zod";
+import * as v from "valibot";
 import { apiAuthMiddleware } from "@/lib/auth/middleware";
 import {
   formGenSchema,
@@ -227,13 +228,13 @@ export const Route = createFileRoute("/api/ai/form-generate")({
         // Theme atomic — no streaming benefit; tool-call gives clear contract. Pro: full tool (30 light:/dark: tokens). Free: limited tool, output stays in gate-allowed keys.
         if (mode === "theme") {
           if (themePick.isPro) {
-            const setFormThemeArgs = z.object({
+            const setFormThemeArgs = v.object({
               tokens: themeTokensSchema,
-              font: z.string(),
-              radius: z.enum(RADIUS_OPTIONS),
+              font: v.string(),
+              radius: v.picklist(RADIUS_OPTIONS),
             });
 
-            let captured: z.infer<typeof setFormThemeArgs> | null = null;
+            let captured: v.InferOutput<typeof setFormThemeArgs> | null = null;
 
             await generateText({
               model,
@@ -244,8 +245,8 @@ export const Route = createFileRoute("/api/ai/form-generate")({
                 [themePick.toolName]: tool({
                   description:
                     "Apply a complete visual theme to the form (colors, font, radius). Call exactly once with all 30 token values, font, and radius.",
-                  inputSchema: setFormThemeArgs,
-                  execute: async (args) => {
+                  inputSchema: valibotSchema(setFormThemeArgs),
+                  execute: async (args: v.InferOutput<typeof setFormThemeArgs>) => {
                     captured = args;
                     return { ok: true };
                   },
@@ -254,7 +255,7 @@ export const Route = createFileRoute("/api/ai/form-generate")({
             });
 
             // Re-bind to const so TS narrows past null check — assignment in closure, flow analysis can't reach via the `let`.
-            const captured2 = captured as z.infer<typeof setFormThemeArgs> | null;
+            const captured2 = captured as v.InferOutput<typeof setFormThemeArgs> | null;
             if (!captured2) {
               return new Response(JSON.stringify({ error: "model_did_not_emit_theme" }), {
                 status: 502,
@@ -274,7 +275,7 @@ export const Route = createFileRoute("/api/ai/form-generate")({
           }
 
           // Free plan: limited tool — themeColor + baseColor + font + radius + defaultMode.
-          let captured: z.infer<typeof freeThemeSchema> | null = null;
+          let captured: v.InferOutput<typeof freeThemeSchema> | null = null;
 
           await generateText({
             model,
@@ -285,8 +286,8 @@ export const Route = createFileRoute("/api/ai/form-generate")({
               [themePick.toolName]: tool({
                 description:
                   "Apply a basic theme available on the free plan. Call exactly once with themeColor, baseColor, font, radius, and defaultMode — each value must be from the allowed list in the system prompt.",
-                inputSchema: freeThemeSchema,
-                execute: async (args) => {
+                inputSchema: valibotSchema(freeThemeSchema),
+                execute: async (args: v.InferOutput<typeof freeThemeSchema>) => {
                   captured = args;
                   return { ok: true };
                 },
@@ -294,7 +295,7 @@ export const Route = createFileRoute("/api/ai/form-generate")({
             },
           });
 
-          const capturedFree = captured as z.infer<typeof freeThemeSchema> | null;
+          const capturedFree = captured as v.InferOutput<typeof freeThemeSchema> | null;
           if (!capturedFree) {
             return new Response(JSON.stringify({ error: "model_did_not_emit_theme" }), {
               status: 502,
@@ -316,7 +317,7 @@ export const Route = createFileRoute("/api/ai/form-generate")({
         // ── All other modes: structured-output streaming ────────────────────
         const result = streamObject({
           model,
-          schema: formGenSchema,
+          schema: valibotSchema(formGenSchema),
           system: systemWithContext,
           messages: modelMessages,
         });

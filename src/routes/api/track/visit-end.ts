@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
+import * as v from "valibot";
 
 const MAX_DURATION_MS = 86_400_000;
 // Spam guards for client-reported vitals — reject absurd payloads only. LCP/INP ms, CLS unitless.
@@ -7,13 +7,13 @@ const MAX_VITAL_MS = 3_600_000; // 1h
 const MAX_CLS = 100;
 
 /** Unload beacon payload: timing + optional vitals from beforeunload/pagehide. Local mirror of serverFn schema — decoupled from broader updateFormVisit (admin-only fields). */
-const visitEndBeaconSchema = z.object({
-  visitId: z.uuid(),
-  visitEndedAt: z.iso.datetime(),
-  durationMs: z.number().int().nonnegative().max(MAX_DURATION_MS),
-  lcpMs: z.number().int().nonnegative().max(MAX_VITAL_MS).nullish(),
-  inpMs: z.number().int().nonnegative().max(MAX_VITAL_MS).nullish(),
-  cls: z.number().nonnegative().max(MAX_CLS).nullish(),
+const visitEndBeaconSchema = v.object({
+  visitId: v.pipe(v.string(), v.uuid()),
+  visitEndedAt: v.pipe(v.string(), v.isoTimestamp()),
+  durationMs: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(MAX_DURATION_MS)),
+  lcpMs: v.nullish(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(MAX_VITAL_MS))),
+  inpMs: v.nullish(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(MAX_VITAL_MS))),
+  cls: v.nullish(v.pipe(v.number(), v.minValue(0), v.maxValue(MAX_CLS))),
 });
 
 export const Route = createFileRoute("/api/track/visit-end")({
@@ -27,12 +27,12 @@ export const Route = createFileRoute("/api/track/visit-end")({
         } catch {
           return new Response(null, { status: 400 });
         }
-        const parsed = visitEndBeaconSchema.safeParse(body);
+        const parsed = v.safeParse(visitEndBeaconSchema, body);
         if (!parsed.success) {
           return new Response(null, { status: 400 });
         }
         const { updateFormVisitImpl } = await import("@/lib/server-fn/analytics.server");
-        await updateFormVisitImpl(parsed.data);
+        await updateFormVisitImpl(parsed.output);
         return new Response(null, { status: 204 });
       },
     },

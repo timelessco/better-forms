@@ -1,8 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { Loader2Icon } from "@/components/ui/icons";
-import * as z from "zod";
+import * as v from "valibot";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth-client";
 import { guestMiddleware } from "@/lib/auth/middleware";
@@ -98,10 +97,8 @@ export const Route = createFileRoute("/login/")({
   server: {
     middleware: [guestMiddleware],
   },
-  validateSearch: zodValidator(
-    z.object({
-      redirect: z.string().optional(),
-    }),
-  ),
+  validateSearch: v.object({
+    redirect: v.optional(v.string()),
+  }),
   component: LoginPage,
 });

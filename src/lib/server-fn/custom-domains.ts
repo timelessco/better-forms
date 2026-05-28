@@ -2,7 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
-import { z } from "zod";
+import * as v from "valibot";
 import { customDomains, forms, member } from "@/db/schema";
 import { db } from "@/db";
 import { authMiddleware } from "@/lib/auth/middleware";
@@ -25,7 +25,7 @@ const serializeDomain = (domain: typeof customDomains.$inferSelect) => ({
 
 export const listOrgDomains = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ orgId: z.string() }))
+  .inputValidator(v.object({ orgId: v.string() }))
   .handler(async ({ data, context }) => {
     const [membership] = await db
       .select()
@@ -56,9 +56,9 @@ export const listOrgDomains = createServerFn({ method: "POST" })
 export const addDomain = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      orgId: z.string(),
-      domain: z.string(),
+    v.object({
+      orgId: v.string(),
+      domain: v.string(),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -149,7 +149,7 @@ export const addDomain = createServerFn({ method: "POST" })
 
 export const removeDomain = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ domainId: z.string() }))
+  .inputValidator(v.object({ domainId: v.string() }))
   .handler(async ({ data, context }) => {
     const [domain] = await db
       .select()
@@ -244,7 +244,7 @@ const assertCanReadDomain = async (domainId: string, userId: string) => {
 
 export const checkDomainStatus = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ domainId: z.string() }))
+  .inputValidator(v.object({ domainId: v.string() }))
   .handler(async ({ data, context }) => {
     await assertCanReadDomain(data.domainId, context.session.user.id);
     return refreshDomainStatusFromVercel(data.domainId);
@@ -252,7 +252,7 @@ export const checkDomainStatus = createServerFn({ method: "POST" })
 
 export const recheckDomainStatus = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ domainId: z.string() }))
+  .inputValidator(v.object({ domainId: v.string() }))
   .handler(async ({ data, context }) => {
     await assertCanReadDomain(data.domainId, context.session.user.id);
     return triggerDomainVerification(data.domainId);
@@ -261,11 +261,11 @@ export const recheckDomainStatus = createServerFn({ method: "POST" })
 export const updateDomainMeta = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(
-    z.object({
-      domainId: z.string(),
-      siteTitle: z.string().optional(),
-      faviconUrl: z.string().optional(),
-      ogImageUrl: z.string().optional(),
+    v.object({
+      domainId: v.string(),
+      siteTitle: v.optional(v.string()),
+      faviconUrl: v.optional(v.string()),
+      ogImageUrl: v.optional(v.string()),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -329,7 +329,7 @@ export const updateDomainMeta = createServerFn({ method: "POST" })
   });
 
 export const getDomainByHost = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ host: z.string() }))
+  .inputValidator(v.object({ host: v.string() }))
   .handler(async ({ data }) => {
     const [domain] = await db
       .select({
