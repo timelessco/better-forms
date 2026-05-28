@@ -50,6 +50,9 @@ export type PlateFormField =
       maxLength?: number;
       defaultValue?: string;
       isFieldArray?: boolean;
+      /** Initial row count when `isFieldArray` is on — used by the editor and
+       * by `generateDefaultValuesFromFields` to seed that many empty rows. */
+      initialRows?: number;
     }
   | {
       id: string;
@@ -63,6 +66,9 @@ export type PlateFormField =
       maxLength?: number;
       defaultValue?: string;
       isFieldArray?: boolean;
+      /** Initial row count when `isFieldArray` is on — used by the editor and
+       * by `generateDefaultValuesFromFields` to seed that many empty rows. */
+      initialRows?: number;
     }
   | {
       id: string;
@@ -73,6 +79,9 @@ export type PlateFormField =
       placeholder?: string;
       required?: boolean;
       isFieldArray?: boolean;
+      /** Initial row count when `isFieldArray` is on — used by the editor and
+       * by `generateDefaultValuesFromFields` to seed that many empty rows. */
+      initialRows?: number;
     }
   | {
       id: string;
@@ -83,6 +92,9 @@ export type PlateFormField =
       placeholder?: string;
       required?: boolean;
       isFieldArray?: boolean;
+      /** Initial row count when `isFieldArray` is on — used by the editor and
+       * by `generateDefaultValuesFromFields` to seed that many empty rows. */
+      initialRows?: number;
     }
   | {
       id: string;
@@ -97,6 +109,9 @@ export type PlateFormField =
       allowDecimals?: boolean;
       defaultValue?: string;
       isFieldArray?: boolean;
+      /** Initial row count when `isFieldArray` is on — used by the editor and
+       * by `generateDefaultValuesFromFields` to seed that many empty rows. */
+      initialRows?: number;
     }
   | {
       id: string;
@@ -107,6 +122,9 @@ export type PlateFormField =
       placeholder?: string;
       required?: boolean;
       isFieldArray?: boolean;
+      /** Initial row count when `isFieldArray` is on — used by the editor and
+       * by `generateDefaultValuesFromFields` to seed that many empty rows. */
+      initialRows?: number;
     }
   | {
       id: string;
@@ -117,6 +135,9 @@ export type PlateFormField =
       placeholder?: string;
       required?: boolean;
       isFieldArray?: boolean;
+      /** Initial row count when `isFieldArray` is on — used by the editor and
+       * by `generateDefaultValuesFromFields` to seed that many empty rows. */
+      initialRows?: number;
     }
   | {
       id: string;
@@ -127,6 +148,9 @@ export type PlateFormField =
       placeholder?: string;
       required?: boolean;
       isFieldArray?: boolean;
+      /** Initial row count when `isFieldArray` is on — used by the editor and
+       * by `generateDefaultValuesFromFields` to seed that many empty rows. */
+      initialRows?: number;
     }
   | {
       id: string;
@@ -402,6 +426,11 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
       const maxLength = node.maxLength as number | undefined;
       const defaultValue = node.defaultValue as string | undefined;
       const isFieldArray = node.isFieldArray === true ? true : undefined;
+      const rawInitialRows = node.initialRows;
+      const initialRows =
+        isFieldArray && typeof rawInitialRows === "number" && rawInitialRows > 0
+          ? Math.floor(rawInitialRows)
+          : undefined;
 
       const stableId =
         (label?.labelNode as { id?: string } | undefined)?.id ?? (node as { id?: string }).id;
@@ -422,6 +451,7 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
         maxLength,
         defaultValue,
         isFieldArray,
+        initialRows,
         ...fileUploadFields,
         ...numberFields,
       } as PlateFormField);

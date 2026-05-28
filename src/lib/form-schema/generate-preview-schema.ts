@@ -373,7 +373,11 @@ export const generateDefaultValuesFromFields = (
     }
     if ("isFieldArray" in field && field.isFieldArray) {
       const seed = "defaultValue" in field && field.defaultValue ? field.defaultValue : "";
-      defaults[field.name] = [seed];
+      // Honor the editor-configured row count (each click of "+ Add" in the
+      // editor bumps this) so the published form opens with that many rows.
+      const rawRows = "initialRows" in field ? field.initialRows : undefined;
+      const rows = typeof rawRows === "number" && rawRows > 0 ? Math.floor(rawRows) : 1;
+      defaults[field.name] = Array.from({ length: rows }, () => seed);
       continue;
     }
     if (
