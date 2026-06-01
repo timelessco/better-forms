@@ -316,10 +316,59 @@ const config = defineConfig({
     // imports a stale `react.js` chunk, surfacing as
     // `TypeError: require_react is not a function`). Explicit inclusion makes
     // the pre-bundle deterministic.
+    // Plate editor deps are only reachable via the lazily-loaded editor route
+    // (and the router's own `?tsr-split=component` chunk), so Vite's startup
+    // scan never sees them. First nav to the editor makes Vite discover the
+    // whole `@platejs/*` graph, re-run dep optimization, bump the `?v=` hash,
+    // and reload — which kills any in-flight dynamic import with "Failed to
+    // fetch dynamically imported module". Force-including every editor
+    // specifier (subpaths included — Plate's `/react` entries optimize
+    // separately) makes the pre-bundle deterministic at startup, so no
+    // mid-session re-optimization. Same rationale as `recharts` above.
     include: [
       "use-sync-external-store/shim",
       "use-sync-external-store/shim/with-selector",
       "recharts",
+      "platejs",
+      "platejs/react",
+      "platejs/static",
+      "@platejs/ai/react",
+      "@platejs/autoformat",
+      "@platejs/basic-nodes",
+      "@platejs/basic-nodes/react",
+      "@platejs/basic-styles",
+      "@platejs/basic-styles/react",
+      "@platejs/callout",
+      "@platejs/callout/react",
+      "@platejs/caption",
+      "@platejs/caption/react",
+      "@platejs/combobox",
+      "@platejs/combobox/react",
+      "@platejs/date",
+      "@platejs/date/react",
+      "@platejs/dnd",
+      "@platejs/emoji",
+      "@platejs/emoji/react",
+      "@platejs/floating",
+      "@platejs/indent",
+      "@platejs/indent/react",
+      "@platejs/layout",
+      "@platejs/layout/react",
+      "@platejs/link",
+      "@platejs/link/react",
+      "@platejs/list",
+      "@platejs/list/react",
+      "@platejs/markdown",
+      "@platejs/media",
+      "@platejs/media/react",
+      "@platejs/resizable",
+      "@platejs/selection/react",
+      "@platejs/slash-command/react",
+      "@platejs/toc",
+      "@platejs/toc/react",
+      "@platejs/toggle",
+      "@platejs/toggle/react",
+      "@tanstack/react-pacer",
     ],
   },
 });
