@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FormPreviewRSC } from "@/components/form-components/form-preview-rsc";
+import type { FormLogicValue } from "@/lib/logic/build-form-logic";
 import type { StepRSC } from "@/components/form-components/form-preview-rsc";
 import { BrandingFooter } from "./branding-footer";
 import { AlreadySubmitted, FormClosed } from "@/routes/forms/-components/form-closed";
@@ -93,6 +94,8 @@ interface PublicFormPageProps {
     header?: unknown;
     /** Icon bg color from Plate formHeader node; field-by-field only (card mode uses pre-rendered header). */
     formHeaderIconColor?: string | null;
+    /** Conditional-logic payload (plain JSON) for the public renderer. */
+    logic?: FormLogicValue | null;
   };
 }
 
@@ -605,6 +608,7 @@ const PublicFormMain = ({
       steps={rsc.steps}
       thankYou={(rsc.thankYou as string | null) ?? null}
       stepCount={rsc.stepCount}
+      logic={rsc.logic}
       header={hideTitle && !(form.cover || form.icon) ? null : rsc.header}
       onSubmit={handleSubmit}
       settings={settings}

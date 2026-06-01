@@ -25,6 +25,7 @@ import type {
 } from "@/lib/editor/transform-plate-for-preview";
 import { extractFormHeader } from "@/lib/editor/transform-plate-to-form";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
+import { buildFormLogic } from "@/lib/logic/build-form-logic";
 import { applyFormCacheHeaders } from "@/lib/server-fn/cdn-cache";
 import { getFieldChunkUrls } from "@/lib/server-fn/field-chunk-manifest.server";
 import { getPublishedFormByShortId } from "@/lib/server-fn/public-form-view";
@@ -407,6 +408,12 @@ export const runPublicFormViewRSC = async (data: { shortId: string }) => {
     : [];
   const preloadModuleUrls = await getFieldChunkUrls(firstStepFieldTypes);
 
+  // Conditional-logic payload (plain JSON) so the public renderer enforces the same
+  // visibility/jumps/set-value/hide-submit the builder preview does. null when no content.
+  const logic = base.form
+    ? buildFormLogic(base.form.content as Value, steps, isFieldByField)
+    : null;
+
   return {
     ...base,
     steps: stepComponents,
@@ -415,5 +422,6 @@ export const runPublicFormViewRSC = async (data: { shortId: string }) => {
     header,
     preloadModuleUrls,
     formHeaderIconColor,
+    logic,
   };
 };

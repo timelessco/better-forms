@@ -3,6 +3,7 @@ import type { Value } from "platejs";
 
 import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
 import type { PreviewStepResult } from "@/lib/editor/transform-plate-for-preview";
+import { buildFormLogic } from "@/lib/logic/build-form-logic";
 import { applyFormCacheHeaders } from "@/lib/server-fn/cdn-cache";
 import { isAppHost } from "@/lib/server-fn/custom-domain-loader";
 import {
@@ -42,6 +43,9 @@ const buildPayload = async (base: Awaited<ReturnType<typeof loadFormForCustomDom
     : [];
   const preloadModuleUrls = await getFieldChunkUrls(firstStepFieldTypes);
 
+  // Card-mode logic payload (this path renders un-chunked card steps).
+  const logic = base.form ? buildFormLogic(base.form.content as Value, steps, false) : null;
+
   return {
     ...base,
     steps: stepComponents,
@@ -49,6 +53,7 @@ const buildPayload = async (base: Awaited<ReturnType<typeof loadFormForCustomDom
     thankYou,
     header,
     preloadModuleUrls,
+    logic,
   };
 };
 

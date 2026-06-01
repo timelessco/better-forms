@@ -1,6 +1,10 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useStore } from "@tanstack/react-form";
 import { revalidateLogic, useAppForm } from "@/components/ui/tanstack-form";
 import { useStepForm } from "@/contexts/step-form-context";
+import { useFormLogic } from "@/contexts/form-logic-context";
+import { evaluate } from "@/lib/logic/engine";
+import { THANK_YOU_STEP } from "@/lib/logic/types";
 import {
   enqueueQuestionProgress,
   fireUpdateVisit,
@@ -19,6 +23,21 @@ import type { AppForm } from "./use-form-builder";
 
 /** Visits that already fired `didStartForm: true`. Module-scope survives re-renders/step changes; resets on reload (new visitId, no double-fire). */
 const didStartFiredVisits = new Set<string>();
+
+/** First step after `fromIndex` that has at least one visible field (or is static-only).
+ * Returns -1 when none remain → the form should finish. */
+const nextVisibleStepIndex = (
+  stepFieldNames: string[][],
+  visibility: Record<string, boolean>,
+  fromIndex: number,
+): number => {
+  for (let i = fromIndex + 1; i < stepFieldNames.length; i++) {
+    const names = stepFieldNames[i];
+    if (names.length === 0) return i; // static-only step stays in the flow
+    if (names.some((name) => visibility[name] !== false)) return i;
+  }
+  return -1;
+};
 
 interface UseStepPreviewFormOptions {
   fields: PlateFormField[];
@@ -41,14 +60,56 @@ export const useStepPreviewForm = ({
   formName: string;
   /** Form-level onFocus → per-Question `start` emitter, deduped per (visitId, questionId). */
   handleFieldFocus: (event: React.FocusEvent<HTMLFormElement>) => void;
+  /** Field names currently visible per conditional logic — step-form hides the rest.
+   * `null` when no logic context is mounted (render everything). */
+  visibleFieldNames: Set<string> | null;
+  /** Field names auto-filled by an active "Set value" action — rendered read-only. */
+  lockedFieldNames: Set<string>;
+  /** True when a passing hide-submit action should suppress the completion button. */
+  hideSubmit: boolean;
 } => {
-  const { formData, goToNextStep, submitForm, formId, tracking } = useStepForm();
+  const { formData, goToNextStep, goToStep, submitForm, currentStep, formId, tracking } =
+    useStepForm();
   const { saveDraft } = useDraftAutoSave(formId);
+  const logic = useFormLogic();
+
+  // Mirror of the live form values, used to recompute visibility/required reactively.
+  const [liveValues, setLiveValues] = useState<Record<string, unknown>>(() => ({}));
+  const mergedAnswers = useMemo<Record<string, unknown>>(
+    () => ({ ...formData, ...liveValues }),
+    [formData, liveValues],
+  );
+  const evaluation = useMemo(
+    () => (logic ? evaluate(logic.ruleset, mergedAnswers, logic.allFields) : null),
+    [logic, mergedAnswers],
+  );
+  const visibleFieldNames = useMemo<Set<string> | null>(() => {
+    if (!evaluation) return null;
+    return new Set(
+      fields.filter((f) => evaluation.visibility[f.name] !== false).map((f) => f.name),
+    );
+  }, [evaluation, fields]);
+  const lockedFieldNames = useMemo<Set<string>>(
+    () => new Set(evaluation ? Object.keys(evaluation.setValues) : []),
+    [evaluation],
+  );
 
   // `start` dedup latch keyed `visitId::questionId`, per Step mount. Cross-step idempotency via server upsert (coalesce on startedAt); StepForm remounts on back-nav, resetting this.
   const startFiredRef = useRef<Set<string>>(new Set());
 
-  const validationSchema = useMemo(() => generateZodSchemaFromFields(fields), [fields]);
+  // Validate only currently-visible fields, with logic-driven effective-required applied.
+  // Hidden fields are excluded so they never block submit; a passing require-action adds requiredness.
+  const effectiveFields = useMemo(() => {
+    if (!evaluation) return fields;
+    return fields
+      .filter((f) => evaluation.visibility[f.name] !== false)
+      .map((f) => ({ ...f, required: evaluation.effectiveRequired[f.name] === true }));
+  }, [fields, evaluation]);
+
+  const validationSchema = useMemo(
+    () => generateZodSchemaFromFields(effectiveFields),
+    [effectiveFields],
+  );
 
   // Question id → ref, keyed by Plate Block id (= data-bf-question-id), so focus on any descendant resolves even for fields without `name` (Phone, MultiSelect, etc.).
   const questionsById = useMemo<Map<string, QuestionRef>>(() => {
@@ -174,11 +235,34 @@ export const useStepPreviewForm = ({
         flushQuestionProgressBuffer();
       }
 
-      if (isLastStep) {
-        await submitForm(value);
-      } else {
-        goToNextStep(value);
+      // Resolve navigation against the *final* answers (avoids the one-render lag of the
+      // memoized evaluation). No logic context → fall back to sequential next/submit.
+      if (!logic) {
+        if (isLastStep) await submitForm(value);
+        else goToNextStep(value);
+        return;
       }
+
+      const finalAnswers = { ...formData, ...value };
+      const submitEval = evaluate(logic.ruleset, finalAnswers, logic.allFields);
+      const finish = async () => {
+        if (submitEval.hideSubmit) return; // completion blocked while the condition holds
+        await submitForm(value);
+        if (submitEval.redirectUrl) globalThis.location.href = submitEval.redirectUrl;
+      };
+
+      const currentStepId = logic.stepIds[currentStep];
+      const jumpTo = currentStepId ? submitEval.resolveJump(currentStepId) : null;
+      if (jumpTo === THANK_YOU_STEP) {
+        await finish();
+        return;
+      }
+      let target = jumpTo ? logic.stepIds.indexOf(jumpTo) : -1;
+      if (target < 0) {
+        target = nextVisibleStepIndex(logic.stepFieldNames, submitEval.visibility, currentStep);
+      }
+      if (target < 0) await finish();
+      else goToStep(value, target);
     },
     canSubmitWhenInvalid: false,
     onSubmitInvalid({ formApi }) {
@@ -202,5 +286,41 @@ export const useStepPreviewForm = ({
     },
   });
 
-  return { form: form as unknown as AppForm, formName, handleFieldFocus };
+  // Mirror live values into state so visibility/required (and thus the schema) recompute
+  // as the respondent types — enables same-step progressive disclosure. Only runs work
+  // when logic is present; otherwise the empty `liveValues` keeps everything visible.
+  const storeValues = useStore(form.store, (state) => state.values) as Record<string, unknown>;
+  useEffect(() => {
+    if (logic) setLiveValues(storeValues);
+  }, [logic, storeValues]);
+
+  // Auto-fill fields targeted by a "Set value" action. Apply only when the *computed*
+  // value changes (not every render) so the respondent can still edit in between.
+  const appliedSetValuesRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    if (!evaluation) return;
+    const prev = appliedSetValuesRef.current;
+    const next = evaluation.setValues;
+    const onThisStep = (name: string) => fields.some((f) => f.name === name);
+    // Apply changed set-values (only this step's fields live in this form instance;
+    // cross-step targets are applied by their own step when it mounts).
+    for (const [name, val] of Object.entries(next)) {
+      if (prev[name] !== val && onThisStep(name)) form.setFieldValue(name, val);
+    }
+    // Revert fields that were auto-filled but are no longer controlled, so a stale
+    // forced value doesn't persist after its condition stops matching.
+    for (const name of Object.keys(prev)) {
+      if (!(name in next) && onThisStep(name)) form.setFieldValue(name, "");
+    }
+    appliedSetValuesRef.current = { ...next };
+  }, [evaluation, fields, form]);
+
+  return {
+    form: form as unknown as AppForm,
+    formName,
+    handleFieldFocus,
+    visibleFieldNames,
+    lockedFieldNames,
+    hideSubmit: evaluation?.hideSubmit ?? false,
+  };
 };

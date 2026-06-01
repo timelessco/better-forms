@@ -31,7 +31,7 @@ export const StepForm = ({
   isLastStep,
   autoActionButton = false,
 }: StepFormProps) => {
-  const { currentStep, totalSteps, goToPrevStep, isSubmitting, tracking } = useStepForm();
+  const { totalSteps, goToPrevStep, canGoBack, isSubmitting, tracking } = useStepForm();
   const { t } = useTranslation();
   const Renderer = use(PreviewRendererContext) ?? RenderStepPreviewInput;
   const fields = useMemo(() => getFieldsFromSegments(segments), [segments]);
@@ -42,13 +42,14 @@ export const StepForm = ({
   );
   const showAutoActionButton = autoActionButton && !hasAuthoredButton;
 
-  const { form, formName, handleFieldFocus } = useStepPreviewForm({
-    fields,
-    questions: stepQuestions,
-    stepIndex,
-    isLastStep,
-    formName: `stepForm-${stepIndex}`,
-  });
+  const { form, formName, handleFieldFocus, visibleFieldNames, lockedFieldNames, hideSubmit } =
+    useStepPreviewForm({
+      fields,
+      questions: stepQuestions,
+      stepIndex,
+      isLastStep,
+      formName: `stepForm-${stepIndex}`,
+    });
 
   const groupedItems = useMemo(() => groupSegmentsForRendering(segments), [segments]);
 
@@ -64,7 +65,7 @@ export const StepForm = ({
     if (target && formRef.current && !formRef.current.contains(target)) return;
 
     if (event.key === "Escape") {
-      if (currentStep === 0) return;
+      if (!canGoBack) return;
       // Defensive: bail if an in-form popover trigger is open — Esc shouldn't navigate away if focus stayed on trigger.
       if (formRef.current?.querySelector('[aria-expanded="true"]')) return;
       event.preventDefault();
@@ -159,7 +160,8 @@ export const StepForm = ({
                   <RenderStepButton
                     field={actionButton}
                     isSubmitting={isSubmitting}
-                    onPrevious={currentStep > 0 ? goToPrevStep : undefined}
+                    onPrevious={canGoBack ? goToPrevStep : undefined}
+                    hideSubmit={hideSubmit}
                     grouped
                   />
                 )}
@@ -167,7 +169,7 @@ export const StepForm = ({
                   <RenderStepButton
                     field={prevButton}
                     isSubmitting={isSubmitting}
-                    onPrevious={currentStep > 0 ? goToPrevStep : undefined}
+                    onPrevious={canGoBack ? goToPrevStep : undefined}
                     grouped
                   />
                 ) : (
@@ -189,20 +191,40 @@ export const StepForm = ({
           if (item.type === "field") {
             const { field } = item;
 
+            // Conditional logic: skip fields the engine has hidden (value retained in form state).
+            if (
+              field.fieldType !== "Button" &&
+              visibleFieldNames &&
+              !visibleFieldNames.has(field.name)
+            ) {
+              return null;
+            }
+
             if (field.fieldType === "Button") {
               return (
                 <RenderStepButton
                   key={field.id}
                   field={field}
                   isSubmitting={isSubmitting}
-                  onPrevious={currentStep > 0 ? goToPrevStep : undefined}
+                  onPrevious={canGoBack ? goToPrevStep : undefined}
+                  hideSubmit={hideSubmit}
                   totalSteps={totalSteps}
                 />
               );
             }
 
+            // Fields auto-filled by a "Set value" action are locked (non-interactive)
+            // while the controlling logic is active; the value still submits.
+            const locked = lockedFieldNames.has(field.name);
             return (
-              <div key={field.id} className="w-full" data-bf-input data-bf-question-id={field.id}>
+              <div
+                key={field.id}
+                className={`w-full${locked ? " opacity-75" : ""}`}
+                data-bf-input
+                data-bf-question-id={field.id}
+                inert={locked || undefined}
+                aria-disabled={locked || undefined}
+              >
                 <Renderer element={field} form={form} />
               </div>
             );
@@ -211,7 +233,7 @@ export const StepForm = ({
           return null;
         })}
 
-        {showAutoActionButton && (
+        {showAutoActionButton && !(hideSubmit && isLastStep) && (
           <div
             className="flex w-full items-center gap-3 pt-2"
             style={{ maxWidth: "var(--bf-input-width)" }}
@@ -242,7 +264,7 @@ export const StepForm = ({
               </kbd>
               <span aria-hidden="true">↵</span>
             </span>
-            {currentStep > 0 && (
+            {canGoBack && (
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                 <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
                   Esc
@@ -296,15 +318,20 @@ const RenderStepButton = ({
   onPrevious,
   grouped = false,
   totalSteps = 1,
+  hideSubmit = false,
 }: {
   field: ButtonField;
   isSubmitting: boolean;
   onPrevious?: () => void;
   grouped?: boolean;
   totalSteps?: number;
+  hideSubmit?: boolean;
 }) => {
   const { t } = useTranslation();
   const buttonRole = field.buttonRole || "submit";
+
+  // Conditional "hide submit button" action suppresses the completion control.
+  if (hideSubmit && buttonRole === "submit") return null;
   const defaultText =
     buttonRole === "next" ? t("next") : buttonRole === "previous" ? t("previous") : t("submit");
   const buttonText = field.buttonText || defaultText;

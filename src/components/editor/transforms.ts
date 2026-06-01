@@ -9,6 +9,7 @@ import {
   insertVideoPlaceholder,
 } from "@platejs/media";
 import { insertToc } from "@platejs/toc";
+import { createLogicBlockNode } from "@/components/ui/logic-block-node";
 import { KEYS, PathApi } from "platejs";
 import type { NodeEntry, Path, TElement } from "platejs";
 import type { PlateEditor } from "platejs/react";
@@ -35,6 +36,14 @@ const insertList = (editor: PlateEditor, type: string) => {
 };
 
 const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void> = {
+  logicBlock: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    editor.tf.insertNodes(createLogicBlockNode() as unknown as TElement, {
+      at: PathApi.next(block[1]),
+      select: true,
+    });
+  },
   [KEYS.listTodo]: insertList,
   [KEYS.ol]: insertList,
   [KEYS.ul]: insertList,

@@ -4,7 +4,8 @@ import {
   BlockMenuPlugin,
   BlockSelectionPlugin,
 } from "@platejs/selection/react";
-import { KEYS } from "platejs";
+import { KEYS, PathApi } from "platejs";
+import type { TElement } from "platejs";
 import { useEditorPlugin, useEditorSelector, useHotkeys, usePluginOption } from "platejs/react";
 import * as React from "react";
 
@@ -38,6 +39,7 @@ import {
 import type { FileTypeCategory } from "@/lib/form-schema/file-upload-types";
 import { ALLOWED_LABEL_TYPES, FORM_INPUT_NODE_TYPES } from "@/lib/form-schema/form-field-constants";
 import { cn } from "@/lib/utils";
+import { createLogicBlockNode } from "@/components/ui/logic-block-node";
 
 type BlockFieldType =
   | "textLike" // formInput, formTextarea, formEmail, formLink
@@ -265,6 +267,16 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     api.blockMenu.hide();
   }, [editor, api.blockMenu]);
 
+  const handleAddLogic = React.useCallback(() => {
+    if (!firstPath) return;
+    // Insert the logic block as the next sibling of the selected block.
+    editor.tf.insertNodes(createLogicBlockNode() as unknown as TElement, {
+      at: PathApi.next(firstPath),
+      select: false,
+    });
+    api.blockMenu.hide();
+  }, [editor, firstPath, api.blockMenu]);
+
   const handleTurnInto = React.useCallback(
     (type: string) => {
       editor
@@ -290,6 +302,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     isEditingName,
     onDelete: handleDelete,
     onDuplicate: handleDuplicate,
+    onAddLogic: handleAddLogic,
   });
 
   // Close on scroll — virtual anchor is pinned to the click (x,y), so the menu would float in
@@ -467,6 +480,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
           <BlockMenuActions
             onDelete={handleDelete}
             onDuplicate={handleDuplicate}
+            onAddLogic={handleAddLogic}
             onHide={handleHideMenu}
             turnIntoOpen={turnIntoOpen}
             onTurnIntoPointerEnter={handleTurnIntoPointerEnter}
@@ -1060,6 +1074,7 @@ const ButtonFieldSettings = ({ buttonText, handlers }: FieldTypeSettingsProps) =
 interface BlockMenuActionsProps {
   onDelete: () => void;
   onDuplicate: () => void;
+  onAddLogic: () => void;
   onHide: () => void;
   turnIntoOpen: boolean;
   onTurnIntoPointerEnter: () => void;
@@ -1074,6 +1089,7 @@ interface BlockMenuActionsProps {
 const BlockMenuActions = ({
   onDelete,
   onDuplicate,
+  onAddLogic,
   onHide,
   turnIntoOpen,
   onTurnIntoPointerEnter,
@@ -1100,7 +1116,7 @@ const BlockMenuActions = ({
       <span className="flex-1 text-left">Hide</span>
       <DropdownMenuShortcut>⌘⌥H</DropdownMenuShortcut>
     </DropdownMenuItem>
-    <DropdownMenuItem className="text-foreground/80" onClick={onHide}>
+    <DropdownMenuItem className="text-foreground/80" onClick={onAddLogic}>
       <PlusIcon />
       <span className="flex-1 text-left">Add conditional logic</span>
       <DropdownMenuShortcut>⌘⌥L</DropdownMenuShortcut>
@@ -1137,6 +1153,7 @@ interface UseBlockMenuContextMenuAndHotkeysOptions {
   isEditingName: boolean;
   onDelete: () => void;
   onDuplicate: () => void;
+  onAddLogic: () => void;
 }
 
 const useBlockMenuContextMenuAndHotkeys = ({
@@ -1146,6 +1163,7 @@ const useBlockMenuContextMenuAndHotkeys = ({
   isEditingName,
   onDelete,
   onDuplicate,
+  onAddLogic,
 }: UseBlockMenuContextMenuAndHotkeysOptions) => {
   React.useEffect(() => {
     const node = triggerRef.current;
@@ -1185,12 +1203,11 @@ const useBlockMenuContextMenuAndHotkeys = ({
     [isOpen, isEditingName, api.blockMenu],
   );
 
-  useHotkeys(
-    "mod+alt+l",
-    () => api.blockMenu.hide(),
-    { enabled: isOpen && !isEditingName, preventDefault: true },
-    [isOpen, isEditingName, api.blockMenu],
-  );
+  useHotkeys("mod+alt+l", onAddLogic, { enabled: isOpen && !isEditingName, preventDefault: true }, [
+    isOpen,
+    isEditingName,
+    onAddLogic,
+  ]);
 };
 
 interface BlockMenuFirstNode {

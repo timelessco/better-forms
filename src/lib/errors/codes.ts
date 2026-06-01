@@ -52,6 +52,7 @@ export type ErrorCode =
   // --- Public submissions ----------------------------------------------
   | "submissions/draft-too-large"
   | "submissions/missing-draft-id"
+  | "submissions/invalid"
 
   // --- Notifications ---------------------------------------------------
   | "notifications/forbidden"
