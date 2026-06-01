@@ -112,6 +112,7 @@ const CustomDomainSlugRoute = () => {
                 thankYou: loaderData.thankYou,
                 stepCount: loaderData.stepCount,
                 header: loaderData.header,
+                logic: loaderData.logic,
               }
             : undefined
         }

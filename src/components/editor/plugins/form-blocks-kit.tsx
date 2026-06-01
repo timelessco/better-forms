@@ -6,6 +6,7 @@ import { FormButtonElement } from "@/components/ui/form-button-node";
 import { FormFieldElement } from "@/components/ui/form-field-node";
 import { FormLabelElement } from "@/components/ui/form-label-node";
 import { FormTextareaElement } from "@/components/ui/form-textarea-node";
+import { LogicBlockElement } from "@/components/ui/logic-block-node";
 import { PageBreakElement } from "@/components/ui/page-break-node";
 import { FormFileUploadElement } from "@/components/ui/form-file-upload-node";
 import { FormMultiSelectInputElement } from "@/components/ui/form-multi-select-input-node";
@@ -768,6 +769,19 @@ export const PageBreakPlugin = createPlatePlugin({
   },
 });
 
+export const LogicBlockPlugin = createPlatePlugin({
+  key: "logicBlock",
+  node: {
+    isElement: true,
+    isVoid: true,
+    isSelectable: true,
+    component: LogicBlockElement,
+  },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+});
+
 export const FormEmailPlugin = createPlatePlugin({
   key: "formEmail",
   node: { isElement: true, component: FormFieldElement },
@@ -943,4 +957,5 @@ export const FormBlocksKit = [
   FormOptionItemPlugin,
   FormMultiSelectInputPlugin,
   PageBreakPlugin,
+  LogicBlockPlugin,
 ];

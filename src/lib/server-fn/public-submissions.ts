@@ -19,6 +19,7 @@ import {
   transformPlateStateToFormElements,
 } from "@/lib/editor/transform-plate-to-form";
 import type { ErrorCode } from "@/lib/errors/codes";
+import { buildVisibleSchema, sanitizeSubmission } from "@/lib/logic/sanitize-submission";
 import { isServerPlan } from "./plan-helpers";
 import { recordOwnerSubmissionNotification } from "./notifications-helpers.server";
 import { sendFormSubmissionNotification, sendRespondentConfirmation } from "@/integrations/email";
@@ -228,8 +229,7 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
       }
     }
 
-    // Shape-only sanitize for drafts: strip keys not on published form. Final submits
-    // enforce shape via client Zod schema, so skip the transform on the hot path.
+    // Shape-only sanitize for drafts: strip keys not on published form.
     let sanitizedData = data.data;
     if (!data.isCompleted && version?.content) {
       const allowed = getAllowedFieldNames(form.lastPublishedVersionId, version.content as Value);
@@ -238,6 +238,26 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
           Object.entries(data.data).filter(([k]) => allowed.has(k)),
         );
       }
+    }
+
+    // Completed submits: authoritative conditional-logic pass. Re-run the engine against the
+    // published content + submitted answers, strip answers for server-hidden fields, then
+    // validate the visible set against the effective-required schema. Don't trust the client.
+    if (data.isCompleted && version?.content) {
+      const publishedContent = version.content as Value;
+      const { data: cleaned } = sanitizeSubmission(publishedContent, data.data);
+      const result = v.safeParse(buildVisibleSchema(publishedContent, data.data), cleaned);
+      if (!result.success) {
+        throw createError({
+          code: "submissions/invalid" satisfies ErrorCode,
+          status: 400,
+          message: "Submission failed validation",
+          why: "Submitted answers don't satisfy the published form's visible/required fields",
+          fix: "Complete all required visible fields and resubmit",
+          internal: { issueCount: result.issues.length },
+        });
+      }
+      sanitizedData = cleaned;
     }
 
     const existing = data.draftId

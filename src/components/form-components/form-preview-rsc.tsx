@@ -10,6 +10,8 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import { ProgressBar } from "@/routes/forms/-components/progress-bar";
 import { StepFormProvider, useStepForm } from "@/contexts/step-form-context";
 import type { PublicFormTracking, TrackingBase } from "@/contexts/step-form-context";
+import { FormLogicProvider } from "@/contexts/form-logic-context";
+import type { FormLogicValue } from "@/lib/logic/build-form-logic";
 import { useTranslation } from "@/contexts/translation-context";
 import { useFocusFirstField } from "@/hooks/use-focus-first-field";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -55,6 +57,8 @@ interface FormPreviewRSCProps {
   initialCurrentStep?: number;
   /** Analytics base ({ visitId, visitorHash }). Public route only; undefined in builder previews disables tracking. */
   trackingBase?: TrackingBase;
+  /** Conditional-logic payload (plain JSON from the RSC server fn). null = no logic. */
+  logic?: FormLogicValue | null;
   /** Field-by-field meta. Required when presentationMode="field-by-field" — client renders icon+title+cover-as-bg instead of pre-rendered card header. iconColor = picker bg (from server-side formHeader node). */
   fieldByFieldMeta?: {
     title?: string;
@@ -205,17 +209,18 @@ const StepFormRSC = ({
   /** Field-by-field: server strips Button fields, so render an auto Submit/Next here w/ Enter/Esc shortcuts. */
   autoActionButton?: boolean;
 }) => {
-  const { currentStep, totalSteps, goToPrevStep, isSubmitting } = useStepForm();
+  const { totalSteps, goToPrevStep, canGoBack, isSubmitting } = useStepForm();
   const { t } = useTranslation();
   const fields = stepRSC.fields;
 
-  const { form, formName, handleFieldFocus } = useStepPreviewForm({
-    fields,
-    stepIndex,
-    isLastStep,
-    formName: `stepForm-${stepIndex}`,
-    questions,
-  });
+  const { form, formName, handleFieldFocus, visibleFieldNames, lockedFieldNames, hideSubmit } =
+    useStepPreviewForm({
+      fields,
+      stepIndex,
+      isLastStep,
+      formName: `stepForm-${stepIndex}`,
+      questions,
+    });
 
   const formRef = useRef<HTMLFormElement>(null);
   const [isTextareaFocused, setIsTextareaFocused] = useState(false);
@@ -227,7 +232,7 @@ const StepFormRSC = ({
     if (target && formRef.current && !formRef.current.contains(target)) return;
 
     if (event.key === "Escape") {
-      if (currentStep === 0) return;
+      if (!canGoBack) return;
       if (formRef.current?.querySelector('[aria-expanded="true"]')) return;
       event.preventDefault();
       event.stopPropagation();
@@ -295,6 +300,8 @@ const StepFormRSC = ({
           buttonRole?: "next" | "previous" | "submit";
         };
         const role = btn.buttonRole ?? "submit";
+        // Conditional "hide submit button" action suppresses the completion control.
+        if (hideSubmit && role === "submit") return null;
         const defaultText =
           role === "next" ? t("next") : role === "previous" ? t("previous") : t("submit");
         return (
@@ -304,18 +311,36 @@ const StepFormRSC = ({
             }
             buttonRole={role}
             isSubmitting={isSubmitting}
-            onPrevious={currentStep > 0 ? goToPrevStep : undefined}
+            onPrevious={canGoBack ? goToPrevStep : undefined}
             totalSteps={totalSteps}
           />
         );
       }
+      // Conditional logic: skip hidden fields; lock (non-interactive) auto-filled ones.
+      if (visibleFieldNames && !visibleFieldNames.has(field.name)) return null;
+      const locked = lockedFieldNames.has(field.name);
       return (
-        <div data-bf-question-id={field.id} className="w-full">
+        <div
+          data-bf-question-id={field.id}
+          className={`w-full${locked ? " opacity-75" : ""}`}
+          inert={locked || undefined}
+          aria-disabled={locked || undefined}
+        >
           <RenderFieldComponent key={fieldId} element={field} form={form} />
         </div>
       );
     },
-    [form, isSubmitting, currentStep, goToPrevStep, totalSteps, t],
+    [
+      form,
+      isSubmitting,
+      canGoBack,
+      goToPrevStep,
+      totalSteps,
+      t,
+      visibleFieldNames,
+      lockedFieldNames,
+      hideSubmit,
+    ],
   );
 
   const ButtonGroupSlot = useCallback(
@@ -335,12 +360,12 @@ const StepFormRSC = ({
           className="flex w-full flex-row-reverse items-center justify-between"
           style={{ maxWidth: "var(--bf-input-width)" }}
         >
-          {action && (
+          {action && !(hideSubmit && actionRole === "submit") && (
             <StepButton
               buttonText={actionText}
               buttonRole={actionRole}
               isSubmitting={isSubmitting}
-              onPrevious={currentStep > 0 ? goToPrevStep : undefined}
+              onPrevious={canGoBack ? goToPrevStep : undefined}
               grouped
               totalSteps={totalSteps}
             />
@@ -350,7 +375,7 @@ const StepFormRSC = ({
               buttonText={prev.buttonText || t("previous")}
               buttonRole="previous"
               isSubmitting={isSubmitting}
-              onPrevious={currentStep > 0 ? goToPrevStep : undefined}
+              onPrevious={canGoBack ? goToPrevStep : undefined}
               grouped
             />
           ) : (
@@ -359,7 +384,7 @@ const StepFormRSC = ({
         </div>
       );
     },
-    [t, isSubmitting, currentStep, goToPrevStep, totalSteps],
+    [t, isSubmitting, canGoBack, goToPrevStep, totalSteps, hideSubmit],
   );
 
   return (
@@ -380,14 +405,16 @@ const StepFormRSC = ({
             className="flex w-full items-center gap-3 pt-2"
             style={{ maxWidth: "var(--bf-input-width)" }}
           >
-            <Button
-              type="submit"
-              style={{ fontSize: "13px" }}
-              className="h-9 gap-1.5 rounded-lg px-4"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? t("submitting") : isLastStep ? t("submit") : t("next")}
-            </Button>
+            {!(hideSubmit && isLastStep) && (
+              <Button
+                type="submit"
+                style={{ fontSize: "13px" }}
+                className="h-9 gap-1.5 rounded-lg px-4"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? t("submitting") : isLastStep ? t("submit") : t("next")}
+              </Button>
+            )}
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               press{" "}
               {isTextareaFocused && (
@@ -403,7 +430,7 @@ const StepFormRSC = ({
               </kbd>
               <span aria-hidden="true">↵</span>
             </span>
-            {currentStep > 0 && (
+            {canGoBack && (
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                 <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
                   Esc
@@ -801,6 +828,7 @@ export const FormPreviewRSC = ({
   initialCurrentStep,
   trackingBase,
   fieldByFieldMeta,
+  logic,
 }: FormPreviewRSCProps) => {
   if (steps.length === 0 || stepCount === 0) {
     return (
@@ -828,7 +856,7 @@ export const FormPreviewRSC = ({
         }
       : null;
 
-  return (
+  const content = (
     <StepFormProvider
       totalSteps={stepCount}
       onSubmit={onSubmit}
@@ -855,4 +883,8 @@ export const FormPreviewRSC = ({
       )}
     </StepFormProvider>
   );
+
+  // Provide the conditional-logic payload so the public form runs the same engine
+  // (visibility/jumps/set-value/hide-submit) the builder preview does.
+  return logic ? <FormLogicProvider value={logic}>{content}</FormLogicProvider> : content;
 };

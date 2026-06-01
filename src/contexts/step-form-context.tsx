@@ -23,8 +23,13 @@ type StepFormContextValue = {
   formData: Record<string, unknown>;
   isSubmitting: boolean;
   isSubmitted: boolean;
+  /** Commit step data and advance to the next sequential step (no logic). */
   goToNextStep: (stepData: Record<string, unknown>) => void;
+  /** Commit step data and jump to an explicit target step index (logic-resolved). */
+  goToStep: (stepData: Record<string, unknown>, target: number) => void;
   goToPrevStep: () => void;
+  /** False at the first visited step — drives Back affordances. */
+  canGoBack: boolean;
   direction: number;
   submitForm: (finalStepData: Record<string, unknown>) => Promise<void>;
   reset: () => void;
@@ -35,7 +40,9 @@ type StepFormContextValue = {
 };
 
 type StepFormState = {
-  currentStep: number;
+  /** Visited-step stack. `currentStep` is the last entry. Back pops it, so the
+   * respondent returns to the step they actually came from after a jump. */
+  history: number[];
   direction: number;
   formData: Record<string, unknown>;
   isSubmitting: boolean;
@@ -43,28 +50,27 @@ type StepFormState = {
 };
 
 type StepFormAction =
-  | { type: "next-step"; formData: Record<string, unknown>; totalSteps: number }
+  | { type: "push-step"; formData: Record<string, unknown>; target: number }
   | { type: "prev-step" }
   | { type: "submit-start" }
   | { type: "submit-success" }
   | { type: "submit-end" }
   | { type: "reset" };
 
-const stepFormReducer = (state: StepFormState, action: StepFormAction): StepFormState => {
+export const stepFormReducer = (state: StepFormState, action: StepFormAction): StepFormState => {
   switch (action.type) {
-    case "next-step":
+    case "push-step":
       return {
         ...state,
         formData: action.formData,
         direction: 1,
-        currentStep: Math.min(state.currentStep + 1, action.totalSteps - 1),
+        history: [...state.history, action.target],
       };
     case "prev-step":
-      return {
-        ...state,
-        direction: -1,
-        currentStep: Math.max(state.currentStep - 1, 0),
-      };
+      // Pop to the previously visited step; no-op at the first step.
+      return state.history.length > 1
+        ? { ...state, direction: -1, history: state.history.slice(0, -1) }
+        : state;
     case "submit-start":
       return { ...state, isSubmitting: true };
     case "submit-success":
@@ -73,7 +79,7 @@ const stepFormReducer = (state: StepFormState, action: StepFormAction): StepForm
       return { ...state, isSubmitting: false };
     case "reset":
       return {
-        currentStep: 0,
+        history: [0],
         direction: 0,
         formData: {},
         isSubmitting: false,
@@ -125,24 +131,35 @@ export const StepFormProvider = ({
   );
 
   const [state, dispatch] = React.useReducer(stepFormReducer, undefined, () => ({
-    currentStep: initialCurrentStep ?? 0,
+    // Resuming a draft at step N: seed a linear 0..N history so Back still works
+    // (the real visited path isn't persisted; linear is the sensible default).
+    history: Array.from({ length: (initialCurrentStep ?? 0) + 1 }, (_, i) => i),
     direction: 0,
     formData: initialFormData ?? (saveAnswersForLater ? (loadSavedData() ?? {}) : {}),
     isSubmitting: false,
     isSubmitted: false,
   }));
-  const { currentStep, direction, formData, isSubmitting, isSubmitted } = state;
+  const { history, direction, formData, isSubmitting, isSubmitted } = state;
+  const currentStep = history[history.length - 1];
+  const canGoBack = history.length > 1;
 
   const formDataRef = useAsRef(formData);
 
-  const goToNextStep = React.useCallback(
-    (stepData: Record<string, unknown>) => {
+  const goToStep = React.useCallback(
+    (stepData: Record<string, unknown>, target: number) => {
       const next = { ...formDataRef.current, ...stepData };
       if (Object.keys(next).length > 0) saveData(next);
-      dispatch({ type: "next-step", formData: next, totalSteps });
+      dispatch({ type: "push-step", formData: next, target: Math.max(0, target) });
     },
     // eslint-disable-next-line eslint-plugin-react-hooks/exhaustive-deps -- formDataRef is a stable ref
-    [totalSteps, saveData],
+    [saveData],
+  );
+
+  const goToNextStep = React.useCallback(
+    (stepData: Record<string, unknown>) => {
+      goToStep(stepData, Math.min(currentStep + 1, totalSteps - 1));
+    },
+    [goToStep, currentStep, totalSteps],
   );
 
   const goToPrevStep = React.useCallback(() => {
@@ -179,7 +196,9 @@ export const StepFormProvider = ({
       isSubmitting,
       isSubmitted,
       goToNextStep,
+      goToStep,
       goToPrevStep,
+      canGoBack,
       direction,
       submitForm,
       reset,
@@ -193,7 +212,9 @@ export const StepFormProvider = ({
       isSubmitting,
       isSubmitted,
       goToNextStep,
+      goToStep,
       goToPrevStep,
+      canGoBack,
       direction,
       submitForm,
       reset,

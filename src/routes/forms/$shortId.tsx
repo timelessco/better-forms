@@ -135,6 +135,7 @@ const PublicFormRoute = () => {
                 stepCount: loaderData.stepCount,
                 header: loaderData.header,
                 formHeaderIconColor: loaderData.formHeaderIconColor,
+                logic: loaderData.logic,
               }
             : undefined
         }

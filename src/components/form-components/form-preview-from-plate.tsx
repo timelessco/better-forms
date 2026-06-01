@@ -13,6 +13,8 @@ import {
   transformPlateForPreview,
 } from "@/lib/editor/transform-plate-for-preview";
 import type { PreviewSegment } from "@/lib/editor/transform-plate-for-preview";
+import { FormLogicProvider } from "@/contexts/form-logic-context";
+import { buildFormLogic } from "@/lib/logic/build-form-logic";
 import { extractQuestionsForStep } from "@/lib/forms/extract-questions";
 import type { QuestionRef } from "@/lib/forms/extract-questions";
 import { DEFAULT_ICON } from "@/lib/config/app-config";
@@ -396,6 +398,15 @@ export const FormPreviewFromPlate = ({
     [steps],
   );
 
+  const isFieldByFieldMode = settings?.presentationMode === "field-by-field";
+
+  // Conditional-logic runtime context. Card mode aligns step ids with the ruleset
+  // extractor; field-by-field uses synthetic ids (step-level jumps degrade to fall-through).
+  const formLogic = useMemo(
+    () => buildFormLogic(content, steps, isFieldByFieldMode),
+    [content, steps, isFieldByFieldMode],
+  );
+
   if (steps.length === 0 || steps.flat().length === 0) {
     return (
       <div className="flex min-h-[300px] flex-col items-center justify-center p-8 text-center">
@@ -431,22 +442,24 @@ export const FormPreviewFromPlate = ({
       initialCurrentStep={initialCurrentStep}
       tracking={tracking}
     >
-      <FormPreviewContent
-        shortId={shortId}
-        steps={steps}
-        stepQuestions={stepQuestions}
-        thankYouNodes={thankYouNodes}
-        title={title}
-        icon={icon}
-        iconColor={iconColor}
-        cover={cover}
-        hideTitle={hideTitle}
-        layout={layout}
-        settings={settings}
-        customization={customization}
-        isPopup={isPopup}
-        boundToParent={boundToParent}
-      />
+      <FormLogicProvider value={formLogic}>
+        <FormPreviewContent
+          shortId={shortId}
+          steps={steps}
+          stepQuestions={stepQuestions}
+          thankYouNodes={thankYouNodes}
+          title={title}
+          icon={icon}
+          iconColor={iconColor}
+          cover={cover}
+          hideTitle={hideTitle}
+          layout={layout}
+          settings={settings}
+          customization={customization}
+          isPopup={isPopup}
+          boundToParent={boundToParent}
+        />
+      </FormLogicProvider>
     </StepFormProvider>
   );
 };

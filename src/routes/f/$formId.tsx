@@ -119,6 +119,7 @@ const CustomDomainFormIdRoute = () => {
                 thankYou: loaderData.thankYou,
                 stepCount: loaderData.stepCount,
                 header: loaderData.header,
+                logic: loaderData.logic,
               }
             : undefined
         }

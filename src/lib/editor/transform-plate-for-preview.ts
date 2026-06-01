@@ -71,6 +71,36 @@ export const transformPlateForPreview = (value: Value): PreviewStepResult => {
   return { steps, thankYouNodes };
 };
 
+/** Step id per CARD step, aligned 1:1 with `transformPlateForPreview(...).steps`
+ * and with the ids the logic ruleset extractor assigns. First chunk = "step-0";
+ * subsequent chunks take the id of the pageBreak that opens them. Used to map a
+ * jump rule's target/source step id to a rendered step index. */
+export const getPreviewStepIds = (value: Value): string[] => {
+  let startIdx = 0;
+  if (value.length > 0 && value[0].type === "formHeader") startIdx = 1;
+  const remaining = value.slice(startIdx);
+
+  const ids: string[] = [];
+  let current = "step-0";
+  let chunkLen = 0;
+  let collectingThankYou = false;
+
+  for (const node of remaining) {
+    if (node.type === "pageBreak") {
+      if (chunkLen > 0 && !collectingThankYou) {
+        ids.push(current);
+        chunkLen = 0;
+      }
+      if (node.isThankYouPage) collectingThankYou = true;
+      else current = (node as { id?: string }).id ?? current;
+      continue;
+    }
+    if (!collectingThankYou) chunkLen++;
+  }
+  if (chunkLen > 0 && !collectingThankYou) ids.push(current);
+  return ids;
+};
+
 /** Plate nodes → ordered segments. Consecutive static nodes grouped into one
  * StaticSegment; form nodes (formLabel+formInput, formButton) → FieldSegments. */
 const createSegments = (nodes: Value): PreviewSegment[] => {
@@ -113,6 +143,13 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
   while (i < nodes.length) {
     const node = nodes[i];
     const nodeType = node.type;
+
+    // Logic blocks are evaluation-only — never rendered. Skip before label look-back
+    // and the static-buffer default so they don't surface as content.
+    if (nodeType === "logicBlock") {
+      i++;
+      continue;
+    }
 
     if (INPUT_TYPE_TO_FIELD_TYPE[nodeType]) {
       const label = lookBackForLabel(i);

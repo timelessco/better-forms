@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/icons";
 import {
   BadgeIcon,
+  GitBranch,
   Heading1Icon,
   Heading2Icon,
   Heading3Icon,
@@ -274,6 +275,33 @@ const groups: Group[] = [
         keywords: ["form", "multi", "select", "dropdown", "tag", "option"],
         label: "Multi Select",
         value: "formMultiSelect",
+      },
+    ].map((item) => ({
+      ...item,
+      onSelect: (editor, value) => {
+        insertBlock(editor, value, { upsert: true });
+      },
+    })),
+  },
+  {
+    group: "Logic",
+    items: [
+      {
+        description: "Show, hide, require, or branch based on answers",
+        icon: <GitBranch />,
+        keywords: [
+          "logic",
+          "conditional",
+          "condition",
+          "if",
+          "rule",
+          "branch",
+          "show",
+          "hide",
+          "jump",
+        ],
+        label: "Conditional logic",
+        value: "logicBlock",
       },
     ].map((item) => ({
       ...item,
