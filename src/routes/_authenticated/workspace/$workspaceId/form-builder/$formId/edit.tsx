@@ -15,8 +15,8 @@ import type { Value } from "platejs";
 import { Activity, Suspense, lazy } from "react";
 import * as v from "valibot";
 import { coercedBooleanWithCatch, coercedNumberWithCatch } from "@/lib/valibot-search";
+import EditorApp from "../-components/editor-app";
 
-const EditorApp = lazy(() => import("../-components/editor-app"));
 const PreviewMode = lazy(() =>
   import("../-components/preview-mode").then((m) => ({ default: m.PreviewMode })),
 );
@@ -143,11 +143,6 @@ export const Route = createFileRoute(
   ssr: "data-only",
   // Redirect published forms to submissions (prevents flash of editor)
   beforeLoad: async ({ context, params, search }) => {
-    // Warm editor-app chunk on preload (Link hover) + nav. Window guard keeps import off server module graph in ssr:"data-only".
-    if (typeof window !== "undefined") {
-      void import("../-components/editor-app");
-    }
-
     if (search.force === true) return;
 
     let status: FormStatus | undefined;
