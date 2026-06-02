@@ -501,6 +501,10 @@ export const LogicBlockElement = (props: PlateElementProps) => {
     [editor, element],
   );
 
+  // Cancel a still-pending deferred caret-focus if the block unmounts first.
+  const pendingNavFocus = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  React.useEffect(() => () => clearTimeout(pendingNavFocus.current), []);
+
   // Tab/Shift+Tab and Up/Down move to adjacent blocks like every other editor block. The inner
   // controls steal DOM focus, so the global NavigationPlugin (which reads the editor
   // selection) never fires for this void node - handle it here where the keydown bubbles
@@ -511,6 +515,15 @@ export const LogicBlockElement = (props: PlateElementProps) => {
       const isTab = event.key === "Tab";
       const isVerticalArrow = event.key === "ArrowDown" || event.key === "ArrowUp";
       if (!isTab && !isVerticalArrow) return;
+      // Arrow keys have native meaning inside the block's own controls: date/time/number
+      // input segments and opening a Select menu. Leave those to the focused control; only
+      // Tab is a deliberate block-level jump regardless of which control holds focus.
+      if (
+        isVerticalArrow &&
+        (event.target as HTMLElement).closest("input, textarea, [role='combobox']")
+      ) {
+        return;
+      }
       const path = editor.api.findPath(element);
       if (!path) return;
       event.preventDefault();
@@ -530,7 +543,7 @@ export const LogicBlockElement = (props: PlateElementProps) => {
         const at = insertParagraphAfterPath(editor, path);
         // Defer select+focus until the new paragraph has rendered; focusing a node that
         // isn't in the DOM yet no-ops, leaving no visible caret.
-        setTimeout(() => {
+        pendingNavFocus.current = setTimeout(() => {
           editor.tf.select({ offset: 0, path: [...at, 0] });
           editor.tf.focus();
         }, 0);
