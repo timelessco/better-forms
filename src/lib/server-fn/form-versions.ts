@@ -240,7 +240,10 @@ export const getFormVersions = createServerFn({ method: "GET" })
 export const getFormVersionsQueryOption = (formId: string) =>
   queryOptions({
     queryKey: ["form-versions", formId] as const,
-    queryFn: () => getFormVersions({ data: { formId } }).then((r) => r.versions),
+    queryFn: async () => {
+      const result = await getFormVersions({ data: { formId } });
+      return result?.versions ?? [];
+    },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 

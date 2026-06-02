@@ -301,11 +301,11 @@ const initCollectionsOnClient = createClientOnlyFn((queryClient: QueryClient) =>
     getFavorites: () => getFavoritesServer(),
     getVersionList: async (formId: string) => {
       const result = await getFormVersions({ data: { formId } });
-      return result.versions;
+      return result?.versions ?? [];
     },
     getVersionContent: async (versionId: string) => {
       const result = await getFormVersionContent({ data: { versionId } });
-      return result.version;
+      return result?.version ?? null;
     },
     getSubmissionsCount: async (formId: string) => {
       const result = await getSubmissionsCount({ data: { formId } });
