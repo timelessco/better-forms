@@ -17,6 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  findNextNonButtonPath,
+  findPrevNonButtonPath,
+  insertParagraphAfterPath,
+  moveToPath,
+} from "@/components/editor/plugins/form-blocks-utils";
 import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
 import { operatorNeedsOperand, operatorsForFieldType, OPERATOR_LABELS } from "@/lib/logic/labels";
 import { THANK_YOU_STEP } from "@/lib/logic/types";
@@ -495,6 +501,44 @@ export const LogicBlockElement = (props: PlateElementProps) => {
     [editor, element],
   );
 
+  // Tab/Shift+Tab and Up/Down move to adjacent blocks like every other editor block. The inner
+  // controls steal DOM focus, so the global NavigationPlugin (which reads the editor
+  // selection) never fires for this void node - handle it here where the keydown bubbles
+  // up from the focused control. Focus the editor afterwards so the destination's caret
+  // (text block) or selection ring (void block) is visible.
+  const handleBlockKeyDown = React.useCallback(
+    (event: React.KeyboardEvent) => {
+      const isTab = event.key === "Tab";
+      const isVerticalArrow = event.key === "ArrowDown" || event.key === "ArrowUp";
+      if (!isTab && !isVerticalArrow) return;
+      const path = editor.api.findPath(element);
+      if (!path) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const goPrev = event.key === "ArrowUp" || (isTab && event.shiftKey);
+      const target = goPrev
+        ? findPrevNonButtonPath(editor, path)
+        : findNextNonButtonPath(editor, path);
+      if (target) {
+        moveToPath(editor, target);
+        editor.tf.focus();
+        return;
+      }
+      // No block below (logic block is last before the submit button) - create an
+      // empty paragraph after it and drop the caret there so the author isn't stuck.
+      if (!goPrev) {
+        const at = insertParagraphAfterPath(editor, path);
+        // Defer select+focus until the new paragraph has rendered; focusing a node that
+        // isn't in the DOM yet no-ops, leaving no visible caret.
+        setTimeout(() => {
+          editor.tf.select({ offset: 0, path: [...at, 0] });
+          editor.tf.focus();
+        }, 0);
+      }
+    },
+    [editor, element],
+  );
+
   // Conditions
   const updateCondition = (index: number, next: Condition) =>
     patch({ when: { ...when, children: conditions.map((c, i) => (i === index ? next : c)) } });
@@ -549,9 +593,11 @@ export const LogicBlockElement = (props: PlateElementProps) => {
       <div
         contentEditable={false}
         role="presentation"
+        onKeyDown={handleBlockKeyDown}
         className={cn(
           "flex flex-col gap-0.5 rounded-xl bg-muted/50 p-1.5",
-          selected && focused && "ring-2 ring-ring ring-offset-2",
+          // Soft selection halo matching form fields (no hard ring-offset border).
+          selected && focused && "ring-[3px] ring-ring/50",
         )}
       >
         {/* IF — conditions */}

@@ -14,6 +14,7 @@ import { FormOptionItemElement } from "@/components/ui/form-option-item-node";
 import {
   findNextNonButtonPath,
   findPrevNonButtonPath,
+  insertParagraphAfterPath,
   moveToPath,
 } from "@/components/editor/plugins/form-blocks-utils";
 
@@ -905,21 +906,38 @@ const NavigationPlugin = createPlatePlugin({
     onKeyDown: ({ editor, event }) => {
       if (handleFormFieldEnter(editor, event)) return;
 
-      if (event.key !== "Tab") return;
+      const isLogicBlockNavigation =
+        event.key === "Tab" || event.key === "ArrowDown" || event.key === "ArrowUp";
+      if (!isLogicBlockNavigation) return;
 
       const block = editor.api.block();
       if (!block) return;
-      const [, path] = block;
+      const [node, path] = block;
+      const isLogicBlock = node.type === "logicBlock";
+      if (!isLogicBlock && event.key !== "Tab") return;
 
       event.preventDefault();
       event.stopPropagation();
       event.nativeEvent.stopImmediatePropagation();
 
-      const target = event.shiftKey
+      const goPrev = event.key === "ArrowUp" || (event.key === "Tab" && event.shiftKey);
+      const target = goPrev
         ? findPrevNonButtonPath(editor, path)
         : findNextNonButtonPath(editor, path);
 
-      if (target) moveToPath(editor, target);
+      if (target) {
+        moveToPath(editor, target);
+        editor.tf.focus();
+        return;
+      }
+
+      if (isLogicBlock && !goPrev) {
+        const at = insertParagraphAfterPath(editor, path);
+        setTimeout(() => {
+          editor.tf.select({ offset: 0, path: [...at, 0] });
+          editor.tf.focus();
+        }, 0);
+      }
     },
   },
 });
