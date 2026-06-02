@@ -5,7 +5,36 @@ import type { WorkspaceSummary } from "./query/workspace";
 import { defaultFormSettings } from "@/types/form-settings";
 import { DEFAULT_FORM_CONTENT } from "./local/form";
 import type { Form } from "./local/form";
+import type { updateForm } from "@/lib/server-fn/forms";
 import { getInit, state, stripNulls } from "./_state";
+import type { ServerFnInput } from "./_state";
+
+/** Map a local `Form` onto a `FormListing`. `Form` lacks the listing-only `shortId`/`submissionCount`; supply them (optimistic rows use `""`/`0`, replaced on refetch). */
+const formToListing = (
+  form: Form,
+  extras: { shortId: string; submissionCount: number; sortIndex?: string | null },
+): FormListing => ({
+  id: form.id,
+  shortId: extras.shortId,
+  title: form.title,
+  status: form.status,
+  updatedAt: form.updatedAt ?? new Date().toISOString(),
+  createdAt: form.createdAt ?? new Date().toISOString(),
+  workspaceId: form.workspaceId,
+  icon: form.icon ?? null,
+  formName: form.formName,
+  sortIndex: extras.sortIndex ?? null,
+  customization: form.customization,
+  submissionCount: extras.submissionCount,
+  draftSettings: form.draftSettings,
+  liveSettings: form.liveSettings,
+  publishedContentHash: form.publishedContentHash,
+  lastPublishedVersionId: form.lastPublishedVersionId,
+  content: form.content,
+  schemaName: form.schemaName,
+  cover: form.cover,
+  createdByUserId: form.createdByUserId ?? null,
+});
 
 export const getWorkspaces = () => getInit().workspaces;
 export const getFormListings = () => getInit().formListings;
@@ -18,11 +47,17 @@ export const enrichFormDetail = async (formId: string) => {
   const detail = await serverFns.getFormDetail(formId);
   if (detail) {
     const existing = formListings.get(formId);
+    // Listing-only fields (shortId/submissionCount/sortIndex) aren't on the `Form` detail; keep the existing row's values.
+    const merged = formToListing(detail, {
+      shortId: existing?.shortId ?? "",
+      submissionCount: existing?.submissionCount ?? 0,
+      sortIndex: existing?.sortIndex ?? null,
+    });
     formListings.utils.writeUpdate({
       ...existing,
-      ...detail,
+      ...merged,
       id: formId,
-    } as unknown as FormListing);
+    });
     state.enrichedFormIds.add(formId);
   }
   return null;
@@ -87,7 +122,7 @@ export const createFormLocal = (
     },
   });
   tx.mutate(() => {
-    formListings.insert(newForm as unknown as FormListing);
+    formListings.insert(formToListing(newForm, { shortId: "", submissionCount: 0 }));
   });
 
   return { form: newForm, persisted: tx.isPersisted.promise.then(() => undefined) };
@@ -95,7 +130,7 @@ export const createFormLocal = (
 
 export const duplicateFormById = (formId: string): { form: Form; persisted: Promise<void> } => {
   const { serverFns, formListings } = getInit();
-  const sourceForm = formListings.get(formId) as Form | undefined;
+  const sourceForm = formListings.get(formId);
   if (!sourceForm) throw new Error(`Form not found: ${formId}`);
 
   const id = crypto.randomUUID();
@@ -103,11 +138,20 @@ export const duplicateFormById = (formId: string): { form: Form; persisted: Prom
   const title = sourceForm.title ? `${sourceForm.title} copy` : "Untitled copy";
 
   const newForm: Form = {
-    ...sourceForm,
     id,
+    workspaceId: sourceForm.workspaceId,
     title,
-    content: structuredClone(sourceForm.content),
+    formName: sourceForm.formName,
+    schemaName: sourceForm.schemaName ?? "draftFormSchema",
+    // Listing may be un-enriched (no heavy `content`); default to empty, matching the server's `data.content ?? []`.
+    content: structuredClone(sourceForm.content ?? []),
+    icon: sourceForm.icon,
+    cover: sourceForm.cover ?? null,
     status: "draft",
+    draftSettings: sourceForm.draftSettings ?? defaultFormSettings,
+    liveSettings: sourceForm.liveSettings ?? null,
+    customization: sourceForm.customization ?? {},
+    createdByUserId: sourceForm.createdByUserId ?? undefined,
     lastPublishedVersionId: null,
     publishedContentHash: null,
     createdAt: now,
@@ -121,7 +165,13 @@ export const duplicateFormById = (formId: string): { form: Form; persisted: Prom
     },
   });
   tx.mutate(() => {
-    formListings.insert(newForm as unknown as FormListing);
+    formListings.insert(
+      formToListing(newForm, {
+        shortId: "",
+        submissionCount: 0,
+        sortIndex: sourceForm.sortIndex,
+      }),
+    );
   });
 
   return { form: newForm, persisted: tx.isPersisted.promise.then(() => undefined) };
@@ -138,7 +188,7 @@ export const updateFormStatus = async (id: string, status: "draft" | "published"
     const tx = createTransaction({
       mutationFn: async () => {
         await serverFns.updateForm(
-          stripNulls({ ...existing, status: "archived" } as Record<string, unknown>) as never,
+          stripNulls({ ...existing, status: "archived" }) as ServerFnInput<typeof updateForm>,
         );
         // Refetch so the archived row is gone from the server snapshot before TanStack DB drops the optimistic delete — else it falls back to the pre-archive snapshot and the form reappears.
         await Promise.all([
@@ -153,7 +203,7 @@ export const updateFormStatus = async (id: string, status: "draft" | "published"
     return;
   }
 
-  formListings.update(id, (draft: Record<string, unknown>) => {
+  formListings.update(id, (draft) => {
     draft.status = status;
     draft.updatedAt = new Date().toISOString();
   });
@@ -166,7 +216,9 @@ export const restoreFormLocal = async (id: string) => {
   const existing = archived?.find((f) => f.id === id);
   if (!existing) return;
 
-  await serverFns.updateForm(stripNulls({ ...existing, status: "draft" }) as never);
+  await serverFns.updateForm(
+    stripNulls({ ...existing, status: "draft" }) as ServerFnInput<typeof updateForm>,
+  );
   await Promise.all([
     formListings.utils.refetch(),
     queryClient.invalidateQueries({ queryKey: ["form-listings-archived"] }),
@@ -240,7 +292,7 @@ export const createWorkspaceLocal = async (
 
 export const updateWorkspaceName = async (id: string, name: string) => {
   const { workspaces } = getInit();
-  workspaces.update(id, (draft: Record<string, unknown>) => {
+  workspaces.update(id, (draft) => {
     draft.name = name;
     draft.updatedAt = new Date().toISOString();
   });
@@ -270,28 +322,28 @@ export const toggleFavoriteLocal = async (userId: string, formId: string, sortIn
 
 export const reorderFormLocal = async (formId: string, sortIndex: string) => {
   const { formListings } = getInit();
-  formListings.update(formId, (draft: Record<string, unknown>) => {
+  formListings.update(formId, (draft) => {
     draft.sortIndex = sortIndex;
   });
 };
 
 export const reorderWorkspaceLocal = async (workspaceId: string, sortIndex: string) => {
   const { workspaces } = getInit();
-  workspaces.update(workspaceId, (draft: Record<string, unknown>) => {
+  workspaces.update(workspaceId, (draft) => {
     draft.sortIndex = sortIndex;
   });
 };
 
 export const reorderFavoriteLocal = async (favoriteId: string, sortIndex: string) => {
   const { favorites } = getInit();
-  favorites.update(favoriteId, (draft: Record<string, unknown>) => {
+  favorites.update(favoriteId, (draft) => {
     draft.sortIndex = sortIndex;
   });
 };
 
 export const moveFormToWorkspaceLocal = async (formId: string, workspaceId: string) => {
   const { formListings } = getInit();
-  formListings.update(formId, (draft: Record<string, unknown>) => {
+  formListings.update(formId, (draft) => {
     draft.workspaceId = workspaceId;
     draft.updatedAt = new Date().toISOString();
     draft.sortIndex = null;

@@ -1,0 +1,1409 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reform vs Tally — Embed Performance Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+      :root {
+        --reform: #2563eb;
+        --reform-soft: #93c5fd;
+        --tally: #eab308;
+        --tally-soft: #fde68a;
+        --bg: #0b1020;
+        --panel: #11182e;
+        --panel-2: #161f3a;
+        --line: #243049;
+        --text: #e6ebf5;
+        --muted: #9aa7c2;
+        --good: #34d399;
+        --bad: #f87171;
+        --warn: #fbbf24;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: radial-gradient(1200px 600px at 80% -10%, #1a2444 0%, var(--bg) 55%);
+        color: var(--text);
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 40px 24px 80px;
+      }
+      header.hero {
+        margin-bottom: 36px;
+      }
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 700;
+      }
+      h1 {
+        font-size: 38px;
+        line-height: 1.1;
+        margin: 8px 0 14px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      h1 .vs {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      h1 .r {
+        color: var(--reform-soft);
+      }
+      h1 .t {
+        color: var(--tally);
+      }
+      .sub {
+        color: var(--muted);
+        max-width: 760px;
+        font-size: 15px;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .pill {
+        font-size: 12.5px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        padding: 5px 11px;
+        border-radius: 999px;
+        color: var(--muted);
+      }
+      .legend-key {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        display: inline-block;
+      }
+      .dot.r {
+        background: var(--reform);
+      }
+      .dot.t {
+        background: var(--tally);
+      }
+
+      section {
+        margin-top: 40px;
+      }
+      h2 {
+        font-size: 22px;
+        margin: 0 0 6px;
+        font-weight: 750;
+        letter-spacing: -0.01em;
+      }
+      .section-note {
+        color: var(--muted);
+        font-size: 14px;
+        margin: 0 0 18px;
+      }
+
+      /* verdict banner */
+      .verdict {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(234, 179, 8, 0.1));
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 22px 24px;
+      }
+      .verdict h2 {
+        margin-bottom: 10px;
+      }
+      .verdict p {
+        margin: 0;
+        color: #cdd6ea;
+      }
+      .winrow {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-top: 18px;
+      }
+      .winrow .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .winrow .big {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      .winrow .lbl {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .winrow .who {
+        font-size: 12px;
+        font-weight: 700;
+        margin-top: 8px;
+      }
+      .who.reform {
+        color: var(--reform-soft);
+      }
+      .who.tally {
+        color: var(--tally);
+      }
+
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 22px;
+      }
+      @media (max-width: 820px) {
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+        .winrow {
+          grid-template-columns: 1fr;
+        }
+        h1 {
+          font-size: 30px;
+        }
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px 18px 8px;
+      }
+      .panel h3 {
+        margin: 2px 4px 2px;
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .panel .cap {
+        margin: 0 4px 12px;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+      .chart-box {
+        position: relative;
+        height: 260px;
+        padding: 4px 4px 10px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+        overflow: hidden;
+        border-radius: 12px;
+      }
+      thead th {
+        text-align: left;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        padding: 12px 14px;
+        background: var(--panel-2);
+        border-bottom: 1px solid var(--line);
+      }
+      thead th.num {
+        text-align: right;
+      }
+      tbody td {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+      tbody td.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      tbody tr:nth-child(even) {
+        background: rgba(255, 255, 255, 0.015);
+      }
+      .metric {
+        font-weight: 600;
+      }
+      .metric small {
+        display: block;
+        color: var(--muted);
+        font-weight: 400;
+        font-size: 12px;
+      }
+      .val-r {
+        color: var(--reform-soft);
+        font-weight: 700;
+      }
+      .val-t {
+        color: var(--tally);
+        font-weight: 700;
+      }
+      .tag {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+      }
+      .tag.reform {
+        background: rgba(37, 99, 235, 0.18);
+        color: var(--reform-soft);
+        border: 1px solid rgba(37, 99, 235, 0.4);
+      }
+      .tag.tally {
+        background: rgba(234, 179, 8, 0.15);
+        color: var(--tally);
+        border: 1px solid rgba(234, 179, 8, 0.4);
+      }
+      .tag.tie {
+        background: rgba(154, 167, 194, 0.15);
+        color: var(--muted);
+        border: 1px solid var(--line);
+      }
+      .tag.shipped {
+        background: rgba(52, 211, 153, 0.16);
+        color: var(--good);
+        border: 1px solid rgba(52, 211, 153, 0.45);
+      }
+      .table-wrap {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .pill.shipped {
+        background: rgba(52, 211, 153, 0.12);
+        color: var(--good);
+        border-color: rgba(52, 211, 153, 0.4);
+        font-weight: 700;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+      @media (max-width: 820px) {
+        .cards {
+          grid-template-columns: 1fr;
+        }
+      }
+      .finding {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px 20px;
+      }
+      .finding h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+      .finding p {
+        margin: 0 0 8px;
+        color: #cdd6ea;
+        font-size: 14px;
+      }
+      .finding p:last-child {
+        margin-bottom: 0;
+      }
+
+      .fixes {
+        background: rgba(248, 113, 113, 0.06);
+        border: 1px solid rgba(248, 113, 113, 0.3);
+        border-radius: 14px;
+        padding: 6px 22px;
+      }
+      .fixes.done {
+        background: rgba(52, 211, 153, 0.05);
+        border-color: rgba(52, 211, 153, 0.28);
+      }
+      .fixes li {
+        margin: 16px 0;
+        font-size: 14.5px;
+      }
+      .fixes code {
+        background: #0c1326;
+        border: 1px solid var(--line);
+        padding: 1px 6px;
+        border-radius: 6px;
+        font-size: 12.5px;
+      }
+      .ok {
+        color: var(--good);
+      }
+      .danger {
+        color: var(--bad);
+      }
+      .warn {
+        color: var(--warn);
+      }
+      .beforeafter {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      footer {
+        margin-top: 50px;
+        color: var(--muted);
+        font-size: 12.5px;
+        border-top: 1px solid var(--line);
+        padding-top: 18px;
+      }
+      .swatch {
+        font-weight: 700;
+      }
+      .swatch.r {
+        color: var(--reform-soft);
+      }
+      .swatch.t {
+        color: var(--tally);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="hero">
+        <div class="eyebrow">Embed Performance Report</div>
+        <h1>
+          <span class="r">Reform</span> <span class="vs">vs</span> <span class="t">Tally</span>
+        </h1>
+        <p class="sub">
+          Head-to-head load performance of the two embeddable form widgets, measured on an identical
+          field set (short answer, long answer, multiple choice, checkboxes, multi-select, number,
+          email, phone). Captured with Chrome DevTools traces (cold cache, no throttling) plus
+          direct asset fetches for exact compressed transfer sizes.
+        </p>
+        <div class="meta">
+          <span class="pill">📅 2026-05-27</span>
+          <span class="pill">🧪 Chrome DevTools trace · cold cache</span>
+          <span class="pill">📦 Compressed sizes via brotli/gzip fetch</span>
+          <span class="pill">🔬 scenarios: shown · hidden · image · mobile</span>
+          <span class="pill legend-key"
+            ><span class="dot r"></span> Reform (better-forms-mu.vercel.app)</span
+          >
+          <span class="pill legend-key"><span class="dot t"></span> Tally (tally.so)</span>
+        </div>
+      </header>
+
+      <!-- VERDICT -->
+      <section class="verdict">
+        <h2>Bottom line</h2>
+        <p>
+          <span class="swatch r">Reform</span> wins where it counts for an embed: the form appears
+          <strong>~2× faster</strong>, uses <strong>about half the main-thread time</strong>, and
+          ships <strong>zero third-party trackers</strong>. <span class="swatch t">Tally</span> is
+          <strong>~10% lighter on the wire</strong> and makes fewer requests, but pays for it with a
+          slow server response and heavy continuous layout work. Reform leads on nearly every axis —
+          and on <strong>real-world mobile</strong> (4× CPU · Slow 4G) the lead widens to
+          <strong>6.1×</strong>
+          (1.0&nbsp;s "Good" vs 6.1&nbsp;s "Poor").
+        </p>
+        <div class="winrow">
+          <div class="card">
+            <div class="big" style="color: var(--reform-soft)">188 ms</div>
+            <div class="lbl">Reform time-to-visible (LCP) vs Tally 403 ms</div>
+            <div class="who reform">▲ Reform 2.1× faster</div>
+          </div>
+          <div class="card">
+            <div class="big" style="color: var(--reform-soft)">706 ms</div>
+            <div class="lbl">Reform main-thread CPU vs Tally 1,515 ms</div>
+            <div class="who reform">▲ Reform ~½ the work</div>
+          </div>
+          <div class="card">
+            <div class="big" style="color: var(--tally)">729 KB</div>
+            <div class="lbl">Tally total transfer vs Reform 806 KB</div>
+            <div class="who tally">▲ Tally 10% lighter</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCORECARD TABLE -->
+      <section>
+        <h2>Full scorecard</h2>
+        <p class="section-note">
+          Lower is better for every row except where noted. Cold first-visit,
+          <strong>desktop, unthrottled</strong>.
+          <span class="ok"
+            >✓ Re-verified 2026-05-27 — the architectural gaps (TTFB, CPU split, 3rd-party) are
+            unchanged on the current live forms; this is the no-header-image baseline. See the
+            mobile section for real-world conditions.</span
+          >
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th class="num">Reform</th>
+                <th class="num">Tally</th>
+                <th class="num">Winner</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="metric">
+                  Time to form visible — LCP<small>largest contentful paint</small>
+                </td>
+                <td class="num val-r">188 ms</td>
+                <td class="num">403 ms</td>
+                <td class="num"><span class="tag reform">Reform 2.1×</span></td>
+              </tr>
+              <tr>
+                <td class="metric">↳ TTFB<small>server response time</small></td>
+                <td class="num val-r">23 ms</td>
+                <td class="num">351 ms</td>
+                <td class="num"><span class="tag reform">Reform</span></td>
+              </tr>
+              <tr>
+                <td class="metric">↳ Render delay<small>paint after response</small></td>
+                <td class="num">165 ms</td>
+                <td class="num val-t">52 ms</td>
+                <td class="num"><span class="tag tally">Tally</span></td>
+              </tr>
+              <tr>
+                <td class="metric">Total transfer<small>compressed, first visit</small></td>
+                <td class="num">806 KB</td>
+                <td class="num val-t">729 KB</td>
+                <td class="num"><span class="tag tally">Tally 10%</span></td>
+              </tr>
+              <tr>
+                <td class="metric">JS transfer<small>compressed</small></td>
+                <td class="num val-r">622 KB <small>53 files</small></td>
+                <td class="num">661 KB <small>38 files</small></td>
+                <td class="num"><span class="tag tie">~tie</span></td>
+              </tr>
+              <tr>
+                <td class="metric">JS decoded<small>parse / execute cost</small></td>
+                <td class="num">2.52 MB</td>
+                <td class="num val-t">2.22 MB</td>
+                <td class="num"><span class="tag tally">Tally 13%</span></td>
+              </tr>
+              <tr>
+                <td class="metric">Requests<small>HTTP requests on load</small></td>
+                <td class="num">~60</td>
+                <td class="num val-t">~48</td>
+                <td class="num"><span class="tag tally">Tally</span></td>
+              </tr>
+              <tr>
+                <td class="metric">Main-thread CPU<small>total RunTask, embed</small></td>
+                <td class="num val-r">706 ms</td>
+                <td class="num">1,515 ms</td>
+                <td class="num"><span class="tag reform">Reform ~½</span></td>
+              </tr>
+              <tr>
+                <td class="metric">↳ Scripting</td>
+                <td class="num">190 ms</td>
+                <td class="num val-t">114 ms</td>
+                <td class="num"><span class="tag tally">Tally</span></td>
+              </tr>
+              <tr>
+                <td class="metric">↳ Style / Layout / Recalc</td>
+                <td class="num val-r">109 ms</td>
+                <td class="num">914 ms</td>
+                <td class="num"><span class="tag reform">Reform 8×</span></td>
+              </tr>
+              <tr>
+                <td class="metric">INP<small>interaction responsiveness</small></td>
+                <td class="num">4 ms</td>
+                <td class="num">3 ms</td>
+                <td class="num"><span class="tag tie">tie · both 👍</span></td>
+              </tr>
+              <tr>
+                <td class="metric">CLS<small>layout shift</small></td>
+                <td class="num">~0.00</td>
+                <td class="num">0.00</td>
+                <td class="num"><span class="tag tie">tie · both 👍</span></td>
+              </tr>
+              <tr>
+                <td class="metric">3rd-party calls on load<small>trackers / external</small></td>
+                <td class="num val-r">0</td>
+                <td class="num">Sentry ×3 · Plausible · API</td>
+                <td class="num"><span class="tag reform">Reform</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- CHARTS -->
+      <section>
+        <h2>Visual breakdown</h2>
+        <p class="section-note">
+          <span class="legend-key"><span class="dot r"></span> Reform</span>
+          &nbsp;&nbsp;
+          <span class="legend-key"><span class="dot t"></span> Tally</span>
+        </p>
+        <div class="grid2">
+          <div class="panel">
+            <h3>Time to form visible (LCP)</h3>
+            <p class="cap">Stacked: server time (TTFB) + render delay. Lower = faster.</p>
+            <div class="chart-box"><canvas id="lcpChart"></canvas></div>
+          </div>
+          <div class="panel">
+            <h3>Main-thread CPU work</h3>
+            <p class="cap">Where the browser spends its time during load (ms). Lower = smoother.</p>
+            <div class="chart-box"><canvas id="cpuChart"></canvas></div>
+          </div>
+          <div class="panel">
+            <h3>Transfer size by type (compressed)</h3>
+            <p class="cap">Actual bytes over the wire on a cold first visit (KB).</p>
+            <div class="chart-box"><canvas id="transferChart"></canvas></div>
+          </div>
+          <div class="panel">
+            <h3>Requests &amp; JS payload</h3>
+            <p class="cap">Request count and decoded JS the browser must parse.</p>
+            <div class="chart-box"><canvas id="reqChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FINDINGS -->
+      <section>
+        <h2>What the numbers mean</h2>
+        <p class="section-note">The detail behind each headline.</p>
+        <div class="cards">
+          <div class="finding">
+            <h3>⚡ Speed — Reform wins time-to-visible</h3>
+            <p>
+              Reform paints the form at <strong>188 ms</strong> vs Tally's <strong>403 ms</strong>.
+              The gap is almost entirely server-side: Reform's TTFB is
+              <strong>23 ms</strong> (Vercel edge) while Tally's is <strong>351 ms</strong> (origin
+              render).
+            </p>
+            <p>
+              For an embed — where the visitor stares at a blank iframe until the form appears —
+              this is the metric that matters most, and it's Reform's clearest win.
+            </p>
+          </div>
+          <div class="finding">
+            <h3>⚖️ Weight — basically a tie</h3>
+            <p>
+              Compressed first-visit payload: Reform <strong>806 KB</strong> vs Tally
+              <strong>729 KB</strong>. JS is a wash (622 vs 661 KB). Reform's overage is
+              <strong>fonts (124 KB vs 47 KB)</strong> — two families, Inter Variable + Timeless
+              Serif — and a <strong>larger SSR document (58 KB vs 19 KB)</strong>.
+            </p>
+          </div>
+          <div class="finding">
+            <h3>🧵 Main thread — Reform much lighter</h3>
+            <p>
+              Reform burns <strong>706 ms</strong> vs Tally's <strong>1,515 ms</strong>. The split
+              is the story: Tally spends <strong>914 ms in style/layout recalc</strong> (vs Reform's
+              109 ms) — continuous re-layout from auto-height + animations. Reform does more
+              scripting but far less layout, so it settles faster on low-end devices.
+            </p>
+          </div>
+          <div class="finding">
+            <h3>🔌 Request shape</h3>
+            <p>
+              Reform code-splits aggressively — ~53 tiny chunks,
+              <strong>one per field type</strong>, lazy-loaded. Tally ships fewer, fatter Next.js
+              vendor chunks. Both are fine over HTTP/2; Reform's network stays active longer (lazy
+              chunks trickling in) but the form is interactive at ~190 ms regardless.
+            </p>
+          </div>
+          <div class="finding">
+            <h3>🛡️ Privacy / third parties — Reform cleaner</h3>
+            <p>
+              On load Tally fires <strong>3 Sentry</strong> POSTs,
+              <strong>Plausible</strong> analytics, and a <strong>tally.so events</strong> beacon.
+              Reform calls only its own first-party analytics + one server function — no external
+              trackers, smaller privacy surface, less for ad-blockers to trip on.
+            </p>
+          </div>
+          <div class="finding">
+            <h3>🎯 Interactivity &amp; stability — both excellent</h3>
+            <p>
+              INP is 3–4 ms for both (instant response to taps) and CLS is ~0.00 (no layout jank).
+              Neither widget has an interactivity or visual-stability problem — the meaningful
+              differences are all in load speed and CPU.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- TTFB DEEP-DIVE: CACHING NOT GEOGRAPHY -->
+      <section>
+        <h2>Why Reform's TTFB wins: caching, not geography</h2>
+        <p class="section-note">
+          It's tempting to assume Tally is slow because it's served from a far region. Measured from
+          Mumbai (with CDN + region headers), that's not it — both serve from Indian edges. The real
+          difference is the caching strategy.
+        </p>
+        <div class="grid2">
+          <div class="panel">
+            <h3>TTFB — what a visitor actually gets</h3>
+            <p class="cap">
+              Measured from Mumbai. Reform is bimodal (cached vs cold); Tally is constant. Lower =
+              faster.
+            </p>
+            <div class="chart-box"><canvas id="ttfbChart"></canvas></div>
+          </div>
+          <div class="panel" style="padding-bottom: 18px">
+            <h3>It's the cache, not the map</h3>
+            <div style="font-size: 13.5px; color: #cdd6ea; line-height: 1.65">
+              <p style="margin: 0 0 12px">
+                Both sit one short hop from an Indian edge — Reform on
+                <strong>Vercel <code>bom1</code> (Mumbai)</strong>, Tally on
+                <strong>Cloudflare <code>MAA</code> (Chennai)</strong> — with near-identical connect
+                latency (6–46 ms). Distance isn't the story.
+              </p>
+              <p style="margin: 0 0 12px">
+                <strong class="swatch r">Reform</strong> serves the form page from the
+                <strong>regional edge cache</strong> (<code>x-vercel-cache: HIT</code>) → repeat
+                visitors anywhere get <strong>~87 ms</strong>, no matter where the origin runs.
+                <strong class="swatch t">Tally</strong> sets <code>no-store</code> /
+                <code>cf-cache-status: DYNAMIC</code> → it
+                <strong>re-renders every request</strong>, so every visitor everywhere pays
+                <strong>~390 ms</strong>, even on repeat views.
+              </p>
+              <p style="margin: 0">
+                <span class="warn">Honest nuance:</span> Reform's <em>cold</em> render (first visit
+                in a region, or right after a content update purges the cache) is
+                <strong>~1.3 s</strong> — actually slower per-request than Tally's 390 ms. Reform
+                wins <em>delivered</em> TTFB by caching aggressively, not by a faster server. Cold
+                misses are the exception, not the rule.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap" style="margin-top: 22px">
+          <table>
+            <thead>
+              <tr>
+                <th>Request type</th>
+                <th class="num">Edge / region</th>
+                <th class="num">Cache</th>
+                <th class="num">connect RTT</th>
+                <th class="num">TTFB</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="metric">Reform — repeat visit<small>the common case</small></td>
+                <td class="num">Vercel bom1 · Mumbai</td>
+                <td class="num val-r">HIT (edge cache)</td>
+                <td class="num">6 ms</td>
+                <td class="num val-r">87 ms</td>
+              </tr>
+              <tr>
+                <td class="metric">
+                  Reform — cold<small>first regional visit / after update</small>
+                </td>
+                <td class="num">Vercel bom1 · Mumbai</td>
+                <td class="num">MISS → origin render</td>
+                <td class="num">12 ms</td>
+                <td class="num">~1,293 ms</td>
+              </tr>
+              <tr>
+                <td class="metric">Tally — every visit<small>no caching</small></td>
+                <td class="num">Cloudflare MAA · Chennai</td>
+                <td class="num">DYNAMIC (no-store)</td>
+                <td class="num">8 ms</td>
+                <td class="num">~393 ms</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="finding" style="margin-top: 18px">
+          <h3>🔑 Takeaway</h3>
+          <p>
+            Half-right: yes, Reform's regional edge cache means origin location barely matters
+            <strong>for cached hits</strong> (~87 ms anywhere). But it's a
+            <strong>caching-strategy win, not a geography win</strong> — Tally is just as close
+            (Chennai edge); it simply refuses to cache (<code>no-store</code>) and re-renders on
+            every request. The one place location still bites is a <strong>cold miss</strong> — the
+            first visitor in a region, or the first hit right after a content update invalidates the
+            cache — where Reform pays a ~1.3 s origin render before the edge is warm again.
+          </p>
+        </div>
+      </section>
+
+      <!-- SCENARIO: TITLE HIDDEN -->
+      <section>
+        <h2>Scenario: title hidden</h2>
+        <p class="section-note">
+          Same forms with <code>hideTitle</code> on, measured identically (cold cache, direct
+          top-level). First of a series of layout scenarios — <strong>header image is next</strong>.
+        </p>
+        <div class="grid2">
+          <div class="panel">
+            <h3>LCP — title shown vs hidden</h3>
+            <p class="cap">Grouped by product. Lower = faster.</p>
+            <div class="chart-box"><canvas id="hideLcpChart"></canvas></div>
+          </div>
+          <div class="panel" style="padding-bottom: 18px">
+            <h3>Why they react differently</h3>
+            <p class="cap" style="margin-bottom: 12px">
+              The title sits on Reform's critical paint path, but not Tally's.
+            </p>
+            <div style="font-size: 13.5px; color: #cdd6ea; line-height: 1.65">
+              <p style="margin: 0 0 12px">
+                <strong class="swatch r">Reform</strong>: LCP <em>rises</em> 188 → 261 ms. The large
+                serif title <em>was</em> the LCP element and painted instantly on the fallback font;
+                hide it and the "largest paint" falls to a later-rendering field block (render delay
+                165 → 236 ms). FCP still fires fast at 152 ms. Upside: the
+                <strong>22 KB Timeless-Serif font is no longer downloaded</strong> — it's only
+                fetched when a title actually renders.
+              </p>
+              <p style="margin: 0">
+                <strong class="swatch t">Tally</strong>: LCP essentially flat (403 → 422 ms) and
+                transfer unchanged (doc 19.4 → 19.5 KB). Tally is <strong>server-bound</strong> —
+                TTFB alone is ~360 ms — so the title was never the bottleneck, and its font/assets
+                load regardless.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap" style="margin-top: 22px">
+          <table>
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th class="num">Reform · shown</th>
+                <th class="num">Reform · hidden</th>
+                <th class="num">Tally · shown</th>
+                <th class="num">Tally · hidden</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="metric">LCP<small>time to largest paint</small></td>
+                <td class="num">188 ms</td>
+                <td class="num val-r">261 ms ▲</td>
+                <td class="num">403 ms</td>
+                <td class="num">422 ms</td>
+              </tr>
+              <tr>
+                <td class="metric">↳ TTFB</td>
+                <td class="num">23 ms</td>
+                <td class="num">25 ms</td>
+                <td class="num">351 ms</td>
+                <td class="num">362 ms</td>
+              </tr>
+              <tr>
+                <td class="metric">FCP<small>first contentful paint</small></td>
+                <td class="num">188 ms</td>
+                <td class="num val-r">152 ms ▼</td>
+                <td class="num">—</td>
+                <td class="num">—</td>
+              </tr>
+              <tr>
+                <td class="metric">Serif title font loaded</td>
+                <td class="num">yes</td>
+                <td class="num val-r">no</td>
+                <td class="num">n/a</td>
+                <td class="num">n/a</td>
+              </tr>
+              <tr>
+                <td class="metric">Font transfer<small>compressed</small></td>
+                <td class="num">124 KB</td>
+                <td class="num val-r">102 KB ▼</td>
+                <td class="num">47 KB</td>
+                <td class="num">47 KB</td>
+              </tr>
+              <tr>
+                <td class="metric">Total transfer<small>compressed</small></td>
+                <td class="num">806 KB</td>
+                <td class="num val-r">784 KB ▼</td>
+                <td class="num">729 KB</td>
+                <td class="num">729 KB</td>
+              </tr>
+              <tr>
+                <td class="metric">CLS</td>
+                <td class="num">~0.00</td>
+                <td class="num">0.01</td>
+                <td class="num">0.00</td>
+                <td class="num">0.00</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="finding" style="margin-top: 18px">
+          <h3>🔑 Takeaway</h3>
+          <p>
+            Hiding the title is a <strong>net win for Reform's payload</strong> (−22 KB — the serif
+            font drops out) and keeps FCP fast at 152 ms, but it nudges the headline <em>LCP</em> up
+            because the fastest-painting element is now gone. Reform still beats Tally on
+            title-hidden LCP by <strong>~1.6×</strong> (261 vs 422 ms), and the gap is the same as
+            always: <strong>23–25 ms edge TTFB vs ~360 ms origin TTFB</strong>. Tally is unaffected
+            by the title because its bottleneck is the server, not the content.
+          </p>
+        </div>
+      </section>
+
+      <!-- SCENARIO: HEADER IMAGE -->
+      <section>
+        <h2>Scenario: header image (banner + avatar)</h2>
+        <p class="section-note">
+          Both forms with a cover banner + avatar added (title still hidden), measured identically
+          (cold cache, direct top-level). The banner becomes the LCP element for both.
+        </p>
+        <div class="grid2">
+          <div class="panel">
+            <h3>LCP — without vs with header image</h3>
+            <p class="cap">
+              Grouped by product. The banner is now the largest element. Lower = faster.
+            </p>
+            <div class="chart-box"><canvas id="imgLcpChart"></canvas></div>
+          </div>
+          <div class="panel" style="padding-bottom: 18px">
+            <h3>Why the image hurts one and not the other</h3>
+            <p class="cap" style="margin-bottom: 12px">
+              Same idea, very different image pipelines.
+            </p>
+            <div style="font-size: 13.5px; color: #cdd6ea; line-height: 1.65">
+              <p style="margin: 0 0 12px">
+                <strong class="swatch t">Tally</strong>: LCP jumps
+                <strong>422 → 561 ms (+139)</strong>. Its banner is a
+                <strong>123 KB, 1080px JPEG</strong> served straight from Unsplash — Chrome's
+                <em>Image Delivery</em> audit flags it as
+                <strong>~100 KB wasted, ~50 ms recoverable</strong> (no resize, no WebP/AVIF). It's
+                the LCP element and took <strong>112 ms</strong> to load, on top of a 340 ms server
+                TTFB.
+              </p>
+              <p style="margin: 0">
+                <strong class="swatch r">Reform</strong>: LCP stays low at <strong>215 ms</strong> —
+                no penalty. The banner is requested
+                <strong>right-sized (76 KB, <code>w=800</code>)</strong> via the image CDN, the
+                avatar is a <strong>vector sprite (≈0 bytes)</strong>, and the 26 ms edge TTFB
+                leaves headroom. Chrome raises <strong>no image-delivery issue</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap" style="margin-top: 22px">
+          <table>
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th class="num">Reform · no image</th>
+                <th class="num">Reform · + image</th>
+                <th class="num">Tally · no image</th>
+                <th class="num">Tally · + image</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="metric">LCP<small>banner is the LCP element</small></td>
+                <td class="num">261 ms</td>
+                <td class="num val-r">215 ms</td>
+                <td class="num">422 ms</td>
+                <td class="num">561 ms ▲</td>
+              </tr>
+              <tr>
+                <td class="metric">↳ TTFB</td>
+                <td class="num">25 ms</td>
+                <td class="num">26 ms</td>
+                <td class="num">351 ms</td>
+                <td class="num">340 ms</td>
+              </tr>
+              <tr>
+                <td class="metric">↳ Image load duration</td>
+                <td class="num">—</td>
+                <td class="num val-r">~0 ms</td>
+                <td class="num">—</td>
+                <td class="num">112 ms</td>
+              </tr>
+              <tr>
+                <td class="metric">Banner image weight<small>+ avatar</small></td>
+                <td class="num">—</td>
+                <td class="num val-r">76 KB <small>vector avatar</small></td>
+                <td class="num">—</td>
+                <td class="num">123 KB <small>+7 KB logo</small></td>
+              </tr>
+              <tr>
+                <td class="metric">Chrome "Image Delivery" flag</td>
+                <td class="num">—</td>
+                <td class="num val-r">none</td>
+                <td class="num">—</td>
+                <td class="num">~100 KB wasted</td>
+              </tr>
+              <tr>
+                <td class="metric">Total transfer<small>compressed, approx</small></td>
+                <td class="num">784 KB</td>
+                <td class="num">~860 KB</td>
+                <td class="num">729 KB</td>
+                <td class="num">~859 KB</td>
+              </tr>
+              <tr>
+                <td class="metric">CLS</td>
+                <td class="num">0.01</td>
+                <td class="num val-r">0.00</td>
+                <td class="num">0.00</td>
+                <td class="num">0.00</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="finding" style="margin-top: 18px">
+          <h3>🔑 Takeaway</h3>
+          <p>
+            Adding a header image is where the two diverge most.
+            <strong class="swatch t">Tally</strong> pays <strong>+139 ms LCP</strong> for an
+            unoptimized 123 KB banner that Chrome explicitly flags.
+            <strong class="swatch r">Reform</strong> absorbs the same feature with
+            <strong>no LCP penalty</strong> (215 ms) by requesting a right-sized image and using a
+            vector avatar — landing <strong>~2.6× faster</strong>
+            than Tally with images (215 vs 561 ms). Total transfer converges (~860 KB each), but
+            Reform spends those bytes on JS+fonts while Tally spends them on an oversized JPEG on
+            the critical path.
+          </p>
+        </div>
+      </section>
+
+      <!-- SCENARIO: REAL-WORLD MOBILE -->
+      <section>
+        <h2>Scenario: real-world mobile (4× CPU · Slow 4G)</h2>
+        <p class="section-note">
+          The one that matters most — most forms are opened on a phone. Mid-tier device emulation
+          (412×915, 4× CPU slowdown, Slow 4G network), as-shipped form with banner + avatar. This is
+          where the desktop numbers stop telling the whole story.
+        </p>
+        <div class="grid2">
+          <div class="panel">
+            <h3>LCP — desktop vs real-world mobile</h3>
+            <p class="cap">Grouped by product. Mobile bars are 4× CPU + Slow 4G. Lower = faster.</p>
+            <div class="chart-box"><canvas id="mobileLcpChart"></canvas></div>
+          </div>
+          <div class="panel" style="padding-bottom: 18px">
+            <h3>Why mobile blows the gap wide open</h3>
+            <p class="cap" style="margin-bottom: 12px">
+              Throttling exposes what fast hardware hides.
+            </p>
+            <div style="font-size: 13.5px; color: #cdd6ea; line-height: 1.65">
+              <p style="margin: 0 0 12px">
+                <strong class="swatch t">Tally</strong>: LCP collapses to <strong>6.1 s</strong> —
+                its 123 KB banner alone takes <strong>5.5 s to download</strong> on Slow 4G, and
+                it's the LCP element. Chrome flags both <em>Image Delivery</em> and
+                <em>Forced Reflow</em>. At 6.1 s this is squarely in Google's
+                <strong class="danger">"Poor"</strong> Core Web Vitals band (&gt; 4 s).
+              </p>
+              <p style="margin: 0">
+                <strong class="swatch r">Reform</strong>: LCP holds at <strong>1.0 s</strong> — a
+                <strong class="ok">"Good"</strong> score (&lt; 2.5 s). The right-sized banner +
+                vector avatar aren't the bottleneck; LCP is gated by JS hydration on the throttled
+                CPU, and the 27 ms edge TTFB keeps the start fast.
+                <strong>6.1× faster than Tally</strong> on mobile (vs 2.6× on desktop).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap" style="margin-top: 22px">
+          <table>
+            <thead>
+              <tr>
+                <th>Metric (4× CPU · Slow 4G)</th>
+                <th class="num">Reform</th>
+                <th class="num">Tally</th>
+                <th class="num">Gap</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="metric">LCP<small>time to largest paint</small></td>
+                <td class="num val-r">1,002 ms</td>
+                <td class="num">6,149 ms</td>
+                <td class="num"><span class="tag reform">Reform 6.1×</span></td>
+              </tr>
+              <tr>
+                <td class="metric">↳ TTFB</td>
+                <td class="num val-r">27 ms</td>
+                <td class="num">381 ms</td>
+                <td class="num"><span class="tag reform">14×</span></td>
+              </tr>
+              <tr>
+                <td class="metric">↳ Banner download (Slow 4G)</td>
+                <td class="num val-r">not the bottleneck</td>
+                <td class="num">5,516 ms</td>
+                <td class="num"><span class="tag reform">Reform</span></td>
+              </tr>
+              <tr>
+                <td class="metric">LCP bottleneck</td>
+                <td class="num">JS hydration (4× CPU)</td>
+                <td class="num">123 KB banner download</td>
+                <td class="num">—</td>
+              </tr>
+              <tr>
+                <td class="metric">Chrome audit flags</td>
+                <td class="num val-r">none</td>
+                <td class="num">Image Delivery · Forced Reflow</td>
+                <td class="num"><span class="tag reform">Reform</span></td>
+              </tr>
+              <tr>
+                <td class="metric">CLS</td>
+                <td class="num">0.01</td>
+                <td class="num">0.00</td>
+                <td class="num"><span class="tag tie">tie · both 👍</span></td>
+              </tr>
+              <tr>
+                <td class="metric">Core Web Vitals (LCP)</td>
+                <td class="num val-r">✅ Good (&lt;2.5s)</td>
+                <td class="num">❌ Poor (&gt;4s)</td>
+                <td class="num"><span class="tag reform">Reform</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="finding" style="margin-top: 18px">
+          <h3>🔑 Takeaway</h3>
+          <p>
+            On a real phone and network, the desktop "2.6×" becomes <strong>6.1×</strong>. Reform
+            stays in the <strong class="ok">Good</strong> LCP band (1.0 s) while Tally falls to
+            <strong class="danger">Poor</strong>
+            (6.1 s) — a form a real visitor would likely abandon before it paints. The culprit is
+            Tally's unoptimized banner on a slow link; Reform's edge TTFB + right-sized assets keep
+            it fast where it counts.
+          </p>
+        </div>
+      </section>
+
+      <!-- FINAL VERDICT -->
+      <section class="verdict" style="border-color: rgba(52, 211, 153, 0.35)">
+        <h2>Final verdict</h2>
+        <p>
+          Across every scenario — bare form, hidden title, header image, and especially
+          <strong>real-world mobile</strong> — <span class="swatch r">Reform</span> is the faster,
+          lighter-on-the-CPU, more privacy-respecting embed. The lead <em>widens</em> exactly where
+          it matters most: a throttled phone on a slow network, where Reform paints in
+          <strong>1.0 s (Good)</strong> and Tally in <strong>6.1 s (Poor)</strong>.
+        </p>
+        <div class="winrow">
+          <div class="card">
+            <div class="big" style="color: var(--reform-soft)">6.1×</div>
+            <div class="lbl">Faster LCP on real-world mobile (1.0 s vs 6.1 s)</div>
+            <div class="who reform">▲ Reform — widens from 2.6× on desktop</div>
+          </div>
+          <div class="card">
+            <div class="big" style="color: var(--reform-soft)">Good vs Poor</div>
+            <div class="lbl">Core Web Vitals LCP band on mobile</div>
+            <div class="who reform">▲ Reform passes; Tally fails</div>
+          </div>
+          <div class="card">
+            <div class="big" style="color: var(--reform-soft)">0</div>
+            <div class="lbl">3rd-party trackers (Tally: Sentry ×3 · Plausible · API)</div>
+            <div class="who reform">▲ Reform — leaner + more private</div>
+          </div>
+        </div>
+        <p style="margin-top: 16px; font-size: 13px; color: var(--muted)">
+          Where Tally edges ahead — ~10% lighter total transfer and fewer requests on desktop — it's
+          outweighed by a slow origin TTFB (~350 ms vs ~25 ms), heavy main-thread layout work, and
+          an unoptimized header image that becomes a multi-second LCP on mobile.
+        </p>
+      </section>
+
+      <footer>
+        <p>
+          <strong>Method:</strong> Chrome DevTools performance traces with cache disabled (<code
+            >ignoreCache</code
+          >
+          reload) on a local machine. Desktop scenarios are unthrottled; the mobile scenario adds
+          <strong>4× CPU slowdown + Slow 4G + a 412×915 mobile viewport</strong>. LCP/TTFB measured
+          by navigating to each form app directly as a top-level page; CPU and request counts from
+          the embed pages (<span class="swatch r">demo.html</span> /
+          <span class="swatch t">demo-tally.html</span>); compressed transfer sizes measured by
+          fetching every asset directly with brotli/gzip (the cross-origin iframe hides wire sizes
+          from the trace); image sizes from the Resource Timing API.
+        </p>
+        <p>
+          <strong>Caveat:</strong> single cold run per scenario — absolute milliseconds vary
+          run-to-run, but the gaps (TTFB, layout time, font weight, third-party calls, mobile image
+          load) are architectural and reproducible. The mobile run confirms empirically that
+          throttling widens Reform's lead (2.6× → 6.1×), rather than leaving it hypothetical.
+        </p>
+      </footer>
+    </div>
+
+    <script>
+      const REFORM = "#2563eb",
+        REFORM2 = "#60a5fa",
+        REFORM3 = "#1e40af";
+      const TALLY = "#eab308",
+        TALLY2 = "#fbbf24",
+        TALLY3 = "#a16207";
+      const GRID = "rgba(255,255,255,0.06)";
+      const TICK = "#9aa7c2";
+
+      Chart.defaults.color = TICK;
+      Chart.defaults.font.family =
+        "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      Chart.defaults.font.size = 12;
+
+      const baseScale = (unit) => ({
+        x: {
+          stacked: true,
+          grid: { color: GRID },
+          ticks: { color: "#cdd6ea", font: { weight: 700 } },
+        },
+        y: {
+          stacked: true,
+          grid: { color: GRID },
+          beginAtZero: true,
+          ticks: { color: TICK, callback: (v) => v + unit },
+        },
+      });
+
+      // LCP stacked: TTFB + render delay
+      new Chart(document.getElementById("lcpChart"), {
+        type: "bar",
+        data: {
+          labels: ["Reform", "Tally"],
+          datasets: [
+            { label: "TTFB (server)", data: [23, 351], backgroundColor: [REFORM3, TALLY3] },
+            { label: "Render delay", data: [165, 52], backgroundColor: [REFORM2, TALLY2] },
+          ],
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, labels: { color: TICK, boxWidth: 12 } },
+            tooltip: {
+              callbacks: {
+                footer: (i) => "Total LCP: " + i.reduce((s, x) => s + x.parsed.y, 0) + " ms",
+              },
+            },
+          },
+          scales: baseScale(" ms"),
+        },
+      });
+
+      // CPU stacked
+      new Chart(document.getElementById("cpuChart"), {
+        type: "bar",
+        data: {
+          labels: ["Reform", "Tally"],
+          datasets: [
+            { label: "Scripting", data: [190, 114], backgroundColor: ["#6366f1", "#6366f1"] },
+            { label: "Style / Layout", data: [109, 914], backgroundColor: ["#ef4444", "#ef4444"] },
+            {
+              label: "Paint / Composite",
+              data: [25, 144],
+              backgroundColor: ["#22c55e", "#22c55e"],
+            },
+            { label: "Other", data: [382, 343], backgroundColor: ["#475569", "#475569"] },
+          ],
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, labels: { color: TICK, boxWidth: 12 } },
+            tooltip: {
+              callbacks: {
+                footer: (i) => "Total: " + i.reduce((s, x) => s + x.parsed.y, 0) + " ms",
+              },
+            },
+          },
+          scales: baseScale(" ms"),
+        },
+      });
+
+      // Transfer stacked (KB)
+      new Chart(document.getElementById("transferChart"), {
+        type: "bar",
+        data: {
+          labels: ["Reform", "Tally"],
+          datasets: [
+            { label: "JS", data: [622, 661], backgroundColor: ["#6366f1", "#6366f1"] },
+            { label: "Fonts", data: [124, 47], backgroundColor: ["#ec4899", "#ec4899"] },
+            { label: "HTML doc", data: [58, 19], backgroundColor: ["#22c55e", "#22c55e"] },
+            { label: "CSS / Other", data: [2, 2], backgroundColor: ["#94a3b8", "#94a3b8"] },
+          ],
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, labels: { color: TICK, boxWidth: 12 } },
+            tooltip: {
+              callbacks: {
+                footer: (i) => "Total: " + i.reduce((s, x) => s + x.parsed.y, 0) + " KB",
+              },
+            },
+          },
+          scales: baseScale(" KB"),
+        },
+      });
+
+      // Requests + decoded JS (dual axis)
+      new Chart(document.getElementById("reqChart"), {
+        type: "bar",
+        data: {
+          labels: ["Reform", "Tally"],
+          datasets: [
+            { label: "Requests", data: [60, 48], backgroundColor: [REFORM, TALLY], yAxisID: "y" },
+            {
+              label: "Decoded JS (MB)",
+              data: [2.52, 2.22],
+              backgroundColor: [REFORM2, TALLY2],
+              yAxisID: "y1",
+            },
+          ],
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: { legend: { display: true, labels: { color: TICK, boxWidth: 12 } } },
+          scales: {
+            x: { grid: { color: GRID }, ticks: { color: "#cdd6ea", font: { weight: 700 } } },
+            y: {
+              position: "left",
+              beginAtZero: true,
+              grid: { color: GRID },
+              ticks: { color: TICK },
+              title: { display: true, text: "Requests", color: TICK },
+            },
+            y1: {
+              position: "right",
+              beginAtZero: true,
+              grid: { drawOnChartArea: false },
+              ticks: { color: TICK, callback: (v) => v + " MB" },
+              title: { display: true, text: "Decoded JS", color: TICK },
+            },
+          },
+        },
+      });
+
+      // Title shown vs hidden — LCP, grouped by product
+      new Chart(document.getElementById("hideLcpChart"), {
+        type: "bar",
+        data: {
+          labels: ["Reform", "Tally"],
+          datasets: [
+            { label: "Title shown", data: [188, 403], backgroundColor: "#64748b" },
+            { label: "Title hidden", data: [261, 422], backgroundColor: "#38bdf8" },
+          ],
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, labels: { color: TICK, boxWidth: 12 } },
+            tooltip: { callbacks: { label: (i) => `${i.dataset.label}: ${i.parsed.y} ms` } },
+          },
+          scales: {
+            x: { grid: { color: GRID }, ticks: { color: "#cdd6ea", font: { weight: 700 } } },
+            y: {
+              beginAtZero: true,
+              grid: { color: GRID },
+              ticks: { color: TICK, callback: (v) => v + " ms" },
+            },
+          },
+        },
+      });
+
+      // Desktop vs real-world mobile LCP, grouped by product
+      new Chart(document.getElementById("mobileLcpChart"), {
+        type: "bar",
+        data: {
+          labels: ["Reform", "Tally"],
+          datasets: [
+            { label: "Desktop (unthrottled)", data: [215, 561], backgroundColor: "#64748b" },
+            { label: "Mobile (4× CPU · Slow 4G)", data: [1002, 6149], backgroundColor: "#f59e0b" },
+          ],
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, labels: { color: TICK, boxWidth: 12 } },
+            tooltip: {
+              callbacks: { label: (i) => `${i.dataset.label}: ${i.parsed.y.toLocaleString()} ms` },
+            },
+          },
+          scales: {
+            x: { grid: { color: GRID }, ticks: { color: "#cdd6ea", font: { weight: 700 } } },
+            y: {
+              beginAtZero: true,
+              grid: { color: GRID },
+              ticks: { color: TICK, callback: (v) => v.toLocaleString() + " ms" },
+            },
+          },
+        },
+      });
+
+      // TTFB — caching vs geography (single dataset, per-bar colors)
+      new Chart(document.getElementById("ttfbChart"), {
+        type: "bar",
+        data: {
+          labels: [
+            ["Reform", "cached (typical)"],
+            ["Tally", "every visit"],
+            ["Reform", "cold (rare)"],
+          ],
+          datasets: [
+            {
+              label: "TTFB",
+              data: [87, 393, 1293],
+              backgroundColor: ["#2563eb", "#eab308", "#64748b"],
+            },
+          ],
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (i) => `${i.parsed.y.toLocaleString()} ms` } },
+          },
+          scales: {
+            x: { grid: { color: GRID }, ticks: { color: "#cdd6ea", font: { weight: 700 } } },
+            y: {
+              beginAtZero: true,
+              grid: { color: GRID },
+              ticks: { color: TICK, callback: (v) => v.toLocaleString() + " ms" },
+            },
+          },
+        },
+      });
+
+      // Header image — LCP without vs with banner, grouped by product
+      new Chart(document.getElementById("imgLcpChart"), {
+        type: "bar",
+        data: {
+          labels: ["Reform", "Tally"],
+          datasets: [
+            { label: "No image", data: [261, 422], backgroundColor: "#64748b" },
+            { label: "With header image", data: [215, 561], backgroundColor: "#f472b6" },
+          ],
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, labels: { color: TICK, boxWidth: 12 } },
+            tooltip: { callbacks: { label: (i) => `${i.dataset.label}: ${i.parsed.y} ms` } },
+          },
+          scales: {
+            x: { grid: { color: GRID }, ticks: { color: "#cdd6ea", font: { weight: 700 } } },
+            y: {
+              beginAtZero: true,
+              grid: { color: GRID },
+              ticks: { color: TICK, callback: (v) => v + " ms" },
+            },
+          },
+        },
+      });
+    </script>
+  </body>
+</html>

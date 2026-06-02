@@ -134,10 +134,21 @@ export const updateForm = createServerFn({ method: "POST" })
       .where(eq(forms.id, id))
       .returning();
 
+    if (!form) {
+      throw createError({
+        code: "forms/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Form not found",
+        why: "UPDATE matched no forms row — deleted between auth and update",
+        fix: "Refresh — the form may have been deleted",
+        internal: { formId: id },
+      });
+    }
+
     // Only public-visible field this fn flips is status off "published" (updateForm touches
     // draftSettings only); live settings change via publishFormVersion.
     const statusChanged = updateData.status !== undefined;
-    if (statusChanged && form?.lastPublishedVersionId) {
+    if (statusChanged && form.lastPublishedVersionId) {
       await purgeFormCache(id);
     }
 
@@ -210,6 +221,16 @@ export const deleteForm = createServerFn({ method: "POST" })
     await authForm(data.id, context.session.user.id, orgId);
 
     const [form] = await db.delete(forms).where(eq(forms.id, data.id)).returning();
+    if (!form) {
+      throw createError({
+        code: "forms/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Form not found",
+        why: "DELETE matched no forms row — deleted between auth and delete",
+        fix: "Refresh — the form may have been deleted",
+        internal: { formId: data.id },
+      });
+    }
     // No purge: form already archived (tag invalidated then), nothing cacheable since.
 
     return { form: serializeForm(form) };
@@ -473,9 +494,20 @@ export const updateFormSlug = createServerFn({ method: "POST" })
       .where(eq(forms.id, formId))
       .returning();
 
+    if (!updatedForm) {
+      throw createError({
+        code: "forms/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Form not found",
+        why: "UPDATE matched no forms row — deleted mid-request",
+        fix: "Refresh — the form may have been deleted",
+        internal: { formId },
+      });
+    }
+
     // Slug is public-routing surface; old URL serves cached body until tag invalidated.
     // Skip if never published.
-    if (updatedForm?.lastPublishedVersionId) await purgeFormCache(formId);
+    if (updatedForm.lastPublishedVersionId) await purgeFormCache(formId);
 
     return { form: serializeForm(updatedForm) };
   });
@@ -582,8 +614,19 @@ export const assignFormDomain = createServerFn({ method: "POST" })
       .where(eq(forms.id, formId))
       .returning();
 
+    if (!updatedForm) {
+      throw createError({
+        code: "forms/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Form not found",
+        why: "UPDATE matched no forms row — deleted mid-request",
+        fix: "Refresh — the form may have been deleted",
+        internal: { formId },
+      });
+    }
+
     // Domain assignment changes canonical URL + head metadata in the public response. Purge if ever published.
-    if (updatedForm?.lastPublishedVersionId) await purgeFormCache(formId);
+    if (updatedForm.lastPublishedVersionId) await purgeFormCache(formId);
 
     return { form: serializeForm(updatedForm) };
   });

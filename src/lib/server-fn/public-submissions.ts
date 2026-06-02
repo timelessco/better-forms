@@ -24,18 +24,21 @@ import { isServerPlan } from "./plan-helpers";
 import { recordOwnerSubmissionNotification } from "./notifications-helpers.server";
 import { sendFormSubmissionNotification, sendRespondentConfirmation } from "@/integrations/email";
 
-type VersionSettings = {
-  closeForm?: boolean;
-  closeOnDate?: boolean;
-  closeDate?: string | null;
-  limitSubmissions?: boolean;
-  maxSubmissions?: number | null;
-  selfEmailNotifications?: boolean;
-  notificationEmail?: string | null;
-  respondentEmailNotifications?: boolean;
-  respondentEmailSubject?: string | null;
-  respondentEmailBody?: string | null;
-};
+// Gate-relevant subset of forms.settings actually read server-side. looseObject so
+// the full stored blob's extra keys don't fail the parse; each field optional/nullable.
+const versionSettingsSchema = v.looseObject({
+  closeForm: v.optional(v.boolean()),
+  closeOnDate: v.optional(v.boolean()),
+  closeDate: v.optional(v.nullable(v.string())),
+  limitSubmissions: v.optional(v.boolean()),
+  maxSubmissions: v.optional(v.nullable(v.number())),
+  selfEmailNotifications: v.optional(v.boolean()),
+  notificationEmail: v.optional(v.nullable(v.string())),
+  respondentEmailNotifications: v.optional(v.boolean()),
+  respondentEmailSubject: v.optional(v.nullable(v.string())),
+  respondentEmailBody: v.optional(v.nullable(v.string())),
+});
+type VersionSettings = v.InferOutput<typeof versionSettingsSchema>;
 
 // Inlined waitUntil: @vercel/functions re-exports ./cache → @vercel/oidc CJS, which
 // Vite 7's dev module runner can't eval (crashes dev). Read Vercel's Symbol-keyed
@@ -180,7 +183,10 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
           .where(eq(formVersions.id, form.lastPublishedVersionId))
       : [undefined];
 
-    const vSettings = (version?.settings ?? {}) as VersionSettings;
+    // Validate the stored settings blob; on malformed/empty input fall back to {} so the
+    // gates below read as undefined → permissive (preserves prior `?? {}` behavior).
+    const parsedSettings = v.safeParse(versionSettingsSchema, version?.settings ?? {});
+    const vSettings: VersionSettings = parsedSettings.success ? parsedSettings.output : {};
 
     // --- Server-side gating (prevent client-side bypass) ---
     if (vSettings.closeForm) {

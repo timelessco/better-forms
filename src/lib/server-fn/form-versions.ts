@@ -379,6 +379,17 @@ export const discardFormChanges = createServerFn({ method: "POST" })
       .where(eq(forms.id, data.formId))
       .returning();
 
+    if (!updatedForm) {
+      throw createError({
+        code: "forms/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Form not found",
+        why: "UPDATE matched no forms row — deleted mid-request",
+        fix: "Refresh — the form may have been deleted",
+        internal: { formId: data.formId },
+      });
+    }
+
     return {
       success: true,
       form: {

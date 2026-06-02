@@ -315,6 +315,16 @@ export const updateDomainMeta = createServerFn({ method: "POST" })
         .set({ ...updateFields, updatedAt: new Date() })
         .where(eq(customDomains.id, domainId))
         .returning();
+      if (!updatedRow) {
+        throw createError({
+          code: "domains/not-found" satisfies ErrorCode,
+          status: 404,
+          message: "Domain not found",
+          why: "UPDATE matched no custom_domains row — deleted mid-request",
+          fix: "Check the domain ID — it may have been removed",
+          internal: { domainId },
+        });
+      }
       // Same transaction so a concurrent assignFormDomain can't slip a form between meta UPDATE and read.
       const bound = await tx
         .select({ id: forms.id })

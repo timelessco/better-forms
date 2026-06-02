@@ -20,7 +20,7 @@ type InferBetterAuthData<TFn> = TFn extends (
 ) => Promise<infer R>
   ? R extends { data: infer D }
     ? NonNullable<D>
-    : R
+    : never
   : never;
 
 type InferBetterAuthError<TFn> = TFn extends (

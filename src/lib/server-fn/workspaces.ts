@@ -100,6 +100,17 @@ export const updateWorkspace = createServerFn({ method: "POST" })
       .where(eq(workspaces.id, id))
       .returning();
 
+    if (!workspace) {
+      throw createError({
+        code: "workspaces/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Workspace not found",
+        why: "UPDATE matched no workspaces row — deleted mid-request",
+        fix: "Refresh — the workspace may have been deleted",
+        internal: { workspaceId: id },
+      });
+    }
+
     return {
       workspace: {
         ...workspace,
@@ -154,6 +165,17 @@ export const deleteWorkspace = createServerFn({ method: "POST" })
       }
 
       const [workspace] = await tx.delete(workspaces).where(eq(workspaces.id, data.id)).returning();
+
+      if (!workspace) {
+        throw createError({
+          code: "workspaces/not-found" satisfies ErrorCode,
+          status: 404,
+          message: "Workspace not found",
+          why: "DELETE matched no workspaces row — deleted mid-request",
+          fix: "Refresh — the workspace may have been deleted",
+          internal: { workspaceId: data.id },
+        });
+      }
 
       return {
         workspace: {

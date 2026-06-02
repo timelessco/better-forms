@@ -291,7 +291,11 @@ const initCollectionsOnClient = createClientOnlyFn((queryClient: QueryClient) =>
     getFormDetail: async (formId: string) => {
       const { getFormbyIdQueryOption } = await import("@/lib/server-fn/forms-queries");
       const result = await queryClient.ensureQueryData(getFormbyIdQueryOption(formId));
-      // oxlint-disable-next-line typescript-eslint/no-explicit-any -- server type bridge
+      // FLAG: `result` is now typed (serialized DB row), but that row lacks `liveSettings`, so it
+      // is NOT a `Form`. The declared `getFormDetail: Promise<Form | null>` contract genuinely
+      // diverges from the real server shape. Removing this `any` requires returning the serialized
+      // type and aligning formToListing (operations.ts) — cascading + out of this file's scope.
+      // oxlint-disable-next-line typescript-eslint/no-explicit-any -- server-row vs Form divergence; see FLAG
       return (result as { form?: any })?.form ?? null;
     },
     getFavorites: () => getFavoritesServer(),
