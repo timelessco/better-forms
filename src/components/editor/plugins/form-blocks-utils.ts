@@ -58,6 +58,12 @@ export const findNextNonButtonPath = (editor: PlateEditor, currentPath: Path): P
   return null;
 };
 
+export const insertParagraphAfterPath = (editor: PlateEditor, path: Path): Path => {
+  const at = [path[0] + 1];
+  editor.tf.insertNodes({ type: "p", children: [{ text: "" }] } as TElement, { at });
+  return at;
+};
+
 export const findPrevNonButtonPath = (editor: PlateEditor, currentPath: Path): Path | null => {
   const children = editor.children as TElement[];
   const currentIndex = currentPath[0];
