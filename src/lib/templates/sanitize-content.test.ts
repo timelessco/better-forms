@@ -13,6 +13,20 @@ it("classifies URLs", () => {
   expect(classifyUrl("https://evil.example/x")).toBe("strip");
 });
 
+it("rejects allowlist-bypass URLs (no unanchored substring match)", () => {
+  // Allowlisted host as a subdomain suffix of an attacker domain.
+  expect(classifyUrl("https://images.unsplash.com.evil.com/x")).toBe("strip");
+  expect(classifyUrl("https://abc.public.blob.vercel-storage.com.evil.com/x")).toBe("strip");
+  // Allowlisted host smuggled into path/query, not the host.
+  expect(classifyUrl("https://evil.com/?x=images.unsplash.com")).toBe("strip");
+  expect(classifyUrl("https://evil.com/.public.blob.vercel-storage.com")).toBe("strip");
+  // Embedded credentials / non-https.
+  expect(classifyUrl("https://images.unsplash.com@evil.com/x")).toBe("strip");
+  expect(classifyUrl("http://images.unsplash.com/x")).toBe("strip");
+  // Bare apex (no subdomain) is not a valid blob host.
+  expect(classifyUrl("https://public.blob.vercel-storage.com/x")).toBe("strip");
+});
+
 it("copies vercel-blob assets and records them", async () => {
   const content = [
     { type: "formHeader", title: "Hi", icon: BLOB, cover: UNSPLASH, children: [{ text: "" }] },

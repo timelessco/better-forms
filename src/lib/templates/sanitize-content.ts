@@ -10,8 +10,21 @@ export type UrlClass = "blob" | "keep" | "strip";
 
 export const classifyUrl = (value: unknown): UrlClass => {
   if (typeof value !== "string") return "strip";
-  if (value.includes(VERCEL_BLOB_HOST)) return "blob";
-  if (value.includes(UNSPLASH_HOST)) return "keep";
+  // Parse + match on hostname, not a substring of the whole URL — else
+  // `https://evil.com/?x=images.unsplash.com` or `https://images.unsplash.com.evil.com`
+  // slips through and copyAsset() fetches it server-side (SSRF).
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return "strip";
+  }
+  // https only; reject embedded credentials (userinfo).
+  if (url.protocol !== "https:" || url.username || url.password) return "strip";
+  const host = url.hostname.toLowerCase().replace(/\.$/, ""); // drop trailing-dot FQDN
+  if (host === UNSPLASH_HOST) return "keep";
+  // VERCEL_BLOB_HOST is a `.…` suffix; require a real subdomain before it.
+  if (host.endsWith(VERCEL_BLOB_HOST) && host.length > VERCEL_BLOB_HOST.length) return "blob";
   return "strip";
 };
 
