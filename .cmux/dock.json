@@ -1,0 +1,25 @@
+{
+  "controls": [
+    {
+      "id": "git",
+      "title": "Git",
+      "command": "lazygit",
+      "cwd": ".",
+      "height": 400
+    },
+    {
+      "id": "dev",
+      "title": "Dev Server",
+      "command": "./.cmux/dock-session.sh dev 'pnpm dev:auto 2>&1 | tee /tmp/reform-dev.log'",
+      "cwd": ".",
+      "height": 200
+    },
+    {
+      "id": "typecheck",
+      "title": "Typecheck (tsc --watch)",
+      "command": "./.cmux/dock-session.sh typecheck 'pnpm exec tsc --noEmit --watch --preserveWatchOutput 2>&1 | tee /tmp/reform-typecheck.log'",
+      "cwd": ".",
+      "height": 200
+    }
+  ]
+}

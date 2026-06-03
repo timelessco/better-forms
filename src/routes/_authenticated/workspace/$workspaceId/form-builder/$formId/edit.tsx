@@ -118,6 +118,11 @@ const DesignPage = () => {
 export const Route = createFileRoute(
   "/_authenticated/workspace/$workspaceId/form-builder/$formId/edit",
 )({
+  // Opt out of auto code-splitting: keep component inline (no ?tsr-split=component
+  // chunk). Editor's platejs graph triggers a Vite dep re-optimize mid-nav that
+  // kills the in-flight lazy chunk ("Failed to fetch dynamically imported module")
+  // + other lazy-load bugs. Load eagerly instead.
+  codeSplitGroupings: [],
   validateSearch: v.object({
     force: v.optional(v.boolean()),
     embedType: v.optional(v.fallback(v.picklist(["standard", "popup", "fullpage"]), "standard")),
