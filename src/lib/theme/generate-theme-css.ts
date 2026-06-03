@@ -12,10 +12,6 @@ import {
 import { FONT_MAP, getGoogleFontUrl } from "./font-registry";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "./customization-defaults";
 
-/** Horizontal gap (px) on each side when the cover width is "fit", so it floats as a centered
- * card inset from the form edges rather than sitting flush. */
-const COVER_FIT_GAP_PX = 24;
-
 /** Layout fields → --bf-* CSS vars. Apply to editor (layout only) + preview/public (full theme). */
 const LAYOUT_FIELDS: Record<string, string> = {
   pageWidth: "--bf-page-width",
@@ -192,15 +188,10 @@ const buildModeAgnosticEntries = (
     }
   }
 
-  // Cover width: "fit" floats the cover as a centered card inset from the form edges by a gap on
-  // each side (a radius then rounds the now-visible corners); "fill"/unset stays full-bleed via
-  // the styles.css var() fallbacks.
+  // Cover width: "fit" contains the cover to the form width (so a radius rounds visible corners);
+  // "fill"/unset stays full-bleed via the styles.css var() fallbacks.
   if (customization.coverWidth === "fit") {
-    entries.push(
-      ["--bf-cover-w", `calc(100% - ${COVER_FIT_GAP_PX * 2}px)`],
-      ["--bf-cover-mx", `${COVER_FIT_GAP_PX}px`],
-      ["--bf-cover-x", "0px"],
-    );
+    entries.push(["--bf-cover-w", "100%"], ["--bf-cover-mx", "0px"], ["--bf-cover-x", "0px"]);
   }
 
   return entries;
