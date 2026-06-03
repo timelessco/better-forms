@@ -1,6 +1,24 @@
 {
   "version": 1,
   "skills": {
+    "agentation": {
+      "source": "benjitaylor/agentation",
+      "sourceType": "github",
+      "skillPath": "skills/agentation/SKILL.md",
+      "computedHash": "6ba2c955bee6ab3e9c7781b2553e3574b4c9ec35e539437d0831bfe368de8550"
+    },
+    "analyze-logs": {
+      "source": "hugorcd/evlog",
+      "sourceType": "github",
+      "skillPath": "apps/docs/skills/analyze-logs/SKILL.md",
+      "computedHash": "28bd8254997b767ebba1f7f2cf4567ddb6c51b1fcdca9baf9b9cd7ee3ca51d7c"
+    },
+    "build-audit-logs": {
+      "source": "hugorcd/evlog",
+      "sourceType": "github",
+      "skillPath": "apps/docs/skills/build-audit-logs/SKILL.md",
+      "computedHash": "3b87c33bc858bfe0349a1f3dcf362416c311fb184c9ad35148d5f9d010488ab9"
+    },
     "grill-me": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -12,6 +30,12 @@
       "sourceType": "github",
       "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
       "computedHash": "ef32aea0a8fab9b365ff9e08a95f8d353e20ca21ea46ec2e73587c86dd341351"
+    },
+    "review-logging-patterns": {
+      "source": "hugorcd/evlog",
+      "sourceType": "github",
+      "skillPath": "apps/docs/skills/review-logging-patterns/SKILL.md",
+      "computedHash": "4d42fe1804c0026f44ba26243f8e0593edf2cc60a7e8035e25956e983918287f"
     },
     "shadcn": {
       "source": "shadcn/ui",
@@ -31,11 +55,29 @@
       "skillPath": "react/tanstack-hotkeys/SKILL.md",
       "computedHash": "9eb60aa351b3f1c7af3567816427ceb13f91e9ba568fc7624ca0c91ca9657841"
     },
+    "tdd": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/tdd/SKILL.md",
+      "computedHash": "15a7b5e36383ebadb2dec5e586679e55e9663d292da418926b8da6fc0ef27d84"
+    },
     "to-prd": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/engineering/to-prd/SKILL.md",
       "computedHash": "a6d6d475f1d01c201937fa0c306e55b7056b02023ad615bc92f57514e831dd31"
+    },
+    "transitions-dev": {
+      "source": "jakubantalik/transitions-dev",
+      "sourceType": "github",
+      "skillPath": "skills/transitions-dev/SKILL.md",
+      "computedHash": "68aa43bb832ef2e85128e506cf78ebe6a19a38b3e01046d163202bbdd61b5ef0"
+    },
+    "vercel-composition-patterns": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/composition-patterns/SKILL.md",
+      "computedHash": "575757e3e25761c8c562d6e395d29f0b76c98b1273c0bd72d88e6ab1bc9c7d42"
     },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
