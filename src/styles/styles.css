@@ -790,6 +790,13 @@
   /* unset = current square cover; overflow clips img once a radius is set */
   border-radius: var(--bf-cover-radius, 0);
   overflow: hidden;
+  /* Full-bleed by default (var fallbacks reproduce the w-screen breakout). When a cover
+     radius is set, generate-theme-css emits these vars to contain the cover to the form
+     width so the rounded corners land inside the canvas instead of off-screen. */
+  width: var(--bf-cover-w, 100vw);
+  margin-left: var(--bf-cover-mx, -50vw);
+  margin-right: var(--bf-cover-mx, -50vw);
+  left: var(--bf-cover-x, 50%);
 }
 
 /* Cover image fit (Fit=contain / Fill=cover); unset = current cover */

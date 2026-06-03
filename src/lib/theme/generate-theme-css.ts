@@ -188,6 +188,12 @@ const buildModeAgnosticEntries = (
     }
   }
 
+  // Rounded corners can't show on a full-bleed cover (they sit off-screen). Contain the cover
+  // to the form width when a radius is set; styles.css falls back to full-bleed otherwise.
+  if (Number.parseInt(customization.coverRadius ?? "", 10) > 0) {
+    entries.push(["--bf-cover-w", "100%"], ["--bf-cover-mx", "0px"], ["--bf-cover-x", "0px"]);
+  }
+
   return entries;
 };
 
