@@ -6,11 +6,11 @@ import { PlateElement, useEditorRef, useEditorVersion, usePluginOption } from "p
 import { useLayoutEffect, useMemo } from "react";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCheckIcon } from "@/components/ui/icons";
+import { CheckCheckIcon, ChevronDownIcon } from "@/components/ui/icons";
 import { RequiredBadgeButton } from "@/components/ui/required-badge-button";
 import { cn } from "@/lib/utils";
 
-type OptionVariant = "checkbox" | "multiChoice" | "multiSelect";
+type OptionVariant = "checkbox" | "multiChoice" | "multiSelect" | "dropdown";
 
 import { getMultiSelectColor, LETTER_LABELS } from "@/components/ui/form-option-item-constants";
 import { useFormIsDark } from "@/hooks/use-form-theme";
@@ -22,6 +22,12 @@ const OptionIcon = ({ variant, index }: { variant: OptionVariant; index: number 
       return (
         <span className="flex size-4 shrink-0 items-center justify-center">
           <Checkbox disabled className="pointer-events-none after:hidden" />
+        </span>
+      );
+    case "dropdown":
+      return (
+        <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground">
+          <ChevronDownIcon className="size-3" />
         </span>
       );
     case "multiChoice": {

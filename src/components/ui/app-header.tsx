@@ -9,15 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  EyeIcon,
-  EyeOffIcon,
-  Loader2Icon,
-  MoreHorizontalIcon,
-  PencilIcon,
-  RotateCcwIcon,
-  SettingsIcon,
-} from "@/components/ui/icons";
+import { Loader2Icon, MoreHorizontalIcon, PaletteIcon, PencilIcon } from "@/components/ui/icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +19,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { IconSwap } from "@/components/transitions/icon-swap";
 import { TextSwap } from "@/components/transitions/text-swap";
 import { toggleFavoriteLocal, updateFormStatus } from "@/collections";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
@@ -35,11 +26,10 @@ import { discardChanges, publishForm, useHasUnpublishedChanges } from "@/hooks/u
 import { useForm, useIsFavorite, useWorkspace } from "@/hooks/use-live-hooks";
 import { useSession } from "@/lib/auth/auth-client";
 import { HOTKEYS, formatForDisplay } from "@/lib/hotkeys";
-import { cn, parseTimestampAsUTC } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { Link, useLocation, useNavigate, useParams } from "@tanstack/react-router";
-import { format, formatDistanceToNow } from "date-fns";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { LogoToggle } from "./logo";
 import { useSidebarSafe } from "./sidebar";
@@ -47,47 +37,6 @@ import { useSidebarSafe } from "./sidebar";
 interface AppHeaderProps {
   isDistractionHidden?: boolean;
 }
-
-type SavedDocsTooltipContentProps = {
-  userName?: string | null;
-  updatedAt?: string | null;
-  createdAt?: string | null;
-};
-
-const subscribeMountedNoop = () => () => {};
-const getMountedClient = () => true;
-const getMountedServer = () => false;
-
-const SavedDocsTooltipContent = ({
-  userName,
-  updatedAt,
-  createdAt,
-}: SavedDocsTooltipContentProps) => {
-  // useSyncExternalStore mounted flag so SSR/client agree initially; relative timestamp swaps in after hydration.
-  const mounted = useSyncExternalStore(subscribeMountedNoop, getMountedClient, getMountedServer);
-
-  const updatedDate = mounted
-    ? (parseTimestampAsUTC(updatedAt ?? undefined) ?? new Date())
-    : undefined;
-  const createdDate = mounted
-    ? (parseTimestampAsUTC(createdAt ?? undefined) ?? new Date())
-    : undefined;
-
-  return (
-    <div className="space-y-1">
-      <p className="text-xs text-background/70" suppressHydrationWarning>
-        Edited by <span className="text-background">{userName ?? "You"}</span>{" "}
-        {updatedDate ? `${formatDistanceToNow(updatedDate)} ago` : ""}
-      </p>
-      {createdAt && (
-        <p className="text-xs text-background/70" suppressHydrationWarning>
-          Created by <span className="text-background">{userName ?? "You"}</span>{" "}
-          {createdDate ? format(createdDate, "MMM d, yyyy") : ""}
-        </p>
-      )}
-    </div>
-  );
-};
 
 export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   const { formId, workspaceId } = useParams({ strict: false });
@@ -105,8 +54,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   const isLandingPage = pathname === "/";
   const isFormBuilder = pathname.startsWith("/form-builder") || pathname.includes("/form-builder/");
   const isEditRoute = pathname.endsWith("/edit");
-  const isInsightsRoute = pathname.endsWith("/insights");
-  const breadcrumbLabel = isEditRoute ? "Editor" : isInsightsRoute ? "Insights" : "Submissions";
   const { data: sessionData } = useSession();
   const session = sessionData;
   const navigate = useNavigate();
@@ -223,7 +170,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     isEditRoute,
     hasPublishedVersion,
     hasUnpublishedChanges,
-    isMobile,
     canShare,
     workspaceId,
     formId,
@@ -236,7 +182,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
         });
       }
     },
-    onToggleCustomizeSidebar: toggleCustomizeSidebar,
     onToggleVersionHistory: toggleVersionHistory,
     onToggleShareSidebar: toggleShareSidebar,
     onToggleSettingsSidebar: toggleSettingsSidebar,
@@ -285,35 +230,11 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               workspaceId={workspaceId}
               formId={formId}
               isEditRoute={isEditRoute}
-              isEditorSidebarOpen={isEditorSidebarOpen}
-              breadcrumbLabel={breadcrumbLabel}
             />
           )}
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
-          {isFormBuilder && savedDocs?.[0]?.updatedAt && !isLoadingSavedDocs && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <span className="mr-1 hidden h-7 items-center rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] font-normal whitespace-nowrap text-muted-foreground/70 md:inline-flex" />
-                }
-              >
-                Edited{" "}
-                {/* eslint-disable-next-line react-doctor/rendering-hydration-mismatch-time -- authenticated layout, client-only render */}
-                {formatDistanceToNow(parseTimestampAsUTC(savedDocs?.[0]?.updatedAt) ?? new Date())}{" "}
-                ago
-              </TooltipTrigger>
-              <TooltipContent side="bottom" align="end">
-                <SavedDocsTooltipContent
-                  userName={session?.user?.name}
-                  updatedAt={savedDocs?.[0]?.updatedAt}
-                  createdAt={savedDocs?.[0]?.createdAt}
-                />
-              </TooltipContent>
-            </Tooltip>
-          )}
-
           {isDashboard && (
             <Button
               variant="ghost"
@@ -352,16 +273,15 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                 isShareSidebarOpen,
                 isLoadingSavedDocs,
               }}
+              activeSidebar={activeSidebar}
               activeMenu={activeMenu}
               workspaceId={workspaceId}
               formId={formId}
               savedDocs={savedDocs}
               menuItems={menuItems}
               onTogglePreview={togglePreview}
-              onToggleShareSidebar={toggleShareSidebar}
-              onToggleSettingsSidebar={toggleSettingsSidebar}
+              onToggleCustomizeSidebar={toggleCustomizeSidebar}
               onPublish={handlePublish}
-              onSetActiveDialog={setActiveDialog}
               onSetActiveMenu={setActiveMenu}
             />
           )}
@@ -498,34 +418,53 @@ interface BuildFormBuilderMenuItemsOptions {
   isEditRoute: boolean;
   hasPublishedVersion: boolean;
   hasUnpublishedChanges: boolean;
-  isMobile: boolean;
   canShare: boolean;
   workspaceId: string | undefined;
   formId: string | undefined;
   onToggleFavorite: () => Promise<void> | void;
   onNavigateInsights: () => void;
-  onToggleCustomizeSidebar: () => void;
   onToggleVersionHistory: () => void;
   onToggleShareSidebar: () => void;
   onToggleSettingsSidebar: () => void;
   onSetActiveDialog: (dialog: ActiveDialog) => void;
 }
 
+// Overflow menu for the form-builder header (the ⋯ button). Customization lives on the
+// dedicated palette button now, so it isn't repeated here. Share/Settings are always
+// listed (no longer mobile-only) since their standalone header buttons were removed.
 const buildFormBuilderMenuItems = ({
   isEditRoute,
   hasPublishedVersion,
   hasUnpublishedChanges,
-  isMobile,
   canShare,
   onToggleFavorite,
   onNavigateInsights,
-  onToggleCustomizeSidebar,
   onToggleVersionHistory,
   onToggleShareSidebar,
   onToggleSettingsSidebar,
   onSetActiveDialog,
 }: BuildFormBuilderMenuItemsOptions): MenuItem[] =>
   [
+    {
+      key: "share",
+      label: "Share",
+      shortcut: formatForDisplay(HOTKEYS.TOGGLE_SHARE_SIDEBAR),
+      onClick: onToggleShareSidebar,
+      show: canShare,
+    },
+    {
+      key: "settings",
+      label: "Settings",
+      shortcut: formatForDisplay(HOTKEYS.TOGGLE_SETTINGS_SIDEBAR),
+      onClick: onToggleSettingsSidebar,
+    },
+    {
+      key: "versionHistory",
+      label: "Version history",
+      shortcut: formatForDisplay(HOTKEYS.TOGGLE_VERSION_HISTORY),
+      onClick: onToggleVersionHistory,
+      show: isEditRoute && hasPublishedVersion,
+    },
     {
       key: "favorite",
       label: "Favorite",
@@ -539,34 +478,6 @@ const buildFormBuilderMenuItems = ({
       // Analytics is empty until first publish, and /insights for an unpublished form crashes
       // the Recharts bundle — gate on the same flag as share + version history.
       show: hasPublishedVersion,
-    },
-    {
-      key: "customization",
-      label: "Customization",
-      shortcut: formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR),
-      onClick: onToggleCustomizeSidebar,
-      show: isEditRoute,
-    },
-    {
-      key: "versionHistory",
-      label: "Version History",
-      shortcut: formatForDisplay(HOTKEYS.TOGGLE_VERSION_HISTORY),
-      onClick: onToggleVersionHistory,
-      show: isEditRoute && hasPublishedVersion,
-    },
-    {
-      key: "share",
-      label: "Share",
-      shortcut: formatForDisplay(HOTKEYS.TOGGLE_SHARE_SIDEBAR),
-      onClick: onToggleShareSidebar,
-      show: isMobile && canShare,
-    },
-    {
-      key: "settings",
-      label: "Settings",
-      shortcut: formatForDisplay(HOTKEYS.TOGGLE_SETTINGS_SIDEBAR),
-      onClick: onToggleSettingsSidebar,
-      show: isMobile,
     },
     {
       key: "discard",
@@ -587,8 +498,6 @@ interface HeaderBreadcrumbProps {
   workspaceId: string | undefined;
   formId: string | undefined;
   isEditRoute: boolean;
-  isEditorSidebarOpen: boolean;
-  breadcrumbLabel: string;
 }
 
 const HeaderBreadcrumb = ({
@@ -597,13 +506,11 @@ const HeaderBreadcrumb = ({
   workspaceId,
   formId,
   isEditRoute,
-  isEditorSidebarOpen,
-  breadcrumbLabel,
 }: HeaderBreadcrumbProps) => {
   const titleText = savedDoc.title || "Untitled";
   const linkClassName = cn(
     buttonVariants({ variant: "ghost", size: "sm" }),
-    "max-w-[140px] min-w-0 shrink justify-start px-1.5 font-normal text-gray-700 hover:bg-accent/60 sm:max-w-[200px]",
+    "max-w-[140px] min-w-0 shrink justify-start px-1.5 text-[14px] font-medium text-gray-800 hover:bg-accent/60 sm:max-w-[200px]",
   );
   const isPublished = savedDoc.status === "published" && workspaceId && formId;
 
@@ -615,12 +522,15 @@ const HeaderBreadcrumb = ({
             to="/dashboard"
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
-              "hidden max-w-[150px] shrink truncate px-1.5 font-normal text-gray-700 hover:bg-accent/60 hover:text-foreground md:inline-flex",
+              "hidden max-w-[150px] shrink truncate px-1.5 text-[14px] font-medium text-gray-500 hover:bg-accent/60 hover:text-foreground md:inline-flex",
             )}
           >
             <span className="truncate">{workspace.name}</span>
           </Link>
-          <span aria-hidden="true" className="hidden shrink-0 px-0.5 text-gray-700/40 md:inline">
+          <span
+            aria-hidden="true"
+            className="hidden shrink-0 px-0.5 text-[16px] text-gray-500 md:inline"
+          >
             /
           </span>
         </>
@@ -648,26 +558,11 @@ const HeaderBreadcrumb = ({
         <span
           className={cn(
             buttonVariants({ variant: "ghost", size: "sm" }),
-            "max-w-[140px] min-w-0 shrink cursor-default justify-start px-1.5 font-normal text-gray-700 hover:bg-transparent sm:max-w-[200px]",
+            "max-w-[140px] min-w-0 shrink cursor-default justify-start px-1.5 text-[14px] font-medium text-gray-800 hover:bg-transparent sm:max-w-[200px]",
           )}
         >
           <span className="truncate">{titleText}</span>
         </span>
-      )}
-      {!isEditorSidebarOpen && (
-        <>
-          <span aria-hidden="true" className="hidden shrink-0 px-0.5 text-gray-700/40 lg:inline">
-            /
-          </span>
-          <span
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "hidden shrink-0 cursor-default px-1.5 font-normal text-gray-700 hover:bg-transparent lg:inline-flex",
-            )}
-          >
-            {breadcrumbLabel}
-          </span>
-        </>
       )}
     </nav>
   );
@@ -693,6 +588,40 @@ const LandingPageActions = ({
   onSignIn,
 }: LandingPageActionsProps) => (
   <>
+    {/* ⋯ overflow menu — houses About + Settings (Figma layout: ⋯ · palette · Preview · Publish) */}
+    <DropdownMenu
+      open={activeMenu === "local"}
+      onOpenChange={(open) => onSetActiveMenu(open ? "local" : null)}
+    >
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-[30px] rounded-lg px-1.5 text-gray-700 hover:text-foreground"
+            aria-label="More options"
+          />
+        }
+      >
+        <MoreHorizontalIcon className="size-[18px] text-gray-700" strokeWidth={1.5} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
+        <DropdownMenuItem onClick={() => onToggleEditorSidebar("about")}>
+          <span className="flex-1 text-left">About</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onToggleEditorSidebar("settings")}>
+          <span className="flex-1 text-left">Settings</span>
+          <DropdownMenuShortcut>
+            {formatForDisplay(HOTKEYS.TOGGLE_SETTINGS_SIDEBAR)}
+          </DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onSignIn}>
+          <span className="flex-1 text-left">Sign in</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+    {/* Palette — Customize toggle */}
     <Tooltip>
       <TooltipTrigger
         render={
@@ -700,7 +629,32 @@ const LandingPageActions = ({
             variant="ghost"
             size="sm"
             className={cn(
-              "px-2.5 font-normal text-gray-700 hover:text-foreground",
+              "h-7 w-[30px] rounded-lg px-1.5 text-gray-700 hover:text-foreground",
+              activeSidebar === "customize" && "bg-accent/50 text-foreground",
+            )}
+            onClick={() => onToggleEditorSidebar("customize")}
+            aria-label="Customize"
+          />
+        }
+      >
+        <PaletteIcon className="size-[18px] text-gray-700" />
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="end">
+        <p>Customize</p>
+        <p className="text-xs text-muted-foreground">
+          {formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR)}
+        </p>
+      </TooltipContent>
+    </Tooltip>
+    {/* Preview */}
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "rounded-lg pr-2 pl-2.5 text-[14px] font-medium text-gray-700 hover:text-foreground",
               previewMode && "bg-accent/50 text-foreground",
             )}
             onClick={onTogglePreview}
@@ -714,58 +668,10 @@ const LandingPageActions = ({
         <p className="text-xs text-muted-foreground">{formatForDisplay(HOTKEYS.TOGGLE_PREVIEW)}</p>
       </TooltipContent>
     </Tooltip>
-    <Button
-      variant="ghost"
-      size="sm"
-      className={cn(
-        "px-2.5 font-normal text-gray-700 hover:text-foreground",
-        activeSidebar === "about" && "bg-accent/50 text-foreground",
-      )}
-      onClick={() => onToggleEditorSidebar("about")}
-    >
-      About
-    </Button>
-    <Button
-      variant="ghost"
-      size="icon"
-      className="rounded-lg text-gray-700 hover:text-foreground"
-      onClick={() => onToggleEditorSidebar("settings")}
-      aria-label="Settings"
-    >
-      <SettingsIcon fill="transparent" className="text-gray-700" />
-    </Button>
-    <DropdownMenu
-      open={activeMenu === "local"}
-      onOpenChange={(open) => onSetActiveMenu(open ? "local" : null)}
-    >
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 text-gray-700 hover:text-foreground"
-            aria-label="More options"
-          />
-        }
-      >
-        <MoreHorizontalIcon className="size-[18px] text-gray-700" strokeWidth={1.5} />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
-        <DropdownMenuItem onClick={() => onToggleEditorSidebar("customize")}>
-          <span className="flex-1 text-left">Customization</span>
-          <DropdownMenuShortcut>
-            {formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR)}
-          </DropdownMenuShortcut>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onSignIn}>
-          <span className="flex-1 text-left">Sign in</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    {/* Publish */}
     <Button
       size="sm"
-      className="ml-1 rounded-[8px] border-none bg-neutral-950 py-1.5 pr-2 pl-2.5 text-[14px] text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
+      className="rounded-[8px] border-none bg-neutral-950 py-1.5 pr-2 pl-2.5 text-[14px] font-medium text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
       onClick={onSignIn}
     >
       Publish
@@ -793,222 +699,182 @@ interface FormBuilderHeaderActionsFlags {
 
 interface FormBuilderHeaderActionsProps {
   flags: FormBuilderHeaderActionsFlags;
+  activeSidebar: string | null;
   activeMenu: ActiveMenu;
   workspaceId: string | undefined;
   formId: string | undefined;
   savedDocs: ReturnType<typeof useForm>["data"];
   menuItems: MenuItem[];
   onTogglePreview: () => void;
-  onToggleShareSidebar: () => void;
-  onToggleSettingsSidebar: () => void;
+  onToggleCustomizeSidebar: () => void;
   onPublish: () => Promise<void> | void;
-  onSetActiveDialog: (dialog: ActiveDialog) => void;
   onSetActiveMenu: (menu: ActiveMenu) => void;
 }
 
 const FormBuilderHeaderActions = ({
   flags,
+  activeSidebar,
   activeMenu,
   workspaceId,
   formId,
   savedDocs,
   menuItems,
   onTogglePreview,
-  onToggleShareSidebar,
-  onToggleSettingsSidebar,
+  onToggleCustomizeSidebar,
   onPublish,
-  onSetActiveDialog,
   onSetActiveMenu,
 }: FormBuilderHeaderActionsProps) => {
-  const {
-    isEditRoute,
-    hasUnpublishedChanges,
-    isDiscarding,
-    isPublishing,
-    previewMode,
-    canShare,
-    isShareSidebarOpen,
-    isLoadingSavedDocs,
-  } = flags;
+  const { isEditRoute, hasUnpublishedChanges, isPublishing, previewMode, isLoadingSavedDocs } =
+    flags;
+  const showPublish = workspaceId && formId;
+  const isUnpublished =
+    !isLoadingSavedDocs && (hasUnpublishedChanges || savedDocs?.[0]?.status !== "published");
+
+  // Figma logged-in header: ⋯ · palette · Preview · Publish. Share/Settings/Version history/
+  // Discard live in the ⋯ menu; Customize is the palette button.
   return (
-    <>
-      {isEditRoute && hasUnpublishedChanges && (
+    <div className="flex items-center gap-1">
+      <DropdownMenu
+        open={activeMenu === "main"}
+        onOpenChange={(open) => onSetActiveMenu(open ? "main" : null)}
+      >
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-[30px] rounded-lg px-1.5 text-gray-700 hover:text-foreground aria-expanded:bg-secondary"
+              aria-label="More options"
+            />
+          }
+        >
+          <MoreHorizontalIcon className="size-[18px] text-gray-700" strokeWidth={1.5} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
+          {menuItems.map((item) => (
+            <DropdownMenuItem key={item.key} onClick={() => item.onClick()}>
+              <span className="flex-1 text-left">{item.label}</span>
+              {item.shortcut && <DropdownMenuShortcut>{item.shortcut}</DropdownMenuShortcut>}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {isEditRoute && (
         <Tooltip>
           <TooltipTrigger
             render={
               <Button
                 variant="ghost"
-                size="icon"
-                className="hidden size-7 text-gray-700 hover:text-foreground md:inline-flex"
-                onClick={() => onSetActiveDialog("discard")}
-                disabled={isDiscarding}
+                size="sm"
+                className={cn(
+                  "h-7 w-[30px] rounded-lg px-1.5 text-gray-700 hover:text-foreground",
+                  activeSidebar === "customize" && "bg-accent/50 text-foreground",
+                )}
+                onClick={onToggleCustomizeSidebar}
+                aria-label="Customize"
               />
             }
           >
-            <IconSwap
-              state={isDiscarding ? "b" : "a"}
-              iconA={<RotateCcwIcon className="size-4 text-gray-700" strokeWidth={2} />}
-              iconB={<Loader2Icon className="size-4 animate-spin text-gray-700" strokeWidth={2} />}
-            />
+            <PaletteIcon className="size-[18px] text-gray-700" />
           </TooltipTrigger>
-          <TooltipContent>
-            <p>Reset to last published version</p>
+          <TooltipContent side="bottom" align="end">
+            <p>Customize</p>
+            <p className="text-xs text-muted-foreground">
+              {formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR)}
+            </p>
           </TooltipContent>
         </Tooltip>
       )}
 
-      <div className="flex items-center gap-1">
-        {canShare && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "hidden px-2.5 font-normal text-gray-700 hover:text-foreground md:inline-flex",
-              isShareSidebarOpen && "bg-accent/50 text-foreground",
-            )}
-            onClick={onToggleShareSidebar}
+      {isEditRoute ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "hidden rounded-lg pr-2 pl-2.5 text-[14px] font-medium text-gray-700 hover:text-foreground md:inline-flex",
+                  previewMode && "bg-accent/50 text-foreground",
+                )}
+                onClick={onTogglePreview}
+              />
+            }
           >
-            Share
-          </Button>
-        )}
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="hidden text-gray-700 hover:text-foreground md:inline-flex"
-          aria-label="Settings"
-          onClick={onToggleSettingsSidebar}
-        >
-          <SettingsIcon
-            fill="transparent"
-            className="text-gray-700"
-            stroke="var(--color-gray-700)"
-          />
-        </Button>
-
-        {(isEditRoute || (workspaceId && formId)) && (
-          <div className="ml-1 flex items-center gap-1">
-            {isEditRoute ? (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="hidden text-gray-700 hover:text-foreground md:inline-flex"
-                      onClick={onTogglePreview}
-                      aria-label={previewMode ? "Switch to editor" : "Switch to preview"}
-                    />
-                  }
-                >
-                  <IconSwap
-                    state={previewMode ? "b" : "a"}
-                    iconA={<EyeIcon className="text-gray-700" />}
-                    iconB={<EyeOffIcon className="text-gray-700" />}
-                  />
-                </TooltipTrigger>
-                <TooltipContent side="bottom" align="end">
-                  <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatForDisplay(HOTKEYS.TOGGLE_PREVIEW)}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              workspaceId &&
-              formId && (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Link
-                        to="/workspace/$workspaceId/form-builder/$formId/edit"
-                        params={{ workspaceId, formId }}
-                        search={(prev: Record<string, unknown>) => ({ ...prev, force: true })}
-                        preload="intent"
-                        aria-label="Edit form"
-                        className={cn(
-                          buttonVariants({ variant: "ghost", size: "icon" }),
-                          "text-gray-700 hover:text-foreground",
-                        )}
-                      />
-                    }
-                  >
-                    <PencilIcon className="text-gray-700" />
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" align="end">
-                    <p>Edit Form</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatForDisplay(HOTKEYS.EDIT_FORM)}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              )
-            )}
-            <DropdownMenu
-              open={activeMenu === "main"}
-              onOpenChange={(open) => onSetActiveMenu(open ? "main" : null)}
-            >
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="mr-1 overflow-hidden rounded-lg p-1.25 hover:bg-secondary active:bg-secondary aria-expanded:bg-secondary"
-                    aria-label="More options"
-                  />
-                }
-              >
-                <MoreHorizontalIcon className="text-gray-700" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
-                {menuItems.map((item) => (
-                  <DropdownMenuItem key={item.key} onClick={() => item.onClick()}>
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {item.shortcut && <DropdownMenuShortcut>{item.shortcut}</DropdownMenuShortcut>}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {workspaceId && formId && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      size="sm"
-                      className={cn(
-                        "border-none py-1.5 pr-2 pl-2 text-[14px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all",
-                        !isLoadingSavedDocs &&
-                          (hasUnpublishedChanges || savedDocs?.[0]?.status !== "published")
-                          ? "bg-black text-white hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80",
-                      )}
-                      onClick={onPublish}
-                      disabled={
-                        isPublishing ||
-                        (!hasUnpublishedChanges && savedDocs?.[0]?.status === "published")
-                      }
-                    />
-                  }
-                >
-                  {isPublishing ? (
-                    <Loader2Icon className="size-4 animate-spin" />
-                  ) : savedDocs?.[0]?.status === "published" && !hasUnpublishedChanges ? (
-                    <TextSwap key="Published">Published</TextSwap>
-                  ) : (
-                    <TextSwap key="Publish">Publish</TextSwap>
+            {previewMode ? "Editor" : "Preview"}
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="end">
+            <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
+            <p className="text-xs text-muted-foreground">
+              {formatForDisplay(HOTKEYS.TOGGLE_PREVIEW)}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        workspaceId &&
+        formId && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Link
+                  to="/workspace/$workspaceId/form-builder/$formId/edit"
+                  params={{ workspaceId, formId }}
+                  search={(prev: Record<string, unknown>) => ({ ...prev, force: true })}
+                  preload="intent"
+                  aria-label="Edit form"
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "sm" }),
+                    "h-7 w-[30px] rounded-lg px-1.5 text-gray-700 hover:text-foreground",
                   )}
-                </TooltipTrigger>
-                <TooltipContent side="bottom" align="end">
-                  <p className="text-xs text-muted-foreground">
-                    {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
+                />
+              }
+            >
+              <PencilIcon className="size-[18px] text-gray-700" />
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="end">
+              <p>Edit Form</p>
+              <p className="text-xs text-muted-foreground">{formatForDisplay(HOTKEYS.EDIT_FORM)}</p>
+            </TooltipContent>
+          </Tooltip>
+        )
+      )}
+
+      {showPublish && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="sm"
+                className={cn(
+                  "rounded-[8px] border-none py-1.5 pr-2 pl-2.5 text-[14px] font-medium shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all",
+                  isUnpublished
+                    ? "bg-neutral-950 text-white hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80",
+                )}
+                onClick={onPublish}
+                disabled={
+                  isPublishing || (!hasUnpublishedChanges && savedDocs?.[0]?.status === "published")
+                }
+              />
+            }
+          >
+            {isPublishing ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : savedDocs?.[0]?.status === "published" && !hasUnpublishedChanges ? (
+              <TextSwap key="Published">Published</TextSwap>
+            ) : (
+              <TextSwap key="Publish">Publish</TextSwap>
             )}
-          </div>
-        )}
-      </div>
-    </>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="end">
+            <p className="text-xs text-muted-foreground">
+              {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
   );
 };
 

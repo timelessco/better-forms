@@ -60,6 +60,8 @@ const OPERATORS_BY_FIELD_TYPE: Record<string, OperatorId[]> = {
   ],
   // single choice (radio) — one value
   MultiChoice: ["equals", "notEquals", "isEmpty", "isNotEmpty"],
+  // single-select dropdown — one value
+  Dropdown: ["equals", "notEquals", "isEmpty", "isNotEmpty"],
   // multi-value (arrays) — `contains` checks membership; `equals` would compare a
   // joined string, so it's omitted to avoid misleading authors.
   Checkbox: ["contains", "notContains", "isEmpty", "isNotEmpty"],

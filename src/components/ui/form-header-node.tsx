@@ -1,15 +1,14 @@
-import { ImageIcon, CircleUserRoundIcon, SettingsIcon, Trash2Icon } from "@/components/ui/icons";
+import { ImageIcon, CircleUserRoundIcon, Trash2Icon } from "@/components/ui/icons";
 import { IconPickerContent, IconPickerPreview } from "@/components/icon-picker";
 import { Activity, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { PlateElementProps } from "platejs/react";
 import { PlateElement, useEditorRef } from "platejs/react";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
 import { createFormButtonNode } from "@/components/ui/form-button-node";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEditorTheme } from "@/contexts/editor-theme-context";
-import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import {
   ImageCrop,
@@ -451,14 +450,6 @@ export const FormHeaderElement = (props: PlateElementProps) => {
     customization: editorCustomization,
     updateThemeColor,
   } = useEditorTheme();
-  const { activeSidebar, closeSidebar, openCustomize } = useEditorSidebar();
-  const toggleCustomize = useCallback(() => {
-    if (activeSidebar === "customize") {
-      closeSidebar();
-    } else {
-      openCustomize();
-    }
-  }, [activeSidebar, closeSidebar, openCustomize]);
 
   const title = (element.title as string) || "";
   const icon = (element.icon as string | null) || null;
@@ -524,12 +515,16 @@ export const FormHeaderElement = (props: PlateElementProps) => {
     [updateHeader],
   );
 
+  // Default cover from Figma (saved locally in /public; full-color, no tint).
   const handleAddCover = useCallback(
-    () =>
-      handleCoverChange(
-        "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=800&q=80&tint=true",
-      ),
+    () => handleCoverChange("/header-image.png"),
     [handleCoverChange],
+  );
+
+  const coverPosition = (element.coverPosition as number | undefined) ?? 50;
+  const handleCoverPositionChange = useCallback(
+    (pos: number) => updateHeader({ coverPosition: pos }),
+    [updateHeader],
   );
 
   const accentColors = hasCustomization ? ACCENT_COLORS : undefined;
@@ -561,14 +556,16 @@ export const FormHeaderElement = (props: PlateElementProps) => {
     >
       <div
         contentEditable={false}
-        className="group relative mb-4 flex w-full flex-col rounded-none select-none"
+        className="group relative flex w-full flex-col rounded-none select-none"
       >
         {hasCover && (
           <HeaderCoverSection
             cover={cover}
+            coverPosition={coverPosition}
             coverPopoverOpen={coverPopoverOpen}
             onCoverPopoverOpenChange={setCoverPopoverOpen}
             onCoverChange={handleCoverChange}
+            onCoverPositionChange={handleCoverPositionChange}
           />
         )}
         <div className={cn("relative flex w-full flex-col")}>
@@ -628,12 +625,15 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                 </div>
               )}
 
+              {/* Toolbar carries no bottom gap; the title owns its top gap (mt-4 below),
+                  so the title→cover/logo spacing is constant whether or not the toolbar
+                  has any buttons. */}
               <div
                 className={cn(
-                  "mb-2 flex gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100",
+                  "flex gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100",
                   !hasCover && !hasLogo && "mt-8 sm:mt-12",
                   hasCover && !hasLogo && "mt-4",
-                  !hasCover && hasLogo && "mt-0",
+                  hasLogo && "mt-0",
                 )}
               >
                 {!hasLogo && (
@@ -661,15 +661,6 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                     Add cover
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleCustomize}
-                  onMouseDown={(e) => e.preventDefault()}
-                >
-                  <SettingsIcon />
-                  Customize
-                </Button>
               </div>
 
               <HeaderIconPopoverContent
@@ -707,77 +698,172 @@ export const FormHeaderElement = (props: PlateElementProps) => {
 
 interface HeaderCoverSectionProps {
   cover: string;
+  coverPosition: number;
   coverPopoverOpen: boolean;
   onCoverPopoverOpenChange: (open: boolean) => void;
   onCoverChange: (cover: string | null) => void;
+  onCoverPositionChange: (pos: number) => void;
 }
 
 const HeaderCoverSection = ({
   cover,
+  coverPosition,
   coverPopoverOpen,
   onCoverPopoverOpenChange,
   onCoverChange,
-}: HeaderCoverSectionProps) => (
-  <>
-    <div
-      className="group/cover relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] h-[120px] w-screen bg-muted/20 sm:h-[200px]"
-      data-bf-cover
-    >
-      {cover && !cover.startsWith("#") ? (
-        <>
-          {cover.includes("tint=true") && (
-            <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
-          )}
-          <img
-            src={cover}
-            alt="Cover"
-            width={800}
-            height={200}
-            className={cn(
-              "size-full border-0 object-cover",
-              cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
-            )}
-          />
-        </>
-      ) : (
-        <div
-          className="size-full"
-          style={{
-            backgroundColor: cover?.startsWith("#") ? cover : "#FFE4E1",
-          }}
-        />
-      )}
-    </div>
+  onCoverPositionChange,
+}: HeaderCoverSectionProps) => {
+  const coverRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ startY: number; startPos: number } | null>(null);
+  const [repositioning, setRepositioning] = useState(false);
+  const [draftPosition, setDraftPosition] = useState(coverPosition);
+  const hasImage = !!cover && !cover.startsWith("#");
+  const position = repositioning ? draftPosition : coverPosition;
+
+  // The pill is portaled to <body> and positioned against the VIEWPORT (the cover is
+  // full-bleed and overflows past the viewport, so its own right edge is off-screen).
+  const [coverHovered, setCoverHovered] = useState(false);
+  const [pillTop, setPillTop] = useState(0);
+  const showPill = coverHovered || repositioning || coverPopoverOpen;
+  const measurePill = useCallback(() => {
+    const el = coverRef.current;
+    if (el) setPillTop(el.getBoundingClientRect().bottom);
+  }, []);
+  useEffect(() => {
+    if (!showPill) return;
+    measurePill();
+    window.addEventListener("scroll", measurePill, true);
+    window.addEventListener("resize", measurePill);
+    return () => {
+      window.removeEventListener("scroll", measurePill, true);
+      window.removeEventListener("resize", measurePill);
+    };
+  }, [showPill, measurePill]);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!repositioning || !hasImage) return;
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { startY: e.clientY, startPos: draftPosition };
+  };
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    const el = coverRef.current;
+    if (!drag || !el) return;
+    // Drag down → reveal more of the image's top → lower object-position-y.
+    const delta = ((e.clientY - drag.startY) / (el.offsetHeight || 1)) * 100;
+    setDraftPosition(Math.max(0, Math.min(100, drag.startPos - delta)));
+  };
+  const endDrag = () => {
+    dragRef.current = null;
+  };
+
+  return (
     <Popover open={coverPopoverOpen} onOpenChange={onCoverPopoverOpenChange}>
       <div
-        className="absolute top-2 z-30 opacity-0 transition-opacity group-hover:opacity-100"
-        style={{ right: "calc(var(--editor-px, 64px) * -1 + 16px)" }}
+        ref={coverRef}
+        className={cn(
+          "group/cover relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] h-[120px] w-screen bg-muted/20 sm:h-[200px]",
+          repositioning && "cursor-grab touch-none active:cursor-grabbing",
+        )}
+        data-bf-cover
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onMouseEnter={() => setCoverHovered(true)}
+        onMouseLeave={() => setCoverHovered(false)}
       >
-        <ButtonGroup className="rounded-lg bg-background/80 shadow-lg backdrop-blur-sm dark:bg-muted/60">
-          <PopoverTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="sm"
-                className="rounded-none rounded-l-lg border-none text-xs text-foreground/80 hover:bg-secondary hover:text-foreground"
-                onMouseDown={(e) => e.preventDefault()}
-              />
-            }
-          >
-            Change
-          </PopoverTrigger>
-          <ButtonGroupSeparator className="bg-border" />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="rounded-none rounded-r-lg border-none text-xs text-foreground/80 hover:bg-secondary hover:text-foreground"
-            onClick={() => onCoverChange(null)}
-            onMouseDown={(e) => e.preventDefault()}
-          >
-            Remove
-          </Button>
-        </ButtonGroup>
+        {hasImage ? (
+          <>
+            {cover.includes("tint=true") && (
+              <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
+            )}
+            <img
+              src={cover}
+              alt="Cover"
+              width={800}
+              height={200}
+              draggable={false}
+              className={cn(
+                "size-full border-0 object-cover select-none",
+                cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
+              )}
+              style={{ objectPosition: `center ${position}%` }}
+            />
+          </>
+        ) : (
+          <div
+            className="size-full"
+            style={{
+              backgroundColor: cover?.startsWith("#") ? cover : "#FFE4E1",
+            }}
+          />
+        )}
+        {/* Cover fade lives in CSS on [data-bf-cover] (styles.css) so the editor, Preview,
+            and public render share one definition. */}
       </div>
+
+      {/* Change | Reposition (Figma 25424:13193) — portaled to <body> and fixed against the
+          viewport's right edge (the full-bleed cover overflows off-screen), anchored to the
+          cover's measured bottom. createPortal keeps it inside the Popover's React context. */}
+      {showPill &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            onMouseEnter={() => setCoverHovered(true)}
+            onMouseLeave={() => setCoverHovered(false)}
+            style={{
+              position: "fixed",
+              top: pillTop - 12,
+              right: 16,
+              transform: "translateY(-100%)",
+              zIndex: 50,
+            }}
+          >
+            {repositioning ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onCoverPositionChange(Math.round(draftPosition));
+                  setRepositioning(false);
+                }}
+                onMouseDown={(e) => e.preventDefault()}
+                className="rounded-lg bg-black/45 px-2 py-1.5 text-sm font-medium text-white backdrop-blur-sm hover:bg-black/55"
+              >
+                Save position
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 rounded-lg bg-black/45 px-2 py-1.5 text-sm font-medium text-white backdrop-blur-sm">
+                <PopoverTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="rounded transition-opacity hover:opacity-80"
+                      onMouseDown={(e) => e.preventDefault()}
+                    />
+                  }
+                >
+                  Change
+                </PopoverTrigger>
+                <span aria-hidden="true" className="h-4 w-px bg-white/30" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraftPosition(coverPosition);
+                    setRepositioning(true);
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  disabled={!hasImage}
+                  className="rounded transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Reposition
+                </button>
+              </div>
+            )}
+          </div>,
+          document.body,
+        )}
 
       <PopoverContent align="end" side="bottom" className="w-[310px] p-0" sideOffset={8}>
         <Tabs defaultValue="gallery" className="w-full">
@@ -842,8 +928,8 @@ const HeaderCoverSection = ({
         </Tabs>
       </PopoverContent>
     </Popover>
-  </>
-);
+  );
+};
 
 interface HeaderTitleTextareaProps {
   ref: React.Ref<HTMLTextAreaElement>;
@@ -871,12 +957,15 @@ const HeaderTitleTextarea = ({
   }, [editor]);
 
   return (
-    <div className="group/title relative">
+    // mt-4 (16px, Figma) is the title's own top gap. When the toolbar above is empty
+    // (cover + logo both present) its zero height lets this margin collapse through, so
+    // the cover/logo→title spacing is anchored to the title, not the toolbar's contents.
+    <div className="group/title relative mt-4">
       <textarea
         ref={ref}
         rows={1}
         aria-label="Form title"
-        className="h-auto w-full resize-none overflow-hidden border-none bg-transparent py-1 font-['Timeless_Serif'] text-[48px] leading-tight font-[252] tracking-[-1.44px] text-foreground outline-none select-text placeholder:font-['Timeless_Serif'] placeholder:text-foreground/50 sm:py-2"
+        className="h-auto w-full resize-none overflow-hidden border-none bg-transparent pt-1 font-['Timeless_Serif'] text-[48px] leading-[1.15] font-[252] tracking-[-1.44px] text-foreground outline-none select-text placeholder:font-['Timeless_Serif'] placeholder:text-foreground/50 sm:pt-2"
         placeholder="Create your form."
         value={title}
         onChange={(e) => onTitleChange(e.target.value)}

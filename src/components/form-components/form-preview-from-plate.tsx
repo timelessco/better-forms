@@ -221,7 +221,7 @@ const PreviewFormHeader = ({
 
   if (layout === "editor") {
     return (
-      <div ref={headerRef} className="mb-4 w-full sm:mb-8">
+      <div ref={headerRef} className="mb-7 w-full">
         {hasCover && renderCover()}
         <div
           className="mx-auto w-full px-8 md:px-0"
@@ -256,7 +256,7 @@ const PreviewFormHeader = ({
 
   // For public layout, no negative margin tricks needed
   return (
-    <div ref={headerRef} className="mb-4 w-full sm:mb-8">
+    <div ref={headerRef} className="mb-7 w-full">
       {hasCover && renderCover()}
 
       <div

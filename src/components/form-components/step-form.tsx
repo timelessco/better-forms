@@ -385,6 +385,7 @@ const RenderStepButton = ({
   const submitButton = (
     <Button
       type="submit"
+      data-bf-button
       style={buttonStyle}
       className="h-8 gap-1.5 rounded-lg px-2.5"
       disabled={isSubmitting}

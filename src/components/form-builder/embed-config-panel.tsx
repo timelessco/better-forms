@@ -156,33 +156,55 @@ export const ConfigCard = ({
  * Figma row:
  *   Select / value rows → pl-[10px] pr-[3px] py-[7px] gap-[6px]
  *   Switch rows          → pl-[10px] pr-[6px] py-[7px] gap-[6px]
+ *
+ * `surface` "card" = embed-panel look (bg-secondary track); "flat" = customize-sidebar
+ * Figma rows on white background (no fill, h-7, muted label, right-aligned value).
  */
 export const ConfigRow = ({
   label,
   description,
   children,
   variant = "default",
+  surface = "card",
 }: {
   label: string;
   description?: string;
   children: React.ReactNode;
   variant?: "default" | "switch";
-}) => (
-  <div
-    className={`flex min-h-8.5 items-center gap-3 overflow-clip bg-secondary py-1.75 pl-2.5 ${
-      // max-h-9.5
-      variant === "switch" ? "pr-[6px]" : "pr-[3px]"
-    }`}
-  >
-    <div className="flex min-w-0 flex-1 flex-col gap-1">
-      <span className="text-base font-normal">{label}</span>
-      {description && (
-        <p className="text-sm font-normal text-wrap text-muted-foreground">{description}</p>
-      )}
+  surface?: "card" | "flat";
+}) => {
+  if (surface === "flat") {
+    return (
+      <div className="flex h-7 items-center gap-3 overflow-clip bg-background">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="text-[14px] font-normal text-muted-foreground">{label}</span>
+          {description && (
+            <p className="text-sm font-normal text-wrap text-muted-foreground">{description}</p>
+          )}
+        </div>
+        {/* value slot right-aligned, value text uses foreground */}
+        <div className="flex shrink-0 items-center justify-end text-foreground">{children}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex min-h-8.5 items-center gap-3 overflow-clip bg-secondary py-1.75 pl-2.5 ${
+        // max-h-9.5
+        variant === "switch" ? "pr-[6px]" : "pr-[3px]"
+      }`}
+    >
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="text-base font-normal">{label}</span>
+        {description && (
+          <p className="text-sm font-normal text-wrap text-muted-foreground">{description}</p>
+        )}
+      </div>
+      {children}
     </div>
-    {children}
-  </div>
-);
+  );
+};
 
 /**
  * Figma button: h-[24px] px-[8px] py-[5.5px] rounded-[5px] gap-[4px]
@@ -191,6 +213,14 @@ export const ConfigRow = ({
  */
 export const selectTriggerCls =
   "data-[size=default]:h-[24px] shrink-0 border-none bg-transparent shadow-none rounded-[5px] px-2 py-0 gap-1 w-auto text-[13px] text-foreground font-medium whitespace-nowrap ";
+
+/**
+ * Figma customize-sidebar inline value select: borderless, transparent, 24px tall,
+ * 14px medium foreground value, gap-1, 10px down-caret (sizes the built-in SelectTrigger icon).
+ * Separate from `selectTriggerCls` so the embed panel's trigger stays unchanged.
+ */
+export const selectTriggerFigmaCls =
+  "data-[size=default]:h-[24px] shrink-0 border-none bg-transparent shadow-none rounded-[5px] px-0 py-0 gap-1 w-auto text-[14px] text-foreground font-medium whitespace-nowrap [&_svg]:size-[10px] ";
 
 export const EmbedConfigPanel = ({
   embedType,

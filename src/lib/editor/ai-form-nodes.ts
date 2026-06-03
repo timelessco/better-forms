@@ -29,6 +29,7 @@ const CHOICE_VARIANT_MAP: Record<string, string> = {
   checkbox: "checkbox",
   multiChoice: "multiChoice",
   ranking: "ranking",
+  dropdown: "dropdown",
 };
 
 const buildLabelNode = (label: string, required: boolean): TElement =>

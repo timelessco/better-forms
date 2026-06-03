@@ -42,6 +42,7 @@ export const VARIANT_TO_FIELD_TYPE: Record<string, string> = {
   multiChoice: "MultiChoice",
   multiSelect: "MultiSelect",
   ranking: "Ranking",
+  dropdown: "Dropdown",
 };
 
 /** `formNumber` bounds: `minValue`/`maxValue` (not text's `minLength`/`maxLength`

@@ -1,13 +1,6 @@
 {
   "controls": [
     {
-      "id": "git",
-      "title": "Git",
-      "command": "lazygit",
-      "cwd": ".",
-      "height": 400
-    },
-    {
       "id": "dev",
       "title": "Dev Server",
       "command": "./.cmux/dock-session.sh dev 'pnpm dev:auto 2>&1 | tee /tmp/reform-dev.log'",

@@ -716,6 +716,8 @@
   --accent-foreground: var(--bf-accent-foreground);
   --destructive: var(--bf-destructive);
   --destructive-foreground: var(--bf-destructive-foreground);
+  --success: var(--bf-success);
+  --success-foreground: var(--bf-success-foreground);
   --border: var(--bf-border);
   --input: var(--bf-input);
   --ring: var(--bf-ring);
@@ -740,6 +742,8 @@
   --color-accent-foreground: var(--bf-accent-foreground);
   --color-destructive: var(--bf-destructive);
   --color-destructive-foreground: var(--bf-destructive-foreground);
+  --color-success: var(--bf-success);
+  --color-success-foreground: var(--bf-success-foreground);
   --color-border: var(--bf-border);
   --color-input: var(--bf-input);
   --color-ring: var(--bf-ring);
@@ -783,6 +787,41 @@
 
 .bf-themed [data-bf-cover] {
   height: var(--bf-cover-height);
+  /* unset = current square cover; overflow clips img once a radius is set */
+  border-radius: var(--bf-cover-radius, 0);
+  overflow: hidden;
+}
+
+/* Cover image fit (Fit=contain / Fill=cover); unset = current cover */
+.bf-themed [data-bf-cover] img {
+  object-fit: var(--bf-cover-fit, cover);
+}
+
+/* Cover fade (Figma node 25293:1954) — the cover dissolves into the page background at its
+   bottom edge, with a frosted blur on the very bottom. Applies in the editor, the Preview,
+   and the public render (every cover carries [data-bf-cover] and is position: relative). */
+[data-bf-cover]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 66%;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent 0%, var(--background) 92%);
+}
+[data-bf-cover]::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 34%;
+  z-index: 2;
+  pointer-events: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 100%);
 }
 
 /* Logo/icon positioning: half overlapping cover, half below.
@@ -800,6 +839,8 @@
 .bf-themed [data-bf-logo] {
   width: var(--bf-logo-width);
   height: var(--bf-logo-width);
+  /* unset = current rounded-md (0.375rem) */
+  border-radius: var(--bf-logo-radius, 0.375rem);
 }
 
 /* Icon picker logo: fixed 100px container keeps icon position stable.
@@ -815,6 +856,8 @@
 .bf-themed [data-bf-logo-icon] > div {
   width: max(48px, var(--bf-logo-width)) !important;
   height: max(48px, var(--bf-logo-width)) !important;
+  /* unset = current round icon logo */
+  border-radius: var(--bf-logo-radius, 9999px) !important;
 }
 
 /* Keep the icon SVG at fixed size regardless of circle size */
@@ -823,14 +866,17 @@
   height: 48px !important;
 }
 
-/* Hide accent circle background when logo width is 0 — icon still shows */
+/* Hide accent circle background + card shadow when logo width is 0 — icon still shows */
 .bf-themed [data-bf-logo-icon="minimal"] > div {
   background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 /* Input width: editor input nodes */
 .bf-themed [data-bf-input] {
   max-width: var(--bf-input-width);
+  /* unset = no extra spacing (block-margin handles current gaps) */
+  margin-bottom: var(--bf-input-margin-bottom, 0);
 }
 
 /* Input fill: drive the form-input utility from the Input token so all
@@ -853,6 +899,22 @@
   background-color: var(--bf-input) !important;
 }
 
+/* Input fill metrics: unset fallbacks match the current literal classes
+   (h-7 = 1.75rem, rounded-[8px], pr-[8px] pl-[10px]) so unset = identical. */
+.bf-themed [data-bf-input-fill] {
+  height: var(--bf-input-height, 1.75rem);
+  border-radius: var(--bf-input-radius, 8px);
+  padding: var(--bf-input-padding, 0 8px 0 10px);
+}
+
+/* Submit button metrics: unset fallbacks match current submit button
+   (auto width, h-8 = 32px, rounded-lg ~= 8px) so unset = identical. */
+.bf-themed [data-bf-button] {
+  width: var(--bf-button-width, auto);
+  height: var(--bf-button-height, 32px);
+  border-radius: var(--bf-button-radius, 8px);
+}
+
 /* Popup surfaces inside themed forms — date-picker calendar, multi-select
    dropdown, etc. — bypass `--bf-popover` (which derives from the base
    preset, typically white) and route through `--bf-input` so popups feel
@@ -867,6 +929,9 @@
 /* Typography bridge */
 .bf-themed {
   font-size: var(--bf-font-size);
+  /* unset = current defaults (normal line-height, left-aligned body) */
+  line-height: var(--bf-line-height, normal);
+  text-align: var(--bf-text-align, left);
 }
 
 /* Override global * { letter-spacing: 0.01em } inside themed forms */
@@ -889,6 +954,14 @@
   font-size: var(--bf-title-font-size);
   letter-spacing: var(--bf-title-letter-spacing);
   font-style: var(--bf-title-font-style, normal);
+  /* unset title color falls back to body foreground = current look */
+  color: var(--bf-title-color, var(--bf-foreground));
+}
+
+/* Title line-height; alignment follows the global --bf-text-align (whole-form alignment). */
+.bf-themed [data-bf-title] {
+  line-height: var(--bf-title-line-height, 1.15);
+  text-align: var(--bf-text-align, left);
 }
 
 /* hideTitle embed option: hide only the title text; cover + icon (avatar) stay visible. */
@@ -927,8 +1000,8 @@
    two: bleed = field-gap − block-margin (so the residual visible gap
    between selections stays equal to --bf-block-margin). */
 :root {
-  --bf-block-margin: 24px;
-  --bf-field-gap: 4px;
+  --bf-block-margin: 28px;
+  --bf-field-gap: 10px;
 }
 
 .slate-blockWrapper:not(:has(> [data-bf-chrome])),
@@ -941,10 +1014,10 @@
    Using MARGIN (not padding) so it vertical-collapses through the
    transparent [data-bf-input] wrapper:
    - Label's margin-top collapses into the wrapper's margin-top, giving the
-     first field 4px breathing room above without an explicit wrapper rule.
-   - Label's margin-bottom = label↔input gap inside the wrapper (4px).
+     first field 10px breathing room above without an explicit wrapper rule.
+   - Label's margin-bottom = label↔input gap inside the wrapper (10px).
    - Wrapper's margin-bottom (--bf-block-margin) collapses with the next
-     wrapper's margin-top (4px from its label) to MAX(24, 4) = 24px between
+     wrapper's margin-top (10px from its label) to MAX(28, 10) = 28px between
      fields — identical to the editor. */
 [data-bf-field-list] [data-bf-field-label] {
   margin-top: var(--bf-field-gap) !important;
@@ -992,7 +1065,7 @@
 /* Match by Plate's slate-<type> CLASS rather than by HTML tag — the editor's
    ParagraphElement renders as a default <div> (not <p>), so a tag-based
    selector would miss it and the wrapper would fall back to the default
-   24px block-margin (creating a visible gap when a paragraph sits between
+   28px block-margin (creating a visible gap when a paragraph sits between
    a label and an input). The .slate-p / .slate-h{1,2,3} class is set by
    Plate on the rendered element regardless of underlying tag. */
 :not([data-bf-chrome]):not([data-bf-input]):has(> .slate-blockWrapper > .slate-p) > .slate-blockWrapper,

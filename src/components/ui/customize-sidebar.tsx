@@ -1,30 +1,43 @@
 import {
   ConfigCard,
   ConfigRow,
-  selectTriggerCls,
+  selectTriggerFigmaCls,
 } from "@/components/form-builder/embed-config-panel";
 import { useTheme, useResolvedTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
-import { InfoIcon, XIcon } from "@/components/ui/icons";
+import { IconPickerPreview } from "@/components/icon-picker";
+import { ColorPicker } from "@/components/ui/color-picker";
+import { FeatureGate } from "@/components/ui/feature-gate";
+import {
+  CaretDownIcon,
+  DarkModeIcon,
+  InfoIcon,
+  LightModeIcon,
+  SelectChevronIcon,
+  SystemModeIcon,
+  TextAlignCenterIcon,
+  TextAlignLeftIcon,
+  TextAlignRightIcon,
+  XIcon,
+} from "@/components/ui/icons";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Sidebar, SidebarContent, SidebarHeader } from "@/components/ui/sidebar";
 import { SidebarSection } from "@/components/ui/sidebar-section";
-import { FeatureGate } from "@/components/ui/feature-gate";
-import { ColorPicker } from "@/components/ui/color-picker";
 import { StyleNumberInput } from "@/components/ui/style-controls";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getFormListings } from "@/collections";
 import { localFormCollection } from "@/collections/local/form";
+import { useEditorTheme } from "@/contexts/editor-theme-context";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
+import { useFileUpload } from "@/hooks/use-file-upload";
 import { useForm, useLocalForm } from "@/hooks/use-live-hooks";
 import { FONT_REGISTRY } from "@/lib/theme/font-registry";
 import { TOKEN_NAMES } from "@/lib/theme/generate-theme-css";
 import { loadGoogleFont } from "@/lib/theme/load-google-font";
 import type { BaseColorMap } from "@/lib/theme/theme-presets";
 import { BASE_COLORS, DARK_BASE_COLORS, STYLES, THEME_COLORS } from "@/lib/theme/theme-presets";
+import { cn, isValidUrl } from "@/lib/utils";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const FONT_OPTIONS = Object.keys(FONT_REGISTRY).map((name) => ({
@@ -71,13 +84,62 @@ const RADIUS_OPTIONS: { label: string; value: string }[] = [
   { label: "Large", value: "large" },
 ];
 
-const DEFAULT_MODE_OPTIONS: { label: string; value: string }[] = [
-  { label: "Light", value: "light" },
-  { label: "Dark", value: "dark" },
-  { label: "System", value: "system" },
+const COVER_FIT_OPTIONS: { label: string; value: string }[] = [
+  { label: "Fit", value: "contain" },
+  { label: "Fill", value: "cover" },
 ];
 
-const CONFIG_INPUT_CLS = "!rounded-none !border-0 bg-secondary !h-[34px]";
+const TYPO_SCOPE_OPTIONS: { label: string; value: string }[] = [
+  { label: "Title", value: "title" },
+  { label: "Body", value: "body" },
+];
+
+const MODE_OPTIONS: { label: string; value: string }[] = [
+  { label: "Light", value: "light" },
+  { label: "Dark", value: "dark" },
+];
+
+// Semantic Colors rows (Figma) → underlying theme token written mode-prefixed.
+const SEMANTIC_COLOR_TOKENS = [
+  { key: "title-color", label: "Title" },
+  { key: "foreground", label: "Body text" },
+  { key: "background", label: "Background" },
+  { key: "input", label: "Inputs" },
+  { key: "primary", label: "Buttons" },
+  { key: "destructive", label: "Error" },
+  { key: "success", label: "Success" },
+] as const;
+
+// Full token set for the Advanced disclosure (power users).
+const ADVANCED_COLOR_TOKENS = [
+  { key: "primary", label: "Primary" },
+  { key: "primary-foreground", label: "Primary FG" },
+  { key: "secondary", label: "Secondary" },
+  { key: "secondary-foreground", label: "Secondary FG" },
+  { key: "accent", label: "Accent" },
+  { key: "accent-foreground", label: "Accent FG" },
+  { key: "background", label: "Background" },
+  { key: "foreground", label: "Foreground" },
+  { key: "destructive", label: "Destructive" },
+  { key: "destructive-foreground", label: "Destructive FG" },
+  { key: "success", label: "Success" },
+  { key: "input", label: "Input" },
+  { key: "border", label: "Border" },
+  { key: "muted", label: "Muted" },
+  { key: "muted-foreground", label: "Muted FG" },
+  { key: "ring", label: "Ring" },
+] as const;
+
+// Borderless compact trigger for header-right scope/mode selects (Figma Title/Light).
+const scopeTriggerCls =
+  "h-auto gap-1 border-none bg-transparent p-0 text-[13px] font-normal text-foreground shadow-none data-[size=default]:h-auto [&>svg]:size-3.5";
+
+const CONFIG_INPUT_CLS = "!rounded-none !border-0 bg-background !h-7";
+
+// Plain flush numeric row (bare scrubber) so values align with ConfigRow/ColorPicker rows.
+const NumberRow = (props: React.ComponentProps<typeof StyleNumberInput>) => (
+  <StyleNumberInput bare {...props} />
+);
 
 const ColorSwatch = ({ color }: { color?: string }) => {
   if (!color) return null;
@@ -95,6 +157,64 @@ const ProBadge = () => (
   </div>
 );
 
+/** Figma segmented pill toggle (Theme sun/moon/monitor, Alignment L/C/R). */
+const PillToggle = ({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string; icon: React.ReactNode }[];
+}) => (
+  <div className="flex w-[141px] items-center gap-1.5 rounded-lg bg-muted p-px">
+    {options.map((o) => {
+      const active = value === o.value;
+      return (
+        <button
+          key={o.value}
+          type="button"
+          aria-label={o.label}
+          aria-pressed={active}
+          onClick={() => onChange(o.value)}
+          className={cn(
+            "flex flex-1 items-center justify-center rounded-md py-1 transition-colors",
+            active
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {o.icon}
+        </button>
+      );
+    })}
+  </div>
+);
+
+/** Header-right scope/mode select (Figma "Title ⌄" / "Light ⌄"). */
+const ScopeSelect = ({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}) => (
+  <Select value={value} onValueChange={(v) => v && onChange(v)}>
+    <SelectTrigger className={scopeTriggerCls} icon={<SelectChevronIcon className="size-3.5" />}>
+      {options.find((o) => o.value === value)?.label ?? value}
+    </SelectTrigger>
+    <SelectContent>
+      {options.map((o) => (
+        <SelectItem key={o.value} value={o.value}>
+          {o.label}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+);
+
 interface CustomizeSidebarProps {
   formId: string;
   isLocal?: boolean;
@@ -102,6 +222,7 @@ interface CustomizeSidebarProps {
 
 export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => {
   const { closeSidebar } = useEditorSidebar();
+  const { updateHeaderMedia } = useEditorTheme();
   const { setTheme } = useTheme();
   const cloudForm = useForm(isLocal ? undefined : formId);
   const localFormResult = useLocalForm(isLocal ? formId : undefined);
@@ -114,6 +235,10 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
     () => (formDoc?.customization ?? {}) as Record<string, string>,
     [formDoc?.customization],
   );
+
+  // Cover/logo images live on the Plate header node (not customization) — read-only here.
+  const coverImage = (formDoc as { cover?: string | null } | null)?.cover ?? null;
+  const logoImage = (formDoc as { icon?: string | null } | null)?.icon ?? null;
 
   const resolvedStyle = useMemo(() => {
     const presetName = customization.preset || "vega";
@@ -278,12 +403,23 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
     [updateWithCustomPreset],
   );
 
+  const handleTitleFontChange = useCallback(
+    (v: string) => {
+      if (!v) return;
+      loadGoogleFont(v);
+      updateWithCustomPreset("titleFont", v);
+    },
+    [updateWithCustomPreset],
+  );
+
   const handleCssChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       updateWithCustomPreset(cssKey, e.target.value);
     },
     [updateWithCustomPreset, cssKey],
   );
+
+  const [typoScope, setTypoScope] = useState<"title" | "body">("title");
 
   return (
     <Sidebar
@@ -294,40 +430,24 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
       <CustomizeSidebarHeader closeSidebar={closeSidebar} />
 
       <SidebarContent>
-        <div className="space-y-3 p-2">
-          <p className="px-1 pb-1 text-[11px] text-muted-foreground/80">
-            Changes apply to the public form on next publish.
-          </p>
-          <PresetSection activePreset={activePreset} selectStyle={selectStyle} />
-          <ThemeSection
-            activeThemeColor={activeThemeColor}
-            handleThemeColorChange={handleThemeColorChange}
-            activeBaseColor={activeBaseColor}
-            activeBaseColors={activeBaseColors}
-            handleBaseColorChange={handleBaseColorChange}
-            activeFont={activeFont}
-            handleFontChange={handleFontChange}
-            activeRadius={activeRadius}
-            updateWithCustomPreset={updateWithCustomPreset}
+        <div className="flex flex-col gap-4 px-4 pt-3 pb-3.5">
+          <AppearanceSection
             customization={customization}
-            updateFields={updateFields}
-          />
-
-          <LayoutSection
-            customization={customization}
+            coverImage={coverImage}
+            logoImage={logoImage}
             updateScrubberField={updateScrubberField}
             resetScrubberField={resetScrubberField}
+            updateFields={updateFields}
+            updateHeaderMedia={updateHeaderMedia}
           />
 
           <TypographySection
-            customization={customization}
-            updateScrubberField={updateScrubberField}
-            resetScrubberField={resetScrubberField}
-          />
-
-          <TitleSection
+            scope={typoScope}
+            setScope={setTypoScope}
             getValue={getValue}
-            updateWithCustomPreset={updateWithCustomPreset}
+            activeFont={activeFont}
+            handleFontChange={handleFontChange}
+            handleTitleFontChange={handleTitleFontChange}
             customization={customization}
             updateScrubberField={updateScrubberField}
             resetScrubberField={resetScrubberField}
@@ -340,9 +460,35 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
             updateWithCustomPreset={updateWithCustomPreset}
           />
 
+          <InputsSection
+            customization={customization}
+            updateScrubberField={updateScrubberField}
+            resetScrubberField={resetScrubberField}
+          />
+
+          <ButtonsSection
+            customization={customization}
+            updateScrubberField={updateScrubberField}
+            resetScrubberField={resetScrubberField}
+          />
+
           <CustomCssSection
             cssValue={cssValue}
             handleCssChange={handleCssChange}
+            activeMode={activeMode}
+          />
+
+          <AdvancedSection
+            activePreset={activePreset}
+            selectStyle={selectStyle}
+            activeThemeColor={activeThemeColor}
+            handleThemeColorChange={handleThemeColorChange}
+            activeBaseColor={activeBaseColor}
+            activeBaseColors={activeBaseColors}
+            handleBaseColorChange={handleBaseColorChange}
+            activeRadius={activeRadius}
+            updateWithCustomPreset={updateWithCustomPreset}
+            customization={customization}
             activeMode={activeMode}
           />
         </div>
@@ -368,21 +514,62 @@ const CustomizeSidebarHeader = ({ closeSidebar }: { closeSidebar: () => void }) 
   </SidebarHeader>
 );
 
-const PresetSection = ({
-  activePreset,
-  selectStyle,
-}: {
-  activePreset: string;
-  selectStyle: (styleName: string) => void;
+interface ScrubberProps {
+  customization: Record<string, string>;
+  updateScrubberField: (field: string, value: string) => void;
+  resetScrubberField: (field: string) => void;
+}
+
+const AppearanceSection = ({
+  customization,
+  coverImage,
+  logoImage,
+  updateScrubberField,
+  resetScrubberField,
+  updateFields,
+  updateHeaderMedia,
+}: ScrubberProps & {
+  coverImage: string | null;
+  logoImage: string | null;
+  updateFields: (fields: Record<string, string | null>) => void;
+  updateHeaderMedia?: (field: "icon" | "cover", value: string | null) => void;
 }) => (
-  <ConfigCard>
-    <ConfigRow label="Preset">
-      <Select value={activePreset} onValueChange={(v) => v && selectStyle(v)}>
-        <SelectTrigger className={selectTriggerCls}>
-          {STYLE_OPTIONS.find((o) => o.value === activePreset)?.label ?? activePreset}
+  <SidebarSection label="Appearance" collapsible={false}>
+    <NumberRow
+      label="Form width"
+      value={customization.pageWidth}
+      onChange={(v) => updateScrubberField("pageWidth", v)}
+      allowAuto
+      isAuto={!customization.pageWidth}
+      onAutoChange={() => resetScrubberField("pageWidth")}
+      min={30}
+      max={100}
+      step={5}
+      unit="%"
+      className={CONFIG_INPUT_CLS}
+    />
+    <ConfigRow label="Cover" surface="flat">
+      <MediaEditButton
+        value={coverImage}
+        kind="cover"
+        rounded="rounded-[4px]"
+        onUpload={updateHeaderMedia && ((url) => updateHeaderMedia("cover", url))}
+      />
+    </ConfigRow>
+    <ConfigRow label="Cover width" surface="flat">
+      <Select
+        value={customization.coverFit || "cover"}
+        onValueChange={(v) => v && updateScrubberField("coverFit", v)}
+      >
+        <SelectTrigger
+          className={selectTriggerFigmaCls}
+          icon={<CaretDownIcon className="size-3" />}
+        >
+          {COVER_FIT_OPTIONS.find((o) => o.value === (customization.coverFit || "cover"))?.label ??
+            "Fill"}
         </SelectTrigger>
         <SelectContent>
-          {STYLE_OPTIONS.map((o) => (
+          {COVER_FIT_OPTIONS.map((o) => (
             <SelectItem key={o.value} value={o.value}>
               {o.label}
             </SelectItem>
@@ -390,319 +577,243 @@ const PresetSection = ({
         </SelectContent>
       </Select>
     </ConfigRow>
-  </ConfigCard>
-);
-
-interface ThemeSectionProps {
-  activeThemeColor: string;
-  handleThemeColorChange: (v: string) => void;
-  activeBaseColor: string;
-  activeBaseColors: BaseColorMap;
-  handleBaseColorChange: (v: string) => void;
-  activeFont: string;
-  handleFontChange: (v: string) => void;
-  activeRadius: string;
-  updateWithCustomPreset: (field: string, value: string) => void;
-  customization: Record<string, string>;
-  updateFields: (fields: Record<string, string | null>) => void;
-}
-
-const ThemeSection = ({
-  activeThemeColor,
-  handleThemeColorChange,
-  activeBaseColor,
-  activeBaseColors,
-  handleBaseColorChange,
-  activeFont,
-  handleFontChange,
-  activeRadius,
-  updateWithCustomPreset,
-  customization,
-  updateFields,
-}: ThemeSectionProps) => (
-  <SidebarSection label="Theme" className="pb-2.75" action={<></>}>
-    <ConfigCard>
-      <ConfigRow label="Accent">
-        <Select value={activeThemeColor} onValueChange={(v) => v && handleThemeColorChange(v)}>
-          <SelectTrigger className={selectTriggerCls}>
-            <ColorSwatch color={THEME_COLORS[activeThemeColor]?.primary} />
-            {THEME_COLOR_OPTIONS.find((o) => o.value === activeThemeColor)?.label ??
-              activeThemeColor}
-          </SelectTrigger>
-          <SelectContent>
-            {THEME_COLOR_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                <ColorSwatch color={THEME_COLORS[o.value]?.primary} />
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </ConfigRow>
-      <ConfigRow label="Base">
-        <Select value={activeBaseColor} onValueChange={(v) => v && handleBaseColorChange(v)}>
-          <SelectTrigger className={selectTriggerCls}>
-            <ColorSwatch color={activeBaseColors[activeBaseColor]?.muted} />
-            {BASE_COLOR_OPTIONS.find((o) => o.value === activeBaseColor)?.label ?? activeBaseColor}
-          </SelectTrigger>
-          <SelectContent>
-            {BASE_COLOR_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                <ColorSwatch color={activeBaseColors[o.value]?.muted} />
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </ConfigRow>
-      <ConfigRow label="Font">
-        <Select value={activeFont} onValueChange={(v) => v && handleFontChange(v)}>
-          <SelectTrigger className={selectTriggerCls}>
-            {FONT_OPTIONS.find((o) => o.value === activeFont)?.label ?? activeFont}
-          </SelectTrigger>
-          <SelectContent>
-            {FONT_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </ConfigRow>
-      <ConfigRow label="Radius">
-        <Select
-          value={activeRadius}
-          onValueChange={(v) => v && updateWithCustomPreset("radius", v)}
-        >
-          <SelectTrigger className={selectTriggerCls}>
-            {RADIUS_OPTIONS.find((o) => o.value === activeRadius)?.label ?? activeRadius}
-          </SelectTrigger>
-          <SelectContent>
-            {RADIUS_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </ConfigRow>
-      <ConfigRow label="Default Theme">
-        <Select
-          value={customization.defaultMode || "system"}
-          onValueChange={(v) => v && updateFields({ defaultMode: v })}
-        >
-          <SelectTrigger className={selectTriggerCls}>
-            {DEFAULT_MODE_OPTIONS.find((o) => o.value === (customization.defaultMode || "system"))
-              ?.label ?? "System"}
-          </SelectTrigger>
-          <SelectContent>
-            {DEFAULT_MODE_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </ConfigRow>
-    </ConfigCard>
+    <NumberRow
+      label="Cover radius"
+      value={customization.coverRadius}
+      onChange={(v) => updateScrubberField("coverRadius", v)}
+      allowAuto
+      isAuto={!customization.coverRadius}
+      onAutoChange={() => resetScrubberField("coverRadius")}
+      min={0}
+      max={48}
+      step={2}
+      unit="px"
+      displayUnit=""
+      className={CONFIG_INPUT_CLS}
+    />
+    <ConfigRow label="Logo" surface="flat">
+      <MediaEditButton
+        value={logoImage}
+        kind="logo"
+        rounded="rounded-full"
+        onUpload={updateHeaderMedia && ((url) => updateHeaderMedia("icon", url))}
+      />
+    </ConfigRow>
+    <NumberRow
+      label="Logo radius"
+      value={customization.logoRadius}
+      onChange={(v) => updateScrubberField("logoRadius", v)}
+      allowAuto
+      isAuto={!customization.logoRadius}
+      onAutoChange={() => resetScrubberField("logoRadius")}
+      min={0}
+      max={48}
+      step={2}
+      unit="px"
+      displayUnit=""
+      className={CONFIG_INPUT_CLS}
+    />
+    <ConfigRow label="Theme" surface="flat">
+      <PillToggle
+        value={customization.defaultMode || "system"}
+        onChange={(v) => updateFields({ defaultMode: v })}
+        options={[
+          { value: "light", label: "Light", icon: <LightModeIcon className="size-[18px]" /> },
+          { value: "dark", label: "Dark", icon: <DarkModeIcon className="size-[18px]" /> },
+          { value: "system", label: "System", icon: <SystemModeIcon className="size-[18px]" /> },
+        ]}
+      />
+    </ConfigRow>
   </SidebarSection>
 );
 
-interface ScrubberSectionProps {
-  customization: Record<string, string>;
-  updateScrubberField: (field: string, value: string) => void;
-  resetScrubberField: (field: string) => void;
-}
-
-const LayoutSection = ({
-  customization,
-  updateScrubberField,
-  resetScrubberField,
-}: ScrubberSectionProps) => (
-  <SidebarSection label="Layout" action={<ProBadge />}>
-    <FeatureGate requiredPlan="pro" variant="block">
-      <ConfigCard>
-        <StyleNumberInput
-          label="Page Width"
-          value={customization.pageWidth}
-          onChange={(v) => updateScrubberField("pageWidth", v)}
-          allowAuto
-          isAuto={!customization.pageWidth}
-          onAutoChange={() => resetScrubberField("pageWidth")}
-          min={30}
-          max={100}
-          step={5}
-          unit="%"
-          className={CONFIG_INPUT_CLS}
-        />
-        <StyleNumberInput
-          label="Cover Height"
-          value={customization.coverHeight}
-          onChange={(v) => updateScrubberField("coverHeight", v)}
-          allowAuto
-          isAuto={!customization.coverHeight}
-          onAutoChange={() => resetScrubberField("coverHeight")}
-          min={100}
-          max={400}
-          step={10}
-          unit="px"
-          displayUnit=""
-          className={CONFIG_INPUT_CLS}
-        />
-        <StyleNumberInput
-          label="Logo Width"
-          value={customization.logoWidth}
-          onChange={(v) => updateScrubberField("logoWidth", v)}
-          allowAuto
-          isAuto={!customization.logoWidth}
-          onAutoChange={() => resetScrubberField("logoWidth")}
-          min={0}
-          max={100}
-          step={4}
-          unit="px"
-          displayUnit=""
-          className={CONFIG_INPUT_CLS}
-        />
-        <StyleNumberInput
-          label="Input Width"
-          value={customization.inputWidth}
-          onChange={(v) => updateScrubberField("inputWidth", v)}
-          allowAuto
-          isAuto={!customization.inputWidth}
-          onAutoChange={() => resetScrubberField("inputWidth")}
-          min={20}
-          max={100}
-          step={5}
-          unit="%"
-          className={CONFIG_INPUT_CLS}
-        />
-      </ConfigCard>
-    </FeatureGate>
-  </SidebarSection>
-);
+// Edit opens a file dialog and writes the blob URL to the Plate header node via updateHeaderMedia.
+// Logo may be an icon name (not a URL) — render the glyph, not a broken <img>.
+const MediaEditButton = ({
+  value,
+  kind,
+  rounded,
+  onUpload,
+}: {
+  value: string | null;
+  kind: "cover" | "logo";
+  rounded: string;
+  onUpload?: (url: string) => void;
+}) => {
+  const [, { openFileDialog, getInputProps }] = useFileUpload({
+    accept: "image/*",
+    maxSize: 5 * 1024 * 1024,
+    multiple: false,
+    onFilesChange: (files) => {
+      const file = files[0]?.file;
+      if (file instanceof File) onUpload?.(URL.createObjectURL(file));
+    },
+  });
+  const isUrl = value ? isValidUrl(value) : false;
+  return (
+    <span className="flex items-center">
+      <button
+        type="button"
+        onClick={onUpload ? openFileDialog : undefined}
+        disabled={!onUpload}
+        title="Upload image"
+        className="flex items-center gap-1.5 text-[14px] font-medium text-foreground enabled:cursor-pointer disabled:cursor-default"
+      >
+        {isUrl ? (
+          <img src={value ?? ""} alt="" className={cn("size-4 object-cover", rounded)} />
+        ) : kind === "logo" && value ? (
+          <span className={cn("flex size-4 items-center justify-center overflow-hidden", rounded)}>
+            <IconPickerPreview
+              icon={value}
+              iconColor={undefined}
+              useThemeColor
+              iconSize="10"
+              size="16"
+              standaloneIcon
+            />
+          </span>
+        ) : kind === "cover" && value ? (
+          <span className={cn("size-4", rounded)} style={{ backgroundColor: value }} />
+        ) : (
+          <span className={cn("size-4 bg-muted", rounded)} />
+        )}
+        Edit
+      </button>
+      <input {...getInputProps()} className="sr-only" />
+    </span>
+  );
+};
 
 const TypographySection = ({
-  customization,
-  updateScrubberField,
-  resetScrubberField,
-}: ScrubberSectionProps) => (
-  <SidebarSection label="Typography" action={<ProBadge />}>
-    <FeatureGate requiredPlan="pro" variant="block">
-      <ConfigCard>
-        <StyleNumberInput
-          label="Font Size"
-          value={customization.baseFontSize}
-          onChange={(v) => updateScrubberField("baseFontSize", v)}
-          allowAuto
-          isAuto={!customization.baseFontSize}
-          onAutoChange={() => resetScrubberField("baseFontSize")}
-          min={12}
-          max={24}
-          step={1}
-          unit="px"
-          displayUnit=""
-          className={CONFIG_INPUT_CLS}
-        />
-        <StyleNumberInput
-          label="Letter Spacing"
-          value={customization.letterSpacing}
-          onChange={(v) => updateScrubberField("letterSpacing", v)}
-          allowAuto
-          isAuto={!customization.letterSpacing}
-          onAutoChange={() => resetScrubberField("letterSpacing")}
-          min={0}
-          max={0.2}
-          step={0.005}
-          unit="em"
-          displayUnit=""
-          className={CONFIG_INPUT_CLS}
-        />
-      </ConfigCard>
-    </FeatureGate>
-  </SidebarSection>
-);
-
-interface TitleSectionProps {
-  getValue: (field: string) => string;
-  updateWithCustomPreset: (field: string, value: string) => void;
-  customization: Record<string, string>;
-  updateScrubberField: (field: string, value: string) => void;
-  resetScrubberField: (field: string) => void;
-}
-
-const TitleSection = ({
+  scope,
+  setScope,
   getValue,
-  updateWithCustomPreset,
+  activeFont,
+  handleFontChange,
+  handleTitleFontChange,
   customization,
   updateScrubberField,
   resetScrubberField,
-}: TitleSectionProps) => (
-  <SidebarSection label="Title" action={<ProBadge />}>
-    <FeatureGate requiredPlan="pro" variant="block">
-      <ConfigCard>
-        <ConfigRow label="Font">
-          <Select
-            value={getValue("titleFont") || "Timeless Serif"}
-            onValueChange={(v) => {
-              if (!v) return;
-              loadGoogleFont(v);
-              updateWithCustomPreset("titleFont", v);
-            }}
-          >
-            <SelectTrigger className={selectTriggerCls}>
-              {FONT_OPTIONS.find((o) => o.value === (getValue("titleFont") || "Timeless Serif"))
-                ?.label ??
-                (getValue("titleFont") || "Timeless Serif")}
-            </SelectTrigger>
-            <SelectContent>
-              {FONT_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </ConfigRow>
-        <StyleNumberInput
-          label="Font Size"
-          value={customization.titleFontSize}
-          onChange={(v) => updateScrubberField("titleFontSize", v)}
-          allowAuto
-          isAuto={!customization.titleFontSize}
-          onAutoChange={() => resetScrubberField("titleFontSize")}
-          min={24}
-          max={72}
-          step={2}
-          unit="px"
-          displayUnit=""
-          className={CONFIG_INPUT_CLS}
-        />
-        <StyleNumberInput
-          label="Letter Spacing"
-          value={customization.titleLetterSpacing}
-          onChange={(v) => updateScrubberField("titleLetterSpacing", v)}
-          allowAuto
-          isAuto={!customization.titleLetterSpacing}
-          onAutoChange={() => resetScrubberField("titleLetterSpacing")}
-          min={-3}
-          max={3}
-          step={0.25}
-          unit="px"
-          displayUnit=""
-          className={CONFIG_INPUT_CLS}
-        />
-        <ConfigRow label="Italic" variant="switch">
-          <Switch
-            aria-label="Italic"
-            checked={getValue("titleItalic") === "true"}
-            onCheckedChange={(v: boolean) => updateWithCustomPreset("titleItalic", v ? "true" : "")}
-            size="default"
+}: ScrubberProps & {
+  scope: "title" | "body";
+  setScope: (s: "title" | "body") => void;
+  getValue: (field: string) => string;
+  activeFont: string;
+  handleFontChange: (v: string) => void;
+  handleTitleFontChange: (v: string) => void;
+}) => {
+  const isTitle = scope === "title";
+  const fontValue = isTitle ? getValue("titleFont") || "Timeless Serif" : activeFont;
+  const onFontChange = isTitle ? handleTitleFontChange : handleFontChange;
+  const sizeKey = isTitle ? "titleFontSize" : "baseFontSize";
+  const spacingKey = isTitle ? "titleLetterSpacing" : "letterSpacing";
+  const lineHeightKey = isTitle ? "titleLineHeight" : "lineHeight";
+  // Alignment is global (not scoped) — one control aligns the whole form (title + body + fields).
+  const alignKey = "textAlign";
+
+  return (
+    <SidebarSection
+      label="Typography"
+      collapsible={false}
+      headerRight={
+        <div className="flex items-center gap-2">
+          <ProBadge />
+          <ScopeSelect
+            value={scope}
+            onChange={(v) => setScope(v as "title" | "body")}
+            options={TYPO_SCOPE_OPTIONS}
           />
-        </ConfigRow>
-      </ConfigCard>
-    </FeatureGate>
-  </SidebarSection>
-);
+        </div>
+      }
+    >
+      <FeatureGate requiredPlan="pro" variant="block">
+        <div className="flex flex-col gap-2">
+          <ConfigRow label="Font" surface="flat">
+            <Select value={fontValue} onValueChange={(v) => v && onFontChange(v)}>
+              <SelectTrigger
+                className={selectTriggerFigmaCls}
+                icon={<CaretDownIcon className="size-3" />}
+              >
+                {FONT_OPTIONS.find((o) => o.value === fontValue)?.label ?? fontValue}
+              </SelectTrigger>
+              <SelectContent>
+                {FONT_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </ConfigRow>
+          <NumberRow
+            label="Size"
+            value={customization[sizeKey]}
+            onChange={(v) => updateScrubberField(sizeKey, v)}
+            allowAuto
+            isAuto={!customization[sizeKey]}
+            onAutoChange={() => resetScrubberField(sizeKey)}
+            min={isTitle ? 24 : 12}
+            max={isTitle ? 72 : 24}
+            step={isTitle ? 2 : 1}
+            unit="px"
+            displayUnit=""
+            className={CONFIG_INPUT_CLS}
+          />
+          <NumberRow
+            label="Spacing"
+            value={customization[spacingKey]}
+            onChange={(v) => updateScrubberField(spacingKey, v)}
+            allowAuto
+            isAuto={!customization[spacingKey]}
+            onAutoChange={() => resetScrubberField(spacingKey)}
+            min={isTitle ? -3 : 0}
+            max={isTitle ? 3 : 0.2}
+            step={isTitle ? 0.25 : 0.005}
+            unit={isTitle ? "px" : "em"}
+            displayUnit=""
+            className={CONFIG_INPUT_CLS}
+          />
+          <NumberRow
+            label="Line height"
+            value={customization[lineHeightKey]}
+            onChange={(v) => updateScrubberField(lineHeightKey, v)}
+            allowAuto
+            isAuto={!customization[lineHeightKey]}
+            onAutoChange={() => resetScrubberField(lineHeightKey)}
+            min={1}
+            max={2}
+            step={0.05}
+            unit=""
+            className={CONFIG_INPUT_CLS}
+          />
+          <ConfigRow label="Alignment" surface="flat">
+            <PillToggle
+              value={customization[alignKey] || "left"}
+              onChange={(v) => updateScrubberField(alignKey, v)}
+              options={[
+                {
+                  value: "left",
+                  label: "Left",
+                  icon: <TextAlignLeftIcon className="size-[18px]" />,
+                },
+                {
+                  value: "center",
+                  label: "Center",
+                  icon: <TextAlignCenterIcon className="size-[18px]" />,
+                },
+                {
+                  value: "right",
+                  label: "Right",
+                  icon: <TextAlignRightIcon className="size-[18px]" />,
+                },
+              ]}
+            />
+          </ConfigRow>
+        </div>
+      </FeatureGate>
+    </SidebarSection>
+  );
+};
 
 interface ColorsSectionProps {
   activeMode: "light" | "dark";
@@ -719,23 +830,159 @@ const ColorsSection = ({
 }: ColorsSectionProps) => (
   <SidebarSection
     label="Colors"
-    action={<ProBadge />}
+    collapsible={false}
     className="!overflow-visible"
-    panelClassName="!overflow-visible"
+    headerRight={
+      <div className="flex items-center gap-2">
+        <ProBadge />
+        <ScopeSelect value={activeMode} onChange={handleModeToggle} options={MODE_OPTIONS} />
+      </div>
+    }
   >
     <FeatureGate requiredPlan="pro" variant="block">
-      <Tabs value={activeMode} onValueChange={handleModeToggle} className="relative mb-2.5">
-        <TabsList className="w-full">
-          <TabsTrigger value="light">Light</TabsTrigger>
-          <TabsTrigger value="dark">Dark</TabsTrigger>
-          <TabsIndicator />
-        </TabsList>
-      </Tabs>
-      <div className="relative isolate z-50 flex flex-col gap-px overflow-visible rounded-lg [&>*:first-child]:rounded-t-lg [&>*:last-child]:rounded-b-lg">
-        <DeferredAdvancedColorPickers
+      <div className="relative isolate z-50 flex flex-col gap-2 overflow-visible">
+        <DeferredColorPickers
+          tokens={SEMANTIC_COLOR_TOKENS}
           customization={customization}
           updateField={updateWithCustomPreset}
           mode={activeMode}
+        />
+      </div>
+    </FeatureGate>
+  </SidebarSection>
+);
+
+const InputsSection = ({
+  customization,
+  updateScrubberField,
+  resetScrubberField,
+}: ScrubberProps) => (
+  <SidebarSection label="Inputs" collapsible={false} headerRight={<ProBadge />}>
+    <FeatureGate requiredPlan="pro" variant="block">
+      <div className="flex flex-col gap-2">
+        <NumberRow
+          label="Input width"
+          value={customization.inputWidth}
+          onChange={(v) => updateScrubberField("inputWidth", v)}
+          allowAuto
+          isAuto={!customization.inputWidth}
+          onAutoChange={() => resetScrubberField("inputWidth")}
+          min={20}
+          max={100}
+          step={5}
+          unit="%"
+          className={CONFIG_INPUT_CLS}
+        />
+        <NumberRow
+          label="Input height"
+          value={customization.inputHeight}
+          onChange={(v) => updateScrubberField("inputHeight", v)}
+          allowAuto
+          isAuto={!customization.inputHeight}
+          onAutoChange={() => resetScrubberField("inputHeight")}
+          min={24}
+          max={64}
+          step={1}
+          unit="px"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+        <NumberRow
+          label="Radius"
+          value={customization.inputRadius}
+          onChange={(v) => updateScrubberField("inputRadius", v)}
+          allowAuto
+          isAuto={!customization.inputRadius}
+          onAutoChange={() => resetScrubberField("inputRadius")}
+          min={0}
+          max={32}
+          step={1}
+          unit="px"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+        <NumberRow
+          label="Margin bottom"
+          value={customization.inputMarginBottom}
+          onChange={(v) => updateScrubberField("inputMarginBottom", v)}
+          allowAuto
+          isAuto={!customization.inputMarginBottom}
+          onAutoChange={() => resetScrubberField("inputMarginBottom")}
+          min={0}
+          max={64}
+          step={2}
+          unit="px"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+        <NumberRow
+          label="Padding"
+          value={customization.inputPadding}
+          onChange={(v) => updateScrubberField("inputPadding", v)}
+          allowAuto
+          isAuto={!customization.inputPadding}
+          onAutoChange={() => resetScrubberField("inputPadding")}
+          min={0}
+          max={32}
+          step={1}
+          unit="px"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+      </div>
+    </FeatureGate>
+  </SidebarSection>
+);
+
+const ButtonsSection = ({
+  customization,
+  updateScrubberField,
+  resetScrubberField,
+}: ScrubberProps) => (
+  <SidebarSection label="Buttons" collapsible={false} headerRight={<ProBadge />}>
+    <FeatureGate requiredPlan="pro" variant="block">
+      <div className="flex flex-col gap-2">
+        <NumberRow
+          label="Width"
+          value={customization.buttonWidth}
+          onChange={(v) => updateScrubberField("buttonWidth", v)}
+          allowAuto
+          isAuto={!customization.buttonWidth}
+          onAutoChange={() => resetScrubberField("buttonWidth")}
+          min={80}
+          max={400}
+          step={4}
+          unit="px"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+        <NumberRow
+          label="Height"
+          value={customization.buttonHeight}
+          onChange={(v) => updateScrubberField("buttonHeight", v)}
+          allowAuto
+          isAuto={!customization.buttonHeight}
+          onAutoChange={() => resetScrubberField("buttonHeight")}
+          min={24}
+          max={64}
+          step={1}
+          unit="px"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+        <NumberRow
+          label="Radius"
+          value={customization.buttonRadius}
+          onChange={(v) => updateScrubberField("buttonRadius", v)}
+          allowAuto
+          isAuto={!customization.buttonRadius}
+          onAutoChange={() => resetScrubberField("buttonRadius")}
+          min={0}
+          max={32}
+          step={1}
+          unit="px"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
         />
       </div>
     </FeatureGate>
@@ -749,14 +996,14 @@ interface CustomCssSectionProps {
 }
 
 const CustomCssSection = ({ cssValue, handleCssChange, activeMode }: CustomCssSectionProps) => (
-  <SidebarSection label="Custom CSS" action={<ProBadge />}>
+  <SidebarSection label="Custom CSS" collapsible={false} headerRight={<ProBadge />}>
     <FeatureGate requiredPlan="pro" variant="block">
-      <div className="overflow-hidden rounded-lg border border-border/60 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+      <div className="overflow-hidden rounded-lg bg-muted">
         <Textarea
           value={cssValue}
           onChange={handleCssChange}
           aria-label={`Custom CSS (${activeMode} mode)`}
-          className="h-32 rounded-none border-0 bg-secondary p-3 font-mono text-[11px] text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-32 rounded-none border-0 bg-muted p-3 font-mono text-[14px] text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           placeholder=".bf-themed { ... }"
           spellCheck={false}
         />
@@ -778,25 +1025,154 @@ const CustomCssSection = ({ cssValue, handleCssChange, activeMode }: CustomCssSe
   </SidebarSection>
 );
 
-const ADVANCED_COLOR_TOKENS = [
-  { key: "primary", label: "Primary" },
-  { key: "primary-foreground", label: "Primary FG" },
-  { key: "secondary", label: "Secondary" },
-  { key: "secondary-foreground", label: "Secondary FG" },
-  { key: "accent", label: "Accent" },
-  { key: "accent-foreground", label: "Accent FG" },
-  { key: "background", label: "Background" },
-  { key: "foreground", label: "Foreground" },
-  { key: "destructive", label: "Destructive" },
-  { key: "destructive-foreground", label: "Destructive FG" },
-  { key: "input", label: "Input" },
-  { key: "border", label: "Border" },
-  { key: "muted", label: "Muted" },
-  { key: "muted-foreground", label: "Muted FG" },
-  { key: "ring", label: "Ring" },
-] as const;
+interface AdvancedSectionProps {
+  activePreset: string;
+  selectStyle: (styleName: string) => void;
+  activeThemeColor: string;
+  handleThemeColorChange: (v: string) => void;
+  activeBaseColor: string;
+  activeBaseColors: BaseColorMap;
+  handleBaseColorChange: (v: string) => void;
+  activeRadius: string;
+  updateWithCustomPreset: (field: string, value: string) => void;
+  customization: Record<string, string>;
+  activeMode: "light" | "dark";
+}
 
-// Per-token wrapper. React Compiler auto-memoizes this + its onChange via (prefixedKey, value, updateField).
+// Power-user disclosure: the preset abstraction + full raw token set (not in Figma layout).
+const AdvancedSection = ({
+  activePreset,
+  selectStyle,
+  activeThemeColor,
+  handleThemeColorChange,
+  activeBaseColor,
+  activeBaseColors,
+  handleBaseColorChange,
+  activeRadius,
+  updateWithCustomPreset,
+  customization,
+  activeMode,
+}: AdvancedSectionProps) => (
+  <SidebarSection label="Advanced" initialOpen={false} divider={false}>
+    <div className="flex flex-col gap-3">
+      <ConfigCard>
+        <ConfigRow label="Preset" surface="flat">
+          <Select value={activePreset} onValueChange={(v) => v && selectStyle(v)}>
+            <SelectTrigger
+              className={selectTriggerFigmaCls}
+              icon={<CaretDownIcon className="size-3" />}
+            >
+              {STYLE_OPTIONS.find((o) => o.value === activePreset)?.label ?? activePreset}
+            </SelectTrigger>
+            <SelectContent>
+              {STYLE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </ConfigRow>
+        <ConfigRow label="Accent" surface="flat">
+          <Select value={activeThemeColor} onValueChange={(v) => v && handleThemeColorChange(v)}>
+            <SelectTrigger
+              className={selectTriggerFigmaCls}
+              icon={<CaretDownIcon className="size-3" />}
+            >
+              <ColorSwatch color={THEME_COLORS[activeThemeColor]?.primary} />
+              {THEME_COLOR_OPTIONS.find((o) => o.value === activeThemeColor)?.label ??
+                activeThemeColor}
+            </SelectTrigger>
+            <SelectContent>
+              {THEME_COLOR_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  <ColorSwatch color={THEME_COLORS[o.value]?.primary} />
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </ConfigRow>
+        <ConfigRow label="Base" surface="flat">
+          <Select value={activeBaseColor} onValueChange={(v) => v && handleBaseColorChange(v)}>
+            <SelectTrigger
+              className={selectTriggerFigmaCls}
+              icon={<CaretDownIcon className="size-3" />}
+            >
+              <ColorSwatch color={activeBaseColors[activeBaseColor]?.muted} />
+              {BASE_COLOR_OPTIONS.find((o) => o.value === activeBaseColor)?.label ??
+                activeBaseColor}
+            </SelectTrigger>
+            <SelectContent>
+              {BASE_COLOR_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  <ColorSwatch color={activeBaseColors[o.value]?.muted} />
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </ConfigRow>
+        <ConfigRow label="Radius" surface="flat">
+          <Select
+            value={activeRadius}
+            onValueChange={(v) => v && updateWithCustomPreset("radius", v)}
+          >
+            <SelectTrigger
+              className={selectTriggerFigmaCls}
+              icon={<CaretDownIcon className="size-3" />}
+            >
+              {RADIUS_OPTIONS.find((o) => o.value === activeRadius)?.label ?? activeRadius}
+            </SelectTrigger>
+            <SelectContent>
+              {RADIUS_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </ConfigRow>
+      </ConfigCard>
+
+      <div className="relative isolate z-40 flex flex-col gap-2 overflow-visible">
+        <DeferredColorPickers
+          tokens={ADVANCED_COLOR_TOKENS}
+          customization={customization}
+          updateField={updateWithCustomPreset}
+          mode={activeMode}
+        />
+      </div>
+    </div>
+  </SidebarSection>
+);
+
+type ColorToken = { key: string; label: string };
+
+/** Resolved fallback colors for a mode (preset base/theme + derived + new title/success). */
+const resolveColorMap = (
+  customization: Record<string, string>,
+  mode: "light" | "dark",
+): Record<string, string> => {
+  const baseColorName = customization.baseColor || "neutral";
+  const themeColorName = customization.themeColor || "neutral";
+  const baseColors = mode === "dark" ? DARK_BASE_COLORS : BASE_COLORS;
+  const base = baseColors[baseColorName] ?? baseColors.neutral;
+  const theme = THEME_COLORS[themeColorName] ?? THEME_COLORS.neutral;
+  return {
+    ...base,
+    ...theme,
+    secondary: base.muted,
+    "secondary-foreground": base["muted-foreground"],
+    destructive: "#ef4444",
+    "destructive-foreground": "#fafafa",
+    success: "#16a34a",
+    "success-foreground": "#f0fdf4",
+    "title-color": base.foreground,
+  };
+};
+
+// Per-token wrapper. React Compiler auto-memoizes via (prefixedKey, value, updateField).
 const TokenColorPicker = ({
   label,
   prefixedKey,
@@ -812,14 +1188,13 @@ const TokenColorPicker = ({
     label={label}
     value={value}
     onChange={(v) => updateField(prefixedKey, v)}
-    className="!rounded-none"
+    className="!rounded-none bg-background"
   />
 );
 
-// 15 ColorPickers are the heaviest part of CustomizeSidebar's mount (all sections expand on open).
-// Defer to post-paint: first commit drops the wrapper, next tick mounts pickers — other sections
-// paint fast, Colors fills in within a frame.
-const DeferredAdvancedColorPickers = (props: {
+// ColorPickers are the heaviest part of mount. Defer to post-paint so other sections paint fast.
+const DeferredColorPickers = (props: {
+  tokens: readonly ColorToken[];
   customization: Record<string, string>;
   updateField: (field: string, value: string) => void;
   mode: "light" | "dark";
@@ -831,36 +1206,24 @@ const DeferredAdvancedColorPickers = (props: {
     setReady(true);
   }, []);
   if (!ready) return null;
-  return <AdvancedColorPickers {...props} />;
+  return <ColorPickerList {...props} />;
 };
 
-const AdvancedColorPickers = ({
+const ColorPickerList = ({
+  tokens,
   customization,
   updateField,
   mode,
 }: {
+  tokens: readonly ColorToken[];
   customization: Record<string, string>;
   updateField: (field: string, value: string) => void;
   mode: "light" | "dark";
 }) => {
-  const baseColorName = customization.baseColor || "neutral";
-  const themeColorName = customization.themeColor || "neutral";
-  const baseColors = mode === "dark" ? DARK_BASE_COLORS : BASE_COLORS;
-  const base = baseColors[baseColorName] ?? baseColors.neutral;
-  const theme = THEME_COLORS[themeColorName] ?? THEME_COLORS.neutral;
-
-  const resolved: Record<string, string> = {
-    ...base,
-    ...theme,
-    secondary: base.muted,
-    "secondary-foreground": base["muted-foreground"],
-    destructive: "#ef4444",
-    "destructive-foreground": "#fafafa",
-  };
-
+  const resolved = resolveColorMap(customization, mode);
   return (
     <>
-      {ADVANCED_COLOR_TOKENS.map(({ key, label }) => {
+      {tokens.map(({ key, label }) => {
         const prefixedKey = `${mode}:${key}`;
         const currentValue =
           customization[prefixedKey] || customization[key] || resolved[key] || "#000000";

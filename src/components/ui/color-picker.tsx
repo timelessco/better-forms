@@ -1,35 +1,18 @@
 "use client";
 
-import { Slider as SliderPrimitive } from "@base-ui/react/slider";
-import { PipetteIcon } from "lucide-react";
-import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
+import { Slider } from "@base-ui/react/slider";
 import * as React from "react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-
-declare global {
-  interface Window {
-    EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> };
-  }
-}
 
 const HEX_RE = /^#?([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
-type Mode = "hex" | "rgba" | "hsl";
-type Hsla = { h: number; s: number; l: number; a: number };
+// {h: 0-360, s: 0-100, l: 0-100}. No alpha — the Figma picker (and recollect's) is opaque.
+type Hsl = { h: number; s: number; l: number };
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 const round = (n: number) => Math.round(n);
-
-const useLatestRef = <T,>(value: T) => {
-  const ref = React.useRef(value);
-  React.useEffect(() => {
-    ref.current = value;
-  }, [value]);
-  return ref;
-};
 
 const useUncontrolledSync = (
   ref: React.RefObject<HTMLInputElement | null>,
@@ -40,6 +23,14 @@ const useUncontrolledSync = (
     const str = String(value);
     if (el && el !== document.activeElement && el.value !== str) el.value = str;
   }, [ref, value]);
+};
+
+const useLatestRef = <T,>(value: T) => {
+  const ref = React.useRef(value);
+  React.useEffect(() => {
+    ref.current = value;
+  }, [value]);
+  return ref;
 };
 
 const parseHex = (raw: string): { r: number; g: number; b: number; a: number } | null => {
@@ -127,367 +118,99 @@ const hslToRgb = (h: number, s: number, l: number): [number, number, number] => 
   return [(r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255];
 };
 
-const cssToHsla = (css: string): Hsla => {
-  const { r, g, b, a } = cssColorToRgba(css);
+const cssToHsl = (css: string): Hsl => {
+  const { r, g, b } = cssColorToRgba(css);
   const [h, s, l] = rgbToHsl(r, g, b);
-  return { h, s, l, a };
+  return { h, s, l };
 };
 
-const hslaToHex = ({ h, s, l, a }: Hsla): string => {
-  const [r, g, b] = hslToRgb(h, s, l);
-  return rgbaToHex(r, g, b, a);
+const hslToHex = (hsl: Hsl): string => {
+  const [r, g, b] = hslToRgb(hsl.h, hsl.s, hsl.l);
+  return rgbaToHex(r, g, b, 1);
 };
 
 const CHECKERED_BG =
   'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3uCTZhw1gGGYhAGBZIA/nYDCgBDAm9BGDWAAJyRCgLaBCAAgXwixzAS0pgAAAABJRU5ErkJggg==")';
 
-interface SaturationPanelProps {
-  hue: number;
-  saturation: number;
-  lightness: number;
-  onChange: (saturation: number, lightness: number) => void;
+const HUE_TRACK =
+  "linear-gradient(to right, hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%), hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%))";
+
+interface PanelPartProps {
+  hsl: Hsl;
+  setHsl: (next: Hsl) => void;
 }
 
-const SaturationPanel = ({ hue, saturation, lightness, onChange }: SaturationPanelProps) => {
+// Saturation/lightness square — ported from recollect's working Selection. Position is
+// derived directly from hsl (no separate drag state), and drags use pointer capture so the
+// handle tracks the cursor even outside the box.
+const SaturationSelection = ({ hsl, setHsl }: PanelPartProps) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const draggingRef = React.useRef(false);
-  // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value is read in JSX to apply the dragging class
-  const [isDragging, setIsDragging] = React.useState(false);
-  const [posX, setPosX] = React.useState(saturation / 100);
-  const [posY, setPosY] = React.useState(0);
-  const onChangeRef = useLatestRef(onChange);
 
-  React.useEffect(() => {
-    if (draggingRef.current) return;
-    const px = saturation / 100;
-    let py = 0;
-    if (saturation < 1) {
-      py = 1 - lightness / 100;
-    } else {
-      const top = 50 + 50 * (1 - px);
-      py = top === 0 ? 0 : 1 - lightness / top;
-    }
-    setPosX(clamp(px, 0, 1));
-    setPosY(clamp(py, 0, 1));
-  }, [saturation, lightness]);
+  const x = hsl.s / 100;
+  const topLightness = 50 + 50 * (1 - x);
+  const y = topLightness === 0 ? 0 : clamp(1 - hsl.l / topLightness, 0, 1);
 
-  const move = React.useCallback(
-    (event: PointerEvent | React.PointerEvent) => {
-      const el = containerRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const x = clamp((event.clientX - rect.left) / rect.width, 0, 1);
-      const y = clamp((event.clientY - rect.top) / rect.height, 0, 1);
-      setPosX(x);
-      setPosY(y);
-      const top = x < 0.01 ? 100 : 50 + 50 * (1 - x);
-      onChangeRef.current(x * 100, top * (1 - y));
-    },
-    [onChangeRef],
-  );
+  const updateFromPointer = (clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const newX = clamp((clientX - rect.left) / rect.width, 0, 1);
+    const newY = clamp((clientY - rect.top) / rect.height, 0, 1);
+    const s = newX * 100;
+    const l = (50 + 50 * (1 - newX)) * (1 - newY);
+    setHsl({ h: hsl.h, s, l });
+  };
 
-  const onMoveEvent = React.useEffectEvent((e: PointerEvent) => move(e));
-
-  React.useEffect(() => {
-    if (!isDragging) return;
-    const onMove = (e: PointerEvent) => onMoveEvent(e);
-    const onUp = () => {
-      draggingRef.current = false;
-      setIsDragging(false);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-  }, [isDragging]);
+  const background = `linear-gradient(0deg, rgba(0,0,0,1), rgba(0,0,0,0)), linear-gradient(90deg, rgba(255,255,255,1), rgba(255,255,255,0)), hsl(${hsl.h}, 100%, 50%)`;
 
   return (
     <div
       ref={containerRef}
-      className="relative h-32 w-full cursor-crosshair rounded-md"
-      style={{
-        background: `linear-gradient(0deg, rgba(0,0,0,1), rgba(0,0,0,0)), linear-gradient(90deg, rgba(255,255,255,1), rgba(255,255,255,0)), hsl(${hue}, 100%, 50%)`,
+      aria-label="Saturation and lightness"
+      aria-valuemax={100}
+      aria-valuemin={0}
+      aria-valuenow={round(hsl.s)}
+      aria-valuetext={`Saturation ${round(hsl.s)}%, lightness ${round(hsl.l)}%`}
+      role="slider"
+      tabIndex={0}
+      className="relative h-[174px] w-full cursor-crosshair touch-none rounded-lg border-[0.5px] border-border/70 outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+      style={{ background }}
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        updateFromPointer(event.clientX, event.clientY);
       }}
-      onPointerDown={(e) => {
-        e.preventDefault();
-        draggingRef.current = true;
-        setIsDragging(true);
-        move(e.nativeEvent);
-      }}
-    >
-      <div
-        className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"
-        style={{
-          left: `${posX * 100}%`,
-          top: `${posY * 100}%`,
-          boxShadow: "0 0 0 1px rgba(0,0,0,0.5)",
-        }}
-      />
-    </div>
-  );
-};
-
-interface SliderRowProps {
-  value: number;
-  max: number;
-  onValueChange: (n: number) => void;
-  trackBackground: string;
-  ariaLabel: string;
-}
-
-const SliderRow = ({ value, max, onValueChange, trackBackground, ariaLabel }: SliderRowProps) => (
-  <SliderPrimitive.Root
-    value={[value]}
-    max={max}
-    step={1}
-    onValueChange={(v) => onValueChange((v as number[])[0])}
-    thumbAlignment="edge"
-    aria-label={ariaLabel}
-  >
-    <SliderPrimitive.Control className="relative flex h-4 w-full touch-none items-center select-none">
-      <SliderPrimitive.Track
-        className="relative h-2 w-full grow rounded-full"
-        style={{ background: trackBackground }}
-      >
-        <SliderPrimitive.Thumb className="relative block size-3 rounded-full border border-border/60 bg-white shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none" />
-      </SliderPrimitive.Track>
-    </SliderPrimitive.Control>
-  </SliderPrimitive.Root>
-);
-
-const HUE_TRACK = "linear-gradient(90deg,#FF0000,#FFFF00,#00FF00,#00FFFF,#0000FF,#FF00FF,#FF0000)";
-
-interface EyedropperButtonProps {
-  onPick: (hex: string) => void;
-}
-
-const EyedropperButton = ({ onPick }: EyedropperButtonProps) => {
-  if (typeof window === "undefined" || !window.EyeDropper) return null;
-  const Picker = window.EyeDropper;
-  return (
-    <button
-      type="button"
-      aria-label="Pick color from screen"
-      className="grid size-7 shrink-0 place-items-center rounded-md border border-border/60 bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      onClick={async () => {
-        try {
-          const result = await new Picker().open();
-          if (result?.sRGBHex) onPick(result.sRGBHex);
-        } catch {
-          // user dismissed picker
+      onPointerMove={(event) => {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          updateFromPointer(event.clientX, event.clientY);
         }
       }}
     >
-      <PipetteIcon size={14} />
-    </button>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-md"
+        style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
+      />
+    </div>
   );
 };
 
-const MODES: readonly Mode[] = ["hex", "rgba", "hsl"];
-
-interface FormatToggleProps {
-  mode: Mode;
-  onChange: (m: Mode) => void;
-  className?: string;
-}
-
-const FormatToggle = ({ mode, onChange, className }: FormatToggleProps) => (
-  <Tabs value={mode} onValueChange={(v) => onChange(v as Mode)} className={cn("!gap-0", className)}>
-    <TabsList size="sm">
-      {MODES.map((m) => (
-        <TabsTrigger key={m} value={m} size="sm" className="font-mono tracking-wide uppercase">
-          {m}
-        </TabsTrigger>
-      ))}
-      <TabsIndicator />
-    </TabsList>
-  </Tabs>
+// Hue slider — ported from recollect. Value is a plain number (Slider.Root<number>); the thumb
+// lives inside the track. This is the structure/binding that actually drives onValueChange.
+const Hue = ({ hsl, setHsl }: PanelPartProps) => (
+  <Slider.Root<number>
+    max={360}
+    min={0}
+    value={hsl.h}
+    onValueChange={(next) => setHsl({ ...hsl, h: next })}
+    aria-label="Hue"
+  >
+    <Slider.Control className="relative flex h-2.5 w-full touch-none items-center">
+      <Slider.Track className="h-2.5 w-full rounded-full" style={{ background: HUE_TRACK }}>
+        <Slider.Indicator />
+        <Slider.Thumb className="size-3 rounded-full border-2 border-white bg-transparent shadow-md outline-hidden focus-visible:ring-2 focus-visible:ring-ring" />
+      </Slider.Track>
+    </Slider.Control>
+  </Slider.Root>
 );
-
-const NUMERIC_INPUT_CLASS =
-  "h-7 min-w-0 rounded-md border border-border/60 bg-secondary px-1.5 text-center font-mono text-[11px] text-foreground tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-ring";
-
-const HEX_INPUT_CLASS =
-  "h-7 w-full rounded-md border border-border/60 bg-secondary px-2 font-mono text-[11px] text-foreground uppercase tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-ring";
-
-interface FormatInputsProps {
-  mode: Mode;
-  hsla: Hsla;
-  onChangeHsla: (next: Hsla) => void;
-}
-
-const FormatInputs = ({ mode, hsla, onChangeHsla }: FormatInputsProps) => {
-  if (mode === "hex") {
-    return <HexInput hsla={hsla} onChangeHsla={onChangeHsla} />;
-  }
-
-  if (mode === "rgba") {
-    return <RgbaInputs hsla={hsla} onChangeHsla={onChangeHsla} />;
-  }
-
-  return (
-    <div className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-1">
-      <NumberField
-        ariaLabel="Hue"
-        value={round(hsla.h)}
-        min={0}
-        max={360}
-        onChange={(v) => onChangeHsla({ ...hsla, h: v })}
-      />
-      <PercentField
-        ariaLabel="Saturation"
-        value={round(hsla.s)}
-        onChange={(v) => onChangeHsla({ ...hsla, s: v })}
-      />
-      <PercentField
-        ariaLabel="Lightness"
-        value={round(hsla.l)}
-        onChange={(v) => onChangeHsla({ ...hsla, l: v })}
-      />
-      <PercentField
-        ariaLabel="Alpha"
-        value={round(hsla.a * 100)}
-        onChange={(v) => onChangeHsla({ ...hsla, a: v / 100 })}
-      />
-    </div>
-  );
-};
-
-interface HexInputProps {
-  hsla: Hsla;
-  onChangeHsla: (next: Hsla) => void;
-}
-
-const HexInput = ({ hsla, onChangeHsla }: HexInputProps) => {
-  const inputRef = React.useRef<HTMLInputElement>(null);
-  const currentHex = React.useMemo(() => hslaToHex(hsla).toUpperCase(), [hsla]);
-  useUncontrolledSync(inputRef, currentHex);
-
-  return (
-    <div className="grid grid-cols-[1fr_56px] gap-1">
-      <input
-        ref={inputRef}
-        type="text"
-        defaultValue={currentHex.toUpperCase()}
-        aria-label="Hex value"
-        maxLength={9}
-        className={HEX_INPUT_CLASS}
-        onChange={(e) => {
-          const raw = e.target.value.trim();
-          if (!HEX_RE.test(raw)) return;
-          const parsed = parseHex(raw);
-          if (!parsed) return;
-          const [h, s, l] = rgbToHsl(parsed.r, parsed.g, parsed.b);
-          onChangeHsla({ h, s, l, a: parsed.a });
-        }}
-      />
-      <PercentField
-        ariaLabel="Alpha"
-        value={round(hsla.a * 100)}
-        onChange={(v) => onChangeHsla({ ...hsla, a: v / 100 })}
-      />
-    </div>
-  );
-};
-
-const RgbaInputs = ({ hsla, onChangeHsla }: HexInputProps) => {
-  const [r, g, b] = React.useMemo(() => hslToRgb(hsla.h, hsla.s, hsla.l), [hsla.h, hsla.s, hsla.l]);
-  const update = (next: { r?: number; g?: number; b?: number; a?: number }) => {
-    const [h, s, l] = rgbToHsl(next.r ?? r, next.g ?? g, next.b ?? b);
-    onChangeHsla({ h, s, l, a: next.a ?? hsla.a });
-  };
-  return (
-    <div className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-1">
-      <NumberField
-        ariaLabel="Red"
-        value={round(r)}
-        min={0}
-        max={255}
-        onChange={(v) => update({ r: v })}
-      />
-      <NumberField
-        ariaLabel="Green"
-        value={round(g)}
-        min={0}
-        max={255}
-        onChange={(v) => update({ g: v })}
-      />
-      <NumberField
-        ariaLabel="Blue"
-        value={round(b)}
-        min={0}
-        max={255}
-        onChange={(v) => update({ b: v })}
-      />
-      <PercentField
-        ariaLabel="Alpha"
-        value={round(hsla.a * 100)}
-        onChange={(v) => update({ a: v / 100 })}
-      />
-    </div>
-  );
-};
-
-interface NumberFieldProps {
-  value: number;
-  min: number;
-  max: number;
-  ariaLabel: string;
-  onChange: (n: number) => void;
-}
-
-const NumberField = ({ value, min, max, ariaLabel, onChange }: NumberFieldProps) => {
-  const ref = React.useRef<HTMLInputElement>(null);
-  useUncontrolledSync(ref, value);
-  return (
-    <input
-      ref={ref}
-      type="text"
-      inputMode="numeric"
-      defaultValue={value}
-      aria-label={ariaLabel}
-      className={NUMERIC_INPUT_CLASS}
-      onChange={(e) => {
-        const n = Number.parseInt(e.target.value, 10);
-        if (Number.isNaN(n)) return;
-        onChange(clamp(n, min, max));
-      }}
-    />
-  );
-};
-
-interface PercentFieldProps {
-  value: number;
-  ariaLabel: string;
-  onChange: (n: number) => void;
-}
-
-const PercentField = ({ value, ariaLabel, onChange }: PercentFieldProps) => {
-  const ref = React.useRef<HTMLInputElement>(null);
-  useUncontrolledSync(ref, value);
-  return (
-    <div className="relative">
-      <input
-        ref={ref}
-        type="text"
-        inputMode="numeric"
-        defaultValue={value}
-        aria-label={ariaLabel}
-        className={cn(NUMERIC_INPUT_CLASS, "w-full pr-4")}
-        onChange={(e) => {
-          const n = Number.parseInt(e.target.value, 10);
-          if (Number.isNaN(n)) return;
-          onChange(clamp(n, 0, 100));
-        }}
-      />
-      <span className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 text-[9px] text-muted-foreground">
-        %
-      </span>
-    </div>
-  );
-};
 
 interface ColorPickerPanelProps {
   value: string;
@@ -495,91 +218,28 @@ interface ColorPickerPanelProps {
 }
 
 const ColorPickerPanel = ({ value, onChange }: ColorPickerPanelProps) => {
-  // Seed hsla from value once on mount; panel OWNS it after. Ignoring later value changes is
+  // Seed hsl from value once on mount; panel OWNS it after. Ignoring later value changes is
   // intentional — the parent's optimistic round-trip during a drag would race and feedback-loop.
-  const [hsla, setHsla] = React.useState<Hsla>(() => cssToHsla(value));
-  const [mode, setMode] = React.useState<Mode>("hex");
+  const [hsl, setLocalHsl] = React.useState<Hsl>(() => cssToHsl(value));
   const onChangeRef = useLatestRef(onChange);
 
-  // Mirror hsla in a ref so updateAndEmit computes `next` without setState's updater form:
-  // emitting (onChange → collection.update → subscriber setStates) inside an updater triggers
-  // React's "update while rendering" warning and can re-run the updater, doubling work per tick.
-  const hslaRef = React.useRef(hsla);
-
-  const updateAndEmit = React.useCallback(
-    (patch: Partial<Hsla>) => {
-      const next = { ...hslaRef.current, ...patch };
-      hslaRef.current = next;
-      // Urgent: local picker state — drives handle/thumbs, commit now so the cursor doesn't lag.
-      setHsla(next);
+  const setHsl = React.useCallback(
+    (next: Hsl) => {
+      // Urgent: local picker state — drives the handle/thumb, commit now so it doesn't lag.
+      setLocalHsl(next);
       // Transition: app-wide cascade (collection.update → subscribers → previews/sidebars).
-      // Urgent commits first; pointermoves interrupt this, keeping the handle glued to the cursor.
       React.startTransition(() => {
-        onChangeRef.current(hslaToHex(next));
+        onChangeRef.current(hslToHex(next));
       });
     },
     [onChangeRef],
   );
 
-  const currentHex = React.useMemo(() => hslaToHex(hsla), [hsla]);
-  const alphaTrack = React.useMemo(() => {
-    const opaque = hslaToHex({ ...hsla, a: 1 });
-    return `${CHECKERED_BG} left center, linear-gradient(90deg, transparent, ${opaque})`;
-  }, [hsla]);
-
   return (
-    <LazyMotion features={domAnimation} strict>
-      <div className="flex flex-col gap-2.5">
-        <SaturationPanel
-          hue={hsla.h}
-          saturation={hsla.s}
-          lightness={hsla.l}
-          onChange={(s, l) => updateAndEmit({ s, l })}
-        />
-        <SliderRow
-          value={hsla.h}
-          max={360}
-          onValueChange={(h) => updateAndEmit({ h })}
-          trackBackground={HUE_TRACK}
-          ariaLabel="Hue"
-        />
-        <SliderRow
-          value={round(hsla.a * 100)}
-          max={100}
-          onValueChange={(a) => updateAndEmit({ a: a / 100 })}
-          trackBackground={alphaTrack}
-          ariaLabel="Alpha"
-        />
-        <div className="flex items-center gap-2">
-          <EyedropperButton
-            onPick={(hex) => {
-              const parsed = parseHex(hex);
-              if (!parsed) return;
-              const [h, s, l] = rgbToHsl(parsed.r, parsed.g, parsed.b);
-              updateAndEmit({ h, s, l, a: parsed.a });
-            }}
-          />
-          <div
-            className="size-7 shrink-0 overflow-hidden rounded-md border border-border/60"
-            style={{ backgroundImage: CHECKERED_BG }}
-          >
-            <div className="size-full" style={{ backgroundColor: currentHex }} />
-          </div>
-          <FormatToggle mode={mode} onChange={setMode} className="ml-auto" />
-        </div>
-        <AnimatePresence mode="wait" initial={false}>
-          <m.div
-            key={mode}
-            initial={{ opacity: 0, filter: "blur(8px)" }}
-            animate={{ opacity: 1, filter: "blur(0px)" }}
-            exit={{ opacity: 0, filter: "blur(8px)" }}
-            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-          >
-            <FormatInputs mode={mode} hsla={hsla} onChangeHsla={(next) => updateAndEmit(next)} />
-          </m.div>
-        </AnimatePresence>
-      </div>
-    </LazyMotion>
+    <div className="flex w-full flex-col gap-2.5">
+      <SaturationSelection hsl={hsl} setHsl={setHsl} />
+      <Hue hsl={hsl} setHsl={setHsl} />
+    </div>
   );
 };
 
@@ -601,14 +261,14 @@ export const ColorPicker = ({ label, value, onChange, className }: ColorPickerPr
   return (
     <div
       className={cn(
-        "relative flex min-h-8.5 items-center gap-3 overflow-visible bg-secondary py-1.75 pr-[3px] pl-2.5",
+        "relative flex h-7 items-center gap-3 overflow-visible bg-secondary",
         className,
       )}
     >
       <div className="min-w-0 flex-1">
-        <span className="text-base font-normal">{label}</span>
+        <span className="text-[14px] font-normal text-muted-foreground">{label}</span>
       </div>
-      <div className="flex h-full flex-none items-center gap-2 px-2">
+      <div className="flex h-full flex-none items-center gap-2">
         <input
           ref={textInputRef}
           type="text"
@@ -619,7 +279,7 @@ export const ColorPicker = ({ label, value, onChange, className }: ColorPickerPr
             const normalized = raw.startsWith("#") ? raw : `#${raw}`;
             if (HEX_RE.test(normalized)) onChange(normalized);
           }}
-          className="w-[72px] bg-transparent text-right font-mono text-[11px] text-muted-foreground uppercase tabular-nums outline-none"
+          className="w-[72px] bg-transparent text-right font-mono text-[13px] font-medium text-foreground uppercase tabular-nums outline-none"
           maxLength={9}
         />
         <Popover>
@@ -628,14 +288,14 @@ export const ColorPicker = ({ label, value, onChange, className }: ColorPickerPr
               <button
                 type="button"
                 aria-label={`${label} color picker`}
-                className="relative size-[18px] shrink-0 cursor-pointer overflow-hidden rounded-[4px] border border-border/60"
+                className="relative size-3.5 shrink-0 cursor-pointer overflow-hidden rounded-full border border-border/60 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.4)]"
                 style={{ backgroundImage: CHECKERED_BG }}
               >
                 <span className="absolute inset-0" style={{ backgroundColor: swatchHex }} />
               </button>
             }
           />
-          <PopoverContent side="left" align="start" sideOffset={8} keepMounted className="w-64 p-3">
+          <PopoverContent side="bottom" align="end" sideOffset={8} keepMounted className="w-64 p-2">
             <ColorPickerPanel value={swatchHex} onChange={onChange} />
           </PopoverContent>
         </Popover>

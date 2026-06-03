@@ -3,7 +3,7 @@
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 import * as React from "react";
 
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "@/components/ui/icons";
+import { CaretDownIcon, CaretUpIcon, CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 const Select = SelectPrimitive.Root;
@@ -28,9 +28,12 @@ export const SelectTrigger = ({
   className,
   size = "default",
   children,
+  icon,
   ...props
 }: SelectPrimitive.Trigger.Props & {
   size?: "sm" | "md" | "default";
+  /** Override the default trailing chevron (e.g. Figma caret/up-down glyphs). */
+  icon?: React.ReactElement;
 }) => (
   <SelectPrimitive.Trigger
     data-slot="select-trigger"
@@ -44,10 +47,12 @@ export const SelectTrigger = ({
     {children}
     <SelectPrimitive.Icon
       render={
-        <ChevronDownIcon
-          data-slot="accordion-trigger-icon"
-          className="size-3 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/accordion-trigger:rotate-0"
-        />
+        icon ?? (
+          <ChevronDownIcon
+            data-slot="accordion-trigger-icon"
+            className="size-3 shrink-0 text-muted-foreground transition-transform duration-200 group-aria-expanded/accordion-trigger:rotate-0"
+          />
+        )
       }
     />
   </SelectPrimitive.Trigger>
@@ -146,7 +151,7 @@ export const SelectScrollUpButton = ({
     )}
     {...props}
   >
-    <ChevronUpIcon />
+    <CaretUpIcon />
   </SelectPrimitive.ScrollUpArrow>
 );
 
@@ -162,7 +167,7 @@ export const SelectScrollDownButton = ({
     )}
     {...props}
   >
-    <ChevronDownIcon />
+    <CaretDownIcon />
   </SelectPrimitive.ScrollDownArrow>
 );
 

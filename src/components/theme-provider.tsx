@@ -102,12 +102,28 @@ export const useTheme = () => {
   return context;
 };
 
-/** Resolves "system" to the actual "dark" | "light" preference. */
+// External store over `prefers-color-scheme` so useResolvedTheme re-renders on OS
+// theme changes (in "system" mode the `theme` value never changes, so reading
+// matchMedia at render-time alone would go stale until a reload).
+const subscribeSystemTheme = (onChange: () => void) => {
+  if (typeof window === "undefined") return () => {};
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+};
+const getSystemThemeSnapshot = (): "dark" | "light" =>
+  typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+const getSystemThemeServerSnapshot = (): "dark" | "light" => "light";
+
+/** Resolves "system" to the actual "dark" | "light" preference, reactively. */
 export const useResolvedTheme = (): "dark" | "light" => {
   const { theme } = useTheme();
-  return theme === "system"
-    ? typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light"
-    : theme;
+  const systemTheme = React.useSyncExternalStore(
+    subscribeSystemTheme,
+    getSystemThemeSnapshot,
+    getSystemThemeServerSnapshot,
+  );
+  return theme === "system" ? systemTheme : theme;
 };

@@ -1,5 +1,3 @@
-import { Button } from "@/components/ui/button";
-import { MoreHorizontalIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import {
   Accordion,
@@ -19,34 +17,53 @@ const SECTION_VALUE = "section";
 const SidebarSectionResetContext = createContext(0);
 export const SidebarSectionResetProvider = SidebarSectionResetContext.Provider;
 
-const DEFAULT_ACTION = (
-  <Button
-    variant="ghost"
-    className="hover:bg-sidebar-active size-[26px] overflow-hidden rounded-lg p-[5px] text-muted-foreground hover:text-foreground"
-    aria-label="Section actions"
-  >
-    <MoreHorizontalIcon className="size-4" />
-  </Button>
-);
+// Figma system-flat header label scale; shared by both variants.
+const HEADER_LABEL_CLS = "truncate text-[13px] font-medium tracking-[0.13px] text-muted-foreground";
 
-/** Collapsible sidebar section with label, chevron, and optional action (Figma system-flat). */
-export const SidebarSection = ({
-  label,
-  children,
-  action,
-  initialOpen = true,
-  className,
-  panelClassName,
-}: {
+interface SidebarSectionProps {
   label: string;
   children: React.ReactNode;
   action?: React.ReactNode;
+  /** Collapsible Accordion (chevron caret, reset-key) vs flat header + divider. Default collapsible (back-compat). */
+  collapsible?: boolean;
+  /** Right-aligned header slot (e.g. Typography "Title"/Colors "Light" scope selects). */
+  headerRight?: React.ReactNode;
+  /** Bottom border divider in the flat variant. Default true. */
+  divider?: boolean;
   initialOpen?: boolean;
   className?: string;
   /** Additional classes for the accordion Panel itself (use to allow popups to escape). */
   panelClassName?: string;
-}) => {
+}
+
+/** Sidebar section: collapsible Accordion by default, or flat (plain header + divider) via collapsible={false} (Figma system-flat). */
+export const SidebarSection = ({
+  label,
+  children,
+  action,
+  collapsible = true,
+  headerRight,
+  divider = true,
+  initialOpen = true,
+  className,
+  panelClassName,
+}: SidebarSectionProps) => {
+  // Hook must run unconditionally; only the collapsible path re-keys off it.
   const resetKey = use(SidebarSectionResetContext);
+
+  if (!collapsible) {
+    // Figma rhythm: 16px header→rows, 8px between rows, 16px pad + divider below.
+    return (
+      <div className={cn("flex flex-col gap-4 pb-4", divider && "border-b border-border")}>
+        <div className="flex min-h-[15px] items-center gap-3">
+          <span className={cn("flex-1", HEADER_LABEL_CLS)}>{label}</span>
+          {headerRight}
+          {action}
+        </div>
+        <div className={cn("flex flex-col gap-2", className)}>{children}</div>
+      </div>
+    );
+  }
 
   return (
     <Accordion
@@ -57,12 +74,10 @@ export const SidebarSection = ({
       <AccordionItem value={SECTION_VALUE} className="border-none">
         <AccordionTrigger
           iconPosition="inline"
-          action={action ?? DEFAULT_ACTION}
+          action={headerRight ?? action}
           className="ml-[0.55px] h-7.5 cursor-pointer overflow-hidden rounded-lg px-1 py-1.5"
         >
-          <span className="truncate font-case text-[13px] font-medium tracking-4 text-muted-foreground">
-            {label}
-          </span>
+          <span className={cn("font-case tracking-4", HEADER_LABEL_CLS)}>{label}</span>
         </AccordionTrigger>
         <AccordionContent
           className={cn("flex flex-col", className)}

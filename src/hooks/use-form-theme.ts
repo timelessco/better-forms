@@ -23,6 +23,8 @@ type UseFormThemeContextValueArgs = {
   customization?: Record<string, string> | null;
   /** Editor-only callback; preview-mode passes nothing here (read-only). */
   updateThemeColor?: (themeColor: string) => void;
+  /** Editor-only: set the form header's cover/logo (Plate formHeader node). */
+  updateHeaderMedia?: (field: "icon" | "cover", value: string | null) => void;
 };
 
 /** Memoizes EditorThemeProvider value — stable context object; else every parent render re-notifies all consumers. */
@@ -31,6 +33,7 @@ export const useFormThemeContextValue = ({
   hasCustomization,
   customization,
   updateThemeColor,
+  updateHeaderMedia,
 }: UseFormThemeContextValueArgs): EditorThemeValue =>
   useMemo(
     () => ({
@@ -38,8 +41,9 @@ export const useFormThemeContextValue = ({
       hasCustomization,
       customization,
       updateThemeColor: hasCustomization ? updateThemeColor : undefined,
+      updateHeaderMedia,
     }),
-    [themeVars, hasCustomization, customization, updateThemeColor],
+    [themeVars, hasCustomization, customization, updateThemeColor, updateHeaderMedia],
   );
 
 /**

@@ -24,12 +24,14 @@ Reform is a TanStack Start (Router + Vite) + React 19 app with TanStack DB colle
 - For auth gates, search-param validation, code-splitting, and not-found handling, follow the TanStack Router skill files referenced in `.claude/CLAUDE.md`.
 
 **TanStack DB**
-- Client state lives in collections under `src/collections/` and `src/db/`. Use query-based collections 
+
+- Client state lives in collections under `src/collections/` and `src/db/`. Use query-based collections
 - Follow the `mutations-optimistic` and `live-queries` skills for writes and reads.
 
 - Schema in `src/db/`. Use `pnpm db:generate | db:migrate | db:push | db:studio`.
 
 ## Agent skills
+
 - **Issue tracker** — GitHub Issues on `timelessco/reform` via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 - **Triage labels** — `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 - **Domain docs** — single-context (`CONTEXT.md` and `docs/adr/` at root, created lazily). See `docs/agents/domain.md`.

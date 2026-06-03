@@ -264,11 +264,24 @@ const EditorAppInner = ({
     [formId],
   );
 
+  // Lets the (out-of-editor) Customize sidebar set the header cover/logo on the Plate formHeader node.
+  const updateHeaderMedia = useCallback(
+    (field: "icon" | "cover", value: string | null) => {
+      if (readOnly) return;
+      const headerNode = editor.children[0];
+      if (!headerNode || headerNode.type !== "formHeader") return;
+      const path = editor.api.findPath(headerNode);
+      if (path) editor.tf.setNodes({ [field]: value }, { at: path });
+    },
+    [editor, readOnly],
+  );
+
   const themeCtx = useFormThemeContextValue({
     themeVars,
     hasCustomization,
     customization,
     updateThemeColor,
+    updateHeaderMedia,
   });
 
   return (

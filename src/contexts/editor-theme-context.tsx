@@ -6,6 +6,8 @@ export interface EditorThemeValue {
   hasCustomization: boolean;
   customization?: Record<string, string> | null;
   updateThemeColor?: (themeColor: string) => void;
+  /** Editor-only: set the form header's cover image / logo icon (Plate formHeader node). */
+  updateHeaderMedia?: (field: "icon" | "cover", value: string | null) => void;
 }
 
 const EditorThemeContext = createContext<EditorThemeValue>({

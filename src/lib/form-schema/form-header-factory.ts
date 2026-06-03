@@ -5,6 +5,8 @@ export interface FormHeaderElementData {
   icon: string | null;
   iconColor: string | null;
   cover: string | null;
+  /** Vertical focal point of the cover as object-position-y %, 0 (top) – 100 (bottom). Default 50. */
+  coverPosition?: number;
   children: [{ text: "" }];
 }
 
@@ -16,5 +18,6 @@ export const createFormHeaderNode = (
   icon: data.icon ?? null,
   iconColor: data.iconColor ?? null,
   cover: data.cover ?? null,
+  coverPosition: data.coverPosition,
   children: [{ text: "" }],
 });

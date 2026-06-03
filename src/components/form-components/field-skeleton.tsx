@@ -32,6 +32,7 @@ const FIELD_SKELETONS: Record<FieldType, React.ComponentType> = {
   MultiChoice: () => <OptionListSkeleton withBadge />,
   MultiSelect: InputSkeleton,
   Ranking: () => <OptionListSkeleton withBadge />,
+  Dropdown: InputSkeleton,
 };
 
 export const FieldSkeleton = ({ fieldType }: { fieldType: FieldType }) => {

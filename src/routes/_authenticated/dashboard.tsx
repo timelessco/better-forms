@@ -998,7 +998,7 @@ const FormListItem = ({
   onToggleSelect,
 }: FormListItemProps) => (
   <Card
-    className={`group cursor-pointer gap-0 bg-transparent px-3 py-2 ring-0 transition-[background-color,box-shadow] duration-200 hover:bg-muted/30 ${isSelected ? "bg-muted/50" : ""}`}
+    className={`group cursor-pointer gap-0 bg-transparent px-3 py-2 ring-0 transition-[background-color,box-shadow] duration-200 hover:bg-muted/30 has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-ring/50 ${isSelected ? "bg-muted/50" : ""}`}
   >
     <Link
       to={
@@ -1011,6 +1011,7 @@ const FormListItem = ({
         formId: form.id,
       }}
       preload="intent"
+      className="outline-none"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -1041,7 +1042,7 @@ const FormListItem = ({
             "flex items-center gap-1 transition-opacity",
             duplicatingFormId === form.id || isSelected
               ? "opacity-100"
-              : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100",
+              : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100",
           )}
         >
           <TooltipProvider>

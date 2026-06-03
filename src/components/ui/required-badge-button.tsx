@@ -33,10 +33,14 @@ const RequiredBadge = ({
         render={
           <button
             aria-label={required ? "Required field" : "Mark as required"}
+            // Figma node 25242:986 — asterisk on a soft red disc. Required uses the
+            // exact iOS red #ff3b30 (brighter than the theme --destructive #cd2b31)
+            // at 12% bg / full-strength glyph; rounded-[8px] on a 16px box = circle.
+            // Unset state is a muted grey disc as the "mark as required" affordance.
             className={cn(
               "absolute z-10 flex size-4 cursor-pointer items-center justify-center rounded-[8px] transition-colors",
               required
-                ? "bg-destructive/15 text-destructive hover:bg-destructive/25"
+                ? "bg-[#ff3b30]/12 text-[#ff3b30] hover:bg-[#ff3b30]/20"
                 : isDark
                   ? "bg-neutral-700 text-neutral-500 hover:bg-neutral-600"
                   : "bg-neutral-200 text-neutral-400 hover:bg-neutral-300",
@@ -50,9 +54,9 @@ const RequiredBadge = ({
             <svg
               aria-hidden="true"
               fill="none"
-              height="10"
+              height="13"
               viewBox="0 0 16 16"
-              width="10"
+              width="13"
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
