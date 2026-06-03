@@ -791,8 +791,8 @@
   border-radius: var(--bf-cover-radius, 0);
   overflow: hidden;
   /* Full-bleed by default (var fallbacks reproduce the w-screen breakout). Cover width "fit"
-     makes generate-theme-css emit these vars to contain the cover to the form width, so a cover
-     radius rounds corners that are actually on-screen. */
+     makes generate-theme-css emit these vars to float the cover as a centered card, inset from
+     the form edges by a side gap, so a cover radius rounds corners that are actually on-screen. */
   width: var(--bf-cover-w, 100vw);
   margin-left: var(--bf-cover-mx, -50vw);
   margin-right: var(--bf-cover-mx, -50vw);
