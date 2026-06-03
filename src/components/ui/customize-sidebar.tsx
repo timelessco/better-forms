@@ -84,9 +84,10 @@ const RADIUS_OPTIONS: { label: string; value: string }[] = [
   { label: "Large", value: "large" },
 ];
 
-const COVER_FIT_OPTIONS: { label: string; value: string }[] = [
-  { label: "Fit", value: "contain" },
-  { label: "Fill", value: "cover" },
+// Cover box width: Fill = full-bleed (edge to edge), Fit = contained to the form width.
+const COVER_WIDTH_OPTIONS: { label: string; value: string }[] = [
+  { label: "Fill", value: "fill" },
+  { label: "Fit", value: "fit" },
 ];
 
 const TYPO_SCOPE_OPTIONS: { label: string; value: string }[] = [
@@ -558,18 +559,18 @@ const AppearanceSection = ({
     </ConfigRow>
     <ConfigRow label="Cover width" surface="flat">
       <Select
-        value={customization.coverFit || "cover"}
-        onValueChange={(v) => v && updateScrubberField("coverFit", v)}
+        value={customization.coverWidth || "fill"}
+        onValueChange={(v) => v && updateScrubberField("coverWidth", v)}
       >
         <SelectTrigger
           className={selectTriggerFigmaCls}
           icon={<CaretDownIcon className="size-3" />}
         >
-          {COVER_FIT_OPTIONS.find((o) => o.value === (customization.coverFit || "cover"))?.label ??
-            "Fill"}
+          {COVER_WIDTH_OPTIONS.find((o) => o.value === (customization.coverWidth || "fill"))
+            ?.label ?? "Fill"}
         </SelectTrigger>
         <SelectContent>
-          {COVER_FIT_OPTIONS.map((o) => (
+          {COVER_WIDTH_OPTIONS.map((o) => (
             <SelectItem key={o.value} value={o.value}>
               {o.label}
             </SelectItem>

@@ -12,10 +12,6 @@ import {
 import { FONT_MAP, getGoogleFontUrl } from "./font-registry";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "./customization-defaults";
 
-/** Cover radius (px) at which the cover is fully contained to the form width. Matches the
- * Cover radius control's max in customize-sidebar; below it the inset scales proportionally. */
-const COVER_RADIUS_CONTAIN_PX = 48;
-
 /** Layout fields → --bf-* CSS vars. Apply to editor (layout only) + preview/public (full theme). */
 const LAYOUT_FIELDS: Record<string, string> = {
   pageWidth: "--bf-page-width",
@@ -192,17 +188,10 @@ const buildModeAgnosticEntries = (
     }
   }
 
-  // Rounded corners can't show on a full-bleed cover (they sit off-screen). Scale the breakout
-  // geometry down as the radius grows so the cover insets toward the form width proportionally —
-  // a continuous slide rather than a snap. bleed=1 → full-bleed; bleed=0 → contained at max radius.
-  const coverRadiusPx = Number.parseInt(customization.coverRadius ?? "", 10);
-  if (coverRadiusPx > 0) {
-    const bleed = Math.max(0, 1 - coverRadiusPx / COVER_RADIUS_CONTAIN_PX).toFixed(4);
-    entries.push(
-      ["--bf-cover-w", `calc(100% + (100vw - 100%) * ${bleed})`],
-      ["--bf-cover-mx", `calc(-50vw * ${bleed})`],
-      ["--bf-cover-x", `calc(50% * ${bleed})`],
-    );
+  // Cover width: "fit" contains the cover to the form width (so a radius rounds visible corners);
+  // "fill"/unset stays full-bleed via the styles.css var() fallbacks.
+  if (customization.coverWidth === "fit") {
+    entries.push(["--bf-cover-w", "100%"], ["--bf-cover-mx", "0px"], ["--bf-cover-x", "0px"]);
   }
 
   return entries;
