@@ -7,6 +7,7 @@ import {
   SPACING_MAP,
   STYLES,
   DESTRUCTIVE_TOKENS,
+  SUCCESS_TOKENS,
 } from "./theme-presets";
 import { FONT_MAP, getGoogleFontUrl } from "./font-registry";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "./customization-defaults";
@@ -22,6 +23,21 @@ const LAYOUT_FIELDS: Record<string, string> = {
   letterSpacing: "--bf-letter-spacing",
   titleFontSize: "--bf-title-font-size",
   titleLetterSpacing: "--bf-title-letter-spacing",
+  // v2: defaults live in CSS var() fallbacks, NOT CUSTOMIZATION_AUTO_DEFAULTS (unset = pixel-identical)
+  coverFit: "--bf-cover-fit",
+  coverRadius: "--bf-cover-radius",
+  logoRadius: "--bf-logo-radius",
+  inputHeight: "--bf-input-height",
+  inputRadius: "--bf-input-radius",
+  inputPadding: "--bf-input-padding",
+  inputMarginBottom: "--bf-input-margin-bottom",
+  buttonWidth: "--bf-button-width",
+  buttonHeight: "--bf-button-height",
+  buttonRadius: "--bf-button-radius",
+  lineHeight: "--bf-line-height",
+  textAlign: "--bf-text-align",
+  titleLineHeight: "--bf-title-line-height",
+  titleAlign: "--bf-title-align",
 };
 
 /** Migrates legacy "vw" page-width values to "%" (same numeric range 30-100). */
@@ -46,6 +62,8 @@ export const TOKEN_NAMES = [
   "accent-foreground",
   "destructive",
   "destructive-foreground",
+  "success",
+  "success-foreground",
   "border",
   "input",
   "ring",
@@ -75,6 +93,7 @@ const resolveTokens = (customization: Record<string, string>): Record<string, st
     secondary: base.muted,
     "secondary-foreground": base["muted-foreground"],
     ...DESTRUCTIVE_TOKENS,
+    ...SUCCESS_TOKENS,
   };
 
   const fontValue = FONT_MAP[fontName] ?? FONT_MAP.Inter;
@@ -96,6 +115,10 @@ const resolveTokens = (customization: Record<string, string>): Record<string, st
       tokens[tokenName] = customization[tokenName];
     }
   }
+
+  // title-color: color-like but not in TOKEN_NAMES; mode-prefixed, default falls back to foreground via CSS var()
+  const titleColor = customization[`${mode}:title-color`] || customization["title-color"];
+  if (titleColor) tokens["title-color"] = titleColor;
 
   // Card coherence: override bg/fg but not card → sync card to page surface so
   // inline cards read as one sheet with the form.
@@ -125,6 +148,10 @@ const buildColorTokenEntries = (tokens: Record<string, string>): [string, string
       entries.push([`--bf-${tokenName}`, tokens[tokenName]]);
       entries.push([`--${tokenName}`, tokens[tokenName]]);
     }
+  }
+  // title-color emits only --bf-title-color (no shadcn var); mode-dependent, kept here for dual-mode css
+  if (tokens["title-color"]) {
+    entries.push(["--bf-title-color", tokens["title-color"]]);
   }
   return entries;
 };

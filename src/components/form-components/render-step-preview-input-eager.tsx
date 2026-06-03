@@ -3,6 +3,7 @@ import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 
 import CheckboxField from "./fields/CheckboxField";
 import DateField from "./fields/DateField";
+import DropdownField from "./fields/DropdownField";
 import EmailField from "./fields/EmailField";
 import FileUploadField from "./fields/FileUploadField";
 import InputField from "./fields/InputField";
@@ -36,6 +37,7 @@ const FIELD_RENDERERS: Record<FieldType, React.ComponentType<{ element: never; f
   MultiChoice: MultiChoiceField,
   MultiSelect: MultiSelectField,
   Ranking: RankingField,
+  Dropdown: DropdownField,
 } as const;
 
 export const RenderStepPreviewInputEager = ({

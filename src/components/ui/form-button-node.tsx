@@ -199,6 +199,7 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
         {/* Gear icon on left when button is right-aligned (so button touches right edge) */}
         {!isPrevious && isMultiStep && GearIcon}
         <span
+          data-bf-button={isPrevious ? undefined : ""}
           className={cn(
             "inline-flex h-8 cursor-default items-center justify-center gap-1.5 rounded-lg px-2.5 text-sm transition-colors select-none",
             isPrevious

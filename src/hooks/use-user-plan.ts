@@ -13,10 +13,6 @@ export type UseUserPlanResult = {
   plan: UserPlan;
 };
 
-type SubscriptionsListResult = {
-  result?: { items?: Array<{ productId: string }> };
-};
-
 export const useUserPlan = (orgIdOverride?: string): UseUserPlanResult => {
   const { data: session } = useSession();
   const sessionOrgId = session?.session?.activeOrganizationId as string | undefined;
@@ -31,7 +27,7 @@ export const useUserPlan = (orgIdOverride?: string): UseUserPlanResult => {
     retry: false,
   });
 
-  const items = (data as SubscriptionsListResult | undefined)?.result?.items ?? [];
+  const items = data?.result?.items ?? [];
   const plan = planForProductId(items[0]?.productId);
 
   return {

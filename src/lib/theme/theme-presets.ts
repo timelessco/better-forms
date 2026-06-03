@@ -300,3 +300,8 @@ export const DESTRUCTIVE_TOKENS = {
   destructive: "#ef4444",
   "destructive-foreground": "#fafafa",
 } as const;
+
+export const SUCCESS_TOKENS = {
+  success: "#16a34a",
+  "success-foreground": "#f0fdf4",
+} as const;

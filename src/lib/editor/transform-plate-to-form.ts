@@ -204,6 +204,17 @@ export type PlateFormField =
   | {
       id: string;
       name: string;
+      fieldType: "Dropdown";
+      label?: string;
+      labelType?: string;
+      required?: boolean;
+      options: { value: string; label: string }[];
+      /** Randomize option order in the live form. */
+      shuffle?: boolean;
+    }
+  | {
+      id: string;
+      name: string;
       fieldType: "Button";
       buttonText?: string;
       buttonRole: "next" | "previous" | "submit";
@@ -289,6 +300,29 @@ const TRIM_UNDERSCORES_RE = /^_|_$/g;
 
 export const slugify = (str: string): string =>
   str.toLowerCase().replace(NON_ALNUM_RE, "_").replace(TRIM_UNDERSCORES_RE, "") || "field";
+
+/** formOptionItem nodes → {value,label}[] with values guaranteed unique even when
+ * labels collide (e.g. two "Option 2" rows). Single-select must map a stored value
+ * to exactly one option; duplicate values would highlight every matching row. */
+export const buildOptionList = (
+  nodes: Array<{ children?: Array<{ text?: string }> }>,
+): { value: string; label: string }[] => {
+  const options: { value: string; label: string }[] = [];
+  const used = new Set<string>();
+  for (const n of nodes) {
+    const optText = extractTextContent((n.children ?? []) as Array<{ text?: string }>);
+    const optLabel = optText || `Option ${options.length + 1}`;
+    let value = slugify(optLabel) || `option_${options.length + 1}`;
+    if (used.has(value)) {
+      let k = 2;
+      while (used.has(`${value}_${k}`)) k++;
+      value = `${value}_${k}`;
+    }
+    used.add(value);
+    options.push({ value, label: optLabel });
+  }
+  return options;
+};
 
 /** Extracts list items from a Plate list node (ul/ol). Structure: ul > li > lic > text. */
 const extractListItems = (node: PlateNode): string[] => {
@@ -499,30 +533,31 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
 
       const variant = (node.variant as string) || "checkbox";
 
-      const options: { value: string; label: string }[] = [];
+      const optionNodes: PlateNode[] = [];
       let j = i;
       while (j < value.length && value[j].type === "formOptionItem") {
-        const optText = extractTextContent(value[j].children as Array<{ text?: string }>);
-        const optLabel = optText || `Option ${options.length + 1}`;
-        options.push({
-          value: slugify(optLabel) || `option_${options.length + 1}`,
-          label: optLabel,
-        });
+        optionNodes.push(value[j] as PlateNode);
         j++;
       }
+      const options = buildOptionList(optionNodes);
 
       const stableId =
         (label?.labelNode as { id?: string } | undefined)?.id ?? (node as { id?: string }).id;
       const baseName = slugify(labelText);
       const name = stableId || `${baseName}_${fieldIndex}`;
 
+      const fieldType = VARIANT_TO_FIELD_TYPE[variant] || "Checkbox";
+      // `shuffle` lives on the group's first option node; only Dropdown reads it today.
+      const shuffle = fieldType === "Dropdown" ? Boolean(node.shuffle) : undefined;
+
       elements.push({
         id: name,
         name,
-        fieldType: VARIANT_TO_FIELD_TYPE[variant] || "Checkbox",
+        fieldType,
         label: labelText || undefined,
         required: isRequired,
         options,
+        ...(shuffle !== undefined ? { shuffle } : {}),
       } as PlateFormField);
       fieldIndex++;
       i = j; // Advance past all consumed option nodes

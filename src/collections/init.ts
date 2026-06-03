@@ -51,7 +51,7 @@ export const initCollections = (queryClient: QueryClient, serverFns: ServerFns) 
     },
     onUpdate: async ({ transaction }) => {
       const m = transaction.mutations[0];
-      const changes = m.changes as Record<string, unknown>;
+      const { changes } = m;
       // sortIndex is per-user, routed to dedicated endpoint; other fields go to updateWorkspace
       const { sortIndex, ...rest } = changes;
       const pending: Promise<unknown>[] = [];
@@ -64,7 +64,8 @@ export const initCollections = (queryClient: QueryClient, serverFns: ServerFns) 
         );
       }
       if (Object.keys(rest).length > 0) {
-        pending.push(serverFns.updateWorkspace({ id: m.original.id, ...rest }));
+        // `name` is the only field updateWorkspace accepts (and the only non-sortIndex field this collection mutates).
+        pending.push(serverFns.updateWorkspace({ id: m.original.id, name: rest.name }));
       }
       await Promise.all(pending);
     },
@@ -82,7 +83,7 @@ export const initCollections = (queryClient: QueryClient, serverFns: ServerFns) 
     },
     onUpdate: async ({ transaction }) => {
       const m = transaction.mutations[0];
-      const changes = m.changes as Record<string, unknown>;
+      const { changes } = m;
 
       // No-op guard: `updatedAt`-only diff means structural diff found no real change (e.g. debouncedSave rewriting same content). Skip the roundtrip.
       const realKeys = Object.keys(changes).filter((k) => k !== "updatedAt");
@@ -144,7 +145,7 @@ export const initCollections = (queryClient: QueryClient, serverFns: ServerFns) 
     },
     onUpdate: async ({ transaction }) => {
       const m = transaction.mutations[0];
-      const changes = m.changes as Record<string, unknown>;
+      const { changes } = m;
       if (typeof changes.sortIndex === "string") {
         await serverFns.reorderFavorite({
           formId: m.original.formId,

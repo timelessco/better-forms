@@ -1,31 +1,41 @@
 import {
-  AlignLeftIcon,
-  AtSignIcon,
-  CalendarIcon,
-  CheckCheckIcon,
-  ClockIcon,
-  FileIcon,
-  HashIcon,
-  LinkIcon,
-  ListIcon,
-  ListOrderedIcon,
-  PhoneIcon,
-  SmileIcon,
-  SparklesIcon,
-  SquareCheckIcon,
-  UploadIcon,
+  IconAudio,
+  IconCalculatedFields,
+  IconCheckboxes,
+  IconConditionalLogic,
+  IconDate,
+  IconDivider,
+  IconDropdown,
+  IconEmail,
+  IconEmbedAnything,
+  IconFileUpload,
+  IconGlobe,
+  IconHeading1,
+  IconHeading2,
+  IconHeading3,
+  IconHiddenFields,
+  IconImage,
+  IconLabel,
+  IconLinearScale,
+  IconLongAnswer,
+  IconMatrix,
+  IconMultipleChoice,
+  IconMultiSelect,
+  IconNewPage,
+  IconNumber,
+  IconPayment,
+  IconPhone,
+  IconRanking,
+  IconRating,
+  IconSecurity,
+  IconShortAnswer,
+  IconSignature,
+  IconSparkle,
+  IconText,
+  IconTime,
+  IconVideo,
+  IconWallet,
 } from "@/components/ui/icons";
-import {
-  BadgeIcon,
-  GitBranch,
-  Heading1Icon,
-  Heading2Icon,
-  Heading3Icon,
-  LightbulbIcon,
-  PilcrowIcon,
-  Quote,
-  TextCursorInputIcon,
-} from "lucide-react";
 import type { TComboboxInputElement } from "platejs";
 import { KEYS } from "platejs";
 import type { PlateEditor, PlateElementProps } from "platejs/react";
@@ -33,19 +43,13 @@ import { PlateElement } from "platejs/react";
 import type { ReactNode } from "react";
 import { useCallback } from "react";
 
-import { triggerAIInput } from "@/components/editor/plugins/ai-input-kit";
-import { insertBlock, insertInlineElement } from "@/components/editor/transforms";
+import { insertBlock } from "@/components/editor/transforms";
 import {
-  AskAIPreview,
-  BlockquotePreview,
-  BulletedListPreview,
-  CalloutPreview,
-  DateInlinePreview,
   FormCheckboxPreview,
   FormDatePreview,
+  FormDropdownPreview,
   FormEmailPreview,
   FormFileUploadPreview,
-  FormLinkPreview,
   FormMultiChoicePreview,
   FormMultiSelectPreview,
   FormNumberPreview,
@@ -57,12 +61,7 @@ import {
   Heading2Preview,
   Heading3Preview,
   NewPagePreview,
-  NumberedListPreview,
   TextPreview,
-  ThankYouPagePreview,
-  ThreeColumnsPreview,
-  TodoListPreview,
-  TogglePreview,
 } from "./slash-preview-mockups";
 
 import {
@@ -83,212 +82,270 @@ type Group = {
     onSelect: (editor: PlateEditor, value: string) => void;
     className?: string;
     description?: string;
+    disabled?: boolean;
     focusEditor?: boolean;
     keywords?: string[];
     label?: string;
   }[];
 };
 
+// upsert-insert handler shared by every enabled block item
+const insertOnSelect = (editor: PlateEditor, value: string) => {
+  insertBlock(editor, value, { upsert: true });
+};
+
+// disabled items: not yet implemented, rendered greyed-out and non-interactive
+const noop = () => {};
+
+// Order mirrors Figma node 25434:3120 (system-flat → dropdown).
 const groups: Group[] = [
   {
-    group: "AI",
-    items: [
-      {
-        description: "Ask AI to help with your form",
-        icon: <SparklesIcon />,
-        keywords: ["ai", "generate", "prompt", "ask"],
-        label: "Ask AI",
-        value: "ai_input",
-        onSelect: (editor) => {
-          triggerAIInput(editor);
-        },
-      },
-    ],
-  },
-  {
-    group: "Basic blocks",
-    items: [
-      {
-        description: "Start writing with plain text",
-        icon: <PilcrowIcon />,
-        keywords: ["paragraph"],
-        label: "Text",
-        value: KEYS.p,
-      },
-      {
-        description: "Big section heading",
-        icon: <Heading1Icon />,
-        keywords: ["title", "h1"],
-        label: "Heading 1",
-        value: KEYS.h1,
-      },
-      {
-        description: "Medium section heading",
-        icon: <Heading2Icon />,
-        keywords: ["subtitle", "h2"],
-        label: "Heading 2",
-        value: KEYS.h2,
-      },
-      {
-        description: "Small section heading",
-        icon: <Heading3Icon />,
-        keywords: ["subtitle", "h3"],
-        label: "Heading 3",
-        value: KEYS.h3,
-      },
-      {
-        description: "Create a simple bulleted list",
-        icon: <ListIcon />,
-        keywords: ["unordered", "ul", "-"],
-        label: "Bulleted list",
-        value: KEYS.ul,
-      },
-      {
-        description: "Create a numbered list",
-        icon: <ListOrderedIcon />,
-        keywords: ["ordered", "ol", "1"],
-        label: "Numbered list",
-        value: KEYS.ol,
-      },
-      {
-        description: "Highlight a quote or excerpt",
-        icon: <Quote />,
-        keywords: ["citation", "blockquote", "quote", ">"],
-        label: "Blockquote",
-        value: KEYS.blockquote,
-      },
-      {
-        description: "Highlight important information",
-        icon: <LightbulbIcon />,
-        keywords: ["note"],
-        label: "Callout",
-        value: KEYS.callout,
-      },
-    ].map((item) => ({
-      ...item,
-      onSelect: (editor, value) => {
-        insertBlock(editor, value, { upsert: true });
-      },
-    })),
-  },
-  {
-    group: "Inline",
-    items: [
-      {
-        description: "Insert an inline date",
-        focusEditor: true,
-        icon: <CalendarIcon />,
-        keywords: ["time"],
-        label: "Date",
-        value: KEYS.date,
-      },
-    ].map((item) => ({
-      ...item,
-      onSelect: (editor, value) => {
-        insertInlineElement(editor, value);
-      },
-    })),
-  },
-  {
-    group: "Form blocks",
+    group: "Questions",
     items: [
       {
         description: "Single line text field",
-        icon: <TextCursorInputIcon />,
-        keywords: ["form", "input", "text", "field", "question"],
-        label: "Text Input",
+        icon: <IconShortAnswer />,
+        keywords: ["form", "input", "text", "field", "question", "short"],
+        label: "Short answer",
         value: "formInput",
       },
       {
         description: "Multi-line text field",
-        icon: <AlignLeftIcon />,
+        icon: <IconLongAnswer />,
         keywords: ["form", "textarea", "multiline", "long", "paragraph", "description"],
-        label: "Text Area",
+        label: "Long answer",
         value: "formTextarea",
       },
       {
+        description: "Single selection radio buttons",
+        icon: <IconMultipleChoice />,
+        keywords: ["form", "multi", "choice", "radio", "single", "select", "option"],
+        label: "Multiple choice",
+        value: "formMultiChoice",
+      },
+      {
+        description: "Multiple choice checkboxes",
+        icon: <IconCheckboxes />,
+        keywords: ["form", "checkbox", "check", "option", "multiple", "select"],
+        label: "Checkboxes",
+        value: "formCheckbox",
+      },
+      {
+        description: "Single selection dropdown",
+        icon: <IconDropdown />,
+        keywords: ["form", "dropdown", "select", "option", "single"],
+        label: "Dropdown",
+        value: "formDropdown",
+      },
+      {
+        description: "Multiple selection dropdown",
+        icon: <IconMultiSelect />,
+        keywords: ["form", "multi", "select", "dropdown", "tag", "option"],
+        label: "Multi-select",
+        value: "formMultiSelect",
+      },
+      {
+        description: "Numeric input field",
+        icon: <IconNumber />,
+        keywords: ["form", "number", "numeric", "integer", "amount"],
+        label: "Number",
+        value: "formNumber",
+      },
+      {
         description: "Email address field",
-        icon: <AtSignIcon />,
+        icon: <IconEmail />,
         keywords: ["form", "email", "address", "mail"],
         label: "Email",
         value: "formEmail",
       },
       {
         description: "Phone number field",
-        icon: <PhoneIcon />,
+        icon: <IconPhone />,
         keywords: ["form", "phone", "telephone", "number", "call", "mobile"],
         label: "Phone number",
         value: "formPhone",
       },
       {
-        description: "Numeric input field",
-        icon: <HashIcon />,
-        keywords: ["form", "number", "numeric", "integer", "amount"],
-        label: "Number",
-        value: "formNumber",
-      },
-      {
-        description: "URL or website field",
-        icon: <LinkIcon />,
-        keywords: ["form", "link", "url", "website", "href"],
-        label: "Link",
-        value: "formLink",
+        description: "File attachment field",
+        icon: <IconFileUpload />,
+        keywords: ["form", "file", "upload", "attachment", "document"],
+        label: "File upload",
+        value: "formFileUpload",
       },
       {
         description: "Date picker field",
-        icon: <CalendarIcon />,
+        icon: <IconDate />,
         keywords: ["form", "date", "calendar", "day", "month", "year"],
         label: "Date",
         value: "formDate",
       },
       {
         description: "Time picker field",
-        icon: <ClockIcon />,
+        icon: <IconTime />,
         keywords: ["form", "time", "clock", "hour", "minute"],
         label: "Time",
         value: "formTime",
       },
       {
-        description: "File attachment field",
-        icon: <UploadIcon />,
-        keywords: ["form", "file", "upload", "attachment", "document"],
-        label: "File upload",
-        value: "formFileUpload",
+        description: "Rate on a linear scale",
+        disabled: true,
+        icon: <IconLinearScale />,
+        keywords: ["form", "linear", "scale", "slider", "range"],
+        label: "Linear scale",
+        value: "linearScale",
       },
       {
-        description: "Multiple choice checkboxes",
-        icon: <SquareCheckIcon />,
-        keywords: ["form", "checkbox", "check", "option", "multiple", "select"],
-        label: "Checkbox",
-        value: "formCheckbox",
+        description: "Grid of rows and columns",
+        disabled: true,
+        icon: <IconMatrix />,
+        keywords: ["form", "matrix", "grid", "table", "rows", "columns"],
+        label: "Matrix",
+        value: "matrix",
       },
       {
-        description: "Single selection radio buttons",
-        icon: <BadgeIcon />,
-        keywords: ["form", "multi", "choice", "radio", "single", "select", "option"],
-        label: "Radio Box",
-        value: "formMultiChoice",
+        description: "Star rating field",
+        disabled: true,
+        icon: <IconRating />,
+        keywords: ["form", "rating", "star", "score", "review"],
+        label: "Rating",
+        value: "rating",
       },
       {
-        description: "Multiple selection dropdown",
-        icon: <CheckCheckIcon />,
-        keywords: ["form", "multi", "select", "dropdown", "tag", "option"],
-        label: "Multi Select",
-        value: "formMultiSelect",
+        description: "Collect a payment",
+        disabled: true,
+        icon: <IconPayment />,
+        keywords: ["form", "payment", "card", "checkout", "money", "pay"],
+        label: "Payment",
+        value: "payment",
       },
-    ].map((item) => ({
-      ...item,
-      onSelect: (editor, value) => {
-        insertBlock(editor, value, { upsert: true });
+      {
+        description: "Capture a signature",
+        disabled: true,
+        icon: <IconSignature />,
+        keywords: ["form", "signature", "sign", "draw"],
+        label: "Signature",
+        value: "signature",
       },
-    })),
+      {
+        description: "Drag to rank options in order",
+        icon: <IconRanking />,
+        keywords: ["form", "ranking", "rank", "order", "priority"],
+        label: "Ranking",
+        value: "formRanking",
+      },
+      {
+        description: "Connect a crypto wallet",
+        disabled: true,
+        icon: <IconWallet />,
+        keywords: ["form", "wallet", "connect", "crypto", "web3"],
+        label: "Wallet connect",
+        value: "walletConnect",
+      },
+    ],
   },
   {
-    group: "Logic",
+    group: "Layout blocks",
+    items: [
+      {
+        description: "Start a new form page",
+        icon: <IconNewPage />,
+        keywords: ["page", "break"],
+        label: "New page",
+        value: "pageBreak",
+      },
+      {
+        description: "Start writing with plain text",
+        icon: <IconText />,
+        keywords: ["paragraph", "text"],
+        label: "Text",
+        value: KEYS.p,
+      },
+      {
+        description: "Big section heading",
+        icon: <IconHeading1 />,
+        keywords: ["title", "h1"],
+        label: "Heading 1",
+        value: KEYS.h1,
+      },
+      {
+        description: "Medium section heading",
+        icon: <IconHeading2 />,
+        keywords: ["subtitle", "h2"],
+        label: "Heading 2",
+        value: KEYS.h2,
+      },
+      {
+        description: "Small section heading",
+        icon: <IconHeading3 />,
+        keywords: ["subtitle", "h3"],
+        label: "Heading 3",
+        value: KEYS.h3,
+      },
+      {
+        description: "Visual divider line",
+        disabled: true,
+        icon: <IconDivider />,
+        keywords: ["divider", "separator", "hr", "rule", "line"],
+        label: "Divider",
+        value: "divider",
+      },
+      {
+        description: "Form title block",
+        disabled: true,
+        icon: <IconSparkle />,
+        keywords: ["title", "header"],
+        label: "Title",
+        value: "title",
+      },
+      {
+        description: "Standalone field label",
+        disabled: true,
+        icon: <IconLabel />,
+        keywords: ["label", "tag", "caption"],
+        label: "Label",
+        value: "label",
+      },
+    ],
+  },
+  {
+    group: "Embed blocks",
+    items: [
+      {
+        description: "Embed an image",
+        icon: <IconImage />,
+        keywords: ["image", "picture", "photo", "media"],
+        label: "Image",
+        value: KEYS.img,
+      },
+      {
+        description: "Embed a video",
+        icon: <IconVideo />,
+        keywords: ["video", "movie", "media", "clip"],
+        label: "Video",
+        value: KEYS.video,
+      },
+      {
+        description: "Embed an audio clip",
+        icon: <IconAudio />,
+        keywords: ["audio", "sound", "music", "media"],
+        label: "Audio",
+        value: KEYS.audio,
+      },
+      {
+        description: "Embed anything via URL",
+        icon: <IconEmbedAnything />,
+        keywords: ["embed", "iframe", "url", "link", "anything"],
+        label: "Embed Anything",
+        value: KEYS.mediaEmbed,
+      },
+    ],
+  },
+  {
+    group: "Advanced blocks",
     items: [
       {
         description: "Show, hide, require, or branch based on answers",
-        icon: <GitBranch />,
+        icon: <IconConditionalLogic />,
         keywords: [
           "logic",
           "conditional",
@@ -303,67 +360,66 @@ const groups: Group[] = [
         label: "Conditional logic",
         value: "logicBlock",
       },
-    ].map((item) => ({
-      ...item,
-      onSelect: (editor, value) => {
-        insertBlock(editor, value, { upsert: true });
-      },
-    })),
-  },
-  {
-    group: "Layout blocks",
-    items: [
       {
-        description: "Start a new form page",
-        icon: <FileIcon />,
-        keywords: ["page"],
-        label: "New page",
-        value: "pageBreak",
+        description: "Compute a value from other answers",
+        disabled: true,
+        icon: <IconCalculatedFields />,
+        keywords: ["calculated", "calculation", "formula", "compute", "math"],
+        label: "Calculated fields",
+        value: "calculatedFields",
       },
       {
-        description: "Add a thank you confirmation",
-        icon: <SmileIcon />,
-        keywords: ["thankyou"],
-        label: "'Thank you' page",
-        value: "pageBreakThankYou",
+        description: "Store data hidden from respondents",
+        disabled: true,
+        icon: <IconHiddenFields />,
+        keywords: ["hidden", "field", "metadata", "utm", "secret"],
+        label: "Hidden fields",
+        value: "hiddenFields",
       },
-    ].map((item) => ({
-      ...item,
-      onSelect: (editor, value) => {
-        insertBlock(editor, value, { upsert: true });
+      {
+        description: "Protect the form from spam bots",
+        disabled: true,
+        icon: <IconSecurity />,
+        keywords: ["recaptcha", "captcha", "spam", "bot", "security"],
+        label: "reCAPTCHA",
+        value: "recaptcha",
       },
-    })),
+      {
+        description: "Auto-detect the respondent's country",
+        disabled: true,
+        icon: <IconGlobe />,
+        keywords: ["country", "respondent", "location", "geo", "region"],
+        label: "Respondent's country",
+        value: "respondentCountry",
+      },
+    ],
   },
-];
+].map((group) => ({
+  ...group,
+  items: group.items.map((item) => ({
+    ...item,
+    onSelect: item.disabled ? noop : insertOnSelect,
+  })),
+}));
 
 const previewMap: Record<string, () => ReactNode> = {
-  ai_input: AskAIPreview,
   [KEYS.p]: TextPreview,
   [KEYS.h1]: Heading1Preview,
   [KEYS.h2]: Heading2Preview,
   [KEYS.h3]: Heading3Preview,
-  [KEYS.ul]: BulletedListPreview,
-  [KEYS.ol]: NumberedListPreview,
-  [KEYS.listTodo]: TodoListPreview,
-  [KEYS.toggle]: TogglePreview,
-  [KEYS.blockquote]: BlockquotePreview,
-  [KEYS.callout]: CalloutPreview,
-  action_three_columns: ThreeColumnsPreview,
-  [KEYS.date]: DateInlinePreview,
   pageBreak: NewPagePreview,
-  pageBreakThankYou: ThankYouPagePreview,
   formInput: FormTextInputPreview,
   formTextarea: FormTextAreaPreview,
   formEmail: FormEmailPreview,
   formPhone: FormPhonePreview,
   formNumber: FormNumberPreview,
-  formLink: FormLinkPreview,
   formDate: FormDatePreview,
   formTime: FormTimePreview,
   formFileUpload: FormFileUploadPreview,
   formCheckbox: FormCheckboxPreview,
   formMultiChoice: FormMultiChoicePreview,
   formMultiSelect: FormMultiSelectPreview,
+  formDropdown: FormDropdownPreview,
 };
 
 const findItemByValue = (activeValue: string | null) => {
@@ -415,17 +471,18 @@ export const SlashInputElement = (props: PlateElementProps<TComboboxInputElement
             <InlineComboboxGroup key={group}>
               <InlineComboboxGroupLabel>{group}</InlineComboboxGroupLabel>
 
-              {items.map(({ focusEditor, icon, keywords, label, value, onSelect }) => (
+              {items.map(({ disabled, focusEditor, icon, keywords, label, value, onSelect }) => (
                 <InlineComboboxItem
                   key={value}
                   value={value}
+                  disabled={disabled}
                   onClick={() => onSelect(editor, value)}
                   label={label}
                   focusEditor={focusEditor}
                   group={group}
                   keywords={keywords}
                 >
-                  <div className="mr-2 text-muted-foreground">{icon}</div>
+                  <div className="mr-2">{icon}</div>
                   {label ?? value}
                 </InlineComboboxItem>
               ))}

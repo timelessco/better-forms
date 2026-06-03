@@ -78,7 +78,12 @@ export const FormFieldElement = (allProps: PlateElementProps) => {
   return (
     <div className="w-full">
       <PlateElement
-        attributes={{ ...attributes, placeholder, "data-bf-input": "true" }}
+        attributes={{
+          ...attributes,
+          placeholder,
+          "data-bf-input": "true",
+          "data-bf-input-fill": "true",
+        }}
         className={cn(
           "relative flex h-7 w-full cursor-text items-center gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-[8px] pl-[10px] text-sm caret-current elevation-sm",
           isSelected && focused && "ring-[3px] ring-ring/50",

@@ -7,7 +7,7 @@ import {
   extractNumberFields,
   resolveRequired,
 } from "@/lib/form-schema/form-field-constants";
-import { extractTextContent, slugify } from "./transform-plate-to-form";
+import { buildOptionList, extractTextContent, slugify } from "./transform-plate-to-form";
 import type { PlateFormField } from "./transform-plate-to-form";
 
 export type StaticSegment = { type: "static"; nodes: Value };
@@ -247,17 +247,13 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
 
       const variant = (node.variant as string) || "checkbox";
 
-      const options: { value: string; label: string }[] = [];
+      const optionNodes: Array<{ children?: Array<{ text?: string }> }> = [];
       let j = i;
       while (j < nodes.length && nodes[j].type === "formOptionItem") {
-        const optText = extractTextContent(nodes[j].children as Array<{ text?: string }>);
-        const optLabel = optText || `Option ${options.length + 1}`;
-        options.push({
-          value: slugify(optLabel) || `option_${options.length + 1}`,
-          label: optLabel,
-        });
+        optionNodes.push(nodes[j] as { children?: Array<{ text?: string }> });
         j++;
       }
+      const options = buildOptionList(optionNodes);
 
       const stableId =
         (label?.labelNode as { id?: string } | undefined)?.id ?? (node as { id?: string }).id;
@@ -269,16 +265,21 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
       // (analytics, exports) gets a readable label.
       const fieldLabel = labelText || options[0]?.label;
 
+      const fieldType = VARIANT_TO_FIELD_TYPE[variant] || "Checkbox";
+      // `shuffle` lives on the group's first option node; only Dropdown reads it today.
+      const shuffle = fieldType === "Dropdown" ? Boolean(node.shuffle) : undefined;
+
       segments.push({
         type: "field",
         field: {
           id: name,
           name,
-          fieldType: VARIANT_TO_FIELD_TYPE[variant] || "Checkbox",
+          fieldType,
           label: fieldLabel || undefined,
           labelType: label?.labelNode.type as string | undefined,
           required: isRequired,
           options,
+          ...(shuffle !== undefined ? { shuffle } : {}),
         } as PlateFormField,
       });
       fieldIndex++;
@@ -360,4 +361,5 @@ export const EDITABLE_FIELD_TYPES = new Set([
   "MultiChoice",
   "MultiSelect",
   "Ranking",
+  "Dropdown",
 ]);

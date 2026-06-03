@@ -35,6 +35,17 @@ const persistStatus = async (domainId: string, status: VercelDomainStatus | null
     .where(eq(customDomains.id, domainId))
     .returning();
 
+  if (!updated) {
+    throw createError({
+      code: "domains/not-found" satisfies ErrorCode,
+      status: 404,
+      message: "Domain not found",
+      why: "UPDATE matched no custom_domains row — deleted mid-request",
+      fix: "Check the domain ID — it may have been removed",
+      internal: { domainId },
+    });
+  }
+
   return {
     ...serializeDomain(updated),
     verification: status?.verification,

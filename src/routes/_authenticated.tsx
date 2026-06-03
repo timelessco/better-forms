@@ -77,7 +77,10 @@ import {
 import { SidebarSection, SidebarSectionResetProvider } from "@/components/ui/sidebar-section";
 import { UserMenuMinimal } from "./_authenticated/-components/user-menu-minimal";
 import type { WorkspaceWithForms } from "./_authenticated/-components/workspace-item-minimal";
-import { WorkspaceItemMinimal } from "./_authenticated/-components/workspace-item-minimal";
+import {
+  SidebarFormIcon,
+  WorkspaceItemMinimal,
+} from "./_authenticated/-components/workspace-item-minimal";
 import {
   EditorHeaderVisibilityProvider,
   useEditorHeaderVisibility,
@@ -291,17 +294,21 @@ const initCollectionsOnClient = createClientOnlyFn((queryClient: QueryClient) =>
     getFormDetail: async (formId: string) => {
       const { getFormbyIdQueryOption } = await import("@/lib/server-fn/forms-queries");
       const result = await queryClient.ensureQueryData(getFormbyIdQueryOption(formId));
-      // oxlint-disable-next-line typescript-eslint/no-explicit-any -- server type bridge
+      // FLAG: `result` is now typed (serialized DB row), but that row lacks `liveSettings`, so it
+      // is NOT a `Form`. The declared `getFormDetail: Promise<Form | null>` contract genuinely
+      // diverges from the real server shape. Removing this `any` requires returning the serialized
+      // type and aligning formToListing (operations.ts) — cascading + out of this file's scope.
+      // oxlint-disable-next-line typescript-eslint/no-explicit-any -- server-row vs Form divergence; see FLAG
       return (result as { form?: any })?.form ?? null;
     },
     getFavorites: () => getFavoritesServer(),
     getVersionList: async (formId: string) => {
       const result = await getFormVersions({ data: { formId } });
-      return result.versions;
+      return result?.versions ?? [];
     },
     getVersionContent: async (versionId: string) => {
       const result = await getFormVersionContent({ data: { versionId } });
-      return result.version;
+      return result?.version ?? null;
     },
     getSubmissionsCount: async (formId: string) => {
       const result = await getSubmissionsCount({ data: { formId } });
@@ -2372,6 +2379,8 @@ const SortableFavoriteItem = ({
       style={style}
       {...attributes}
       {...listeners}
+      // Override dnd-kit's tabIndex=0 so only the inner link is a tab stop (no duplicate ring).
+      tabIndex={-1}
       className="group/row relative"
     >
       <SidebarItem
@@ -2385,7 +2394,7 @@ const SortableFavoriteItem = ({
         }}
         isActive={isFavActive}
         prefix={
-          <ThemedFormIcon
+          <SidebarFormIcon
             icon={form.icon}
             customization={form.customization as Record<string, string> | null | undefined}
           />
@@ -2395,6 +2404,8 @@ const SortableFavoriteItem = ({
       <button
         type="button"
         aria-label="Remove from favorites"
+        // Hover-only affordance; keep it out of the tab order so Tab moves row-to-row.
+        tabIndex={-1}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.preventDefault();

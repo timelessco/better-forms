@@ -1,7 +1,5 @@
 import { insertCallout } from "@platejs/callout";
-import { insertDate } from "@platejs/date";
 import { insertColumnGroup, toggleColumnGroup } from "@platejs/layout";
-import { triggerFloatingLink } from "@platejs/link/react";
 import {
   insertAudioPlaceholder,
   insertFilePlaceholder,
@@ -294,6 +292,26 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
     );
     editor.tf.select({ path: [...labelPath, 0], offset: 0 });
   },
+  formDropdown: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formOptionItem", variant: "dropdown", children: [{ text: "" }] },
+        { type: "p", children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
   formMultiSelect: (editor) => {
     const block = editor.api.block();
     if (!block) return;
@@ -441,11 +459,6 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
   },
 };
 
-const insertInlineMap: Record<string, (editor: PlateEditor, type: string) => void> = {
-  [KEYS.date]: (editor) => insertDate(editor, { select: true }),
-  [KEYS.link]: (editor) => triggerFloatingLink(editor, { focused: true }),
-};
-
 type InsertBlockOptions = {
   upsert?: boolean;
 };
@@ -484,12 +497,6 @@ export const insertBlock = (
       editor.tf.removeNodes({ previousEmptyBlock: true });
     }
   });
-};
-
-export const insertInlineElement = (editor: PlateEditor, type: string) => {
-  if (insertInlineMap[type]) {
-    insertInlineMap[type](editor, type);
-  }
 };
 
 const setList = (editor: PlateEditor, type: string, entry: NodeEntry<TElement>) => {

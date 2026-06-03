@@ -60,6 +60,8 @@ export const IconPickerPreview = ({
   iconSize = "10",
   size = "14",
   useThemeColor = false,
+  monochrome = false,
+  disc = false,
   standaloneIcon = false,
 }: IconPickerPreviewProps) => {
   // Dark/light comes from the FORM's resolved mode (customization.mode), not the
@@ -72,10 +74,37 @@ export const IconPickerPreview = ({
 
   const matchedIcon = icon ? iconMap.get(icon) : undefined;
 
-  if (useThemeColor) {
+  // Sidebar style (Figma 25380:8709): bare glyph in currentColor, no circle. Follows the
+  // row's text color (dark in light mode, light in dark mode) so it's always visible.
+  // `disc` adds the active-row circle — the gray/0 disc the Figma shows on the selected item.
+  if (monochrome) {
     return (
       <div
-        className="flex items-center justify-center rounded-full bg-primary text-primary-foreground"
+        className={cn(
+          "flex shrink-0 items-center justify-center",
+          disc && "rounded-full bg-sidebar",
+        )}
+        style={{ width: `${size}px`, height: `${size}px` }}
+      >
+        <RenderedIcon
+          color="currentColor"
+          icon={icon}
+          iconSize={iconSize}
+          matchedIcon={matchedIcon}
+          standaloneIcon={standaloneIcon}
+        />
+      </div>
+    );
+  }
+
+  if (useThemeColor) {
+    // Form logo card (Figma 25408:8959): a surface-coloured circle with a soft drop shadow and
+    // a foreground glyph — NOT a primary-tinted circle. bg-card/text-foreground theme with the
+    // form (white+dark in light, elevated-dark+light in dark). Minimal logo mode strips the
+    // bg + shadow via CSS ([data-bf-logo-icon="minimal"]).
+    return (
+      <div
+        className="flex items-center justify-center rounded-full bg-card text-foreground shadow-[0px_1px_8px_0px_rgba(0,0,0,0.1)]"
         style={{
           width: `${size}px`,
           height: `${size}px`,
@@ -121,21 +150,21 @@ export const ThemedFormIcon = ({
   customization,
   iconSize = "10",
   size = "18",
+  monochrome = false,
+  disc = false,
 }: {
   icon?: string | null;
   customization?: Record<string, string> | null;
   iconSize?: string;
   size?: string;
+  /** Sidebar form-list style: flat glyph in currentColor, no themed circle. */
+  monochrome?: boolean;
+  /** With `monochrome`: draw the active-row disc behind the glyph. */
+  disc?: boolean;
 }) => {
   const resolvedAppTheme = useResolvedTheme();
-  const themedCustomization = customization
-    ? { ...customization, mode: resolvedAppTheme }
-    : customization;
-  const themeVars =
-    themedCustomization && Object.keys(themedCustomization).length > 0
-      ? getThemeStyleVars(themedCustomization)
-      : undefined;
 
+  // Uploaded image icons stay as a small rounded image in every mode.
   if (icon && isValidUrl(icon)) {
     return (
       <img
@@ -148,6 +177,30 @@ export const ThemedFormIcon = ({
   }
 
   const iconName = icon && icon !== DEFAULT_ICON ? icon : DEFAULT_ICON_NAME;
+
+  if (monochrome) {
+    // Figma 25390:13897/13911: constant 18px disc + 12px glyph in EVERY state. The disc is the
+    // sidebar surface colour, so it's invisible at rest and only reads as a circle on the
+    // active/hover row (whose bg differs). The glyph size never changes between states.
+    return (
+      <IconPickerPreview
+        icon={iconName}
+        iconColor={undefined}
+        monochrome
+        disc={disc}
+        iconSize={iconSize}
+        size={size}
+      />
+    );
+  }
+
+  const themedCustomization = customization
+    ? { ...customization, mode: resolvedAppTheme }
+    : customization;
+  const themeVars =
+    themedCustomization && Object.keys(themedCustomization).length > 0
+      ? getThemeStyleVars(themedCustomization)
+      : undefined;
 
   return (
     <div

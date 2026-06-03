@@ -240,7 +240,10 @@ export const getFormVersions = createServerFn({ method: "GET" })
 export const getFormVersionsQueryOption = (formId: string) =>
   queryOptions({
     queryKey: ["form-versions", formId] as const,
-    queryFn: () => getFormVersions({ data: { formId } }).then((r) => r.versions),
+    queryFn: async () => {
+      const result = await getFormVersions({ data: { formId } });
+      return result?.versions ?? [];
+    },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
@@ -378,6 +381,17 @@ export const discardFormChanges = createServerFn({ method: "POST" })
       })
       .where(eq(forms.id, data.formId))
       .returning();
+
+    if (!updatedForm) {
+      throw createError({
+        code: "forms/not-found" satisfies ErrorCode,
+        status: 404,
+        message: "Form not found",
+        why: "UPDATE matched no forms row — deleted mid-request",
+        fix: "Refresh — the form may have been deleted",
+        internal: { formId: data.formId },
+      });
+    }
 
     return {
       success: true,

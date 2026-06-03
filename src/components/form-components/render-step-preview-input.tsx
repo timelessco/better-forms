@@ -39,6 +39,7 @@ const FIELD_RENDERERS: Record<
   MultiChoice: lazy(() => import("./fields/MultiChoiceField")),
   MultiSelect: lazy(() => import("./fields/MultiSelectField")),
   Ranking: lazy(() => import("./fields/RankingField")),
+  Dropdown: lazy(() => import("./fields/DropdownField")),
 } as const;
 
 interface RenderStepPreviewInputProps {

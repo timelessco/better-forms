@@ -5,7 +5,7 @@ import {
   BlockMenuPlugin,
   BlockSelectionPlugin,
 } from "@platejs/selection/react";
-import { GripVerticalIcon, PlusIcon, SettingsIcon } from "@/components/ui/icons";
+import { GripVerticalIcon, PlusIcon, SettingsIcon, TrashIcon } from "@/components/ui/icons";
 import { getPluginByType, isType, KEYS } from "platejs";
 import type { TElement, TIdElement } from "platejs";
 import {
@@ -29,6 +29,18 @@ import { FORM_INPUT_NODE_TYPES } from "@/lib/form-schema/form-field-constants";
 import { cn } from "@/lib/utils";
 
 const UNDRAGGABLE_KEYS = [KEYS.column, KEYS.tr, KEYS.td, "formButton"];
+
+// Single-line text blocks whose gutter should center on their line (vs top-align).
+// Excludes box inputs and tall blocks (textarea, file upload, options) which keep the
+// controls on their first row.
+const GUTTER_CENTER_TYPES = new Set<string>([
+  "formLabel",
+  KEYS.p,
+  KEYS.h1,
+  KEYS.h2,
+  KEYS.h3,
+  KEYS.blockquote,
+]);
 
 export const BlockDraggable: RenderNodeWrapper = (props) => {
   const { editor, element, path } = props;
@@ -129,6 +141,11 @@ const Draggable = (props: PlateElementProps) => {
   const isFormButton = element.type === "formButton";
   const isFormHeader = element.type === "formHeader";
   const isPageBreak = element.type === "pageBreak";
+  // Single-line text blocks are shorter than the 28px control group, so a top-aligned
+  // gutter lands the icons below the text. Centering puts the controls on the (single)
+  // line. Box inputs and tall blocks (textarea, file upload, options) stay top-aligned
+  // so the controls sit on their first row, not floating in the middle.
+  const centerGutter = GUTTER_CENTER_TYPES.has(element.type);
 
   const buttonLayoutClass = React.useMemo(() => {
     if (isFormButton) {
@@ -245,6 +262,18 @@ const Draggable = (props: PlateElementProps) => {
     [editor.tf, path],
   );
 
+  // Delete this block. Mirrors the block menu's Delete action: select the block, then
+  // removeNodes via BlockSelectionPlugin so list/column children are handled consistently.
+  const handleDeleteBlock = React.useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      editor.getApi(BlockSelectionPlugin).blockSelection.set([element.id as string]);
+      editor.getTransforms(BlockSelectionPlugin).blockSelection.removeNodes();
+    },
+    [editor, element.id],
+  );
+
   React.useEffect(() => {
     const node = nodeRef.current;
     if (!node) return;
@@ -298,7 +327,7 @@ const Draggable = (props: PlateElementProps) => {
       {...wrapperInputAttrs}
     >
       {!isInTable && !isFormButton && !isFormHeader && !isPageBreak && (
-        <Gutter gutterPosition="top" className="mr-1">
+        <Gutter gutterPosition={centerGutter ? "center" : "top"} className="mr-1">
           <div
             className={cn(
               "slate-blockToolbarWrapper",
@@ -320,6 +349,27 @@ const Draggable = (props: PlateElementProps) => {
               }
             }}
           >
+            {!isFormButton && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      tabIndex={-1}
+                      className="size-auto rounded-lg border border-transparent has-[>svg]:px-1 has-[>svg]:py-1.5"
+                      onClick={handleDeleteBlock}
+                      data-plate-prevent-deselect
+                      aria-label="Delete block"
+                    />
+                  }
+                >
+                  <TrashIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>Delete block</TooltipContent>
+              </Tooltip>
+            )}
+
             {!isFormButton && (
               <Tooltip>
                 <TooltipTrigger

@@ -294,6 +294,7 @@ export const generateZodSchemaFromFields = (
         }
         break;
       case "MultiChoice":
+      case "Dropdown":
         if (field.required) {
           fieldSchema = v.pipe(v.string(), v.minLength(1, "Please select an option"));
         } else {
@@ -386,7 +387,7 @@ export const generateDefaultValuesFromFields = (
       field.fieldType === "Ranking"
     ) {
       defaults[field.name] = [];
-    } else if (field.fieldType === "MultiChoice") {
+    } else if (field.fieldType === "MultiChoice" || field.fieldType === "Dropdown") {
       defaults[field.name] = "";
     } else {
       defaults[field.name] =

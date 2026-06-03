@@ -307,7 +307,7 @@ const InlineComboboxContent = ({
     <Portal>
       <ComboboxPopover
         className={cn(
-          "z-500 w-[300px] rounded-xl bg-popover elevation-lg",
+          "z-500 w-[300px] rounded-xl bg-popover elevation-xl",
           hasPreview ? "overflow-visible" : "max-h-[288px] overflow-y-auto",
           className,
         )}
@@ -325,7 +325,7 @@ const InlineComboboxContent = ({
             style={{ paddingLeft: PREVIEW_GAP }}
           >
             <div
-              className="pointer-events-auto rounded-xl bg-popover elevation-lg"
+              className="pointer-events-auto rounded-xl bg-popover elevation-xl"
               style={{ width: PREVIEW_WIDTH }}
             >
               {preview({ activeValue })}
@@ -367,7 +367,7 @@ const InlineComboboxItem = ({
   label?: string;
 } & ComboboxItemProps &
   Required<Pick<ComboboxItemProps, "value">>) => {
-  const { value } = props;
+  const { value, disabled } = props;
 
   const { filter, removeInput } = React.use(InlineComboboxContext);
 
@@ -386,8 +386,13 @@ const InlineComboboxItem = ({
 
   return (
     <ComboboxItem
-      className={cn(comboboxItemVariants(), className)}
+      className={cn(
+        comboboxItemVariants({ interactive: !disabled }),
+        disabled && "cursor-not-allowed text-muted-foreground opacity-50",
+        className,
+      )}
       onClick={(event) => {
+        if (disabled) return;
         removeInput(focusEditor);
         onClick?.(event);
       }}

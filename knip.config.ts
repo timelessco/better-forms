@@ -23,6 +23,7 @@ export default {
     "src/lib/server-fn/custom-domains.ts", // Custom domains feature - consumed by upcoming tasks
     "src/lib/server-fn/custom-domain-loader.ts", // Custom domains feature - consumed by upcoming tasks
     "src/lib/server-fn/analytics.ts", // Analytics v1 - consumed by upcoming tasks
+    "src/lib/audit/index.ts", // Audit logging - getAuditLogger() consumed by upcoming instrumentation phase
     "src/lib/icon-context.tsx", // icon-picker rework - consumed by upcoming tasks
     "src/lib/icon-map.tsx", // icon-picker rework - consumed by upcoming tasks
     "src/lib/shape-context.tsx", // shape system - consumed by upcoming tasks

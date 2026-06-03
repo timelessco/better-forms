@@ -24,6 +24,8 @@ interface StyleNumberInputProps {
   valueWidth?: string;
   /** Show the scrubber track, knob, hash marks, and spring/rubber-band effects. Default true. */
   scrubber?: boolean;
+  /** Flush, borderless, transparent-track presentation for plain Figma rows (aligns label/value with ConfigRow). */
+  bare?: boolean;
   /** Enables a hidden auto state at the far-left edge. */
   allowAuto?: boolean;
   /** Whether the control is currently using the auto/default state. */
@@ -45,6 +47,7 @@ export const StyleNumberInput = ({
   allowAuto = false,
   isAuto = false,
   onAutoChange,
+  bare = false,
 }: StyleNumberInputProps) => {
   const match = value?.toString().match(VALUE_PARSE_RE);
   const numValue = match ? parseFloat(match[1]) : min;
@@ -75,15 +78,20 @@ export const StyleNumberInput = ({
       onAutoChange={onAutoChange}
       aria-label={isAuto ? `${label}: Auto` : `${label}: ${numValue}${shownUnit}`}
       className={cn(
-        "h-[34px] [--elastic-slider-height:34px]",
+        bare ? "h-7 [--elastic-slider-height:1.75rem]" : "h-[34px] [--elastic-slider-height:34px]",
         "[--elastic-slider-bg:var(--background)]",
-        "[--elastic-slider-fill:var(--secondary)]",
-        "[--elastic-slider-fill-active:var(--secondary)]",
-        "[&_[data-slot=elastic-slider-label]]:inset-s-2 [&_[data-slot=elastic-slider-label]]:text-base [&_[data-slot=elastic-slider-label]]:font-normal",
-        "[&_[data-slot=elastic-slider-value]]:inset-e-[11px] [&_[data-slot=elastic-slider-value]]:text-[13px] [&_[data-slot=elastic-slider-value]]:tabular-nums",
+        bare
+          ? "[--elastic-slider-fill-active:transparent] [--elastic-slider-fill:transparent]"
+          : "[--elastic-slider-fill-active:var(--secondary)] [--elastic-slider-fill:var(--secondary)]",
+        bare
+          ? "[&_[data-slot=elastic-slider-label]]:inset-s-0 [&_[data-slot=elastic-slider-label]]:text-[14px] [&_[data-slot=elastic-slider-label]]:font-normal [&_[data-slot=elastic-slider-label]]:text-muted-foreground"
+          : "[&_[data-slot=elastic-slider-label]]:inset-s-2 [&_[data-slot=elastic-slider-label]]:text-base [&_[data-slot=elastic-slider-label]]:font-normal",
+        bare
+          ? "[&_[data-slot=elastic-slider-value]]:inset-e-0 [&_[data-slot=elastic-slider-value]]:text-[14px] [&_[data-slot=elastic-slider-value]]:font-medium [&_[data-slot=elastic-slider-value]]:text-foreground [&_[data-slot=elastic-slider-value]]:tabular-nums"
+          : "[&_[data-slot=elastic-slider-value]]:inset-e-[11px] [&_[data-slot=elastic-slider-value]]:text-[13px] [&_[data-slot=elastic-slider-value]]:tabular-nums",
         className,
       )}
-      trackClassName={cn("border border-border/60", className)}
+      trackClassName={cn(!bare && "border border-border/60", className)}
     />
   );
 };

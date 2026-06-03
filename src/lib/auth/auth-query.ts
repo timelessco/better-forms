@@ -20,7 +20,7 @@ type InferBetterAuthData<TFn> = TFn extends (
 ) => Promise<infer R>
   ? R extends { data: infer D }
     ? NonNullable<D>
-    : R
+    : never
   : never;
 
 type InferBetterAuthError<TFn> = TFn extends (
@@ -142,6 +142,9 @@ export const createAuthQueryClient = <TClient extends Record<string, any>>(
           queryFn: async () => {
             const result = await target(input);
             if (result.error) throw result.error;
+            if (result.data === undefined) {
+              throw new Error(`Better Auth query returned undefined for ${path.join(".")}`);
+            }
             return result.data;
           },
         });
@@ -155,6 +158,9 @@ export const createAuthQueryClient = <TClient extends Record<string, any>>(
           mutationFn: async (variables: unknown) => {
             const result = await target(variables);
             if (result.error) throw result.error;
+            if (result.data === undefined) {
+              throw new Error(`Better Auth mutation returned undefined for ${path.join(".")}`);
+            }
             return result.data;
           },
         });
