@@ -222,29 +222,38 @@ const PreviewFormHeader = ({
   if (layout === "editor") {
     return (
       <div ref={headerRef} className="mb-7 w-full">
-        {hasCover && renderCover()}
+        {/* Cover sits in a page-width container so "fit" (calc(100% + 56px)) tracks the form
+            width, not the full pane; "fill" still breaks out to 100vw via its var fallback. */}
+        {hasCover && (
+          <div className="mx-auto w-full" style={{ maxWidth: PAGE_MAX_WIDTH.editor }}>
+            {renderCover()}
+          </div>
+        )}
         <div
           className="mx-auto w-full px-8 md:px-0"
           style={{ maxWidth: PAGE_MAX_WIDTH.editor }}
           data-bf-form-container
         >
           {hasIcon && renderIcon()}
-          {/* Spacer matching the editor's hover toolbar (Customize / Add icon / Add cover buttons + margin) */}
+          {/* Mirrors the editor's hover toolbar (form-header-node.tsx): carries no bottom gap, the
+              title owns its top gap (mt-4). The h-8 reserves the toolbar's button row only when the
+              editor would show one (missing cover/icon); with both present it is empty (0-height) so
+              the icon's mb-1 and the title's mt-4 collapse to a constant 16px — matching the editor. */}
           <div
             className={cn(
-              "mb-2 flex gap-1",
+              "flex gap-1",
               !hasCover && !hasIcon && "mt-8 sm:mt-12",
               hasCover && !hasIcon && "mt-4",
-              !hasCover && hasIcon && "mt-0",
+              hasIcon && "mt-0",
             )}
           >
-            <div className="h-8" />
+            {(!hasCover || !hasIcon) && <div className="h-8" />}
           </div>
           {hasTitle && (
             <h1
               data-bf-title
               style={{ textWrap: "pretty" }}
-              className="font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px]"
+              className="mt-4 font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px]"
             >
               {title}
             </h1>
@@ -257,7 +266,12 @@ const PreviewFormHeader = ({
   // For public layout, no negative margin tricks needed
   return (
     <div ref={headerRef} className="mb-7 w-full">
-      {hasCover && renderCover()}
+      {/* Cover in a page-width container so "fit" tracks form width; "fill" still hits 100vw. */}
+      {hasCover && (
+        <div className="mx-auto w-full" style={{ maxWidth: PAGE_MAX_WIDTH.public }}>
+          {renderCover()}
+        </div>
+      )}
 
       <div
         className="mx-auto px-4"
@@ -270,7 +284,7 @@ const PreviewFormHeader = ({
             <h1
               data-bf-title
               style={{ textWrap: "pretty" }}
-              className={`font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px] ${hasIcon ? "mt-3 sm:mt-4" : "mt-6 sm:mt-8"}`}
+              className={`font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px] ${hasIcon ? "mt-3" : "mt-6 sm:mt-8"}`}
             >
               {title}
             </h1>
