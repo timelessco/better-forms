@@ -3,6 +3,13 @@
 
 export const LETTER_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+// "Labels" setting on an option group — how each option's leading marker renders.
+export type OptionLabelStyle = "none" | "letters" | "numbers";
+
+/** Ordinal shown in an option's badge: A/B/C… for letters, 1/2/3… for numbers. */
+export const getOptionOrdinal = (style: "letters" | "numbers", index: number): string =>
+  style === "numbers" ? String(index + 1) : LETTER_LABELS[index % LETTER_LABELS.length];
+
 // App-chrome surfaces (e.g. the submissions dashboard) follow the global app theme via Tailwind
 // `dark:` variants. Form-preview surfaces must NOT use these — see getMultiSelectColor below.
 export const MULTI_SELECT_COLORS = [

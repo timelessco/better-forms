@@ -1,109 +1,138 @@
-export type FileTypeCategory = "all" | "images" | "documents" | "spreadsheets";
+// File-upload allow-list model. Selection is a flat set of extension strings (e.g. ".jpg")
+// spanning categories, persisted on the node as `allowedFileExtensions`. Empty/undefined ⇒ all
+// files allowed. Categories below drive the block-menu "Allowed files" picker (Figma 25633-11852).
 
-export type FileSubtype = {
+export interface FileExtensionDef {
+  /** Dotted extension, lower-case, e.g. ".jpg" — also the selection key. */
+  ext: string;
+  mimeTypes: string[];
+}
+
+export interface FileCategoryDef {
   id: string;
   label: string;
-  extensions: string[];
-  mimeTypes: string[];
-};
+  extensions: FileExtensionDef[];
+}
 
-export const FILE_TYPE_CATEGORY_LABELS: Record<FileTypeCategory, string> = {
-  all: "All files",
-  images: "Images",
-  documents: "Documents",
-  spreadsheets: "Spreadsheets",
-};
-
-export const FILE_SUBTYPES: Record<Exclude<FileTypeCategory, "all">, FileSubtype[]> = {
-  images: [
-    { id: "jpeg", label: "JPEG", extensions: [".jpg", ".jpeg"], mimeTypes: ["image/jpeg"] },
-    { id: "png", label: "PNG", extensions: [".png"], mimeTypes: ["image/png"] },
-    { id: "gif", label: "GIF", extensions: [".gif"], mimeTypes: ["image/gif"] },
-    { id: "webp", label: "WEBP", extensions: [".webp"], mimeTypes: ["image/webp"] },
-  ],
-  documents: [
-    { id: "pdf", label: "PDF", extensions: [".pdf"], mimeTypes: ["application/pdf"] },
-    { id: "doc", label: "DOC", extensions: [".doc"], mimeTypes: ["application/msword"] },
-    {
-      id: "docx",
-      label: "DOCX",
-      extensions: [".docx"],
-      mimeTypes: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
-    },
-    { id: "txt", label: "TXT", extensions: [".txt"], mimeTypes: ["text/plain"] },
-  ],
-  spreadsheets: [
-    {
-      id: "xlsx",
-      label: "XLSX",
-      extensions: [".xlsx"],
-      mimeTypes: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-    },
-    {
-      id: "xls",
-      label: "XLS",
-      extensions: [".xls"],
-      mimeTypes: ["application/vnd.ms-excel"],
-    },
-    { id: "csv", label: "CSV", extensions: [".csv"], mimeTypes: ["text/csv"] },
-  ],
-};
-
-const ALL_FILES_ACCEPT = "image/*,.pdf,.doc,.docx,.txt,.xlsx,.xls,.csv";
+export const FILE_CATEGORIES: FileCategoryDef[] = [
+  {
+    id: "image",
+    label: "Image",
+    extensions: [
+      { ext: ".jpg", mimeTypes: ["image/jpeg"] },
+      { ext: ".jpeg", mimeTypes: ["image/jpeg"] },
+      { ext: ".png", mimeTypes: ["image/png"] },
+      { ext: ".gif", mimeTypes: ["image/gif"] },
+      { ext: ".svg", mimeTypes: ["image/svg+xml"] },
+      { ext: ".heic", mimeTypes: ["image/heic"] },
+      { ext: ".webp", mimeTypes: ["image/webp"] },
+      { ext: ".bmp", mimeTypes: ["image/bmp"] },
+      { ext: ".psd", mimeTypes: ["image/vnd.adobe.photoshop"] },
+    ],
+  },
+  {
+    id: "video",
+    label: "Video",
+    extensions: [
+      { ext: ".mp4", mimeTypes: ["video/mp4"] },
+      { ext: ".mov", mimeTypes: ["video/quicktime"] },
+      { ext: ".webm", mimeTypes: ["video/webm"] },
+    ],
+  },
+  {
+    id: "audio",
+    label: "Audio",
+    extensions: [
+      { ext: ".mp3", mimeTypes: ["audio/mpeg"] },
+      { ext: ".m4a", mimeTypes: ["audio/mp4", "audio/x-m4a"] },
+      { ext: ".wav", mimeTypes: ["audio/wav", "audio/wave"] },
+    ],
+  },
+  {
+    id: "text",
+    label: "Text",
+    extensions: [
+      { ext: ".txt", mimeTypes: ["text/plain"] },
+      { ext: ".csv", mimeTypes: ["text/csv"] },
+      { ext: ".html", mimeTypes: ["text/html"] },
+      { ext: ".xml", mimeTypes: ["application/xml", "text/xml"] },
+    ],
+  },
+  {
+    id: "documents",
+    label: "Documents",
+    extensions: [
+      { ext: ".pdf", mimeTypes: ["application/pdf"] },
+      { ext: ".doc", mimeTypes: ["application/msword"] },
+      {
+        ext: ".docx",
+        mimeTypes: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+      },
+      { ext: ".xls", mimeTypes: ["application/vnd.ms-excel"] },
+      {
+        ext: ".xlsx",
+        mimeTypes: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+      },
+      { ext: ".ppt", mimeTypes: ["application/vnd.ms-powerpoint"] },
+      {
+        ext: ".pptx",
+        mimeTypes: ["application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+      },
+      { ext: ".zip", mimeTypes: ["application/zip"] },
+      { ext: ".rar", mimeTypes: ["application/vnd.rar"] },
+      { ext: ".json", mimeTypes: ["application/json"] },
+      { ext: ".gzip", mimeTypes: ["application/gzip"] },
+      { ext: ".odt", mimeTypes: ["application/vnd.oasis.opendocument.text"] },
+    ],
+  },
+];
 
 export const DEFAULT_MAX_FILE_SIZE_MB = 10;
 
-export const isFileTypeCategory = (value: unknown): value is FileTypeCategory =>
-  value === "all" || value === "images" || value === "documents" || value === "spreadsheets";
+// Flat ext → mimeTypes (merged across categories — extensions are unique here).
+const MIME_BY_EXT = new Map<string, string[]>(
+  FILE_CATEGORIES.flatMap((c) => c.extensions).map((e) => [e.ext, e.mimeTypes]),
+);
 
-const subtypesForCategory = (category: FileTypeCategory): FileSubtype[] => {
-  if (category === "all") return [];
-  return FILE_SUBTYPES[category];
+// Every extension token, used as the "all files allowed" accept/selection baseline.
+export const ALL_FILE_EXTENSIONS = [...MIME_BY_EXT.keys()];
+
+// Legacy category ids (single-category model) → extensions, so forms saved before the flat
+// model still resolve. Old `allowedFileExtensions` held subtype ids ("jpeg") not "."-extensions.
+const LEGACY_CATEGORY_EXTENSIONS: Record<string, string[]> = {
+  images: [".jpg", ".jpeg", ".png", ".gif", ".webp"],
+  documents: [".pdf", ".doc", ".docx", ".txt"],
+  spreadsheets: [".xlsx", ".xls", ".csv"],
 };
 
-const filterSubtypes = (
-  category: Exclude<FileTypeCategory, "all">,
-  ids: string[] | undefined,
-): FileSubtype[] => {
-  const all = FILE_SUBTYPES[category];
-  if (!ids || ids.length === 0) return all;
-  const idSet = new Set(ids);
-  const filtered = all.filter((s) => idSet.has(s.id));
-  return filtered.length > 0 ? filtered : all;
-};
-
-/** Effective accepted subtypes. "all" → `[]` (caller uses all-files accept);
- * empty/undefined `ids` → every subtype in the category. */
-export const resolveAllowedSubtypes = (
-  category: unknown,
-  ids: unknown,
-): { category: FileTypeCategory; subtypes: FileSubtype[] } => {
-  const cat = isFileTypeCategory(category) ? category : "all";
-  if (cat === "all") return { category: cat, subtypes: [] };
-  const idsArray = Array.isArray(ids) ? ids.filter((i): i is string => typeof i === "string") : [];
-  return { category: cat, subtypes: filterSubtypes(cat, idsArray) };
-};
-
-/** HTML `accept` string for the picker / `useFileUpload`. Extensions + MIME so
- * both pre-pick filtering and post-pick validation work. */
-export const buildAcceptString = (category: FileTypeCategory, subtypes: FileSubtype[]): string => {
-  if (category === "all") return ALL_FILES_ACCEPT;
-  if (subtypes.length === 0) return ALL_FILES_ACCEPT;
-  const tokens: string[] = [];
-  for (const s of subtypes) {
-    tokens.push(...s.mimeTypes, ...s.extensions);
+/** Effective allowed extensions for a node. `[]` ⇒ every file is allowed. Accepts the new flat
+ * list (entries start with ".") and degrades gracefully for legacy single-category data. */
+export const resolveAllowedExtensions = (
+  allowedFileTypes: unknown,
+  allowedFileExtensions: unknown,
+): string[] => {
+  const list = Array.isArray(allowedFileExtensions)
+    ? allowedFileExtensions.filter((e): e is string => typeof e === "string")
+    : [];
+  const flat = list.filter((e) => e.startsWith("."));
+  if (flat.length > 0) return [...new Set(flat)];
+  // Legacy: a single category id (+ optional subtype ids we can no longer map) ⇒ whole category.
+  if (typeof allowedFileTypes === "string" && allowedFileTypes in LEGACY_CATEGORY_EXTENSIONS) {
+    return LEGACY_CATEGORY_EXTENSIONS[allowedFileTypes];
   }
-  return tokens.join(",");
+  return [];
 };
 
-/** Human-readable list ("PNG, JPG, GIF") for the upload placeholder. */
-export const buildPlaceholderLabel = (
-  category: FileTypeCategory,
-  subtypes: FileSubtype[],
-): string => {
-  if (category === "all") return "PNG, JPG, PDF";
-  const list = subtypes.length > 0 ? subtypes : subtypesForCategory(category);
-  return list.map((s) => s.label).join(", ");
+/** HTML `accept` string (MIME + extension tokens) for the picker, `useFileUpload`, and server-side
+ * validation. Empty selection ⇒ the full catalog (all supported files). */
+export const buildAcceptFromExtensions = (extensions: string[]): string => {
+  const exts = extensions.length > 0 ? extensions : ALL_FILE_EXTENSIONS;
+  const tokens = new Set<string>();
+  for (const ext of exts) {
+    tokens.add(ext);
+    for (const mime of MIME_BY_EXT.get(ext) ?? []) tokens.add(mime);
+  }
+  return [...tokens].join(",");
 };
 
 // Non-canonical MIME aliases that browsers/legacy uploads still emit.
@@ -114,13 +143,10 @@ const MIME_EXT_ALIASES: Record<string, string> = {
 
 const EXT_BY_MIME: Record<string, string> = (() => {
   const map: Record<string, string> = {};
-  for (const subtypes of Object.values(FILE_SUBTYPES)) {
-    for (const subtype of subtypes) {
-      const ext = subtype.extensions[0]?.replace(/^\./, "");
-      if (!ext) continue;
-      for (const mime of subtype.mimeTypes) {
-        map[mime] = ext;
-      }
+  for (const { ext, mimeTypes } of FILE_CATEGORIES.flatMap((c) => c.extensions)) {
+    const bare = ext.replace(/^\./, "");
+    for (const mime of mimeTypes) {
+      if (!(mime in map)) map[mime] = bare;
     }
   }
   return { ...map, ...MIME_EXT_ALIASES };

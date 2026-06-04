@@ -1,3 +1,5 @@
+import type { Country } from "react-phone-number-input";
+
 import { fieldLabelId, getAriaLabelFallback, getAriaLabelledBy } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
@@ -12,6 +14,8 @@ const PhoneField = ({ element, form, name }: FieldRendererProps<"Phone">) => {
             id={fieldName}
             placeholder={element.placeholder}
             autoComplete="tel"
+            // Author-set default country; unset ⇒ PhoneInput auto-detects from the browser locale.
+            defaultCountry={element.defaultCountryCode as Country | undefined}
             aria-label={getAriaLabelFallback(element)}
             aria-labelledby={isArrayItem ? fieldLabelId(element.name) : getAriaLabelledBy(element)}
             variant="sm"

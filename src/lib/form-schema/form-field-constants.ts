@@ -1,3 +1,9 @@
+import type {
+  DecimalSeparator,
+  NumberFormatType,
+  ThousandsSeparator,
+} from "@/lib/form-schema/number-format";
+
 /** Node types that are form inputs (the actual field elements) */
 export const FORM_INPUT_NODE_TYPES = new Set([
   "formInput",
@@ -46,11 +52,22 @@ export const VARIANT_TO_FIELD_TYPE: Record<string, string> = {
 };
 
 /** `formNumber` bounds: `minValue`/`maxValue` (not text's `minLength`/`maxLength`
- * char counts) + `allowDecimals`. Surfaced so published form + preview match. */
+ * char counts) + `allowDecimals`, plus the "Format" display config. Surfaced so
+ * the published form, preview, and submissions table all render the same way. */
 export const extractNumberFields = (
   node: Record<string, unknown>,
-): { min?: number; max?: number; allowDecimals?: boolean } => ({
+): {
+  min?: number;
+  max?: number;
+  allowDecimals?: boolean;
+  numberFormat?: NumberFormatType;
+  decimalSeparator?: DecimalSeparator;
+  thousandsSeparator?: ThousandsSeparator;
+} => ({
   min: node.minValue as number | undefined,
   max: node.maxValue as number | undefined,
   allowDecimals: node.allowDecimals as boolean | undefined,
+  numberFormat: node.numberFormat as NumberFormatType | undefined,
+  decimalSeparator: node.decimalSeparator as DecimalSeparator | undefined,
+  thousandsSeparator: node.thousandsSeparator as ThousandsSeparator | undefined,
 });

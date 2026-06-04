@@ -257,7 +257,7 @@ const AddToken = ({ onClick, label }: { onClick: () => void; label: string }) =>
   <button
     type="button"
     onClick={onClick}
-    className="flex h-8 w-fit items-center gap-1 rounded-lg border border-dashed border-border px-2.5 text-[13px] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+    className="flex h-8 w-fit items-center gap-1 rounded-lg border border-dashed border-border px-2.5 text-[13px] text-muted-foreground transition-colors outline-none hover:border-foreground/30 hover:text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
   >
     <PlusIcon className="size-3.5" />
     {label}
@@ -269,7 +269,7 @@ const RemoveToken = ({ onClick, label }: { onClick: () => void; label: string })
     type="button"
     aria-label={label}
     onClick={onClick}
-    className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground"
+    className="flex size-6 items-center justify-center rounded text-muted-foreground outline-none hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
   >
     <span className="text-base leading-none">×</span>
   </button>
@@ -468,14 +468,34 @@ const ActionRow = ({
   </div>
 );
 
+// Interactive controls inside the block, in DOM (tab) order. Drives Tab cycling within
+// the block and lands focus on the first control when the block is navigated into.
+const BLOCK_CONTROL_SELECTOR =
+  'button, input, select, [role="combobox"], [tabindex]:not([tabindex="-1"])';
+const getBlockControls = (container: HTMLElement): HTMLElement[] =>
+  Array.from(container.querySelectorAll<HTMLElement>(BLOCK_CONTROL_SELECTOR)).filter(
+    (el) => !el.hasAttribute("disabled") && el.tabIndex !== -1,
+  );
+
 export const LogicBlockElement = (props: PlateElementProps) => {
   const { element, children } = props;
   const editor = useEditorRef();
   const selected = useSelected();
   const focused = useFocused();
+  const blockRef = React.useRef<HTMLDivElement>(null);
 
   // Re-render on editor edits so renamed fields / new steps update pickers.
   useEditorVersion();
+
+  // Navigating into the block (keyboard selection from an adjacent block) lands focus on
+  // the first control instead of leaving the whole block ring-selected. Layout effect so
+  // the control focuses before paint, avoiding a one-frame flash of the selection ring.
+  React.useLayoutEffect(() => {
+    if (!(selected && focused)) return;
+    const container = blockRef.current;
+    if (!container || container.contains(document.activeElement)) return;
+    getBlockControls(container)[0]?.focus();
+  }, [selected, focused]);
 
   const when = (element.when as ConditionGroup | undefined) ?? { combinator: "all", children: [] };
   const actions = (element.actions as Action[] | undefined) ?? [];
@@ -523,6 +543,14 @@ export const LogicBlockElement = (props: PlateElementProps) => {
         (event.target as HTMLElement).closest("input, textarea, [role='combobox']")
       ) {
         return;
+      }
+      // Tab cycles the block's own controls first; only Tab off the last control (or
+      // Shift+Tab off the first) escapes to the adjacent editor block.
+      if (isTab && blockRef.current) {
+        const controls = getBlockControls(blockRef.current);
+        const index = controls.indexOf(document.activeElement as HTMLElement);
+        const atBoundary = event.shiftKey ? index <= 0 : index === controls.length - 1;
+        if (index !== -1 && !atBoundary) return; // let the browser move focus within the block
       }
       const path = editor.api.findPath(element);
       if (!path) return;
@@ -604,6 +632,7 @@ export const LogicBlockElement = (props: PlateElementProps) => {
   return (
     <PlateElement {...props} className="clear-both my-3">
       <div
+        ref={blockRef}
         contentEditable={false}
         role="presentation"
         onKeyDown={handleBlockKeyDown}

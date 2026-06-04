@@ -114,6 +114,48 @@ const RequiredBadge = () => (
 // Stable id for label-less variants (h1/h2/h3/blockquote, group fields) to wire aria-labelledby.
 export const fieldLabelId = (fieldName: string): string => `${fieldName}-label`;
 
+// Leading marker for option groups when "Labels" = Letters/Numbers (Figma 25578:9710 / 25578:9688).
+export const OptionOrdinalBadge = ({
+  text,
+  selected,
+  hasErrors,
+}: {
+  text: string;
+  selected: boolean;
+  hasErrors?: boolean;
+}) => (
+  <span
+    className={cn(
+      "flex size-4 shrink-0 items-center justify-center rounded-[4px] text-[9px]! leading-none font-semibold",
+      selected
+        ? "bg-primary text-primary-foreground"
+        : "bg-[var(--form-input-bg,var(--color-gray-50))] text-muted-foreground elevation-sm",
+      hasErrors && !selected && "ring-1 ring-destructive",
+    )}
+  >
+    {text}
+  </span>
+);
+
+// Radio marker for single-choice when "Labels" = None (Figma 25458:16773).
+export const OptionRadioMark = ({
+  selected,
+  hasErrors,
+}: {
+  selected: boolean;
+  hasErrors?: boolean;
+}) => (
+  <span
+    className={cn(
+      "flex size-4 shrink-0 items-center justify-center rounded-full border bg-card",
+      selected ? "border-primary" : "border-input",
+      hasErrors && !selected && "border-destructive",
+    )}
+  >
+    {selected && <span className="size-2 rounded-full bg-primary" />}
+  </span>
+);
+
 export const FieldLabelText = ({
   text,
   labelType,

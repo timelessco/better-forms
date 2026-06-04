@@ -27,6 +27,8 @@ import { PhoneInput as PhoneInputBase } from "@/components/ui/phone-input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea as TextareaBase } from "@/components/ui/textarea";
 import { TimePicker as TimePickerBase } from "@/components/ui/time-picker";
+import { formatNumberValue, parseNumberValue } from "@/lib/form-schema/number-format";
+import type { NumberFormatConfig } from "@/lib/form-schema/number-format";
 import { cn } from "@/lib/utils";
 
 const {
@@ -222,6 +224,43 @@ const Input = ({
   );
 };
 
+// Number field with a "Format" set: show the formatted value at rest, raw digits while focused
+// (so typing isn't fought by separators), and store the parsed machine number in form state.
+const NumberFormatInput = ({
+  className,
+  format,
+  decimalSeparator,
+  thousandsSeparator,
+  ...props
+}: Omit<React.ComponentProps<typeof InputBase>, "value" | "onChange" | "onBlur"> &
+  NumberFormatConfig) => {
+  const field = useFieldContext();
+  const value = useFieldValue();
+  const hasErrors = field.errors.length > 0 && field.isTouched;
+  const [focused, setFocused] = React.useState(false);
+  const cfg = React.useMemo<NumberFormatConfig>(
+    () => ({ format, decimalSeparator, thousandsSeparator }),
+    [format, decimalSeparator, thousandsSeparator],
+  );
+  const raw = (value as string | undefined) ?? "";
+  const display = focused ? raw : formatNumberValue(raw, cfg);
+  return (
+    <InputBase
+      name={field.name}
+      value={display}
+      onChange={(e) => field.handleChange(parseNumberValue(e.target.value, cfg) as never)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => {
+        setFocused(false);
+        field.handleBlur();
+      }}
+      aria-invalid={hasErrors}
+      className={cn("aria-invalid:form-input-error", className)}
+      {...props}
+    />
+  );
+};
+
 const Textarea = ({
   className,
   ...props
@@ -272,7 +311,7 @@ const TimePicker = ({
     <TimePickerBase
       name={field.name}
       value={(value as string | undefined) ?? ""}
-      onChange={(e) => field.handleChange(e.target.value as never)}
+      onChange={(next) => field.handleChange(next as never)}
       onBlur={field.handleBlur}
       aria-invalid={hasErrors}
       className={className}
@@ -351,6 +390,7 @@ const { useAppForm, withForm, withFieldGroup } = createFormHook({
     InputGroupAddon,
     InputGroupInput,
     PhoneInput,
+    NumberFormatInput,
     Textarea,
     TimePicker,
   },

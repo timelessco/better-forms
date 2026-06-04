@@ -1,4 +1,10 @@
 import type { Value } from "platejs";
+import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
+import type {
+  DecimalSeparator,
+  NumberFormatType,
+  ThousandsSeparator,
+} from "@/lib/form-schema/number-format";
 import { extractFileUploadFields } from "@/lib/form-schema/file-upload-types";
 import {
   ALLOWED_LABEL_TYPES,
@@ -82,6 +88,8 @@ export type PlateFormField =
       /** Initial row count when `isFieldArray` is on — used by the editor and
        * by `generateDefaultValuesFromFields` to seed that many empty rows. */
       initialRows?: number;
+      /** Require email verification before the submission is accepted (block-menu "Verify email"). */
+      verifyEmail?: boolean;
     }
   | {
       id: string;
@@ -92,6 +100,8 @@ export type PlateFormField =
       placeholder?: string;
       required?: boolean;
       isFieldArray?: boolean;
+      /** ISO country code seeding the input's country; unset ⇒ auto-detect from locale. */
+      defaultCountryCode?: string;
       /** Initial row count when `isFieldArray` is on — used by the editor and
        * by `generateDefaultValuesFromFields` to seed that many empty rows. */
       initialRows?: number;
@@ -112,6 +122,11 @@ export type PlateFormField =
       /** Initial row count when `isFieldArray` is on — used by the editor and
        * by `generateDefaultValuesFromFields` to seed that many empty rows. */
       initialRows?: number;
+      /** Display formatting (block-menu "Format"); also persisted so the
+       * submissions table can render the value the same way. */
+      numberFormat?: NumberFormatType;
+      decimalSeparator?: DecimalSeparator;
+      thousandsSeparator?: ThousandsSeparator;
     }
   | {
       id: string;
@@ -173,6 +188,8 @@ export type PlateFormField =
       labelType?: string;
       required?: boolean;
       options: { value: string; label: string }[];
+      /** Leading marker style for the option group (Labels submenu). Default: native control. */
+      optionLabel?: OptionLabelStyle;
     }
   | {
       id: string;
@@ -182,6 +199,8 @@ export type PlateFormField =
       labelType?: string;
       required?: boolean;
       options: { value: string; label: string }[];
+      /** Leading marker style for the option group (Labels submenu). Default: letters. */
+      optionLabel?: OptionLabelStyle;
     }
   | {
       id: string;
@@ -473,6 +492,11 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
 
       const fileUploadFields = nodeType === "formFileUpload" ? extractFileUploadFields(node) : {};
       const numberFields = nodeType === "formNumber" ? extractNumberFields(node) : {};
+      const verifyEmail = nodeType === "formEmail" && node.verifyEmail === true ? true : undefined;
+      const defaultCountryCode =
+        nodeType === "formPhone" && typeof node.defaultCountryCode === "string"
+          ? node.defaultCountryCode || undefined
+          : undefined;
 
       elements.push({
         id: name,
@@ -488,6 +512,8 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
         initialRows,
         ...fileUploadFields,
         ...numberFields,
+        ...(verifyEmail ? { verifyEmail } : {}),
+        ...(defaultCountryCode ? { defaultCountryCode } : {}),
       } as PlateFormField);
       fieldIndex++;
       i++;
@@ -549,6 +575,11 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
       const fieldType = VARIANT_TO_FIELD_TYPE[variant] || "Checkbox";
       // `shuffle` lives on the group's first option node; only Dropdown reads it today.
       const shuffle = fieldType === "Dropdown" ? Boolean(node.shuffle) : undefined;
+      // `optionLabel` (Labels submenu) also lives on the first option node; Checkbox/MultiChoice render it.
+      const optionLabel =
+        fieldType === "Checkbox" || fieldType === "MultiChoice"
+          ? (node.optionLabel as OptionLabelStyle | undefined)
+          : undefined;
 
       elements.push({
         id: name,
@@ -558,6 +589,7 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
         required: isRequired,
         options,
         ...(shuffle !== undefined ? { shuffle } : {}),
+        ...(optionLabel ? { optionLabel } : {}),
       } as PlateFormField);
       fieldIndex++;
       i = j; // Advance past all consumed option nodes

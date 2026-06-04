@@ -12,11 +12,33 @@ import { cn } from "@/lib/utils";
 
 type OptionVariant = "checkbox" | "multiChoice" | "multiSelect" | "dropdown";
 
-import { getMultiSelectColor, LETTER_LABELS } from "@/components/ui/form-option-item-constants";
+import { getMultiSelectColor, getOptionOrdinal } from "@/components/ui/form-option-item-constants";
+import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
 import { useFormIsDark } from "@/hooks/use-form-theme";
 
-const OptionIcon = ({ variant, index }: { variant: OptionVariant; index: number }) => {
+// Letters/Numbers labels: an ordinal badge in a gray box (Figma nodes 25578:9710 / 25578:9688).
+const OptionLabelBadge = ({ text }: { text: string }) => (
+  <span className="flex size-4 min-w-4 shrink-0 items-center justify-center rounded-[4px] bg-(--form-input-bg,var(--color-gray-50)) px-0.5 text-[9px] font-semibold text-muted-foreground elevation-sm">
+    {text}
+  </span>
+);
+
+const OptionIcon = ({
+  variant,
+  index,
+  optionLabel,
+}: {
+  variant: OptionVariant;
+  index: number;
+  optionLabel: OptionLabelStyle;
+}) => {
   const isDark = useFormIsDark();
+
+  // Letters/Numbers override the native control with an ordinal badge, regardless of variant.
+  if (optionLabel === "letters" || optionLabel === "numbers") {
+    return <OptionLabelBadge text={getOptionOrdinal(optionLabel, index)} />;
+  }
+
   switch (variant) {
     case "checkbox":
       return (
@@ -30,14 +52,11 @@ const OptionIcon = ({ variant, index }: { variant: OptionVariant; index: number 
           <ChevronDownIcon className="size-3" />
         </span>
       );
-    case "multiChoice": {
-      const letter = LETTER_LABELS[index % LETTER_LABELS.length];
+    case "multiChoice":
+      // Labels "None" → the radio control (Figma node 25458:16773).
       return (
-        <span className="flex size-4 shrink-0 items-center justify-center rounded-[4px] bg-(--form-input-bg,var(--color-gray-50)) text-[9px] font-semibold text-muted-foreground elevation-sm">
-          {letter}
-        </span>
+        <span className="flex size-4 shrink-0 rounded-full border border-input bg-card elevation-sm" />
       );
-    }
     case "multiSelect": {
       const color = getMultiSelectColor(index, isDark);
       return (
@@ -60,6 +79,10 @@ const OptionIcon = ({ variant, index }: { variant: OptionVariant; index: number 
 export const FormOptionItemElement = ({ children, ...props }: PlateElementProps) => {
   const { attributes, element, ...rest } = props;
   const variant = (element.variant as OptionVariant) || "checkbox";
+  // Default preserves today's look: multiChoice → letter badges, all others → native control.
+  const optionLabel =
+    (element.optionLabel as OptionLabelStyle | undefined) ??
+    (variant === "multiChoice" ? "letters" : "none");
   const editor = useEditorRef();
   const isDark = useFormIsDark();
 
@@ -137,9 +160,9 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
     const nextSibling = draggableWrapper?.nextElementSibling as HTMLElement | null;
     if (!nextSibling) return;
     if (showGhost) {
-      // Ghost is 28px tall, offset 4px below option (top-[calc(100%+4px)]),
-      // plus another 4px gap after the ghost → total 36px margin.
-      nextSibling.style.marginTop = "36px";
+      // Ghost is 30px tall, offset 4px below option (top-[calc(100%+4px)]),
+      // plus another 4px gap after the ghost → total 38px margin.
+      nextSibling.style.marginTop = "38px";
     } else {
       nextSibling.style.marginTop = "";
     }
@@ -160,9 +183,9 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
       element={element}
       {...rest}
     >
-      <div className="flex h-7 items-center gap-2 pr-6 pl-0.5">
+      <div className="flex h-[30px] items-center gap-2 pr-6 pl-0.5">
         <span contentEditable={false} className="pointer-events-none shrink-0 select-none">
-          <OptionIcon variant={variant} index={optionIndex} />
+          <OptionIcon variant={variant} index={optionIndex} optionLabel={optionLabel} />
         </span>
         <span className="min-w-0 flex-1 text-sm outline-none">{children}</span>
       </div>
@@ -171,9 +194,9 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
         <div
           contentEditable={false}
           data-bf-drag-ignore="true"
-          className="pointer-events-none absolute top-[calc(100%+4px)] right-0 left-0 flex h-7 items-center gap-2 pl-0.5 opacity-40 select-none"
+          className="pointer-events-none absolute top-[calc(100%+4px)] right-0 left-0 flex h-[30px] items-center gap-2 pl-0.5 opacity-40 select-none"
         >
-          <OptionIcon variant={variant} index={optionIndex + 1} />
+          <OptionIcon variant={variant} index={optionIndex + 1} optionLabel={optionLabel} />
           <span className="text-sm text-muted-foreground">Add option</span>
         </div>
       )}

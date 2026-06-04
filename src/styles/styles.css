@@ -1013,6 +1013,8 @@
 :root {
   --bf-block-margin: 28px;
   --bf-field-gap: 10px;
+  /* Gap between consecutive options within one group (Figma packs them tight at 2px). */
+  --bf-option-gap: 2px;
 }
 
 .slate-blockWrapper:not(:has(> [data-bf-chrome])),
@@ -1037,13 +1039,13 @@
 
 /* An option block immediately preceded by another option block — pull it
    up to collapse the visible block-margin between consecutive options
-   down to --bf-field-gap. The first option in a group still gets the full
+   down to --bf-option-gap. The first option in a group still gets the full
    block-margin above it (clean gap from the form label), and the last
    option still gets the full block-margin below it (clean gap to the
    next block). */
 [data-bf-input="true"]:has(> .slate-blockWrapper > .slate-formOptionItem)
   + [data-bf-input="true"]:has(> .slate-blockWrapper > .slate-formOptionItem) {
-  margin-top: calc(var(--bf-field-gap) - var(--bf-block-margin)) !important;
+  margin-top: calc(var(--bf-option-gap) - var(--bf-block-margin)) !important;
 }
 
 /* Label wrappers carry both top and bottom field-gap margin. Vertical margin

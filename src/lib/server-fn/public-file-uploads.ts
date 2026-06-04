@@ -13,10 +13,10 @@ import {
   transformPlateStateToFormElements,
 } from "@/lib/editor/transform-plate-to-form";
 import {
-  buildAcceptString,
+  buildAcceptFromExtensions,
   DEFAULT_MAX_FILE_SIZE_MB,
   getExtensionForMime,
-  resolveAllowedSubtypes,
+  resolveAllowedExtensions,
 } from "@/lib/form-schema/file-upload-types";
 
 /** Public form file uploads — NO auth. Hardened by: (1) Postgres per-IP rate limit; (2) form must
@@ -164,11 +164,16 @@ const assertFormFileField = async (
     "accept" in field && typeof field.accept === "string" && field.accept.length > 0
       ? field.accept
       : null;
-  const { category, subtypes } = resolveAllowedSubtypes(allowedFileTypes, allowedFileExtensions);
-  const accept =
-    allowedFileTypes !== undefined
-      ? buildAcceptString(category, subtypes)
-      : (legacyAccept ?? DEFAULT_ACCEPT);
+  const allowedExtensions = resolveAllowedExtensions(allowedFileTypes, allowedFileExtensions);
+  // Flat extensions (or legacy category) drive the accept; else fall back to a stored accept
+  // string from forms predating the type picker, then the broad default.
+  const hasGranularConfig =
+    allowedExtensions.length > 0 ||
+    allowedFileTypes !== undefined ||
+    allowedFileExtensions !== undefined;
+  const accept = hasGranularConfig
+    ? buildAcceptFromExtensions(allowedExtensions)
+    : (legacyAccept ?? DEFAULT_ACCEPT);
 
   const fieldMaxFileSize =
     "maxFileSize" in field && typeof field.maxFileSize === "number" && field.maxFileSize > 0
