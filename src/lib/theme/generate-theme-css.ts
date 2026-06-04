@@ -188,6 +188,12 @@ const buildModeAgnosticEntries = (
     }
   }
 
+  // Cover width: "fit" contains the cover to the form width (so a radius rounds visible corners);
+  // "fill"/unset stays full-bleed via the styles.css var() fallbacks.
+  if (customization.coverWidth === "fit") {
+    entries.push(["--bf-cover-w", "100%"], ["--bf-cover-mx", "0px"], ["--bf-cover-x", "0px"]);
+  }
+
   return entries;
 };
 
