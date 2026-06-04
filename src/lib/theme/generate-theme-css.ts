@@ -197,6 +197,8 @@ const buildModeAgnosticEntries = (
       ["--bf-cover-x", "0px"],
       // Fit is a clean rounded card (Figma) — suppress the bottom fade/blur dissolve.
       ["--bf-cover-fade", "none"],
+      // Fill the card height (crop), not letterbox — overrides any stale coverFit:"contain".
+      ["--bf-cover-fit", "cover"],
     );
   }
 

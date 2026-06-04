@@ -1,15 +1,44 @@
-import { CopyIcon, EyeOffIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
+import {
+  BulkInsertIcon,
+  CharacterLimitIcon,
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronSelectIcon,
+  ConditionalLogicIcon,
+  DeleteIcon,
+  DuplicateIcon,
+  FileIcon,
+  HashIcon,
+  HideIcon,
+  IconPhone,
+  LabelsIcon,
+  PhotoIcon,
+  RepeatIcon,
+  RequiredFieldIcon,
+  SearchLineIcon,
+  SelectionLimitIcon,
+  ShuffleOptionsIcon,
+  TurnIntoIcon,
+  VerifiedIcon,
+} from "@/components/ui/icons";
 import {
   BLOCK_CONTEXT_MENU_ID,
   BlockMenuPlugin,
   BlockSelectionPlugin,
 } from "@platejs/selection/react";
-import { KEYS, PathApi } from "platejs";
 import type { TElement } from "platejs";
+import { KEYS, PathApi } from "platejs";
 import { useEditorPlugin, useEditorSelector, useHotkeys, usePluginOption } from "platejs/react";
 import * as React from "react";
 
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,29 +49,26 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { useReanchorThemeProps } from "@/hooks/use-form-theme";
-import {
-  FILE_SUBTYPES,
-  FILE_TYPE_CATEGORY_LABELS,
-  isFileTypeCategory,
-} from "@/lib/form-schema/file-upload-types";
-import type { FileTypeCategory } from "@/lib/form-schema/file-upload-types";
-import { ALLOWED_LABEL_TYPES, FORM_INPUT_NODE_TYPES } from "@/lib/form-schema/form-field-constants";
-import { cn } from "@/lib/utils";
 import { createLogicBlockNode } from "@/components/ui/logic-block-node";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { useReanchorThemeProps } from "@/hooks/use-form-theme";
+import { ALL_FILE_EXTENSIONS, FILE_CATEGORIES } from "@/lib/form-schema/file-upload-types";
+import { ALLOWED_LABEL_TYPES, FORM_INPUT_NODE_TYPES } from "@/lib/form-schema/form-field-constants";
+import type {
+  DecimalSeparator,
+  NumberFormatConfig,
+  NumberFormatType,
+  ThousandsSeparator,
+} from "@/lib/form-schema/number-format";
+import { PHONE_COUNTRIES } from "@/lib/phone/countries";
 
 type BlockFieldType =
-  | "textLike" // formInput, formTextarea, formEmail, formLink
+  | "textLike" // formInput, formTextarea, formLink
+  | "formEmail"
   | "formPhone"
   | "formNumber"
   | "formDate"
@@ -56,7 +82,7 @@ type BlockFieldType =
   | "static"
   | "unknown";
 
-const TEXT_LIKE_TYPES = new Set(["formInput", "formTextarea", "formEmail", "formLink"]);
+const TEXT_LIKE_TYPES = new Set(["formInput", "formTextarea", "formLink"]);
 
 // Block-menu field-type buckets that map to the 8 scalar PlateFormField types
 // eligible for the Repeatable toggle. Keep in sync with the scalar variants
@@ -73,6 +99,7 @@ const getFieldType = (node: { type?: string; variant?: string } | undefined): Bl
   if (!node?.type) return "unknown";
   const t = node.type;
   if (TEXT_LIKE_TYPES.has(t)) return "textLike";
+  if (t === "formEmail") return "formEmail";
   if (t === "formPhone") return "formPhone";
   if (t === "formNumber") return "formNumber";
   if (t === "formDate") return "formDate";
@@ -90,16 +117,6 @@ const getFieldType = (node: { type?: string; variant?: string } | undefined): Bl
   return "unknown";
 };
 
-// Returns the trimmed text of a node, or empty string if absent / blank.
-// Callers chain fallbacks (label → input → "Untitled") so empty must be empty.
-const extractLabelText = (node: { children?: Array<{ text?: string }> }): string => {
-  if (!node.children) return "";
-  return node.children
-    .map((child) => child.text || "")
-    .join("")
-    .trim();
-};
-
 const stopMouseEventPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();
 };
@@ -108,118 +125,24 @@ const stopKeyEventPropagation = (e: React.KeyboardEvent) => {
   e.stopPropagation();
 };
 
-type NumberRowProps = {
-  label: string;
-  value: number | undefined;
-  onChange: (raw: string) => void;
-  min?: number;
-  max?: number;
-  suffix?: string;
-  /** Placeholder when unset — hints the effective default without persisting it. */
-  defaultHint?: number;
-};
-
-// Dropdown row: label left, number input right. DropdownMenuItem so padding/hover match the
-// rows above; Input stripped to a subtle bordered box to blend into the menu.
-const NumberRow = ({ label, value, onChange, min, max, suffix, defaultHint }: NumberRowProps) => (
-  <DropdownMenuItem closeOnClick={false} onPointerDown={stopMouseEventPropagation}>
-    <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">{label}</span>
-    <Input
-      type="number"
-      min={min}
-      max={max}
-      value={value ?? ""}
-      placeholder={defaultHint !== undefined ? String(defaultHint) : undefined}
-      onChange={(e) => onChange(e.target.value || "0")}
-      onKeyDown={stopKeyEventPropagation}
-      onClick={stopMouseEventPropagation}
-      aria-label={label}
-      className="h-[20px] w-[48px] shrink-0 rounded-[4px] border border-transparent bg-transparent px-1 text-right text-[12px] shadow-none placeholder:text-muted-foreground/60 focus:border-border/70 focus-visible:border-border/70 focus-visible:ring-0 dark:border-transparent dark:focus:border-border/70 dark:focus-visible:border-border/70"
-    />
-    {suffix && <span className="shrink-0 text-[11px] text-muted-foreground/80">{suffix}</span>}
-  </DropdownMenuItem>
-);
-
-type FileExtensionToggleRowProps = {
-  category: FileTypeCategory;
-  selected: string[] | undefined;
-  onToggle: (subtypeId: string) => void;
-};
-
-// Empty `selected` ⇒ every subtype is implicitly enabled, so the pills render
-// as active until the user starts narrowing down.
-const FileExtensionToggleRow = ({ category, selected, onToggle }: FileExtensionToggleRowProps) => {
-  const open = category !== "all";
-  const subtypes = open ? FILE_SUBTYPES[category] : [];
-  const allEnabled = !selected || selected.length === 0;
-  const isActive = (id: string) => allEnabled || (selected?.includes(id) ?? false);
-
-  return (
-    <Collapsible open={open}>
-      <CollapsibleContent>
-        <div className="px-2 pt-0.5 pb-1">
-          <div className="flex h-[28px] items-stretch overflow-hidden rounded-[6px] border border-border/60 bg-transparent">
-            {subtypes.map((subtype, i) => {
-              const active = isActive(subtype.id);
-              return (
-                <React.Fragment key={subtype.id}>
-                  {i > 0 && <span aria-hidden className="w-px self-stretch bg-border/60" />}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onToggle(subtype.id);
-                    }}
-                    onPointerDown={stopMouseEventPropagation}
-                    aria-pressed={active}
-                    className={cn(
-                      "flex-1 text-[11px] font-medium tracking-wide uppercase transition-colors",
-                      active
-                        ? "bg-(--color-gray-alpha-100) text-foreground"
-                        : "text-muted-foreground/50 hover:bg-(--color-gray-alpha-100)/50 hover:text-foreground",
-                    )}
-                  >
-                    {subtype.label}
-                  </button>
-                </React.Fragment>
-              );
-            })}
-          </div>
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-};
-
 export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
   const { api, editor } = useEditorPlugin(BlockMenuPlugin);
   const openId = usePluginOption(BlockMenuPlugin, "openId");
-  const themeReanchor = useReanchorThemeProps("w-[288px] p-1");
+  const themeReanchor = useReanchorThemeProps("w-[246px] p-1");
   const isOpen = openId === BLOCK_CONTEXT_MENU_ID;
 
   const position = usePluginOption(BlockMenuPlugin, "position");
   const { x, y } = position ?? { x: 0, y: 0 };
 
-  const [isEditingName, setIsEditingName] = React.useState(false);
-  const [fieldName, setFieldName] = React.useState("");
   const [buttonText, setButtonText] = React.useState("");
-  const [turnIntoOpen, setTurnIntoOpen] = React.useState(false);
   const blockMenuTriggerRef = React.useRef<HTMLDivElement | null>(null);
-  const turnIntoCloseTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const { firstNode, firstPath, nodeType, labelNode, inputNode, fieldType, getInputPath } =
+  const { firstNode, firstPath, nodeType, inputNode, fieldType, getInputPath } =
     useBlockMenuSelection({ editor, isOpen });
 
   const [wasOpen, setWasOpen] = React.useState(false);
   if (isOpen && !wasOpen) {
     setWasOpen(true);
-    const labelText = labelNode ? extractLabelText(labelNode) : "";
-    const inputText = firstNode ? extractLabelText(firstNode) : "";
-    const label = labelText || inputText || "Untitled";
-    setFieldName(label);
-    setIsEditingName(false);
-    setTurnIntoOpen(false);
     if (nodeType === "formButton") {
       setButtonText((firstNode?.buttonText as string) || "Submit");
     }
@@ -235,26 +158,6 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     nodeType,
     setButtonText,
   });
-  const {
-    handleToggleRequired,
-    handleToggleFieldArray,
-    handleUpdateMinLength,
-    handleUpdateMaxLength,
-    handleUpdateMinValue,
-    handleUpdateMaxValue,
-    handleToggleAllowDecimals,
-    handleUpdateMaxFileSize,
-    handleUpdateMaxFiles,
-    handleUpdateAllowedFileTypes,
-    handleToggleFileExtension,
-    handleUpdateMinSelections,
-    handleUpdateMaxSelections,
-    handleToggleRandomizeOrder,
-    handleToggleAllowOther,
-    handleToggleDefaultValue,
-    handleUpdateDefaultValue,
-    handleUpdateButtonText,
-  } = handlers;
 
   const handleDelete = React.useCallback(() => {
     editor.getTransforms(BlockSelectionPlugin).blockSelection.removeNodes();
@@ -295,14 +198,71 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     [editor, api.blockMenu],
   );
 
+  const handleHide = React.useCallback(() => {
+    api.blockMenu.hide();
+  }, [api.blockMenu]);
+
+  // Bulk insert: capture the option group's tail + variant when the dialog opens (the menu
+  // closes, which clears the selection), then splice the parsed lines in on Save.
+  const [bulkInsert, setBulkInsert] = React.useState<{ at: number; variant: string } | null>(null);
+
+  const handleOpenBulkInsert = React.useCallback(() => {
+    const optionPath = getInputPath();
+    if (!optionPath) return;
+    const start = optionPath[0];
+    const nodes = editor.children as TElement[];
+    // Anchor must resolve to an option (selection may be the option or its label above it).
+    const startNode = nodes[start] as { type?: string; variant?: string } | undefined;
+    if (startNode?.type !== "formOptionItem") return;
+    let lastIndex = start;
+    for (let i = start + 1; i < nodes.length; i++) {
+      if (nodes[i]?.type === "formOptionItem") lastIndex = i;
+      else break;
+    }
+    const variant = startNode.variant || "checkbox";
+    const at = lastIndex + 1;
+    api.blockMenu.hide();
+    // Defer past the click that closed the menu — opening the modal synchronously lets that
+    // same pointer event dismiss it, so the dialog would flash and never appear.
+    setTimeout(() => setBulkInsert({ at, variant }), 0);
+  }, [getInputPath, editor, api.blockMenu]);
+
+  const handleBulkInsertSubmit = React.useCallback(
+    (text: string) => {
+      const target = bulkInsert;
+      setBulkInsert(null);
+      if (!target) return;
+      const labels = text
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+      if (labels.length === 0) return;
+      const newNodes = labels.map(
+        (label) =>
+          ({
+            type: "formOptionItem",
+            variant: target.variant,
+            children: [{ text: label }],
+          }) as unknown as TElement,
+      );
+      editor.tf.insertNodes(newNodes, { at: [target.at] });
+      // Focus back to the last inserted option, cursor at its end.
+      const lastPath = [target.at + labels.length - 1];
+      editor.tf.focus();
+      const end = editor.api.end(lastPath);
+      if (end) editor.tf.select(end);
+    },
+    [bulkInsert, editor],
+  );
+
   useBlockMenuContextMenuAndHotkeys({
     triggerRef: blockMenuTriggerRef,
     api,
     isOpen,
-    isEditingName,
     onDelete: handleDelete,
     onDuplicate: handleDuplicate,
     onAddLogic: handleAddLogic,
+    onBulkInsert: handleOpenBulkInsert,
   });
 
   // Close on scroll — virtual anchor is pinned to the click (x,y), so the menu would float in
@@ -325,12 +285,6 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     };
   }, [isOpen, api.blockMenu]);
 
-  const isRequired = Boolean(inputNode?.required);
-  const isFieldArray = Boolean(inputNode?.isFieldArray);
-  const canBeFieldArray = REPEATABLE_BLOCK_FIELD_TYPES.has(fieldType);
-  const hasDefaultValue = inputNode?.defaultValue !== undefined;
-  const currentDefaultValue = inputNode?.defaultValue;
-
   const handleOpenChange = React.useCallback(
     (open: boolean, eventDetails: { reason?: string }) => {
       if (!open) {
@@ -343,47 +297,6 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     },
     [api.blockMenu],
   );
-
-  const handleTurnIntoParagraph = React.useCallback(() => handleTurnInto(KEYS.p), [handleTurnInto]);
-  const handleTurnIntoH1 = React.useCallback(() => handleTurnInto(KEYS.h1), [handleTurnInto]);
-  const handleTurnIntoH2 = React.useCallback(() => handleTurnInto(KEYS.h2), [handleTurnInto]);
-  const handleTurnIntoH3 = React.useCallback(() => handleTurnInto(KEYS.h3), [handleTurnInto]);
-  const handleTurnIntoBlockquote = React.useCallback(
-    () => handleTurnInto(KEYS.blockquote),
-    [handleTurnInto],
-  );
-
-  const handleStopPropagation = React.useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-  }, []);
-
-  const handleInputKeyDown = React.useCallback((e: React.KeyboardEvent) => {
-    e.stopPropagation();
-  }, []);
-
-  const handleDefaultValueChange = React.useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => handleUpdateDefaultValue(e.target.value),
-    [handleUpdateDefaultValue],
-  );
-
-  const handleButtonTextChange = React.useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => handleUpdateButtonText(e.target.value),
-    [handleUpdateButtonText],
-  );
-
-  const handleHideMenu = React.useCallback(() => {
-    api.blockMenu.hide();
-  }, [api.blockMenu]);
-
-  // Submenu hover handlers — manually bridge trigger ↔ submenu content
-  const handleTurnIntoPointerEnter = React.useCallback(() => {
-    clearTimeout(turnIntoCloseTimer.current);
-    setTurnIntoOpen(true);
-  }, []);
-
-  const handleTurnIntoPointerLeave = React.useCallback(() => {
-    turnIntoCloseTimer.current = setTimeout(() => setTurnIntoOpen(false), 150);
-  }, []);
 
   const virtualAnchor = React.useMemo(() => {
     if (!isOpen) return undefined;
@@ -402,6 +315,54 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     };
   }, [isOpen, x, y]);
 
+  // Dependency-injected context: pieces read state + actions, never prop-drilled handlers.
+  const contextValue = React.useMemo<BlockMenuContextValue>(
+    () => ({
+      state: { fieldType, inputNode, buttonText },
+      actions: {
+        toggleRequired: handlers.handleToggleRequired,
+        toggleRepeatable: handlers.handleToggleFieldArray,
+        updateMinLength: handlers.handleUpdateMinLength,
+        updateMaxLength: handlers.handleUpdateMaxLength,
+        updateMinValue: handlers.handleUpdateMinValue,
+        updateMaxValue: handlers.handleUpdateMaxValue,
+        toggleAllowDecimals: handlers.handleToggleAllowDecimals,
+        updateMaxFileSize: handlers.handleUpdateMaxFileSize,
+        updateMaxFiles: handlers.handleUpdateMaxFiles,
+        setAllowedExtensions: handlers.handleSetAllowedExtensions,
+        updateMinSelections: handlers.handleUpdateMinSelections,
+        updateMaxSelections: handlers.handleUpdateMaxSelections,
+        toggleRandomizeOrder: handlers.handleToggleRandomizeOrder,
+        toggleAllowOther: handlers.handleToggleAllowOther,
+        toggleVerifyEmail: handlers.handleToggleVerifyEmail,
+        setDefaultCountryCode: handlers.handleSetDefaultCountryCode,
+        setOptionLabel: handlers.handleSetOptionLabel,
+        setNumberFormat: handlers.handleSetNumberFormat,
+        updateButtonText: handlers.handleUpdateButtonText,
+        deleteBlock: handleDelete,
+        duplicateBlock: handleDuplicate,
+        addLogic: handleAddLogic,
+        hide: handleHide,
+        turnInto: handleTurnInto,
+        openBulkInsert: handleOpenBulkInsert,
+      },
+    }),
+    [
+      fieldType,
+      inputNode,
+      buttonText,
+      handlers,
+      handleDelete,
+      handleDuplicate,
+      handleAddLogic,
+      handleHide,
+      handleTurnInto,
+      handleOpenBulkInsert,
+    ],
+  );
+
+  const FieldMenu = FIELD_MENU_VARIANTS[fieldType];
+
   return (
     <>
       <div ref={blockMenuTriggerRef}>{children}</div>
@@ -411,88 +372,20 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
           anchor={virtualAnchor}
           className={themeReanchor.className}
           style={themeReanchor.style}
-          align="start"
+          align="end"
           sideOffset={8}
         >
-          <div className="flex items-center gap-2 px-2 py-1.5">
-            <span className="flex-1 truncate text-[13px] text-foreground">{fieldName}</span>
-          </div>
-          <DropdownMenuSeparator />
-
-          {fieldType !== "static" && fieldType !== "formButton" && fieldType !== "unknown" && (
-            <DropdownMenuItem closeOnClick={false} onClick={handleToggleRequired}>
-              <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
-                Required
-              </span>
-              <Switch
-                aria-label="Required"
-                size="sm"
-                checked={isRequired}
-                onCheckedChange={handleToggleRequired}
-                onClick={handleStopPropagation}
-              />
-            </DropdownMenuItem>
-          )}
-
-          {canBeFieldArray && (
-            <DropdownMenuItem closeOnClick={false} onClick={handleToggleFieldArray}>
-              <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
-                Repeatable
-              </span>
-              <Switch
-                aria-label="Repeatable"
-                size="sm"
-                checked={isFieldArray}
-                onCheckedChange={handleToggleFieldArray}
-                onClick={handleStopPropagation}
-              />
-            </DropdownMenuItem>
-          )}
-
-          <FieldTypeSettings
-            fieldType={fieldType}
-            inputNode={inputNode}
-            buttonText={buttonText}
-            hasDefaultValue={hasDefaultValue}
-            currentDefaultValue={currentDefaultValue}
-            handlers={{
-              handleToggleDefaultValue,
-              handleDefaultValueChange,
-              handleInputKeyDown,
-              handleStopPropagation,
-              handleUpdateMinLength,
-              handleUpdateMaxLength,
-              handleUpdateMinValue,
-              handleUpdateMaxValue,
-              handleToggleAllowDecimals,
-              handleUpdateMaxFileSize,
-              handleUpdateMaxFiles,
-              handleUpdateAllowedFileTypes,
-              handleToggleFileExtension,
-              handleUpdateMinSelections,
-              handleUpdateMaxSelections,
-              handleToggleRandomizeOrder,
-              handleToggleAllowOther,
-              handleButtonTextChange,
-            }}
-          />
-
-          <BlockMenuActions
-            onDelete={handleDelete}
-            onDuplicate={handleDuplicate}
-            onAddLogic={handleAddLogic}
-            onHide={handleHideMenu}
-            turnIntoOpen={turnIntoOpen}
-            onTurnIntoPointerEnter={handleTurnIntoPointerEnter}
-            onTurnIntoPointerLeave={handleTurnIntoPointerLeave}
-            onTurnIntoParagraph={handleTurnIntoParagraph}
-            onTurnIntoH1={handleTurnIntoH1}
-            onTurnIntoH2={handleTurnIntoH2}
-            onTurnIntoH3={handleTurnIntoH3}
-            onTurnIntoBlockquote={handleTurnIntoBlockquote}
-          />
+          <BlockMenuContext value={contextValue}>
+            <FieldMenu />
+          </BlockMenuContext>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <BulkInsertDialog
+        open={bulkInsert !== null}
+        onClose={() => setBulkInsert(null)}
+        onSubmit={handleBulkInsertSubmit}
+      />
     </>
   );
 };
@@ -501,6 +394,13 @@ type EditorRef = ReturnType<typeof useEditorPlugin<typeof BlockMenuPlugin>>["edi
 
 interface BlockMenuInputNode {
   type?: string;
+  variant?: string;
+  optionLabel?: OptionLabelStyle;
+  numberFormat?: NumberFormatType;
+  decimalSeparator?: DecimalSeparator;
+  thousandsSeparator?: ThousandsSeparator;
+  verifyEmail?: boolean;
+  defaultCountryCode?: string;
   required?: boolean;
   isFieldArray?: boolean;
   defaultValue?: string;
@@ -621,10 +521,19 @@ const useBlockMenuFieldHandlers = ({
     [getInputPath, inputNode, editor.tf],
   );
 
-  const handleToggleAllowDecimals = React.useCallback(
-    () => toggleBooleanNode("allowDecimals"),
-    [toggleBooleanNode],
-  );
+  // Decimals are allowed by default — only an explicit `false` enforces integer-only (see
+  // generate-preview-schema). Can't use toggleBooleanNode: it flips true↔unset, both of which
+  // allow decimals. Turning the toggle off persists `false`; turning it back on unsets it.
+  const handleToggleAllowDecimals = React.useCallback(() => {
+    const inputPath = getInputPath();
+    if (!inputPath) return;
+    const allowed = inputNode?.allowDecimals !== false;
+    if (allowed) {
+      editor.tf.setNodes({ allowDecimals: false }, { at: inputPath });
+    } else {
+      editor.tf.unsetNodes(["allowDecimals"], { at: inputPath });
+    }
+  }, [getInputPath, inputNode, editor.tf]);
   const handleToggleRandomizeOrder = React.useCallback(
     () => toggleBooleanNode("randomizeOrder"),
     [toggleBooleanNode],
@@ -633,60 +542,85 @@ const useBlockMenuFieldHandlers = ({
     () => toggleBooleanNode("allowOther"),
     [toggleBooleanNode],
   );
+  const handleToggleVerifyEmail = React.useCallback(
+    () => toggleBooleanNode("verifyEmail"),
+    [toggleBooleanNode],
+  );
 
-  const handleUpdateAllowedFileTypes = React.useCallback(
-    (value: string) => {
+  // Default country code — store the ISO code, or unset to fall back to the browser locale.
+  const handleSetDefaultCountryCode = React.useCallback(
+    (code: string | undefined) => {
       const inputPath = getInputPath();
       if (!inputPath) return;
-      editor.tf.setNodes({ allowedFileTypes: value }, { at: inputPath });
-      editor.tf.unsetNodes(["allowedFileExtensions"], { at: inputPath });
+      if (code) {
+        editor.tf.setNodes({ defaultCountryCode: code }, { at: inputPath });
+      } else {
+        editor.tf.unsetNodes(["defaultCountryCode"], { at: inputPath });
+      }
     },
     [getInputPath, editor.tf],
   );
 
-  const handleToggleFileExtension = React.useCallback(
-    (subtypeId: string) => {
+  // Labels apply to the whole option group — set optionLabel on every contiguous sibling option.
+  const handleSetOptionLabel = React.useCallback(
+    (style: OptionLabelStyle) => {
       const inputPath = getInputPath();
       if (!inputPath) return;
-      const category = isFileTypeCategory(inputNode?.allowedFileTypes)
-        ? inputNode.allowedFileTypes
-        : "all";
-      if (category === "all") return;
-      const allSubtypes = FILE_SUBTYPES[category].map((s) => s.id);
-      const current = inputNode?.allowedFileExtensions;
-      const selected =
-        Array.isArray(current) && current.length > 0
-          ? current.filter((id): id is string => typeof id === "string" && allSubtypes.includes(id))
-          : allSubtypes;
-      const next = selected.includes(subtypeId)
-        ? selected.filter((id) => id !== subtypeId)
-        : [...selected, subtypeId];
-      if (next.length === 0) return;
-      if (next.length === allSubtypes.length) {
-        editor.tf.unsetNodes(["allowedFileExtensions"], { at: inputPath });
-        return;
-      }
-      editor.tf.setNodes({ allowedFileExtensions: next }, { at: inputPath });
+      const start = inputPath[0];
+      const nodes = editor.children as TElement[];
+      if (nodes[start]?.type !== "formOptionItem") return;
+      let first = start;
+      let last = start;
+      while (first > 0 && nodes[first - 1]?.type === "formOptionItem") first--;
+      while (last < nodes.length - 1 && nodes[last + 1]?.type === "formOptionItem") last++;
+      editor.tf.withoutNormalizing(() => {
+        for (let i = first; i <= last; i++) {
+          editor.tf.setNodes({ optionLabel: style }, { at: [i] });
+        }
+      });
     },
-    [getInputPath, editor.tf, inputNode?.allowedFileTypes, inputNode?.allowedFileExtensions],
+    [getInputPath, editor],
   );
 
-  const handleToggleDefaultValue = React.useCallback(() => {
-    const inputPath = getInputPath();
-    if (!inputPath) return;
-    const hasDefault = inputNode?.defaultValue !== undefined;
-    if (hasDefault) {
-      editor.tf.unsetNodes(["defaultValue"], { at: inputPath });
-    } else {
-      editor.tf.setNodes({ defaultValue: "" }, { at: inputPath });
-    }
-  }, [getInputPath, inputNode?.defaultValue, editor.tf]);
-
-  const handleUpdateDefaultValue = React.useCallback(
-    (value: string) => {
+  // Number "Format" — patch one config field at a time; "off"/"none" unset to keep the node clean.
+  const handleSetNumberFormat = React.useCallback(
+    (patch: Partial<NumberFormatConfig>) => {
       const inputPath = getInputPath();
       if (!inputPath) return;
-      editor.tf.setNodes({ defaultValue: value }, { at: inputPath });
+      const sets: Record<string, unknown> = {};
+      const unsets: string[] = [];
+      if (patch.format !== undefined) {
+        if (patch.format === "off") unsets.push("numberFormat");
+        else sets.numberFormat = patch.format;
+      }
+      if (patch.decimalSeparator !== undefined) sets.decimalSeparator = patch.decimalSeparator;
+      if (patch.thousandsSeparator !== undefined) {
+        if (patch.thousandsSeparator === "none") unsets.push("thousandsSeparator");
+        else sets.thousandsSeparator = patch.thousandsSeparator;
+      }
+      editor.tf.withoutNormalizing(() => {
+        if (Object.keys(sets).length > 0) editor.tf.setNodes(sets, { at: inputPath });
+        if (unsets.length > 0) editor.tf.unsetNodes(unsets, { at: inputPath });
+      });
+    },
+    [getInputPath, editor],
+  );
+
+  // Allowed files — store the flat extension allow-list. Empty or the full catalog ⇒ unset, which
+  // the runtime treats as "all files allowed". Also clears any legacy allowedFileTypes category.
+  const handleSetAllowedExtensions = React.useCallback(
+    (next: string[]) => {
+      const inputPath = getInputPath();
+      if (!inputPath) return;
+      const deduped = [...new Set(next)];
+      if (deduped.length === 0 || deduped.length >= ALL_FILE_EXTENSIONS.length) {
+        editor.tf.unsetNodes(["allowedFileExtensions", "allowedFileTypes"], { at: inputPath });
+        return;
+      }
+      editor.tf.withoutNormalizing(() => {
+        editor.tf.setNodes({ allowedFileExtensions: deduped }, { at: inputPath });
+        editor.tf.unsetNodes(["allowedFileTypes"], { at: inputPath });
+      });
     },
     [getInputPath, editor.tf],
   );
@@ -704,466 +638,1073 @@ const useBlockMenuFieldHandlers = ({
     [firstPath, nodeType, editor.tf, setButtonText],
   );
 
-  return {
-    handleToggleRequired,
-    handleToggleFieldArray,
-    handleUpdateMinLength,
-    handleUpdateMaxLength,
-    handleUpdateMinValue,
-    handleUpdateMaxValue,
-    handleToggleAllowDecimals,
-    handleUpdateMaxFileSize,
-    handleUpdateMaxFiles,
-    handleUpdateAllowedFileTypes,
-    handleToggleFileExtension,
-    handleUpdateMinSelections,
-    handleUpdateMaxSelections,
-    handleToggleRandomizeOrder,
-    handleToggleAllowOther,
-    handleToggleDefaultValue,
-    handleUpdateDefaultValue,
-    handleUpdateButtonText,
+  // Memoized so the assembled context value stays referentially stable across renders.
+  return React.useMemo(
+    () => ({
+      handleToggleRequired,
+      handleToggleFieldArray,
+      handleUpdateMinLength,
+      handleUpdateMaxLength,
+      handleUpdateMinValue,
+      handleUpdateMaxValue,
+      handleToggleAllowDecimals,
+      handleUpdateMaxFileSize,
+      handleUpdateMaxFiles,
+      handleSetAllowedExtensions,
+      handleUpdateMinSelections,
+      handleUpdateMaxSelections,
+      handleToggleRandomizeOrder,
+      handleToggleAllowOther,
+      handleToggleVerifyEmail,
+      handleSetDefaultCountryCode,
+      handleSetOptionLabel,
+      handleSetNumberFormat,
+      handleUpdateButtonText,
+    }),
+    [
+      handleToggleRequired,
+      handleToggleFieldArray,
+      handleUpdateMinLength,
+      handleUpdateMaxLength,
+      handleUpdateMinValue,
+      handleUpdateMaxValue,
+      handleToggleAllowDecimals,
+      handleUpdateMaxFileSize,
+      handleUpdateMaxFiles,
+      handleSetAllowedExtensions,
+      handleUpdateMinSelections,
+      handleUpdateMaxSelections,
+      handleToggleRandomizeOrder,
+      handleToggleAllowOther,
+      handleToggleVerifyEmail,
+      handleSetDefaultCountryCode,
+      handleSetOptionLabel,
+      handleSetNumberFormat,
+      handleUpdateButtonText,
+    ],
+  );
+};
+
+/**
+ * Block-menu composition context. The provider (in `BlockMenu`) injects field state and the
+ * action callbacks; each compound piece below reads what it needs via `useBlockMenu()` instead
+ * of having a giant handlers object prop-drilled through it. Adding a new field type means
+ * writing a new variant in `FIELD_MENU_VARIANTS` that composes the existing pieces.
+ */
+interface BlockMenuActions {
+  toggleRequired: () => void;
+  toggleRepeatable: () => void;
+  updateMinLength: (v: string) => void;
+  updateMaxLength: (v: string) => void;
+  updateMinValue: (v: string) => void;
+  updateMaxValue: (v: string) => void;
+  toggleAllowDecimals: () => void;
+  updateMaxFileSize: (v: string) => void;
+  updateMaxFiles: (v: string) => void;
+  setAllowedExtensions: (next: string[]) => void;
+  updateMinSelections: (v: string) => void;
+  updateMaxSelections: (v: string) => void;
+  toggleRandomizeOrder: () => void;
+  toggleAllowOther: () => void;
+  toggleVerifyEmail: () => void;
+  setDefaultCountryCode: (code: string | undefined) => void;
+  setOptionLabel: (style: OptionLabelStyle) => void;
+  setNumberFormat: (patch: Partial<NumberFormatConfig>) => void;
+  updateButtonText: (v: string) => void;
+  deleteBlock: () => void;
+  duplicateBlock: () => void;
+  addLogic: () => void;
+  hide: () => void;
+  turnInto: (type: string) => void;
+  openBulkInsert: () => void;
+}
+
+interface BlockMenuContextValue {
+  state: {
+    fieldType: BlockFieldType;
+    inputNode: BlockMenuInputNode | null | undefined;
+    buttonText: string;
   };
-};
-
-interface FieldTypeSettingsHandlers {
-  handleToggleDefaultValue: () => void;
-  handleDefaultValueChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleInputKeyDown: (e: React.KeyboardEvent) => void;
-  handleStopPropagation: (e: React.MouseEvent) => void;
-  handleUpdateMinLength: (v: string) => void;
-  handleUpdateMaxLength: (v: string) => void;
-  handleUpdateMinValue: (v: string) => void;
-  handleUpdateMaxValue: (v: string) => void;
-  handleToggleAllowDecimals: () => void;
-  handleUpdateMaxFileSize: (v: string) => void;
-  handleUpdateMaxFiles: (v: string) => void;
-  handleUpdateAllowedFileTypes: (v: string) => void;
-  handleToggleFileExtension: (subtypeId: string) => void;
-  handleUpdateMinSelections: (v: string) => void;
-  handleUpdateMaxSelections: (v: string) => void;
-  handleToggleRandomizeOrder: () => void;
-  handleToggleAllowOther: () => void;
-  handleButtonTextChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  actions: BlockMenuActions;
 }
 
-interface FieldTypeSettingsProps {
-  fieldType: BlockFieldType;
-  inputNode: BlockMenuInputNode | null | undefined;
-  buttonText: string;
-  hasDefaultValue: boolean;
-  currentDefaultValue: string | undefined;
-  handlers: FieldTypeSettingsHandlers;
-}
+const BlockMenuContext = React.createContext<BlockMenuContextValue | null>(null);
 
-const FieldTypeSettings = (props: FieldTypeSettingsProps) => {
-  const { fieldType } = props;
-  if (fieldType === "textLike") return <TextLikeSettings {...props} />;
-  if (fieldType === "formPhone") return <FormPhoneSettings {...props} />;
-  if (fieldType === "formNumber") return <NumberFieldSettings {...props} />;
-  if (fieldType === "formFileUpload") return <FileUploadSettings {...props} />;
-  if (fieldType === "optionCheckbox") return <OptionCheckboxSettings {...props} />;
-  if (fieldType === "formMultiSelect") return <MultiSelectSettings {...props} />;
-  if (fieldType === "optionMultiChoice") return <OptionMultiChoiceSettings {...props} />;
-  if (fieldType === "optionRanking" || fieldType === "formDate" || fieldType === "formTime") {
-    return <DropdownMenuSeparator />;
-  }
-  if (fieldType === "formButton") return <ButtonFieldSettings {...props} />;
-  return null;
+const useBlockMenu = (): BlockMenuContextValue => {
+  const ctx = React.use(BlockMenuContext);
+  if (!ctx) throw new Error("BlockMenu pieces must be rendered inside <BlockMenu>");
+  return ctx;
 };
 
-const DefaultValueRow = ({
-  hasDefaultValue,
-  currentDefaultValue,
-  numeric,
-  handlers,
+// Hover open/close with a close grace period — Base UI's auto trigger↔content bridging is
+// unreliable inside this non-modal virtual-anchored popup, so submenus drive open state by hand.
+const useHoverSubmenu = () => {
+  const [open, setOpen] = React.useState(false);
+  const closeTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const onPointerEnter = React.useCallback(() => {
+    clearTimeout(closeTimer.current);
+    setOpen(true);
+  }, []);
+  const onPointerLeave = React.useCallback(() => {
+    closeTimer.current = setTimeout(() => setOpen(false), 150);
+  }, []);
+  React.useEffect(() => () => clearTimeout(closeTimer.current), []);
+  return { open, setOpen, onPointerEnter, onPointerLeave };
+};
+
+// Groups a field's numeric settings behind a submenu trigger (Figma "Character limit" pattern).
+// Hover-controlled like the Turn-into submenu — Base UI's auto trigger↔content bridging is
+// unreliable inside this non-modal virtual-anchored popup, and these submenus hold inputs.
+const SettingsSubmenu = ({
+  icon,
+  label,
+  children,
 }: {
-  hasDefaultValue: boolean;
-  currentDefaultValue: string | undefined;
-  numeric?: boolean;
-  handlers: FieldTypeSettingsHandlers;
-}) => (
-  <>
-    <DropdownMenuItem closeOnClick={false} onClick={handlers.handleToggleDefaultValue}>
-      <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">
-        Default answer
-      </span>
-      <Switch
-        aria-label="Default answer"
-        size="sm"
-        checked={hasDefaultValue}
-        onCheckedChange={handlers.handleToggleDefaultValue}
-        onClick={handlers.handleStopPropagation}
-      />
-    </DropdownMenuItem>
-    {hasDefaultValue && (
-      <div className="px-2 pb-2">
-        <Input
-          type={numeric ? "number" : undefined}
-          value={currentDefaultValue || ""}
-          onChange={handlers.handleDefaultValueChange}
-          onKeyDown={handlers.handleInputKeyDown}
-          placeholder="Enter default value"
-          className="h-7 rounded-lg text-[13px]"
-          aria-label="Default value"
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) => {
+  const { open, setOpen, onPointerEnter: onEnter, onPointerLeave: onLeave } = useHoverSubmenu();
+
+  return (
+    <DropdownMenuSub open={open}>
+      <DropdownMenuSubTrigger
+        className="text-sm text-foreground/80"
+        onPointerEnter={onEnter}
+        onPointerLeave={onLeave}
+      >
+        {icon}
+        <span className="flex-1 text-left">{label}</span>
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent
+        className="flex w-[216px] flex-col gap-3 p-2"
+        onPointerEnter={onEnter}
+        onPointerLeave={onLeave}
+      >
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="flex items-center gap-0.5 text-[14px] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ChevronLeftIcon className="-ms-0.5 size-4" />
+          <span>{label}</span>
+        </button>
+        <div className="flex flex-col gap-2">{children}</div>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
+};
+
+type StepperRowProps = {
+  /** Visible label (e.g. "Min") — the submenu header carries the rest of the context. */
+  label: string;
+  ariaLabel: string;
+  value: number | undefined;
+  onChange: (raw: string) => void;
+  min?: number;
+  max?: number;
+  /** Placeholder when unset — hints the effective default without persisting it. */
+  defaultHint?: number;
+};
+
+// Submenu row matching Figma's limit panel: label left, value in a filled box with an
+// up/down stepper. Plain divs (not menu items) so there's no row-hover treatment.
+const StepperRow = ({
+  label,
+  ariaLabel,
+  value,
+  onChange,
+  min,
+  max,
+  defaultHint,
+}: StepperRowProps) => {
+  const step = (delta: number) => {
+    let next = (value ?? defaultHint ?? 0) + delta;
+    if (min !== undefined) next = Math.max(min, next);
+    if (max !== undefined) next = Math.min(max, next);
+    onChange(String(next));
+  };
+
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="min-w-0 flex-1 text-[14px] font-medium text-foreground">{label}</span>
+      <div className="flex w-[140px] items-center gap-2 rounded-lg bg-(--color-gray-alpha-100) px-2 py-1.5">
+        <input
+          type="number"
+          min={min}
+          max={max}
+          value={value ?? ""}
+          placeholder={defaultHint !== undefined ? String(defaultHint) : undefined}
+          onChange={(e) => onChange(e.target.value || "0")}
+          onKeyDown={stopKeyEventPropagation}
+          onClick={stopMouseEventPropagation}
+          onPointerDown={stopMouseEventPropagation}
+          aria-label={ariaLabel}
+          className="min-w-0 flex-1 [appearance:textfield] bg-transparent text-[14px] font-medium text-foreground tabular-nums outline-none placeholder:text-muted-foreground/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
+        {/* Single Figma stepper glyph; transparent top/bottom halves drive ±1. */}
+        <div className="relative flex h-4 w-3 shrink-0 flex-col text-muted-foreground">
+          <ChevronSelectIcon className="pointer-events-none absolute inset-0 m-auto size-3" />
+          <button
+            type="button"
+            aria-label={`Increase ${ariaLabel}`}
+            onClick={() => step(1)}
+            onPointerDown={stopMouseEventPropagation}
+            className="flex-1"
+          />
+          <button
+            type="button"
+            aria-label={`Decrease ${ariaLabel}`}
+            onClick={() => step(-1)}
+            onPointerDown={stopMouseEventPropagation}
+            className="flex-1"
+          />
+        </div>
       </div>
-    )}
-  </>
-);
+    </div>
+  );
+};
+
+// The menu renders inside `.bf-themed`, which remaps `--input` (the Switch's default off track)
+// to the form's tinted input color. Pin the off track to the design-system gray-300 to match Figma.
+const SWITCH_OFF_TRACK = "data-unchecked:bg-(--color-gray-300)";
 
 const SwitchRow = ({
   label,
   ariaLabel,
   checked,
   onToggle,
-  onStopPropagation,
+  icon,
 }: {
   label: React.ReactNode;
   ariaLabel: string;
   checked: boolean;
   onToggle: () => void;
-  onStopPropagation: (e: React.MouseEvent) => void;
+  /** Leading icon; when omitted the row insets so its label aligns with iconed rows. */
+  icon?: React.ReactNode;
 }) => (
-  <DropdownMenuItem closeOnClick={false} onClick={onToggle}>
-    <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">{label}</span>
+  // Pass `inset` only when there's no icon. `inset={false}` would still render
+  // data-inset="false", and the `data-inset:ps-7` variant ([data-inset]) matches any value —
+  // wrongly indenting iconed rows by 28px. Omitting it (undefined) drops the attribute.
+  <DropdownMenuItem closeOnClick={false} onClick={onToggle} inset={icon ? undefined : true}>
+    {icon}
+    <span className="min-w-0 flex-1 text-left text-foreground/80">{label}</span>
     <Switch
       aria-label={ariaLabel}
       size="sm"
+      className={SWITCH_OFF_TRACK}
       checked={checked}
       onCheckedChange={onToggle}
-      onClick={onStopPropagation}
+      onClick={stopMouseEventPropagation}
     />
   </DropdownMenuItem>
 );
 
-const TextLikeSettings = ({
-  inputNode,
-  hasDefaultValue,
-  currentDefaultValue,
-  handlers,
-}: FieldTypeSettingsProps) => (
-  <>
-    <DefaultValueRow
-      hasDefaultValue={hasDefaultValue}
-      currentDefaultValue={currentDefaultValue}
-      handlers={handlers}
+/* ── Compound pieces — each reads only what it needs from `useBlockMenu()` ── */
+
+const RequiredToggle = () => {
+  const { state, actions } = useBlockMenu();
+  return (
+    <SwitchRow
+      icon={<RequiredFieldIcon className="text-foreground/80" />}
+      label="Required"
+      ariaLabel="Required"
+      checked={Boolean(state.inputNode?.required)}
+      onToggle={actions.toggleRequired}
     />
-    <NumberRow
-      label="Min characters"
-      value={inputNode?.minLength}
-      onChange={handlers.handleUpdateMinLength}
-      min={0}
-      max={1000}
-      defaultHint={0}
+  );
+};
+
+const VerifyEmail = () => {
+  const { state, actions } = useBlockMenu();
+  return (
+    <SwitchRow
+      icon={<VerifiedIcon className="text-foreground/80" />}
+      label="Verify email"
+      ariaLabel="Verify email"
+      checked={Boolean(state.inputNode?.verifyEmail)}
+      onToggle={actions.toggleVerifyEmail}
     />
-    {inputNode?.type !== "formTextarea" && (
-      <NumberRow
-        label="Max characters"
-        value={inputNode?.maxLength}
-        onChange={handlers.handleUpdateMaxLength}
+  );
+};
+
+// Default country code (Figma node 25633-9894): searchable country list with an "Off" option;
+// the chosen ISO code seeds the live phone input's country. Search header stays pinned while the
+// list scrolls.
+const DefaultCountryCode = () => {
+  const { open, onPointerEnter, onPointerLeave } = useHoverSubmenu();
+  const { state, actions } = useBlockMenu();
+  const [search, setSearch] = React.useState("");
+  const current = state.inputNode?.defaultCountryCode;
+
+  const filtered = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return PHONE_COUNTRIES;
+    return PHONE_COUNTRIES.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.dialCode.includes(q),
+    );
+  }, [search]);
+
+  return (
+    <DropdownMenuSub open={open}>
+      <DropdownMenuSubTrigger
+        className="text-sm text-foreground/80"
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+      >
+        <IconPhone className="text-foreground/80" />
+        <span className="flex-1 text-left">Default country code</span>
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent
+        className="w-[246px]"
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+      >
+        <div className="flex h-7 items-center gap-1.5 rounded-lg bg-secondary px-2 focus-within:ring-2 focus-within:ring-ring/50">
+          <SearchLineIcon className="size-4 shrink-0 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={stopKeyEventPropagation}
+            onPointerDown={stopMouseEventPropagation}
+            placeholder="Search"
+            aria-label="Search countries"
+            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/70"
+          />
+        </div>
+        {/* Unset ⇒ the live phone input auto-detects from the browser locale (already wired in
+            phone-input.tsx). This is the default state, so it sits first and is checked when no
+            explicit country is chosen. */}
+        <DropdownMenuItem
+          closeOnClick={false}
+          className="mt-1 text-foreground/80"
+          onClick={() => actions.setDefaultCountryCode(undefined)}
+        >
+          <span className="min-w-0 flex-1 text-left">Auto-detect</span>
+          {!current && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
+        </DropdownMenuItem>
+        <div className="mt-0.5 max-h-[260px] overflow-y-auto overscroll-contain">
+          {filtered.length === 0 ? (
+            <div className="px-2 py-1.5 text-sm text-muted-foreground">No country found.</div>
+          ) : (
+            filtered.map((c) => (
+              <DropdownMenuItem
+                key={c.code}
+                closeOnClick={false}
+                className="text-foreground/80"
+                onClick={() => actions.setDefaultCountryCode(c.code)}
+              >
+                <span aria-hidden className="shrink-0 text-base leading-none">
+                  {c.flag}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-left">
+                  {c.name} (+{c.dialCode})
+                </span>
+                {current === c.code && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
+              </DropdownMenuItem>
+            ))
+          )}
+        </div>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
+};
+
+const RepeatableToggle = () => {
+  const { state, actions } = useBlockMenu();
+  // Only the scalar field types map to a repeatable PlateFormField (see transform-plate-to-form.ts).
+  if (!REPEATABLE_BLOCK_FIELD_TYPES.has(state.fieldType)) return null;
+  return (
+    <SwitchRow
+      icon={<RepeatIcon className="text-foreground/80" strokeWidth={1} />}
+      label="Repeatable"
+      ariaLabel="Repeatable"
+      checked={Boolean(state.inputNode?.isFieldArray)}
+      onToggle={actions.toggleRepeatable}
+    />
+  );
+};
+
+// formTextarea is free-form prose — it takes a Min but no Max character cap (Figma). Other
+// text-like fields cap both. Centralized so adding an unbounded field is a one-line change here.
+const supportsMaxLength = (type: BlockMenuInputNode["type"] | undefined) => type !== "formTextarea";
+
+const CharacterLimit = () => {
+  const { state, actions } = useBlockMenu();
+  const { inputNode } = state;
+  return (
+    <SettingsSubmenu
+      icon={<CharacterLimitIcon className="text-foreground/80" />}
+      label="Character limit"
+    >
+      <StepperRow
+        label="Min"
+        ariaLabel="Min characters"
+        value={inputNode?.minLength}
+        onChange={actions.updateMinLength}
         min={0}
         max={1000}
+        defaultHint={0}
+      />
+      {supportsMaxLength(inputNode?.type) && (
+        <StepperRow
+          label="Max"
+          ariaLabel="Max characters"
+          value={inputNode?.maxLength}
+          onChange={actions.updateMaxLength}
+          min={0}
+          max={1000}
+          defaultHint={100}
+        />
+      )}
+    </SettingsSubmenu>
+  );
+};
+
+const ValueRange = () => {
+  const { state, actions } = useBlockMenu();
+  const { inputNode } = state;
+  return (
+    <SettingsSubmenu
+      icon={<SelectionLimitIcon className="text-foreground/80" />}
+      label="Value range"
+    >
+      <StepperRow
+        label="Min"
+        ariaLabel="Min value"
+        value={inputNode?.minValue}
+        onChange={actions.updateMinValue}
+        min={0}
+        max={999999}
+        defaultHint={0}
+      />
+      <StepperRow
+        label="Max"
+        ariaLabel="Max value"
+        value={inputNode?.maxValue}
+        onChange={actions.updateMaxValue}
+        min={0}
+        max={999999}
         defaultHint={100}
       />
-    )}
-    <DropdownMenuSeparator />
-  </>
+    </SettingsSubmenu>
+  );
+};
+
+// Number "Format" submenu (Figma node 25597-9617): independent single-selects for the format
+// type (Off + presets), decimal separator, and thousands separator, split by section headers.
+const NUMBER_DECIMAL_CHOICES: { value: DecimalSeparator; label: string }[] = [
+  { value: ".", label: "0.1" },
+  { value: ",", label: "0,1" },
+];
+const NUMBER_THOUSANDS_CHOICES: { value: ThousandsSeparator; label: string }[] = [
+  { value: "none", label: "1000" },
+  { value: "comma", label: "1,000" },
+  { value: "space", label: "1 000" },
+];
+const NUMBER_FORMAT_CHOICES: { value: NumberFormatType; label: string }[] = [
+  { value: "number", label: "Number" },
+  { value: "percent", label: "Percent" },
+  { value: "usd", label: "US Dollar" },
+  { value: "eur", label: "Euro" },
+  { value: "gbp", label: "Pound" },
+  { value: "custom", label: "Custom" },
+];
+
+const FormatChoiceRow = ({
+  label,
+  active,
+  onSelect,
+}: {
+  label: string;
+  active: boolean;
+  onSelect: () => void;
+}) => (
+  <DropdownMenuItem closeOnClick={false} className="text-foreground/80" onClick={onSelect}>
+    <span className="min-w-0 flex-1 text-left">{label}</span>
+    {active && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
+  </DropdownMenuItem>
 );
 
-// Phones validated by format (E.164 via libphonenumber), not char count — Min/Max chars
-// produced nonsense like "Maximum 1 characters allowed" on valid +91… numbers.
-const FormPhoneSettings = ({
-  hasDefaultValue,
-  currentDefaultValue,
-  handlers,
-}: FieldTypeSettingsProps) => (
-  <>
-    <DefaultValueRow
-      hasDefaultValue={hasDefaultValue}
-      currentDefaultValue={currentDefaultValue}
-      handlers={handlers}
-    />
-    <DropdownMenuSeparator />
-  </>
+const FormatSectionHeader = ({ label }: { label: string }) => (
+  <div className="px-2 pt-2 pb-0.5 text-[12px] text-muted-foreground">{label}</div>
 );
 
-const NumberFieldSettings = ({
-  inputNode,
-  hasDefaultValue,
-  currentDefaultValue,
-  handlers,
-}: FieldTypeSettingsProps) => (
-  <>
-    <DefaultValueRow
-      hasDefaultValue={hasDefaultValue}
-      currentDefaultValue={currentDefaultValue}
-      numeric
-      handlers={handlers}
-    />
-    <NumberRow
-      label="Min value"
-      value={inputNode?.minValue}
-      onChange={handlers.handleUpdateMinValue}
-      min={0}
-      max={999999}
-      defaultHint={0}
-    />
-    <NumberRow
-      label="Max value"
-      value={inputNode?.maxValue}
-      onChange={handlers.handleUpdateMaxValue}
-      min={0}
-      max={999999}
-      defaultHint={100}
-    />
-    <SwitchRow
-      label="Allow decimals"
-      ariaLabel="Allow decimals"
-      checked={Boolean(inputNode?.allowDecimals)}
-      onToggle={handlers.handleToggleAllowDecimals}
-      onStopPropagation={handlers.handleStopPropagation}
-    />
-    <DropdownMenuSeparator />
-  </>
-);
-
-const FileUploadSettings = ({ inputNode, handlers }: FieldTypeSettingsProps) => (
-  <>
-    <NumberRow
-      label="Max file size"
-      value={inputNode?.maxFileSize}
-      onChange={handlers.handleUpdateMaxFileSize}
-      min={1}
-      max={50}
-      suffix="MB"
-      defaultHint={10}
-    />
-    <NumberRow
-      label="Max files"
-      value={inputNode?.maxFiles}
-      onChange={handlers.handleUpdateMaxFiles}
-      min={0}
-      max={20}
-      defaultHint={1}
-    />
-    <DropdownMenuItem closeOnClick={false}>
-      <span className="min-w-0 flex-1 text-left text-[13px] text-foreground/80">File types</span>
-      <Select
-        value={inputNode?.allowedFileTypes ?? "all"}
-        onValueChange={(v) => v && handlers.handleUpdateAllowedFileTypes(v)}
+const NumberFormat = () => {
+  const { open, onPointerEnter, onPointerLeave } = useHoverSubmenu();
+  const { state, actions } = useBlockMenu();
+  const format = state.inputNode?.numberFormat ?? "off";
+  const decimal = state.inputNode?.decimalSeparator ?? ".";
+  const thousands = state.inputNode?.thousandsSeparator ?? "none";
+  return (
+    <DropdownMenuSub open={open}>
+      <DropdownMenuSubTrigger
+        className="text-sm text-foreground/80"
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
       >
-        <SelectTrigger className="h-[20px] w-[100px] rounded-[4px] border border-transparent bg-transparent px-1 text-[12px] shadow-none focus:border-border/70 focus-visible:border-border/70 focus-visible:ring-0 dark:border-transparent dark:focus:border-border/70 dark:focus-visible:border-border/70">
-          <SelectValue>
-            {(value) => FILE_TYPE_CATEGORY_LABELS[value as FileTypeCategory] ?? (value as string)}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All files</SelectItem>
-          <SelectItem value="images">Images</SelectItem>
-          <SelectItem value="documents">Documents</SelectItem>
-          <SelectItem value="spreadsheets">Spreadsheets</SelectItem>
-        </SelectContent>
-      </Select>
-    </DropdownMenuItem>
-    <FileExtensionToggleRow
-      category={
-        isFileTypeCategory(inputNode?.allowedFileTypes) ? inputNode.allowedFileTypes : "all"
-      }
-      selected={inputNode?.allowedFileExtensions}
-      onToggle={handlers.handleToggleFileExtension}
+        <HashIcon className="text-foreground/80" strokeWidth={1} />
+        <span className="flex-1 text-left">Format</span>
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent
+        className="max-h-[340px] w-[200px] overflow-y-auto"
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+      >
+        <FormatChoiceRow
+          label="Off"
+          active={format === "off"}
+          onSelect={() => actions.setNumberFormat({ format: "off" })}
+        />
+        <FormatSectionHeader label="Decimal separator" />
+        {NUMBER_DECIMAL_CHOICES.map((choice) => (
+          <FormatChoiceRow
+            key={choice.value}
+            label={choice.label}
+            active={decimal === choice.value}
+            onSelect={() => actions.setNumberFormat({ decimalSeparator: choice.value })}
+          />
+        ))}
+        <FormatSectionHeader label="Thousands separator" />
+        {NUMBER_THOUSANDS_CHOICES.map((choice) => (
+          <FormatChoiceRow
+            key={choice.value}
+            label={choice.label}
+            active={thousands === choice.value}
+            onSelect={() => actions.setNumberFormat({ thousandsSeparator: choice.value })}
+          />
+        ))}
+        <FormatSectionHeader label="Formats" />
+        {NUMBER_FORMAT_CHOICES.map((choice) => (
+          <FormatChoiceRow
+            key={choice.value}
+            label={choice.label}
+            active={format === choice.value}
+            onSelect={() => actions.setNumberFormat({ format: choice.value })}
+          />
+        ))}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
+};
+
+const SelectionLimit = () => {
+  const { state, actions } = useBlockMenu();
+  const { inputNode } = state;
+  return (
+    <SettingsSubmenu
+      icon={<SelectionLimitIcon className="text-foreground/80" />}
+      label="Selection limit"
+    >
+      <StepperRow
+        label="Min"
+        ariaLabel="Min selections"
+        value={inputNode?.minSelections}
+        onChange={actions.updateMinSelections}
+        min={0}
+        max={50}
+        defaultHint={0}
+      />
+      <StepperRow
+        label="Max"
+        ariaLabel="Max selections"
+        value={inputNode?.maxSelections}
+        onChange={actions.updateMaxSelections}
+        min={0}
+        max={50}
+        defaultHint={3}
+      />
+    </SettingsSubmenu>
+  );
+};
+
+const ShuffleOptions = () => {
+  const { state, actions } = useBlockMenu();
+  return (
+    <SwitchRow
+      icon={<ShuffleOptionsIcon className="text-foreground/80" />}
+      label="Shuffle options"
+      ariaLabel="Shuffle options"
+      checked={Boolean(state.inputNode?.randomizeOrder)}
+      onToggle={actions.toggleRandomizeOrder}
     />
-    <DropdownMenuSeparator />
-  </>
+  );
+};
+
+// Per-option auto label style (Figma node 25472-18146): single-select Off / Letters / Numbers.
+const OPTION_LABEL_CHOICES: { value: OptionLabelStyle; label: string }[] = [
+  { value: "none", label: "Off" },
+  { value: "letters", label: "Letters" },
+  { value: "numbers", label: "Numbers" },
+];
+
+const OptionLabels = () => {
+  const { open, onPointerEnter, onPointerLeave } = useHoverSubmenu();
+  const { state, actions } = useBlockMenu();
+  // Mirror the editor's default: multiChoice shows letters until changed, others none.
+  const current: OptionLabelStyle =
+    state.inputNode?.optionLabel ??
+    (state.inputNode?.variant === "multiChoice" ? "letters" : "none");
+  return (
+    <DropdownMenuSub open={open}>
+      <DropdownMenuSubTrigger
+        className="text-sm text-foreground/80"
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+      >
+        <LabelsIcon className="text-foreground/80" />
+        <span className="flex-1 text-left">Labels</span>
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent
+        className="w-[160px]"
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+      >
+        {OPTION_LABEL_CHOICES.map((choice) => (
+          <DropdownMenuItem
+            key={choice.value}
+            closeOnClick={false}
+            className="text-foreground/80"
+            onClick={() => actions.setOptionLabel(choice.value)}
+          >
+            <span className="min-w-0 flex-1 text-left">{choice.label}</span>
+            {current === choice.value && (
+              <CheckIcon className="size-4 shrink-0 text-foreground/80" />
+            )}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
+};
+
+const OptionImage = () => (
+  // TODO(wiring): open the option-group image picker / upload flow.
+  <DropdownMenuItem closeOnClick={false} className="text-foreground/80">
+    <PhotoIcon className="text-foreground/80" />
+    <span className="min-w-0 flex-1 text-left">Image</span>
+    <span className="shrink-0 text-muted-foreground">Upload</span>
+  </DropdownMenuItem>
 );
 
-const OptionCheckboxSettings = ({ inputNode, handlers }: FieldTypeSettingsProps) => (
-  <>
-    <NumberRow
-      label="Min selections"
-      value={inputNode?.minSelections}
-      onChange={handlers.handleUpdateMinSelections}
-      min={0}
-      max={50}
-      defaultHint={0}
-    />
-    <NumberRow
-      label="Max selections"
-      value={inputNode?.maxSelections}
-      onChange={handlers.handleUpdateMaxSelections}
-      min={0}
-      max={50}
-      defaultHint={3}
-    />
-    <SwitchRow
-      label="Randomize order"
-      ariaLabel="Randomize order"
-      checked={Boolean(inputNode?.randomizeOrder)}
-      onToggle={handlers.handleToggleRandomizeOrder}
-      onStopPropagation={handlers.handleStopPropagation}
-    />
-    <SwitchRow
-      label={<>&quot;Other&quot; option</>}
-      ariaLabel="Other option"
-      checked={Boolean(inputNode?.allowOther)}
-      onToggle={handlers.handleToggleAllowOther}
-      onStopPropagation={handlers.handleStopPropagation}
-    />
-    <DropdownMenuSeparator />
-  </>
-);
+// File-upload "Selection limit" submenu (Figma node 25633-11549): max file size + max file count.
+const FileSelectionLimit = () => {
+  const { state, actions } = useBlockMenu();
+  const { inputNode } = state;
+  return (
+    <SettingsSubmenu
+      icon={<SelectionLimitIcon className="text-foreground/80" />}
+      label="Selection limit"
+    >
+      <StepperRow
+        label="Max size (MB)"
+        ariaLabel="Max file size in MB"
+        value={inputNode?.maxFileSize}
+        onChange={actions.updateMaxFileSize}
+        min={1}
+        max={50}
+        defaultHint={10}
+      />
+      <StepperRow
+        label="Max files"
+        ariaLabel="Max files"
+        value={inputNode?.maxFiles}
+        onChange={actions.updateMaxFiles}
+        min={1}
+        max={20}
+        defaultHint={1}
+      />
+    </SettingsSubmenu>
+  );
+};
 
-const MultiSelectSettings = ({ inputNode, handlers }: FieldTypeSettingsProps) => (
-  <>
-    <NumberRow
-      label="Min selections"
-      value={inputNode?.minSelections}
-      onChange={handlers.handleUpdateMinSelections}
-      min={0}
-      max={50}
-      defaultHint={0}
-    />
-    <NumberRow
-      label="Max selections"
-      value={inputNode?.maxSelections}
-      onChange={handlers.handleUpdateMaxSelections}
-      min={0}
-      max={50}
-      defaultHint={3}
-    />
-    <DropdownMenuSeparator />
-  </>
-);
+// File-upload "Allowed files" submenu (Figma node 25633-11852): a categorized extension allow-list.
+// Empty selection ⇒ every extension is implicitly allowed (and shown active), so toggling narrows
+// down. Each category's "All" row flips the whole group.
+const AllowedFiles = () => {
+  const { open, onPointerEnter, onPointerLeave } = useHoverSubmenu();
+  const { state, actions } = useBlockMenu();
+  const selected = (state.inputNode?.allowedFileExtensions ?? []).filter((e) => e.startsWith("."));
+  const allActive = selected.length === 0;
+  const isActive = (ext: string) => allActive || selected.includes(ext);
+  // Baseline to toggle against — the implicit full set when nothing is explicitly chosen yet.
+  const baseline = () => (allActive ? [...ALL_FILE_EXTENSIONS] : selected);
 
-const OptionMultiChoiceSettings = ({ inputNode, handlers }: FieldTypeSettingsProps) => (
-  <>
-    <SwitchRow
-      label="Randomize order"
-      ariaLabel="Randomize order"
-      checked={Boolean(inputNode?.randomizeOrder)}
-      onToggle={handlers.handleToggleRandomizeOrder}
-      onStopPropagation={handlers.handleStopPropagation}
-    />
-    <SwitchRow
-      label={<>&quot;Other&quot; option</>}
-      ariaLabel="Other option"
-      checked={Boolean(inputNode?.allowOther)}
-      onToggle={handlers.handleToggleAllowOther}
-      onStopPropagation={handlers.handleStopPropagation}
-    />
-    <DropdownMenuSeparator />
-  </>
-);
+  const toggleExtension = (ext: string) => {
+    const base = baseline();
+    actions.setAllowedExtensions(
+      base.includes(ext) ? base.filter((e) => e !== ext) : [...base, ext],
+    );
+  };
+  const toggleCategory = (extensions: string[]) => {
+    const base = baseline();
+    const allIn = extensions.every((e) => base.includes(e));
+    actions.setAllowedExtensions(
+      allIn ? base.filter((e) => !extensions.includes(e)) : [...base, ...extensions],
+    );
+  };
 
-const ButtonFieldSettings = ({ buttonText, handlers }: FieldTypeSettingsProps) => (
-  <>
+  return (
+    <DropdownMenuSub open={open}>
+      <DropdownMenuSubTrigger
+        className="text-sm text-foreground/80"
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+      >
+        <FileIcon className="text-foreground/80" strokeWidth={1} />
+        <span className="flex-1 text-left">Allowed files</span>
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent
+        className="max-h-[340px] w-[200px] overflow-y-auto"
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+      >
+        {FILE_CATEGORIES.map((category) => {
+          const exts = category.extensions.map((e) => e.ext);
+          const allCategoryActive = exts.every((e) => isActive(e));
+          return (
+            <React.Fragment key={category.id}>
+              <FormatSectionHeader label={category.label} />
+              <DropdownMenuItem
+                closeOnClick={false}
+                className="text-foreground/80"
+                onClick={() => toggleCategory(exts)}
+              >
+                <span className="min-w-0 flex-1 text-left">All</span>
+                {allCategoryActive && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
+              </DropdownMenuItem>
+              {category.extensions.map((e) => (
+                <DropdownMenuItem
+                  key={`${category.id}${e.ext}`}
+                  closeOnClick={false}
+                  className="text-foreground/80"
+                  onClick={() => toggleExtension(e.ext)}
+                >
+                  <span className="min-w-0 flex-1 text-left">{e.ext}</span>
+                  {isActive(e.ext) && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
+                </DropdownMenuItem>
+              ))}
+            </React.Fragment>
+          );
+        })}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
+};
+
+const ButtonName = () => {
+  const { state, actions } = useBlockMenu();
+  return (
     <div className="space-y-2 px-2 py-1.5">
       <Label className="text-[12px] text-muted-foreground">Button Name</Label>
       <Input
-        value={buttonText}
-        onChange={handlers.handleButtonTextChange}
-        onKeyDown={handlers.handleInputKeyDown}
+        value={state.buttonText}
+        onChange={(e) => actions.updateButtonText(e.target.value)}
+        onKeyDown={stopKeyEventPropagation}
         placeholder="Enter button name"
         className="h-8 rounded-lg text-[13px]"
       />
     </div>
-    <DropdownMenuSeparator />
-  </>
-);
+  );
+};
 
-interface BlockMenuActionsProps {
-  onDelete: () => void;
-  onDuplicate: () => void;
-  onAddLogic: () => void;
-  onHide: () => void;
-  turnIntoOpen: boolean;
-  onTurnIntoPointerEnter: () => void;
-  onTurnIntoPointerLeave: () => void;
-  onTurnIntoParagraph: () => void;
-  onTurnIntoH1: () => void;
-  onTurnIntoH2: () => void;
-  onTurnIntoH3: () => void;
-  onTurnIntoBlockquote: () => void;
-}
+const MenuDivider = () => <DropdownMenuSeparator />;
 
-const BlockMenuActions = ({
-  onDelete,
-  onDuplicate,
-  onAddLogic,
-  onHide,
-  turnIntoOpen,
-  onTurnIntoPointerEnter,
-  onTurnIntoPointerLeave,
-  onTurnIntoParagraph,
-  onTurnIntoH1,
-  onTurnIntoH2,
-  onTurnIntoH3,
-  onTurnIntoBlockquote,
-}: BlockMenuActionsProps) => (
+// Bulk insert options (Figma node 25644-10036) — option-group action; sits between
+// "Add conditional logic" and "Duplicate", so variants inject it via MenuActions' slot.
+const BulkInsertOptions = () => {
+  const { actions } = useBlockMenu();
+  return (
+    <DropdownMenuItem className="text-foreground/80" onClick={actions.openBulkInsert}>
+      <BulkInsertIcon />
+      <span className="flex-1 text-left">Bulk insert options</span>
+      <DropdownMenuShortcut>⌘O</DropdownMenuShortcut>
+    </DropdownMenuItem>
+  );
+};
+
+// "Add Options" dialog (Figma node 25578-11410): paste one option per line, Save splices them
+// into the option group. Self-contained — its open state lives in BlockMenu so it survives the
+// menu closing.
+const BulkInsertDialog = ({
+  open,
+  onClose,
+  onSubmit,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (text: string) => void;
+}) => {
+  const [value, setValue] = React.useState("");
+  React.useEffect(() => {
+    if (!open) setValue("");
+  }, [open]);
+
+  const canSave = value.trim().length > 0;
+  const save = () => {
+    if (canSave) onSubmit(value);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent showCloseButton={false} className="gap-5 rounded-[20px] p-5 sm:max-w-[420px]">
+        <DialogHeader className="gap-1.5">
+          <DialogTitle className="text-[18px]">Add Options</DialogTitle>
+          <DialogDescription className="mt-0 text-[14px] leading-normal text-gray-700">
+            Write or paste your options below. Each option must be on a separate line.
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          autoFocus
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          // ⌘/Ctrl+Enter saves; plain Enter must add a new line (one option per line).
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault();
+              save();
+            }
+          }}
+          placeholder="Type each options on a new line"
+          className="h-[180px] resize-none rounded-[12px] bg-muted shadow-none"
+        />
+        <div className="flex justify-end">
+          <Button onClick={save} disabled={!canSave}>
+            Save
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// `children` are rendered right after "Add conditional logic" — option menus slot the
+// "Bulk insert options" action in there to match Figma's ordering.
+const MenuActions = ({ children }: { children?: React.ReactNode }) => {
+  const { actions } = useBlockMenu();
+  const {
+    open: turnIntoOpen,
+    onPointerEnter: onEnter,
+    onPointerLeave: onLeave,
+  } = useHoverSubmenu();
+
+  return (
+    <>
+      {/* Repeatable sits at the top of the shared actions, just below the essentials divider —
+          self-hides for non-scalar fields, so it shows wherever it applies. */}
+      <RepeatableToggle />
+      <DropdownMenuItem className="text-foreground/80" onClick={actions.addLogic}>
+        <ConditionalLogicIcon />
+        <span className="flex-1 text-left">Add conditional logic</span>
+        <DropdownMenuShortcut>⌘C</DropdownMenuShortcut>
+      </DropdownMenuItem>
+      {children}
+      <DropdownMenuItem className="text-foreground/80" onClick={actions.duplicateBlock}>
+        <DuplicateIcon />
+        <span className="flex-1 text-left">Duplicate</span>
+        <DropdownMenuShortcut>⌘D</DropdownMenuShortcut>
+      </DropdownMenuItem>
+      <DropdownMenuItem className="text-foreground/80" onClick={actions.hide}>
+        <HideIcon />
+        <span className="flex-1 text-left">Hide</span>
+        <DropdownMenuShortcut>⌘H</DropdownMenuShortcut>
+      </DropdownMenuItem>
+      <DropdownMenuItem className="text-foreground/80" onClick={actions.deleteBlock}>
+        <DeleteIcon />
+        <span className="flex-1 text-left">Delete</span>
+        <DropdownMenuShortcut>Del</DropdownMenuShortcut>
+      </DropdownMenuItem>
+
+      <DropdownMenuSub open={turnIntoOpen}>
+        <DropdownMenuSubTrigger
+          className="text-sm text-foreground/80"
+          onPointerEnter={onEnter}
+          onPointerLeave={onLeave}
+        >
+          <TurnIntoIcon />
+          <span className="flex-1 text-left">Turn into</span>
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent onPointerEnter={onEnter} onPointerLeave={onLeave}>
+          <DropdownMenuItem onClick={() => actions.turnInto(KEYS.p)}>Paragraph</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => actions.turnInto(KEYS.h1)}>Heading 1</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => actions.turnInto(KEYS.h2)}>Heading 2</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => actions.turnInto(KEYS.h3)}>Heading 3</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => actions.turnInto(KEYS.blockquote)}>
+            Blockquote
+          </DropdownMenuItem>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    </>
+  );
+};
+
+/* ── Field-type variants — explicit compositions; add a field type by adding one here ── */
+
+const TextFieldMenu = () => (
   <>
-    <DropdownMenuItem variant="destructive" onClick={onDelete}>
-      <TrashIcon />
-      <span className="flex-1 text-left">Delete</span>
-      <DropdownMenuShortcut>Del</DropdownMenuShortcut>
-    </DropdownMenuItem>
-    <DropdownMenuItem className="text-foreground/80" onClick={onDuplicate}>
-      <CopyIcon />
-      <span className="flex-1 text-left">Duplicate</span>
-      <DropdownMenuShortcut>⌘D</DropdownMenuShortcut>
-    </DropdownMenuItem>
-    <DropdownMenuItem className="text-foreground/80" onClick={onHide}>
-      <EyeOffIcon />
-      <span className="flex-1 text-left">Hide</span>
-      <DropdownMenuShortcut>⌘⌥H</DropdownMenuShortcut>
-    </DropdownMenuItem>
-    <DropdownMenuItem className="text-foreground/80" onClick={onAddLogic}>
-      <PlusIcon />
-      <span className="flex-1 text-left">Add conditional logic</span>
-      <DropdownMenuShortcut>⌘⌥L</DropdownMenuShortcut>
-    </DropdownMenuItem>
-    <DropdownMenuSeparator />
-
-    <DropdownMenuSub open={turnIntoOpen}>
-      <DropdownMenuSubTrigger
-        className="text-foreground/80"
-        onPointerEnter={onTurnIntoPointerEnter}
-        onPointerLeave={onTurnIntoPointerLeave}
-      >
-        <span className="text-[13px]">↺</span>
-        <span className="flex-1 text-left">Turn into</span>
-      </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent
-        onPointerEnter={onTurnIntoPointerEnter}
-        onPointerLeave={onTurnIntoPointerLeave}
-      >
-        <DropdownMenuItem onClick={onTurnIntoParagraph}>Paragraph</DropdownMenuItem>
-        <DropdownMenuItem onClick={onTurnIntoH1}>Heading 1</DropdownMenuItem>
-        <DropdownMenuItem onClick={onTurnIntoH2}>Heading 2</DropdownMenuItem>
-        <DropdownMenuItem onClick={onTurnIntoH3}>Heading 3</DropdownMenuItem>
-        <DropdownMenuItem onClick={onTurnIntoBlockquote}>Blockquote</DropdownMenuItem>
-      </DropdownMenuSubContent>
-    </DropdownMenuSub>
+    <RequiredToggle />
+    <CharacterLimit />
+    <MenuDivider />
+    <MenuActions />
   </>
 );
+
+// Email: required + a "Verify email" toggle (Figma node 25632-9562). No repeatable/char-limit.
+const EmailFieldMenu = () => (
+  <>
+    <RequiredToggle />
+    <VerifyEmail />
+    <MenuDivider />
+    <MenuActions />
+  </>
+);
+
+// Date and time: a required scalar with no extra settings (Repeatable comes from MenuActions).
+const ScalarFieldMenu = () => (
+  <>
+    <RequiredToggle />
+    <MenuDivider />
+    <MenuActions />
+  </>
+);
+
+// Phone (Figma node 25632-9765): required + a default-country-code picker. No "Verify email".
+const PhoneFieldMenu = () => (
+  <>
+    <RequiredToggle />
+    <DefaultCountryCode />
+    <MenuDivider />
+    <MenuActions />
+  </>
+);
+
+// Decimals on by default; toggling off enforces integer-only validation (see allowDecimals usage).
+const AllowDecimals = () => {
+  const { state, actions } = useBlockMenu();
+  return (
+    <SwitchRow
+      icon={<HashIcon className="text-foreground/80" strokeWidth={1} />}
+      label="Allow decimals"
+      ariaLabel="Allow decimals"
+      checked={state.inputNode?.allowDecimals !== false}
+      onToggle={actions.toggleAllowDecimals}
+    />
+  );
+};
+
+const NumberFieldMenu = () => (
+  <>
+    <RequiredToggle />
+    <NumberFormat />
+    <AllowDecimals />
+    <ValueRange />
+    <MenuDivider />
+    <MenuActions />
+  </>
+);
+
+const FileFieldMenu = () => (
+  <>
+    <RequiredToggle />
+    <FileSelectionLimit />
+    <AllowedFiles />
+    <MenuDivider />
+    <MenuActions />
+  </>
+);
+
+const CheckboxFieldMenu = () => (
+  <>
+    <RequiredToggle />
+    <ShuffleOptions />
+    <SelectionLimit />
+    <OptionLabels />
+    <OptionImage />
+    <MenuDivider />
+    <MenuActions>
+      <BulkInsertOptions />
+    </MenuActions>
+  </>
+);
+
+const MultiSelectFieldMenu = () => (
+  <>
+    <RequiredToggle />
+    <SelectionLimit />
+    <MenuDivider />
+    <MenuActions />
+  </>
+);
+
+const MultiChoiceFieldMenu = () => (
+  <>
+    <RequiredToggle />
+    <ShuffleOptions />
+    <SelectionLimit />
+    <OptionLabels />
+    <OptionImage />
+    <MenuDivider />
+    <MenuActions>
+      <BulkInsertOptions />
+    </MenuActions>
+  </>
+);
+
+// Ranking: required option field, no min/max or extra toggles.
+const RankingFieldMenu = () => (
+  <>
+    <RequiredToggle />
+    <MenuDivider />
+    <MenuActions />
+  </>
+);
+
+const ButtonFieldMenu = () => (
+  <>
+    <ButtonName />
+    <MenuDivider />
+    <MenuActions />
+  </>
+);
+
+// Static (headings/paragraph/quote) and unknown blocks: actions only.
+const StaticFieldMenu = () => <MenuActions />;
+
+const FIELD_MENU_VARIANTS: Record<BlockFieldType, React.FC> = {
+  textLike: TextFieldMenu,
+  formEmail: EmailFieldMenu,
+  formPhone: PhoneFieldMenu,
+  formDate: ScalarFieldMenu,
+  formTime: ScalarFieldMenu,
+  formNumber: NumberFieldMenu,
+  formFileUpload: FileFieldMenu,
+  optionCheckbox: CheckboxFieldMenu,
+  optionMultiChoice: MultiChoiceFieldMenu,
+  optionRanking: RankingFieldMenu,
+  formMultiSelect: MultiSelectFieldMenu,
+  formButton: ButtonFieldMenu,
+  static: StaticFieldMenu,
+  unknown: StaticFieldMenu,
+};
 
 interface UseBlockMenuContextMenuAndHotkeysOptions {
   triggerRef: React.RefObject<HTMLDivElement | null>;
   api: ReturnType<typeof useEditorPlugin<typeof BlockMenuPlugin>>["api"];
   isOpen: boolean;
-  isEditingName: boolean;
   onDelete: () => void;
   onDuplicate: () => void;
   onAddLogic: () => void;
+  onBulkInsert: () => void;
 }
 
 const useBlockMenuContextMenuAndHotkeys = ({
   triggerRef,
   api,
   isOpen,
-  isEditingName,
   onDelete,
   onDuplicate,
   onAddLogic,
+  onBulkInsert,
 }: UseBlockMenuContextMenuAndHotkeysOptions) => {
   React.useEffect(() => {
     const node = triggerRef.current;
@@ -1183,36 +1724,39 @@ const useBlockMenuContextMenuAndHotkeys = ({
     };
   }, [api.blockMenu, triggerRef]);
 
-  useHotkeys(
-    "delete, backspace",
-    onDelete,
-    { enabled: isOpen && !isEditingName, preventDefault: true },
-    [isOpen, isEditingName, onDelete],
-  );
-
-  useHotkeys("mod+d", onDuplicate, { enabled: isOpen && !isEditingName, preventDefault: true }, [
+  // Shortcuts mirror the labels shown in the menu (⌘C / ⌘D / ⌘H / Del), gated to while it's open.
+  useHotkeys("delete, backspace", onDelete, { enabled: isOpen, preventDefault: true }, [
     isOpen,
-    isEditingName,
+    onDelete,
+  ]);
+
+  useHotkeys("mod+d", onDuplicate, { enabled: isOpen, preventDefault: true }, [
+    isOpen,
     onDuplicate,
   ]);
 
-  useHotkeys(
-    "mod+alt+h",
-    () => api.blockMenu.hide(),
-    { enabled: isOpen && !isEditingName, preventDefault: true },
-    [isOpen, isEditingName, api.blockMenu],
-  );
-
-  useHotkeys("mod+alt+l", onAddLogic, { enabled: isOpen && !isEditingName, preventDefault: true }, [
+  useHotkeys("mod+h", () => api.blockMenu.hide(), { enabled: isOpen, preventDefault: true }, [
     isOpen,
-    isEditingName,
-    onAddLogic,
+    api.blockMenu,
+  ]);
+
+  useHotkeys("mod+c", onAddLogic, { enabled: isOpen, preventDefault: true }, [isOpen, onAddLogic]);
+
+  useHotkeys("mod+o", onBulkInsert, { enabled: isOpen, preventDefault: true }, [
+    isOpen,
+    onBulkInsert,
   ]);
 };
 
 interface BlockMenuFirstNode {
   type?: string;
   variant?: string;
+  optionLabel?: OptionLabelStyle;
+  numberFormat?: NumberFormatType;
+  decimalSeparator?: DecimalSeparator;
+  thousandsSeparator?: ThousandsSeparator;
+  verifyEmail?: boolean;
+  defaultCountryCode?: string;
   required?: boolean;
   isFieldArray?: boolean;
   placeholder?: string;

@@ -1,4 +1,5 @@
 import type { Value } from "platejs";
+import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
 import { extractFileUploadFields } from "@/lib/form-schema/file-upload-types";
 import {
   ALLOWED_LABEL_TYPES,
@@ -177,6 +178,11 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
 
       const fileUploadFields = nodeType === "formFileUpload" ? extractFileUploadFields(node) : {};
       const numberFields = nodeType === "formNumber" ? extractNumberFields(node) : {};
+      const verifyEmail = nodeType === "formEmail" && node.verifyEmail === true ? true : undefined;
+      const defaultCountryCode =
+        nodeType === "formPhone" && typeof node.defaultCountryCode === "string"
+          ? node.defaultCountryCode || undefined
+          : undefined;
 
       segments.push({
         type: "field",
@@ -195,6 +201,8 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
           initialRows,
           ...fileUploadFields,
           ...numberFields,
+          ...(verifyEmail ? { verifyEmail } : {}),
+          ...(defaultCountryCode ? { defaultCountryCode } : {}),
         } as PlateFormField,
       });
       fieldIndex++;
@@ -268,6 +276,11 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
       const fieldType = VARIANT_TO_FIELD_TYPE[variant] || "Checkbox";
       // `shuffle` lives on the group's first option node; only Dropdown reads it today.
       const shuffle = fieldType === "Dropdown" ? Boolean(node.shuffle) : undefined;
+      // `optionLabel` (Labels submenu) also lives on the first option node; Checkbox/MultiChoice render it.
+      const optionLabel =
+        fieldType === "Checkbox" || fieldType === "MultiChoice"
+          ? (node.optionLabel as OptionLabelStyle | undefined)
+          : undefined;
 
       segments.push({
         type: "field",
@@ -280,6 +293,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
           required: isRequired,
           options,
           ...(shuffle !== undefined ? { shuffle } : {}),
+          ...(optionLabel ? { optionLabel } : {}),
         } as PlateFormField,
       });
       fieldIndex++;

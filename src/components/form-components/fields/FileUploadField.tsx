@@ -1,14 +1,13 @@
 import { parseError } from "@/lib/errors/parse";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Trash2Icon, UploadIcon } from "@/components/ui/icons";
+import { Trash2Icon, UploadLineIcon } from "@/components/ui/icons";
 import { useStepForm } from "@/contexts/step-form-context";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import {
-  buildAcceptString,
-  buildPlaceholderLabel,
+  buildAcceptFromExtensions,
   DEFAULT_MAX_FILE_SIZE_MB,
-  resolveAllowedSubtypes,
+  resolveAllowedExtensions,
 } from "@/lib/form-schema/file-upload-types";
 import type { UploadedFormFile } from "@/lib/server-fn/public-file-uploads";
 import { uploadFormFile } from "@/lib/server-fn/public-file-uploads";
@@ -58,14 +57,12 @@ const UPLOAD_ERROR_MESSAGES: Record<string, string> = {
 };
 
 const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) => {
-  const { category, subtypes } = useMemo(
-    () => resolveAllowedSubtypes(element.allowedFileTypes, element.allowedFileExtensions),
+  const accept = useMemo(
+    () =>
+      buildAcceptFromExtensions(
+        resolveAllowedExtensions(element.allowedFileTypes, element.allowedFileExtensions),
+      ),
     [element.allowedFileTypes, element.allowedFileExtensions],
-  );
-  const accept = useMemo(() => buildAcceptString(category, subtypes), [category, subtypes]);
-  const placeholderLabel = useMemo(
-    () => buildPlaceholderLabel(category, subtypes),
-    [category, subtypes],
   );
   const maxFileSizeMb = element.maxFileSize ?? DEFAULT_MAX_FILE_SIZE_MB;
   const maxFileSizeBytes = maxFileSizeMb * 1024 * 1024;
@@ -201,8 +198,8 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
               id={element.name}
               aria-invalid={showError}
               className={cn(
-                "relative flex min-h-20 w-full cursor-pointer flex-col items-center justify-center rounded-[8px] border border-dashed border-border/60 bg-[var(--form-input-bg,var(--color-gray-50))] p-4 elevation-sm transition-colors hover:bg-accent/50",
-                showError && "border-destructive ring-1 ring-destructive",
+                "relative flex min-h-[100px] w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] p-4 elevation-sm transition-colors hover:bg-accent/50",
+                showError && "ring-1 ring-destructive",
               )}
               onClick={!hasFile ? openFileDialog : undefined}
               onDragEnter={handleDragEnter}
@@ -248,10 +245,12 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-1.5 text-muted-foreground select-none">
-                  <UploadIcon className="size-5" />
-                  <span className="text-sm">Click or drag to upload</span>
-                  <span className="text-xs">
-                    {placeholderLabel} up to {maxFileSizeMb}MB
+                  <div className="flex items-center gap-1.5">
+                    <UploadLineIcon className="size-4" />
+                    <span className="text-sm">Click to choose a file or drag here</span>
+                  </div>
+                  <span className="text-[13px] text-[color:var(--color-gray-500)]">
+                    Max file up to {maxFileSizeMb}MB
                   </span>
                 </div>
               )}
