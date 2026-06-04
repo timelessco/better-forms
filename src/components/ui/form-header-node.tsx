@@ -720,23 +720,37 @@ const HeaderCoverSection = ({
   const hasImage = !!cover && !cover.startsWith("#");
   const position = repositioning ? draftPosition : coverPosition;
 
-  // The pill is portaled to <body> and positioned against the VIEWPORT (the cover is
-  // full-bleed and overflows past the viewport, so its own right edge is off-screen).
+  // The pill is portaled to <body> and anchored to the cover's visible bottom-right corner.
+  // We clamp to the editor viewport's right edge (which shrinks when the Customize sidebar
+  // opens) so the pill never lands on top of the sidebar: Fill is clipped to that edge, Fit
+  // rides 12px inside the cover; either way it stays 16px off the viewport at minimum.
   const [coverHovered, setCoverHovered] = useState(false);
   const [pillTop, setPillTop] = useState(0);
+  const [pillRight, setPillRight] = useState(16);
   const showPill = coverHovered || repositioning || coverPopoverOpen;
   const measurePill = useCallback(() => {
     const el = coverRef.current;
-    if (el) setPillTop(el.getBoundingClientRect().bottom);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setPillTop(rect.bottom);
+    const editorRight = el.closest(".slate-editor")?.getBoundingClientRect().right;
+    const visibleRight = Math.min(rect.right, editorRight ?? rect.right);
+    setPillRight(Math.max(16, window.innerWidth - visibleRight + 12));
   }, []);
   useEffect(() => {
     if (!showPill) return;
     measurePill();
     window.addEventListener("scroll", measurePill, true);
     window.addEventListener("resize", measurePill);
+    // Sidebar open/close reflows the editor pane without a window resize, and a full-bleed
+    // cover's own size doesn't change — observe the pane so the pill re-measures regardless.
+    const pane = coverRef.current?.closest(".slate-editor") ?? coverRef.current;
+    const ro = pane ? new ResizeObserver(measurePill) : null;
+    if (pane && ro) ro.observe(pane);
     return () => {
       window.removeEventListener("scroll", measurePill, true);
       window.removeEventListener("resize", measurePill);
+      ro?.disconnect();
     };
   }, [showPill, measurePill]);
 
@@ -804,9 +818,9 @@ const HeaderCoverSection = ({
             and public render share one definition. */}
       </div>
 
-      {/* Change | Reposition (Figma 25424:13193) — portaled to <body> and fixed against the
-          viewport's right edge (the full-bleed cover overflows off-screen), anchored to the
-          cover's measured bottom. createPortal keeps it inside the Popover's React context. */}
+      {/* Change | Reposition (Figma 25424:13193) — portaled to <body>, fixed and anchored to
+          the cover's measured bottom-right corner (see measurePill for the Fit/Fill clamp).
+          createPortal keeps it inside the Popover's React context. */}
       {showPill &&
         typeof document !== "undefined" &&
         createPortal(
@@ -816,7 +830,7 @@ const HeaderCoverSection = ({
             style={{
               position: "fixed",
               top: pillTop - 12,
-              right: 16,
+              right: pillRight,
               transform: "translateY(-100%)",
               zIndex: 50,
             }}

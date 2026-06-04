@@ -791,8 +791,8 @@
   border-radius: var(--bf-cover-radius, 0);
   overflow: hidden;
   /* Full-bleed by default (var fallbacks reproduce the w-screen breakout). Cover width "fit"
-     makes generate-theme-css emit these vars to contain the cover to the form width, so a cover
-     radius rounds corners that are actually on-screen. */
+     makes generate-theme-css emit these vars to bleed the cover 28px past the form width on
+     each side (into the editor gutter), so a radius rounds corners that are on-screen. */
   width: var(--bf-cover-w, 100vw);
   margin-left: var(--bf-cover-mx, -50vw);
   margin-right: var(--bf-cover-mx, -50vw);
@@ -810,6 +810,8 @@
    and the public render (every cover carries [data-bf-cover] and is position: relative). */
 [data-bf-cover]::after {
   content: "";
+  /* Cover width "fit" suppresses the fade (clean rounded card, Figma); fill keeps it. */
+  display: var(--bf-cover-fade, block);
   position: absolute;
   inset-inline: 0;
   bottom: 0;
@@ -820,6 +822,7 @@
 }
 [data-bf-cover]::before {
   content: "";
+  display: var(--bf-cover-fade, block);
   position: absolute;
   inset-inline: 0;
   bottom: 0;

@@ -291,28 +291,34 @@ export const renderHeaderComponent = async ({
 
   return createCompositeComponent(() => (
     <div className="mb-4 w-full sm:mb-8">
-      {coverIsHex && cover && (
-        <div className={coverClass} data-bf-cover style={{ backgroundColor: cover }} />
-      )}
-      {coverIsUrl && cover && (
-        <div className={cn(coverClass, "overflow-hidden bg-muted")} data-bf-cover>
-          {tinted && (
-            <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
+      {/* Cover in a page-width container so "fit" (calc(100% + 56px)) tracks the form width,
+          not the full page; "fill" still breaks out to 100vw via its var fallback. */}
+      {hasCover && (
+        <div className="mx-auto w-full" style={{ maxWidth: PAGE_MAX_WIDTH }}>
+          {coverIsHex && cover && (
+            <div className={coverClass} data-bf-cover style={{ backgroundColor: cover }} />
           )}
-          <img
-            src={vercelImg(cover, 1200)}
-            srcSet={vercelSrcSet(cover, [...COVER_SRCSET_WIDTHS])}
-            sizes="100vw"
-            alt="Form cover"
-            width={1200}
-            height={200}
-            decoding="async"
-            fetchPriority="high"
-            className={cn(
-              "size-full object-cover",
-              tinted && "relative z-0 brightness-60 grayscale",
-            )}
-          />
+          {coverIsUrl && cover && (
+            <div className={cn(coverClass, "overflow-hidden bg-muted")} data-bf-cover>
+              {tinted && (
+                <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
+              )}
+              <img
+                src={vercelImg(cover, 1200)}
+                srcSet={vercelSrcSet(cover, [...COVER_SRCSET_WIDTHS])}
+                sizes="100vw"
+                alt="Form cover"
+                width={1200}
+                height={200}
+                decoding="async"
+                fetchPriority="high"
+                className={cn(
+                  "size-full object-cover",
+                  tinted && "relative z-0 brightness-60 grayscale",
+                )}
+              />
+            </div>
+          )}
         </div>
       )}
       <div className="mx-auto px-4" style={{ maxWidth: PAGE_MAX_WIDTH }} data-bf-form-container>
@@ -352,7 +358,9 @@ export const renderHeaderComponent = async ({
               style={{ textWrap: "pretty" }}
               className={cn(
                 "font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px]",
-                hasIcon ? "mt-3 sm:mt-4" : "mt-6 sm:mt-8",
+                // With an icon: 12px here + the icon's 4px mb = 16px avatar→title, matching the editor
+                // (flex items don't margin-collapse, so the editor's mt-4-only gap is split here).
+                hasIcon ? "mt-3" : "mt-6 sm:mt-8",
               )}
             >
               {title}

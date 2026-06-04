@@ -188,10 +188,16 @@ const buildModeAgnosticEntries = (
     }
   }
 
-  // Cover width: "fit" contains the cover to the form width (so a radius rounds visible corners);
-  // "fill"/unset stays full-bleed via the styles.css var() fallbacks.
+  // Cover width: "fit" bleeds 28px past the form width on each side (Figma) into the editor
+  // gutter (always >= 64px); "fill"/unset stays full-bleed via the styles.css var() fallbacks.
   if (customization.coverWidth === "fit") {
-    entries.push(["--bf-cover-w", "100%"], ["--bf-cover-mx", "0px"], ["--bf-cover-x", "0px"]);
+    entries.push(
+      ["--bf-cover-w", "calc(100% + 56px)"],
+      ["--bf-cover-mx", "-28px"],
+      ["--bf-cover-x", "0px"],
+      // Fit is a clean rounded card (Figma) — suppress the bottom fade/blur dissolve.
+      ["--bf-cover-fade", "none"],
+    );
   }
 
   return entries;
