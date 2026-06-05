@@ -39,12 +39,14 @@ export const Slider = ({
             className="bg-primary select-none data-horizontal:h-full data-vertical:w-full"
           />
         </SliderPrimitive.Track>
-        {_values.map((value) => (
+        {_values.map((_value, index) => (
           <SliderPrimitive.Thumb
             data-slot="slider-thumb"
-            // Thumbs map 1:1 to values; the value itself is a stable identity
-            // because Radix doesn't allow duplicates in a single slider.
-            key={`thumb-${value}`}
+            // Key by thumb slot (index), not value: the value changes every drag tick, and a
+            // value-derived key would remount the thumb mid-drag (breaking base-ui's drag) and
+            // collide when two thumbs momentarily share a value.
+            // biome-ignore lint/suspicious/noArrayIndexKey: thumb count is fixed; slot is the identity
+            key={index}
             className="relative block size-3 shrink-0 rounded-full border border-ring bg-white ring-ring/50 transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-3 focus-visible:ring-3 focus-visible:outline-hidden active:ring-3 disabled:pointer-events-none disabled:opacity-50"
           />
         ))}

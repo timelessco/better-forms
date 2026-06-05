@@ -11,7 +11,9 @@ import {
   FORM_INPUT_NODE_TYPES,
   INPUT_TYPE_TO_FIELD_TYPE,
   VARIANT_TO_FIELD_TYPE,
+  extractLinearScaleFields,
   extractNumberFields,
+  extractRatingFields,
   resolveRequired,
 } from "@/lib/form-schema/form-field-constants";
 
@@ -234,6 +236,53 @@ export type PlateFormField =
   | {
       id: string;
       name: string;
+      fieldType: "LinearScale";
+      label?: string;
+      labelType?: string;
+      required?: boolean;
+      /** Scale start, end, and increment — the live form renders a button per step. */
+      min: number;
+      max: number;
+      step: number;
+    }
+  | {
+      id: string;
+      name: string;
+      fieldType: "Rating";
+      label?: string;
+      labelType?: string;
+      required?: boolean;
+      /** Number of stars shown (default 5, configurable via the block menu). */
+      starCount?: number;
+    }
+  | {
+      id: string;
+      name: string;
+      fieldType: "Signature";
+      label?: string;
+      labelType?: string;
+      required?: boolean;
+    }
+  | {
+      id: string;
+      name: string;
+      fieldType: "Matrix";
+      label?: string;
+      labelType?: string;
+      required?: boolean;
+      /** Grid rows (the sub-questions) and columns (the answer scale). The
+       * answer is a record keyed by row `value` → column `value` (single) or
+       * column `value[]` (multiple). */
+      rows: { value: string; label: string }[];
+      columns: { value: string; label: string }[];
+      /** Allow several column picks per row (checkbox) vs one (radio). */
+      multiple?: boolean;
+      /** Randomize row order in the live form. */
+      shuffle?: boolean;
+    }
+  | {
+      id: string;
+      name: string;
       fieldType: "Button";
       buttonText?: string;
       buttonRole: "next" | "previous" | "submit";
@@ -341,6 +390,31 @@ export const buildOptionList = (
     options.push({ value, label: optLabel });
   }
   return options;
+};
+
+/** Matrix row/column nodes → {value,label}[] with unique values even when labels
+ * collide or are blank. Answers are keyed by row/column value, so duplicate values
+ * would conflate distinct rows. Mirrors buildOptionList. */
+export const buildMatrixEntries = (
+  raw: unknown,
+  prefix: "row" | "column",
+): { value: string; label: string }[] => {
+  const entries: { value: string; label: string }[] = [];
+  const used = new Set<string>();
+  const list = Array.isArray(raw) ? (raw as { label?: string }[]) : [];
+  const fallback = prefix === "row" ? "Row" : "Column";
+  for (const e of list) {
+    const label = e.label || `${fallback} ${entries.length + 1}`;
+    let value = slugify(label);
+    if (used.has(value)) {
+      let k = 2;
+      while (used.has(`${value}_${k}`)) k++;
+      value = `${value}_${k}`;
+    }
+    used.add(value);
+    entries.push({ value, label });
+  }
+  return entries;
 };
 
 /** Extracts list items from a Plate list node (ul/ol). Structure: ul > li > lic > text. */
@@ -492,6 +566,9 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
 
       const fileUploadFields = nodeType === "formFileUpload" ? extractFileUploadFields(node) : {};
       const numberFields = nodeType === "formNumber" ? extractNumberFields(node) : {};
+      const linearScaleFields =
+        nodeType === "formLinearScale" ? extractLinearScaleFields(node) : {};
+      const ratingFields = nodeType === "formRating" ? extractRatingFields(node) : {};
       const verifyEmail = nodeType === "formEmail" && node.verifyEmail === true ? true : undefined;
       const defaultCountryCode =
         nodeType === "formPhone" && typeof node.defaultCountryCode === "string"
@@ -512,6 +589,8 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
         initialRows,
         ...fileUploadFields,
         ...numberFields,
+        ...linearScaleFields,
+        ...ratingFields,
         ...(verifyEmail ? { verifyEmail } : {}),
         ...(defaultCountryCode ? { defaultCountryCode } : {}),
       } as PlateFormField);
@@ -544,6 +623,37 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
         label: labelText || undefined,
         required: isRequired,
         options,
+      } as PlateFormField);
+      fieldIndex++;
+      i++;
+      continue;
+    }
+
+    // Matrix — a single void node holding rows + columns on its props.
+    if (nodeType === "formMatrix") {
+      const label = lookBackForLabel(i);
+      const labelText = label?.labelText ?? "";
+      const labelNode = label?.labelNode ?? null;
+      const isRequired = resolveRequired(node as Record<string, unknown>, labelNode);
+
+      const rows = buildMatrixEntries(node.rows, "row");
+      const columns = buildMatrixEntries(node.columns, "column");
+
+      const stableId =
+        (label?.labelNode as { id?: string } | undefined)?.id ?? (node as { id?: string }).id;
+      const baseName = slugify(labelText);
+      const name = stableId || `${baseName}_${fieldIndex}`;
+
+      elements.push({
+        id: name,
+        name,
+        fieldType: "Matrix",
+        label: labelText || undefined,
+        required: isRequired,
+        rows,
+        columns,
+        ...(node.multiple === true ? { multiple: true } : {}),
+        ...(node.randomizeOrder === true ? { shuffle: true } : {}),
       } as PlateFormField);
       fieldIndex++;
       i++;
