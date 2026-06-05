@@ -6,10 +6,17 @@ import {
   getWorkspaces,
   getFormListings,
   getFavorites,
+  getQueryClient,
   enrichFormDetail,
+  mergeFormDetailIntoListing,
 } from "@/collections";
+import type { Form } from "@/collections";
 import { localFormCollection } from "@/collections/local/form";
-import { archivedFormListingsQueryOptions } from "@/lib/server-fn/forms-queries";
+import {
+  archivedFormListingsQueryOptions,
+  getFormbyIdQueryOption,
+} from "@/lib/server-fn/forms-queries";
+import type { FormByIdResult } from "@/lib/server-fn/forms-queries";
 
 export const useOrgWorkspaces = (organizationId?: string) =>
   useLiveQuery(
@@ -87,7 +94,21 @@ export const useForm = (formId?: string) => {
     staleTime: Number.POSITIVE_INFINITY,
   });
 
-  return result;
+  // Sync fallback: while the collection row lacks content, read it straight from the prefetched
+  // query cache (loader already fetched it) so the editor renders without waiting for the
+  // enrichment write to land in the collection.
+  const data = useMemo(() => {
+    const row = result.data?.[0];
+    if (!needsEnrichment || !formId || !row) return result.data;
+    const cached = getQueryClient().getQueryData<FormByIdResult>(
+      getFormbyIdQueryOption(formId).queryKey,
+    );
+    const detail = cached?.form;
+    if (!detail?.content) return result.data;
+    return [mergeFormDetailIntoListing(detail as unknown as Form, row)];
+  }, [needsEnrichment, formId, result.data]);
+
+  return { ...result, data };
 };
 
 export const useLocalForm = (formId?: string) =>
