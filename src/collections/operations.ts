@@ -41,23 +41,25 @@ export const getFormListings = () => getInit().formListings;
 export const getFavorites = () => getInit().favorites;
 export const getQueryClient = () => getInit().queryClient;
 
+/** Merge full `Form` detail onto an existing listing row, preserving listing-only fields (shortId/submissionCount/sortIndex). */
+export const mergeFormDetailIntoListing = (detail: Form, existing?: FormListing): FormListing => ({
+  ...existing,
+  ...formToListing(detail, {
+    shortId: existing?.shortId ?? "",
+    submissionCount: existing?.submissionCount ?? 0,
+    sortIndex: existing?.sortIndex ?? null,
+  }),
+  // `_getFormById` doesn't join `form_settings`, so detail carries no `liveSettings`; keep the listing's value (drives the publish settings dirty-flag).
+  liveSettings: detail.liveSettings ?? existing?.liveSettings,
+  id: detail.id,
+});
+
 export const enrichFormDetail = async (formId: string) => {
   const { serverFns, formListings } = getInit();
   if (state.enrichedFormIds.has(formId)) return null;
   const detail = await serverFns.getFormDetail(formId);
   if (detail) {
-    const existing = formListings.get(formId);
-    // Listing-only fields (shortId/submissionCount/sortIndex) aren't on the `Form` detail; keep the existing row's values.
-    const merged = formToListing(detail, {
-      shortId: existing?.shortId ?? "",
-      submissionCount: existing?.submissionCount ?? 0,
-      sortIndex: existing?.sortIndex ?? null,
-    });
-    formListings.utils.writeUpdate({
-      ...existing,
-      ...merged,
-      id: formId,
-    });
+    formListings.utils.writeUpdate(mergeFormDetailIntoListing(detail, formListings.get(formId)));
     state.enrichedFormIds.add(formId);
   }
   return null;

@@ -62,13 +62,37 @@ const OPERATORS_BY_FIELD_TYPE: Record<string, OperatorId[]> = {
   MultiChoice: ["equals", "notEquals", "isEmpty", "isNotEmpty"],
   // single-select dropdown — one value
   Dropdown: ["equals", "notEquals", "isEmpty", "isNotEmpty"],
+  // linear scale / rating — one numeric value; offer comparisons like Number
+  LinearScale: [
+    "equals",
+    "notEquals",
+    "greaterThan",
+    "lessThan",
+    "greaterThanOrEqual",
+    "lessThanOrEqual",
+    "isEmpty",
+    "isNotEmpty",
+  ],
+  Rating: [
+    "equals",
+    "notEquals",
+    "greaterThan",
+    "lessThan",
+    "greaterThanOrEqual",
+    "lessThanOrEqual",
+    "isEmpty",
+    "isNotEmpty",
+  ],
   // multi-value (arrays) — `contains` checks membership; `equals` would compare a
   // joined string, so it's omitted to avoid misleading authors.
   Checkbox: ["contains", "notContains", "isEmpty", "isNotEmpty"],
   MultiSelect: ["contains", "notContains", "isEmpty", "isNotEmpty"],
   Ranking: ["contains", "notContains", "isEmpty", "isNotEmpty"],
-  // file upload — only presence checks are meaningful
+  // file upload / signature — only presence checks are meaningful
   FileUpload: ["isEmpty", "isNotEmpty"],
+  Signature: ["isEmpty", "isNotEmpty"],
+  // matrix — answer is a row→column record; only presence checks are meaningful
+  Matrix: ["isEmpty", "isNotEmpty"],
 };
 
 const DEFAULT_OPERATORS: OperatorId[] = [

@@ -248,6 +248,20 @@ const SubmissionCell = ({
     case "Phone":
     case "Number":
       return <span className="block max-w-[300px] truncate text-[13px] tabular-nums">{text}</span>;
+    case "Rating":
+      return (
+        <span className="block max-w-[300px] truncate text-[13px] tabular-nums">{text} ★</span>
+      );
+    case "Signature":
+      return typeof value === "string" && value.startsWith("data:image") ? (
+        <img
+          src={value}
+          alt="Signature"
+          className="h-8 max-w-[160px] rounded border border-border bg-white object-contain"
+        />
+      ) : (
+        <span className="text-[13px] text-muted-foreground">-</span>
+      );
     case "Checkbox":
     case "MultiChoice":
     case "MultiSelect":

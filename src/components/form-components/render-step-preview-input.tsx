@@ -40,6 +40,10 @@ const FIELD_RENDERERS: Record<
   MultiSelect: lazy(() => import("./fields/MultiSelectField")),
   Ranking: lazy(() => import("./fields/RankingField")),
   Dropdown: lazy(() => import("./fields/DropdownField")),
+  LinearScale: lazy(() => import("./fields/LinearScaleField")),
+  Rating: lazy(() => import("./fields/RatingField")),
+  Matrix: lazy(() => import("./fields/MatrixField")),
+  Signature: lazy(() => import("./fields/SignatureField")),
 } as const;
 
 interface RenderStepPreviewInputProps {

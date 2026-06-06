@@ -20,11 +20,11 @@ render behaviour is built.
 ### Questions
 
 - [x] **Dropdown** — single-select dropdown field (slash value `formDropdown`; `formOptionItem` variant `dropdown`). Editor reuses option rows; preview renders a single-select popover; "Shuffle options" toggle in the block context menu.
-- [ ] **Linear scale** — numeric scale / slider field (value `linearScale`).
-- [ ] **Matrix** — rows × columns grid question (value `matrix`).
-- [ ] **Rating** — star rating field (value `rating`).
+- [x] **Linear scale** — numeric scale field (value `formLinearScale`). Editor renders a button row from `scaleMin`/`scaleMax`/`scaleStep` (default 1–10, step 1); block menu has "Scale" (dual-handle slider, bounds −10..10) + "Scale step" slider submenus; live form is a single-select number-button group storing the picked value as a string.
+- [x] **Matrix** — rows × columns grid question (slash value `formMatrix`; void `formMatrix` node). Editor renders an inline editable grid (add/remove rows & columns); block menu has Required / Shuffle options (rows) / Multiple selection (radio↔checkbox per row). Live form answer is a record `rowValue → columnValue` (single) or `columnValue[]` (multiple). _Follow-up:_ submissions table renders the answer as raw JSON — add a matrix-aware cell renderer.
+- [x] **Rating** — star rating field (slash value `formRating`, fieldType `Rating`). Void `formRating` node; editor preview + live interactive stars (`RatingStar`); block menu has "Required" + a "Stars count" stepper (1–10, default 5); live form stores the picked star count as a string.
 - [ ] **Payment** — collect a payment (value `payment`).
-- [ ] **Signature** — draw/capture a signature (value `signature`).
+- [x] **Signature** — draw/capture a signature (slash value `formSignature`, fieldType `Signature`). Void `formSignature` node; editor shows a dashed "Sign here" placeholder; live form is a DPR-correct canvas pad (pointer events, theme-colored stroke, quadratic smoothing) with a Clear button, storing a PNG data URL string; block menu has Required only; submissions table renders the signature image.
 - [ ] **Wallet connect** — connect a crypto wallet (value `walletConnect`).
 
 ### Layout blocks

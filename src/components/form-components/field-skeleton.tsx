@@ -18,6 +18,26 @@ const OptionListSkeleton = ({ withBadge = false }: { withBadge?: boolean }) => (
   </div>
 );
 
+const LinearScaleSkeleton = () => (
+  <div className="flex flex-wrap gap-2">
+    {["a", "b", "c", "d", "e"].map((id) => (
+      <Skeleton className="size-8 rounded-[8px]" key={id} />
+    ))}
+  </div>
+);
+
+const RatingSkeleton = () => (
+  <div className="flex gap-1">
+    {["a", "b", "c", "d", "e"].map((id) => (
+      <Skeleton className="size-7 rounded-[4px]" key={id} />
+    ))}
+  </div>
+);
+
+const MatrixSkeleton = () => <Skeleton className="h-28 w-full rounded-[8px]" />;
+
+const SignatureSkeleton = () => <Skeleton className="h-40 w-full rounded-[8px]" />;
+
 const FIELD_SKELETONS: Record<FieldType, React.ComponentType> = {
   Input: InputSkeleton,
   Textarea: TextareaSkeleton,
@@ -33,6 +53,10 @@ const FIELD_SKELETONS: Record<FieldType, React.ComponentType> = {
   MultiSelect: InputSkeleton,
   Ranking: () => <OptionListSkeleton withBadge />,
   Dropdown: InputSkeleton,
+  LinearScale: LinearScaleSkeleton,
+  Rating: RatingSkeleton,
+  Matrix: MatrixSkeleton,
+  Signature: SignatureSkeleton,
 };
 
 export const FieldSkeleton = ({ fieldType }: { fieldType: FieldType }) => {
