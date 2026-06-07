@@ -31,7 +31,7 @@ import { localFormCollection } from "@/collections/local/form";
 import { useEditorTheme } from "@/contexts/editor-theme-context";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import { useFileUpload } from "@/hooks/use-file-upload";
-import { useForm, useLocalForm } from "@/hooks/use-live-hooks";
+import { useFormCustomizationMeta, useLocalFormCustomization } from "@/hooks/use-live-hooks";
 import { FONT_REGISTRY } from "@/lib/theme/font-registry";
 import { TOKEN_NAMES } from "@/lib/theme/generate-theme-css";
 import { loadGoogleFont } from "@/lib/theme/load-google-font";
@@ -225,8 +225,8 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
   const { closeSidebar } = useEditorSidebar();
   const { updateHeaderMedia } = useEditorTheme();
   const { setTheme } = useTheme();
-  const cloudForm = useForm(isLocal ? undefined : formId);
-  const localFormResult = useLocalForm(isLocal ? formId : undefined);
+  const cloudForm = useFormCustomizationMeta(isLocal ? undefined : formId);
+  const localFormResult = useLocalFormCustomization(isLocal ? formId : undefined);
   const formResult = isLocal ? localFormResult : cloudForm;
   const formDoc = formResult.data?.[0] ?? null;
   const collection = (isLocal ? localFormCollection : getFormListings()) as ReturnType<

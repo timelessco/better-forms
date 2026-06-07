@@ -4,7 +4,7 @@ import type { PlateElementProps } from "platejs/react";
 import {
   PlateElement,
   useEditorRef,
-  useEditorVersion,
+  useEditorSelector,
   useFocused,
   useSelected,
 } from "platejs/react";
@@ -91,6 +91,22 @@ const collectStepOptions = (editor: ReturnType<typeof useEditorRef>): Option[] =
   options.push({ value: THANK_YOU_STEP, label: "Thank You page" });
   return options;
 };
+
+/** Stable key over everything the pickers render, so useEditorSelector skips re-renders on
+ * unrelated edits (e.g. typing in a label elsewhere). Covers field name/label/type/array-flag
+ * + choice options, plus each step's value/label. JSON-encoded (not delimiter-joined) so
+ * user-controlled labels containing separators can't collide into a false-equal key. */
+const fieldsAndStepsKey = ({
+  fields,
+  stepOptions,
+}: {
+  fields: FieldInfo[];
+  stepOptions: Option[];
+}): string =>
+  JSON.stringify([
+    fields.map((f) => [f.name, f.label, f.fieldType, f.isFieldArray, f.options ?? []]),
+    stepOptions.map((o) => [o.value, o.label]),
+  ]);
 
 // ── Token primitives (Figma: white pill, elevation-sm, 8px radius, 32px tall) ──
 
@@ -484,9 +500,6 @@ export const LogicBlockElement = (props: PlateElementProps) => {
   const focused = useFocused();
   const blockRef = React.useRef<HTMLDivElement>(null);
 
-  // Re-render on editor edits so renamed fields / new steps update pickers.
-  useEditorVersion();
-
   // Navigating into the block (keyboard selection from an adjacent block) lands focus on
   // the first control instead of leaving the whole block ring-selected. Layout effect so
   // the control focuses before paint, avoiding a one-frame flash of the selection ring.
@@ -502,14 +515,20 @@ export const LogicBlockElement = (props: PlateElementProps) => {
   const elseActions = (element.elseActions as Action[] | undefined) ?? [];
   const conditions = when.children;
 
-  const fields = collectFields(editor);
+  // Narrow subscription: pickers depend only on the field list + step options, not on every
+  // keystroke. Both are fresh arrays per run, so equality compares a serialized key (field
+  // name/label/type/array-flag/choices + step value/label) — re-render only when those change.
+  const { fields, stepOptions } = useEditorSelector(
+    () => ({ fields: collectFields(editor), stepOptions: collectStepOptions(editor) }),
+    [editor],
+    { equalityFn: (a, b) => fieldsAndStepsKey(a) === fieldsAndStepsKey(b) },
+  );
   const sources = fields.filter((f) => !f.isFieldArray); // Wave 1: repeatable can't be a source
   const sourceOptions = sources.map((f) => ({ value: f.name, label: f.label }));
   const fieldOptions = fields.map((f) => ({ value: f.name, label: f.label }));
   const setTargetOptions = fields
     .filter((f) => SCALAR_FIELD_TYPES.has(f.fieldType) && !f.isFieldArray)
     .map((f) => ({ value: f.name, label: f.label }));
-  const stepOptions = collectStepOptions(editor);
   const fieldTypeByName = new Map(fields.map((f) => [f.name, f.fieldType]));
   const fieldChoicesByName = new Map(fields.map((f) => [f.name, f.options ?? []]));
 

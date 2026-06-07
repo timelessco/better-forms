@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from "@/components/ui/sidebar";
 import { SidebarSection } from "@/components/ui/sidebar-section";
 import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useForm } from "@/hooks/use-live-hooks";
+import { useFormShareMeta } from "@/hooks/use-live-hooks";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import { publishForm } from "@/hooks/use-form-versions";
 import { getFormListings } from "@/collections";
@@ -44,7 +44,7 @@ interface ShareSummarySidebarProps {
 
 export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
   const { closeSidebar } = useEditorSidebar();
-  const { data: savedDocs } = useForm(formId);
+  const { data: savedDocs } = useFormShareMeta(formId);
   const doc = savedDocs?.[0];
   const { data: session } = useSession();
   const orgId = session?.session?.activeOrganizationId ?? undefined;

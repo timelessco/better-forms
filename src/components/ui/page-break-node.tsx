@@ -2,7 +2,7 @@ import type { PlateElementProps } from "platejs/react";
 import {
   PlateElement,
   useEditorRef,
-  useEditorVersion,
+  useEditorSelector,
   useFocused,
   useReadOnly,
   useSelected,
@@ -36,24 +36,26 @@ export const PageBreakElement = (props: PlateElementProps) => {
 
   const isThankYouPage = (element.isThankYouPage as boolean) ?? false;
 
-  // Subscribe to editor changes so the page number tracks reorders/deletes. Plate memoizes by
-  // identity — without this version dep, a pageBreak after a deleted sibling shows a stale number.
-  useEditorVersion();
-  const pageNumber = (() => {
-    const path = editor.api.findPath(element);
-    if (!path) return 2;
+  // Narrow subscription: re-render only when this pageBreak's own number changes, not on every
+  // keystroke. Returning a primitive lets Plate skip re-renders when the count is unchanged.
+  const pageNumber = useEditorSelector(
+    (ed) => {
+      const path = ed.api.findPath(element);
+      if (!path) return 2;
 
-    let count = 2; // Page 1 is before first pageBreak, so this starts at 2
-    for (const [, nodePath] of editor.api.nodes({
-      at: [],
-      match: { type: "pageBreak" },
-    })) {
-      if (nodePath[0] < path[0]) {
-        count++;
+      let count = 2; // Page 1 is before first pageBreak, so this starts at 2
+      for (const [, nodePath] of ed.api.nodes({
+        at: [],
+        match: { type: "pageBreak" },
+      })) {
+        if (nodePath[0] < path[0]) {
+          count++;
+        }
       }
-    }
-    return count;
-  })();
+      return count;
+    },
+    [element],
+  );
   const handleThankYouToggle = (checked: boolean) => {
     const path = editor.api.findPath(element);
     if (!path) return;

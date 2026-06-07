@@ -89,6 +89,10 @@ export const initCollections = (queryClient: QueryClient, serverFns: ServerFns) 
       const realKeys = Object.keys(changes).filter((k) => k !== "updatedAt");
       if (realKeys.length === 0) return { refetch: false };
       const isCustomizationOnly = realKeys.length === 1 && realKeys[0] === "customization";
+      // Editor-body save: persist, but skip refetch — it'd pull the server's fresh updatedAt and
+      // reshuffle/re-render the sidebar (sorts by updatedAt) on every keystroke. Recency reconciles
+      // on the next natural refetch (focus/remount/staleTime). Optimistic content holds, no flash-back.
+      const isContentOnly = realKeys.length === 1 && realKeys[0] === "content";
 
       const data = stripNulls({
         id: m.original.id,
@@ -99,7 +103,7 @@ export const initCollections = (queryClient: QueryClient, serverFns: ServerFns) 
       // Skip per-handler refetch (`{ refetch: false }`) — would fire N concurrent refetches during a drag; bucket refetches once after the call lands.
       if (!isCustomizationOnly) {
         await serverFns.updateForm(data);
-        return;
+        return isContentOnly ? { refetch: false } : undefined;
       }
 
       const formId = m.original.id;
