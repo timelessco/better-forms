@@ -199,7 +199,9 @@ const EditorAppInner = ({
       collection.update(formId, (draft) => {
         draft.content = val;
         if (workspaceId) draft.workspaceId = workspaceId;
-        draft.updatedAt = new Date().toISOString();
+        // No optimistic updatedAt bump: sidebar projects/sorts by updatedAt, so bumping it per
+        // keystroke reshuffles + re-renders the whole sidebar. Server stamps updatedAt (updateForm);
+        // recency reconciles on refetch. Content isn't projected, so this leaves sidebar rows stable.
         if (headerNode) {
           if (headerNode.title !== undefined) draft.title = headerNode.title;
           if (headerNode.icon !== undefined) draft.icon = headerNode.icon ?? null;

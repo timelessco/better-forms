@@ -23,7 +23,7 @@ import { TextSwap } from "@/components/transitions/text-swap";
 import { toggleFavoriteLocal, updateFormStatus } from "@/collections";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import { discardChanges, publishForm, useHasUnpublishedChanges } from "@/hooks/use-form-versions";
-import { useForm, useIsFavorite, useWorkspace } from "@/hooks/use-live-hooks";
+import { useFormMeta, useWorkspace } from "@/hooks/use-live-hooks";
 import { useSession } from "@/lib/auth/auth-client";
 import { HOTKEYS, formatForDisplay } from "@/lib/hotkeys";
 import { cn } from "@/lib/utils";
@@ -106,7 +106,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   };
 
   const { data: workspace } = useWorkspace(workspaceId);
-  const { data: savedDocs, isLoading: isLoadingSavedDocs } = useForm(formId);
+  const { data: savedDocs, isLoading: isLoadingSavedDocs } = useFormMeta(formId);
 
   const hasUnpublishedChanges = useHasUnpublishedChanges(formId);
   const hasPublishedVersion = !!savedDocs?.[0]?.lastPublishedVersionId;
@@ -119,8 +119,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
 
   const isDiscarding = workflowState === "discarding";
   const isPublishing = workflowState === "publishing";
-
-  useIsFavorite(session?.user?.id, formId);
 
   const isLeftSidebarOpen = state === "expanded";
 
@@ -494,7 +492,7 @@ const buildFormBuilderMenuItems = ({
 
 interface HeaderBreadcrumbProps {
   workspace: ReturnType<typeof useWorkspace>["data"];
-  savedDoc: NonNullable<ReturnType<typeof useForm>["data"]>[0];
+  savedDoc: NonNullable<ReturnType<typeof useFormMeta>["data"]>[0];
   workspaceId: string | undefined;
   formId: string | undefined;
   isEditRoute: boolean;
@@ -703,7 +701,7 @@ interface FormBuilderHeaderActionsProps {
   activeMenu: ActiveMenu;
   workspaceId: string | undefined;
   formId: string | undefined;
-  savedDocs: ReturnType<typeof useForm>["data"];
+  savedDocs: ReturnType<typeof useFormMeta>["data"];
   menuItems: MenuItem[];
   onTogglePreview: () => void;
   onToggleCustomizeSidebar: () => void;

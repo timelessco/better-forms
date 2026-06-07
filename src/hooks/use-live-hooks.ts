@@ -69,6 +69,26 @@ export const useOrgForms = (_organizationId?: string) =>
       .orderBy(({ form }) => form.updatedAt, "desc");
   }, []);
 
+/** Header/breadcrumb projection: meta fields only, no `content`. Keeps the app-header off the
+ * editor-content churn — typing the body changes `content` (excluded here) so this stays stable. */
+export const useFormMeta = (formId?: string) =>
+  useLiveQuery(
+    (q) => {
+      if (!formId || !isInitialized()) return undefined;
+      return q
+        .from({ form: getFormListings() })
+        .where(({ form }) => eq(form.id, formId))
+        .select(({ form }) => ({
+          id: form.id,
+          title: form.title,
+          status: form.status,
+          workspaceId: form.workspaceId,
+          lastPublishedVersionId: form.lastPublishedVersionId,
+        }));
+    },
+    [formId],
+  );
+
 /** formListings query, enriched with full detail (content, settings) on demand via TanStack Query. */
 export const useForm = (formId?: string) => {
   const result = useLiveQuery(
@@ -99,6 +119,68 @@ export const useLocalForm = (formId?: string) =>
     [formId],
   );
 
+/** Customize sidebar projection: only the fields it reads. Excludes `content` so editor typing
+ * doesn't re-render the sidebar. Cloud variant. */
+export const useFormCustomizationMeta = (formId?: string) =>
+  useLiveQuery(
+    (q) => {
+      if (!formId || !isInitialized()) return undefined;
+      return q
+        .from({ form: getFormListings() })
+        .where(({ form }) => eq(form.id, formId))
+        .select(({ form }) => ({
+          id: form.id,
+          customization: form.customization,
+          cover: form.cover,
+          icon: form.icon,
+        }));
+    },
+    [formId],
+  );
+
+/** Local-draft variant of [[useFormCustomizationMeta]] — same projection over localFormCollection. */
+export const useLocalFormCustomization = (formId?: string) =>
+  useLiveQuery(
+    (q) => {
+      if (!formId) return undefined;
+      return q
+        .from({ doc: localFormCollection })
+        .where(({ doc }) => eq(doc.id, formId))
+        .select(({ doc }) => ({
+          id: doc.id,
+          customization: doc.customization,
+          cover: doc.cover,
+          icon: doc.icon,
+        }));
+    },
+    [formId],
+  );
+
+/** Share/settings sidebar projection: meta + settings, no `content`. Keeps the share sidebar off
+ * editor-content churn. */
+export const useFormShareMeta = (formId?: string) =>
+  useLiveQuery(
+    (q) => {
+      if (!formId || !isInitialized()) return undefined;
+      return q
+        .from({ form: getFormListings() })
+        .where(({ form }) => eq(form.id, formId))
+        .select(({ form }) => ({
+          id: form.id,
+          title: form.title,
+          status: form.status,
+          icon: form.icon,
+          slug: form.slug,
+          shortId: form.shortId,
+          customDomainId: form.customDomainId,
+          customization: form.customization,
+          draftSettings: form.draftSettings,
+          liveSettings: form.liveSettings,
+        }));
+    },
+    [formId],
+  );
+
 export const useFavorites = (userId?: string) =>
   useLiveQuery(
     (q) => {
@@ -117,21 +199,6 @@ export const useFavorites = (userId?: string) =>
     [userId],
   );
 
-export const useIsFavorite = (userId?: string, formId?: string) => {
-  const { data } = useLiveQuery(
-    (q) => {
-      if (!userId || !formId || !isInitialized()) return undefined;
-      return q
-        .from({ fav: getFavorites() })
-        .where(({ fav }) => eq(fav.userId, userId))
-        .where(({ fav }) => eq(fav.formId, formId))
-        .select(({ fav }) => ({ id: fav.id }));
-    },
-    [userId, formId],
-  );
-  return data !== undefined && data.length > 0;
-};
-
 /** Fetches favorites + listings separately, combines them. */
 export const useFavoriteForms = (userId?: string) => {
   const { data: favs } = useFavorites(userId);
@@ -142,7 +209,6 @@ export const useFavoriteForms = (userId?: string) => {
       title: form.title,
       workspaceId: form.workspaceId,
       status: form.status,
-      updatedAt: form.updatedAt,
       icon: form.icon,
       customization: form.customization,
     }));

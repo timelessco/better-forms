@@ -155,6 +155,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Outlet, useLocation, useParams, useRouter } from "@tanstack/react-router";
 import { createClientOnlyFn } from "@tanstack/react-start";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { parseError } from "@/lib/errors/parse";
 import { generateKeyBetween } from "fractional-indexing";
 import {
@@ -831,6 +832,16 @@ const TrashDialog = ({
       .toSorted((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }, [archivedFormsData, orgWorkspacesData, activeOrgId, searchQuery]);
 
+  // Virtualize archived rows — trash grows unbounded; only render visible TrashRows.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: archivedForms.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 53, // TrashRow: px-3 py-2 + two text lines
+    getItemKey: (index) => archivedForms[index].id,
+    overscan: 8,
+  });
+
   const workspaceNames = useMemo(() => {
     if (!orgWorkspacesData) return {};
     return orgWorkspacesData.reduce(
@@ -1010,7 +1021,7 @@ const TrashDialog = ({
           </div>
         </div>
 
-        <div className="max-h-[400px] overflow-y-auto">
+        <div ref={scrollRef} className="max-h-[400px] overflow-y-auto">
           {archivedFormsData === undefined && isFetchingArchived ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Loader2Icon className="mb-3 size-6 animate-spin opacity-60" />
@@ -1022,20 +1033,33 @@ const TrashDialog = ({
               <p className="text-sm">Trash is empty</p>
             </div>
           ) : (
+            // Spacer sized to full list; rows absolutely positioned at virtual offsets.
             <div className="p-1">
-              {archivedForms.map((form) => (
-                <TrashRow
-                  key={form.id}
-                  form={form}
-                  workspaceName={workspaceNames[form.workspaceId]}
-                  isSelected={selectedIds.has(form.id)}
-                  isRestoring={restoringIds.has(form.id)}
-                  isDeleting={deletingIds.has(form.id)}
-                  onToggleSelect={handleToggleSelect}
-                  onRestore={handleRestore}
-                  onPermanentDelete={handlePermanentDelete}
-                />
-              ))}
+              <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const form = archivedForms[virtualRow.index];
+                  return (
+                    <div
+                      key={virtualRow.key}
+                      ref={rowVirtualizer.measureElement}
+                      data-index={virtualRow.index}
+                      className="absolute top-0 left-0 w-full"
+                      style={{ transform: `translateY(${virtualRow.start}px)` }}
+                    >
+                      <TrashRow
+                        form={form}
+                        workspaceName={workspaceNames[form.workspaceId]}
+                        isSelected={selectedIds.has(form.id)}
+                        isRestoring={restoringIds.has(form.id)}
+                        isDeleting={deletingIds.has(form.id)}
+                        onToggleSelect={handleToggleSelect}
+                        onRestore={handleRestore}
+                        onPermanentDelete={handlePermanentDelete}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -2270,7 +2294,6 @@ type FavoriteFormItem = {
   title: string | null;
   workspaceId: string;
   status: string;
-  updatedAt: string;
   icon: string | null;
   customization: unknown;
   favoriteId: string;
