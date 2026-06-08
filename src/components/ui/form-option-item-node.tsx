@@ -12,12 +12,18 @@ import {
 import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCheckIcon, ChevronDownIcon, Loader2Icon, PhotoIcon } from "@/components/ui/icons";
+import {
+  CheckCheckIcon,
+  ChevronDownIcon,
+  ChevronsUpDownIcon,
+  Loader2Icon,
+  PhotoIcon,
+} from "@/components/ui/icons";
 import { useUploadFile } from "@/hooks/use-upload-file";
 import { RequiredBadgeButton } from "@/components/ui/required-badge-button";
 import { cn } from "@/lib/utils";
 
-type OptionVariant = "checkbox" | "multiChoice" | "multiSelect" | "dropdown";
+type OptionVariant = "checkbox" | "multiChoice" | "multiSelect" | "dropdown" | "ranking";
 
 import { getMultiSelectColor, getOptionOrdinal } from "@/components/ui/form-option-item-constants";
 import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
@@ -59,6 +65,13 @@ const OptionIcon = ({
       return (
         <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground">
           <ChevronDownIcon className="size-3" />
+        </span>
+      );
+    case "ranking":
+      // Reorder handle (Figma 25650-15798): up/down chevrons left of each rankable option.
+      return (
+        <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground">
+          <ChevronsUpDownIcon className="size-3.5" />
         </span>
       );
     case "multiChoice":

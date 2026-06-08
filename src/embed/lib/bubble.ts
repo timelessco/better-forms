@@ -1,6 +1,6 @@
 // Auto-bubble: popup.js script tag with `data-form-id` mounts a floating button; config from its data-* attrs.
 
-import type { PopupOptions, PopupPosition } from "./types";
+import type { PopupOptions, PopupPosition, PopupTrigger } from "./types";
 import { preconnectOrigin, warmupFormOnIntent } from "./warmup";
 
 type PopupCallback = (formId: string, options: PopupOptions) => void;
@@ -18,7 +18,14 @@ const KNOWN_CONFIG_KEYS = new Set([
   "hideTitle",
   "alignLeft",
   "autoClose",
+  "trigger",
+  "delay",
 ]);
+
+/** Default wait before the "delay" trigger fires (ms). */
+const DEFAULT_DELAY_MS = 3000;
+/** Fraction of page scrolled before the "scroll" trigger fires. */
+const SCROLL_THRESHOLD = 0.5;
 
 /** Single emoji (~2 codepoints with VS16/skin tones), no letters/digits. */
 const EMOJI_RE = /^(?:\p{Extended_Pictographic}\uFE0F?){1,3}$/u;
@@ -31,8 +38,18 @@ interface BubbleConfig {
   hideTitle: boolean;
   alignLeft: boolean;
   autoClose: number;
+  trigger: PopupTrigger;
+  delay: number;
   hiddenFields: Record<string, string>;
 }
+
+const VALID_TRIGGERS: ReadonlySet<string> = new Set([
+  "button",
+  "auto",
+  "scroll",
+  "delay",
+  "exit-intent",
+]);
 
 interface FormMeta {
   title?: string;
@@ -76,6 +93,9 @@ const parseConfig = (el: HTMLScriptElement): BubbleConfig | null => {
   const pos = ds.position;
   const position: PopupPosition = pos === "bottom-left" || pos === "center" ? pos : "bottom-right";
 
+  const trigger: PopupTrigger =
+    ds.trigger && VALID_TRIGGERS.has(ds.trigger) ? (ds.trigger as PopupTrigger) : "button";
+
   return {
     formId,
     position,
@@ -84,6 +104,8 @@ const parseConfig = (el: HTMLScriptElement): BubbleConfig | null => {
     hideTitle: ds.hideTitle === "1",
     alignLeft: ds.alignLeft === "1",
     autoClose: ds.autoClose ? parseInt(ds.autoClose, 10) : 0,
+    trigger,
+    delay: ds.delay ? parseInt(ds.delay, 10) : DEFAULT_DELAY_MS,
     hiddenFields,
   };
 };
@@ -228,19 +250,62 @@ export const setupAutoBubble = (openPopup: PopupCallback, preMountPopup: PopupCa
     if (meta.icon) setBubbleContent(bubble, origin, meta.icon);
   });
 
-  bubble.addEventListener("click", () => {
+  const open = () => {
     bubble.classList.add("bf-bubble--hidden");
     openPopup(cfg.formId, {
-      position: cfg.position,
-      width: cfg.width,
-      hideTitle: cfg.hideTitle,
-      alignLeft: cfg.alignLeft,
-      overlay: cfg.darkOverlay,
-      autoClose: cfg.autoClose,
-      hiddenFields: cfg.hiddenFields,
+      ...popupOptions,
       onClose: () => {
         bubble.classList.remove("bf-bubble--hidden");
       },
     });
-  });
+  };
+
+  bubble.addEventListener("click", open);
+
+  // Non-button triggers auto-open once; the bubble stays as a manual fallback.
+  if (cfg.trigger !== "button") {
+    setupAutoOpenTrigger(cfg, open);
+  }
+};
+
+/** Fire `open` once when the configured non-button trigger condition is met. */
+const setupAutoOpenTrigger = (cfg: BubbleConfig, open: () => void): void => {
+  let fired = false;
+  const openOnce = () => {
+    if (fired) return;
+    fired = true;
+    open();
+  };
+
+  switch (cfg.trigger) {
+    case "auto":
+      openOnce();
+      break;
+    case "delay":
+      window.setTimeout(openOnce, cfg.delay);
+      break;
+    case "scroll": {
+      const onScroll = () => {
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+        const ratio = scrollable > 0 ? window.scrollY / scrollable : 1;
+        if (ratio >= SCROLL_THRESHOLD) {
+          window.removeEventListener("scroll", onScroll);
+          openOnce();
+        }
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      break;
+    }
+    case "exit-intent": {
+      const onMouseOut = (e: MouseEvent) => {
+        // Pointer left through the top of the viewport with no related target = exit intent.
+        if (e.clientY <= 0 && !e.relatedTarget) {
+          document.removeEventListener("mouseout", onMouseOut);
+          openOnce();
+        }
+      };
+      document.addEventListener("mouseout", onMouseOut);
+      break;
+    }
+  }
 };

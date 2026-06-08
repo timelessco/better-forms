@@ -1,32 +1,45 @@
 import type { AnyFieldApi } from "@tanstack/react-form";
 import { useForm as useTanstackForm } from "@tanstack/react-form";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { RocketIcon, XIcon } from "@/components/ui/icons";
+import {
+  CodeXmlIcon,
+  InfoIcon,
+  LinkIcon,
+  PencilIcon,
+  PlusIcon,
+  RocketIcon,
+  XIcon,
+} from "@/components/ui/icons";
 import { memo, useCallback, useMemo, useState } from "react";
 // eslint-disable-next-line react-doctor/no-flush-sync -- flushSync is required so the synchronous router navigation captures the field state update inside the same View Transition snapshot
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invalidateInsightsQueries } from "@/lib/analytics/insights-query-keys";
-import { setFormAnalytics } from "@/lib/server-fn/forms";
+import { assignFormDomain, setFormAnalytics } from "@/lib/server-fn/forms";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from "@/components/ui/sidebar";
 import { SidebarSection } from "@/components/ui/sidebar-section";
 import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { FeatureGate } from "@/components/ui/feature-gate";
+import { settingsDialogStore } from "@/hooks/use-settings-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useForm } from "@/hooks/use-live-hooks";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
+import type { EmbedType } from "@/hooks/use-editor-sidebar";
 import { publishForm } from "@/hooks/use-form-versions";
 import { getFormListings } from "@/collections";
 import { useSession } from "@/lib/auth/auth-client";
 import { orgDomainsQueryOptions } from "@/lib/server-fn/custom-domains";
 import { Switch } from "@/components/ui/switch";
 import {
-  ConfigCard,
-  ConfigRow,
   formFieldsToEmbedOptions,
-  EmbedConfigPanel,
+  selectTriggerFigmaCls,
+  triggerLabels,
 } from "./embed-config-panel";
+import { EmojiGlyphPicker } from "@/components/ui/emoji-glyph-picker";
 import { EmbedCodeDialog, searchToFormValues, formValuesToSearch, tabs } from "./embed-section";
 import { EmbedPreviewMockup } from "./embed-preview-mockup";
 import type { FormSettings as FormSettingsType, PresentationMode } from "@/types/form-settings";
@@ -34,9 +47,12 @@ import type { FormSettings as FormSettingsType, PresentationMode } from "@/types
 // Memo'd at module scope so parent re-renders don't tear down subtrees. EmbedPreviewMockup takes only
 // primitives, so shallow-equal props skip render (dragging Popup Width changes nothing it consumes).
 const MemoEmbedPreviewMockup = memo(EmbedPreviewMockup);
-const MemoEmbedConfigPanel = memo(EmbedConfigPanel);
 
 const selectValues = (state: { values: ReturnType<typeof searchToFormValues> }) => state.values;
+const selectEmbedType = (state: { values: ReturnType<typeof searchToFormValues> }) =>
+  state.values.embedType;
+const selectDynamicHeight = (state: { values: ReturnType<typeof searchToFormValues> }) =>
+  state.values.dynamicHeight;
 
 interface ShareSummarySidebarProps {
   formId: string;
@@ -200,42 +216,111 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
         closeSidebar={closeSidebar}
       />
 
-      <SidebarContent>
-        <div className="space-y-3 px-3">
-          <PresentationSection
-            docPresentationMode={docPresentationMode}
-            docProgressBar={docProgressBar}
-            handlePresentationModeChange={handlePresentationModeChange}
-            handleProgressBarChange={handleProgressBarChange}
-          />
-
-          {isDraft ? (
+      {isDraft ? (
+        <SidebarContent>
+          <div className="space-y-3 px-3 pt-3">
+            <SidebarSection label="Preferences" collapsible={false}>
+              <PresentationRows
+                docPresentationMode={docPresentationMode}
+                docProgressBar={docProgressBar}
+                onModeChange={handlePresentationModeChange}
+                onProgressBarChange={handleProgressBarChange}
+              />
+            </SidebarSection>
             <DraftPublishCta handlePublish={handlePublish} />
-          ) : (
-            <PublishedShareBody
-              form={form}
-              docBranding={docBranding}
-              handleBrandingChange={handleBrandingChange}
-              docAnalytics={docAnalytics}
-              handleAnalyticsChange={handleAnalyticsChange}
-              orgId={orgId}
-              formId={formId}
-              shortId={doc.shortId}
-              activeDomainId={activeDomainId}
-              activeSlug={activeSlug}
-              docTitle={doc.title}
-              handleDomainAssigned={handleDomainAssigned}
-              handleOpenCodeDialog={handleOpenCodeDialog}
-              codeDialogOpen={codeDialogOpen}
-              setCodeDialogOpen={setCodeDialogOpen}
-              selectedDomainName={selectedDomainName}
-              customization={doc.customization as Record<string, string> | null}
-            />
-          )}
-        </div>
-      </SidebarContent>
+          </div>
+        </SidebarContent>
+      ) : (
+        <>
+          <SidebarContent>
+            <form.Subscribe selector={selectEmbedType}>
+              {(embedType: EmbedType) => {
+                if (embedType === "fullpage") {
+                  return (
+                    <FullPagePreferences
+                      form={form}
+                      docPresentationMode={docPresentationMode}
+                      docProgressBar={docProgressBar}
+                      handlePresentationModeChange={handlePresentationModeChange}
+                      handleProgressBarChange={handleProgressBarChange}
+                      docBranding={docBranding}
+                      handleBrandingChange={handleBrandingChange}
+                      docAnalytics={docAnalytics}
+                      handleAnalyticsChange={handleAnalyticsChange}
+                      orgId={orgId}
+                      formId={formId}
+                      activeDomainId={activeDomainId}
+                      activeSlug={activeSlug}
+                      handleDomainAssigned={handleDomainAssigned}
+                      selectedDomainName={selectedDomainName}
+                    />
+                  );
+                }
+                if (embedType === "popup") {
+                  return (
+                    <PopupTab
+                      form={form}
+                      docPresentationMode={docPresentationMode}
+                      docProgressBar={docProgressBar}
+                      handlePresentationModeChange={handlePresentationModeChange}
+                      handleProgressBarChange={handleProgressBarChange}
+                      docBranding={docBranding}
+                      handleBrandingChange={handleBrandingChange}
+                      docAnalytics={docAnalytics}
+                      handleAnalyticsChange={handleAnalyticsChange}
+                      orgId={orgId}
+                      formId={formId}
+                      activeDomainId={activeDomainId}
+                      activeSlug={activeSlug}
+                      handleDomainAssigned={handleDomainAssigned}
+                      selectedDomainName={selectedDomainName}
+                      customization={doc.customization as Record<string, string> | null}
+                    />
+                  );
+                }
+                // Embed (standard iframe) tab.
+                return (
+                  <EmbedTab
+                    form={form}
+                    docPresentationMode={docPresentationMode}
+                    docProgressBar={docProgressBar}
+                    handlePresentationModeChange={handlePresentationModeChange}
+                    handleProgressBarChange={handleProgressBarChange}
+                    docBranding={docBranding}
+                    handleBrandingChange={handleBrandingChange}
+                    docAnalytics={docAnalytics}
+                    handleAnalyticsChange={handleAnalyticsChange}
+                    orgId={orgId}
+                    formId={formId}
+                    activeDomainId={activeDomainId}
+                    activeSlug={activeSlug}
+                    handleDomainAssigned={handleDomainAssigned}
+                    selectedDomainName={selectedDomainName}
+                  />
+                );
+              }}
+            </form.Subscribe>
+          </SidebarContent>
 
-      {!isDraft && <ShareSidebarFooter shareUrl={shareUrl} />}
+          {/* Copy Link + Get Code: shared footer across all embed tabs. */}
+          <ShareSidebarFooter shareUrl={shareUrl} onGetCode={handleOpenCodeDialog} />
+
+          <form.Subscribe selector={selectValues}>
+            {(values: ReturnType<typeof searchToFormValues>) => (
+              <EmbedCodeDialog
+                open={codeDialogOpen}
+                onOpenChange={setCodeDialogOpen}
+                embedType={values.embedType}
+                options={formFieldsToEmbedOptions(values)}
+                shortId={doc.shortId}
+                docTitle={doc.title || undefined}
+                customDomain={selectedDomainName}
+                formSlug={activeSlug ?? undefined}
+              />
+            )}
+          </form.Subscribe>
+        </>
+      )}
     </Sidebar>
   );
 };
@@ -313,54 +398,6 @@ const ShareSidebarHeader = ({ isDraft, form, navigate, closeSidebar }: ShareSide
   </SidebarHeader>
 );
 
-interface PresentationSectionProps {
-  docPresentationMode: PresentationMode;
-  docProgressBar: boolean;
-  handlePresentationModeChange: (value: PresentationMode) => void;
-  handleProgressBarChange: (value: boolean) => void;
-}
-
-const PresentationSection = ({
-  docPresentationMode,
-  docProgressBar,
-  handlePresentationModeChange,
-  handleProgressBarChange,
-}: PresentationSectionProps) => (
-  <SidebarSection label="Presentation" className="pb-2.75" action={<></>}>
-    <ConfigCard>
-      <ConfigRow label="Mode" description="Choose how questions are presented to respondents.">
-        <Tabs
-          value={docPresentationMode}
-          onValueChange={(v) => handlePresentationModeChange(v as PresentationMode)}
-        >
-          <TabsList className="h-7">
-            <TabsTrigger value="card" className="px-2 text-xs">
-              Card
-            </TabsTrigger>
-            <TabsTrigger value="field-by-field" className="px-2 text-xs">
-              Field by field
-            </TabsTrigger>
-            <TabsIndicator />
-          </TabsList>
-        </Tabs>
-      </ConfigRow>
-
-      <ConfigRow
-        label="Progress bar"
-        description="Show respondents how much of the form they have completed."
-        variant="switch"
-      >
-        <Switch
-          aria-label="Progress bar"
-          checked={docProgressBar}
-          onCheckedChange={handleProgressBarChange}
-          size="default"
-        />
-      </ConfigRow>
-    </ConfigCard>
-  </SidebarSection>
-);
-
 const DraftPublishCta = ({ handlePublish }: { handlePublish: () => void }) => (
   <div className="flex flex-col items-center justify-center gap-y-6 rounded-2xl border-2 border-dashed bg-muted/20 px-4 py-10 text-center">
     <div className="rounded-full bg-primary/10 p-3 text-primary">
@@ -379,117 +416,676 @@ const DraftPublishCta = ({ handlePublish }: { handlePublish: () => void }) => (
   </div>
 );
 
-interface PublishedShareBodyProps {
+// Figma system-flat row: 28px tall, muted 14px label left, value/control right. Mirrors ConfigRow surface="flat".
+const PreferenceRow = ({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: React.ReactNode;
+  children: React.ReactNode;
+}) => (
+  <div className="flex h-7 items-center justify-between gap-3">
+    <div className="flex min-w-0 items-center gap-1.5">
+      <span className="truncate font-case text-[14px] font-normal text-muted-foreground">
+        {label}
+      </span>
+      {hint}
+    </div>
+    <div className="flex shrink-0 items-center justify-end text-foreground">{children}</div>
+  </div>
+);
+
+// Inline editable numeric value (e.g. "380px") — borderless, commits on blur/Enter, clamps to range.
+const InlineNumberInput = ({
+  value,
+  onChange,
+  min,
+  max,
+  suffix = "px",
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  min: number;
+  max: number;
+  suffix?: string;
+}) => {
+  const [text, setText] = useState(String(value));
+  const [previousValue, setPreviousValue] = useState(value);
+  if (previousValue !== value) {
+    setPreviousValue(value);
+    setText(String(value));
+  }
+  const commit = () => {
+    const parsed = parseInt(text, 10);
+    if (isNaN(parsed)) {
+      setText(String(value));
+      return;
+    }
+    const clamped = Math.min(max, Math.max(min, parsed));
+    onChange(clamped);
+    setText(String(clamped));
+  };
+  return (
+    <span className="inline-flex items-center gap-0.5 font-case text-[14px] font-medium">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={text}
+        onChange={(e) => setText(e.target.value.replace(/[^0-9]/g, ""))}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+        className="w-9 bg-transparent text-right tabular-nums outline-none"
+        aria-label="Width"
+      />
+      <span className="text-muted-foreground">{suffix}</span>
+    </span>
+  );
+};
+
+const PRESENTATION_LABELS: Record<PresentationMode, string> = {
+  card: "All at once",
+  "field-by-field": "One at a time",
+};
+
+// Shared across all tabs: Question layout (presentation mode) + Show progress bar.
+const PresentationRows = ({
+  docPresentationMode,
+  docProgressBar,
+  onModeChange,
+  onProgressBarChange,
+}: {
+  docPresentationMode: PresentationMode;
+  docProgressBar: boolean;
+  onModeChange: (value: PresentationMode) => void;
+  onProgressBarChange: (value: boolean) => void;
+}) => (
+  <>
+    <PreferenceRow label="Question layout">
+      <Select
+        value={docPresentationMode}
+        onValueChange={(v) => {
+          if (v) onModeChange(v as PresentationMode);
+        }}
+      >
+        <SelectTrigger className={selectTriggerFigmaCls}>
+          {PRESENTATION_LABELS[docPresentationMode]}
+        </SelectTrigger>
+        <SelectContent align="end">
+          <SelectItem value="card">All at once</SelectItem>
+          <SelectItem value="field-by-field">One at a time</SelectItem>
+        </SelectContent>
+      </Select>
+    </PreferenceRow>
+
+    <PreferenceRow label="Show progress bar">
+      <Switch
+        aria-label="Show progress bar"
+        checked={docProgressBar}
+        onCheckedChange={onProgressBarChange}
+        size="default"
+      />
+    </PreferenceRow>
+  </>
+);
+
+// Tooltip-annotated "Track analytics" hint icon, reused by the Pro rows.
+const AnalyticsHint = () => (
+  <Tooltip>
+    <TooltipTrigger
+      render={
+        <span className="inline-flex text-muted-foreground">
+          <InfoIcon className="size-4" />
+        </span>
+      }
+    />
+    <TooltipContent side="top" className="max-w-48 text-xs">
+      Track visits and completion rates for this form.
+    </TooltipContent>
+  </Tooltip>
+);
+
+// Shared Pro section rows (gated): Show branding, Track analytics, Custom domain.
+const ProRows = ({
+  docBranding,
+  onBrandingChange,
+  docAnalytics,
+  onAnalyticsChange,
+  orgId,
+  formId,
+  customDomainId,
+  formSlug,
+  onDomainAssigned,
+  selectedDomainName,
+}: {
+  docBranding: boolean;
+  onBrandingChange: (value: boolean) => void;
+  docAnalytics: boolean;
+  onAnalyticsChange: (value: boolean) => void;
+  orgId: string | undefined;
+  formId: string;
+  customDomainId: string | null | undefined;
+  formSlug: string | null | undefined;
+  onDomainAssigned: (domainId: string | null, slug: string | null) => void;
+  selectedDomainName: string | undefined;
+}) => (
+  <>
+    <PreferenceRow label="Show branding">
+      <FeatureGate requiredPlan="pro">
+        <Switch
+          aria-label="Show branding"
+          checked={docBranding}
+          onCheckedChange={onBrandingChange}
+          size="default"
+        />
+      </FeatureGate>
+    </PreferenceRow>
+
+    <PreferenceRow label="Track analytics" hint={<AnalyticsHint />}>
+      <FeatureGate requiredPlan="pro">
+        <Switch
+          aria-label="Track analytics"
+          checked={docAnalytics}
+          onCheckedChange={onAnalyticsChange}
+          size="default"
+        />
+      </FeatureGate>
+    </PreferenceRow>
+
+    <CustomDomainRow
+      orgId={orgId}
+      formId={formId}
+      customDomainId={customDomainId}
+      formSlug={formSlug}
+      onDomainAssigned={onDomainAssigned}
+      selectedDomainName={selectedDomainName}
+    />
+  </>
+);
+
+interface FullPagePreferencesProps {
   form: ShareForm;
+  docPresentationMode: PresentationMode;
+  docProgressBar: boolean;
+  handlePresentationModeChange: (value: PresentationMode) => void;
+  handleProgressBarChange: (value: boolean) => void;
   docBranding: boolean;
   handleBrandingChange: (value: boolean) => void;
   docAnalytics: boolean;
   handleAnalyticsChange: (value: boolean) => void;
   orgId: string | undefined;
   formId: string;
-  shortId: string;
   activeDomainId: string | null | undefined;
   activeSlug: string | null | undefined;
-  docTitle: string | null;
   handleDomainAssigned: (domainId: string | null, slug: string | null) => void;
-  handleOpenCodeDialog: () => void;
-  codeDialogOpen: boolean;
-  setCodeDialogOpen: (open: boolean) => void;
   selectedDomainName: string | undefined;
-  customization?: Record<string, string> | null;
 }
 
-const PublishedShareBody = ({
+const FullPagePreferences = ({
   form,
+  docPresentationMode,
+  docProgressBar,
+  handlePresentationModeChange,
+  handleProgressBarChange,
   docBranding,
   handleBrandingChange,
   docAnalytics,
   handleAnalyticsChange,
   orgId,
   formId,
-  shortId,
   activeDomainId,
   activeSlug,
-  docTitle,
   handleDomainAssigned,
-  handleOpenCodeDialog,
-  codeDialogOpen,
-  setCodeDialogOpen,
+  selectedDomainName,
+}: FullPagePreferencesProps) => (
+  <div className="px-4 pt-3">
+    <SidebarSection label="Preferences" collapsible={false} divider={false}>
+      <PresentationRows
+        docPresentationMode={docPresentationMode}
+        docProgressBar={docProgressBar}
+        onModeChange={handlePresentationModeChange}
+        onProgressBarChange={handleProgressBarChange}
+      />
+
+      <form.Field name="transparentBackground">
+        {(field: AnyFieldApi) => (
+          <PreferenceRow label="Transparent background">
+            <Switch
+              aria-label="Transparent background"
+              checked={field.state.value}
+              onCheckedChange={field.handleChange}
+              size="default"
+            />
+          </PreferenceRow>
+        )}
+      </form.Field>
+
+      <ProRows
+        docBranding={docBranding}
+        onBrandingChange={handleBrandingChange}
+        docAnalytics={docAnalytics}
+        onAnalyticsChange={handleAnalyticsChange}
+        orgId={orgId}
+        formId={formId}
+        customDomainId={activeDomainId}
+        formSlug={activeSlug}
+        onDomainAssigned={handleDomainAssigned}
+        selectedDomainName={selectedDomainName}
+      />
+    </SidebarSection>
+  </div>
+);
+
+interface PopupTabProps extends FullPagePreferencesProps {
+  customization?: Record<string, string> | null;
+}
+
+const PopupTab = ({
+  form,
+  docPresentationMode,
+  docProgressBar,
+  handlePresentationModeChange,
+  handleProgressBarChange,
+  docBranding,
+  handleBrandingChange,
+  docAnalytics,
+  handleAnalyticsChange,
+  orgId,
+  formId,
+  activeDomainId,
+  activeSlug,
+  handleDomainAssigned,
   selectedDomainName,
   customization,
-}: PublishedShareBodyProps) => (
-  <form.Subscribe selector={selectValues}>
-    {(values: ReturnType<typeof searchToFormValues>) => {
-      const embedType = values.embedType;
-      const options = formFieldsToEmbedOptions(values);
-      return (
-        <div className="space-y-3">
+}: PopupTabProps) => (
+  <div className="flex flex-col gap-3 px-4 pt-3">
+    <form.Subscribe selector={selectValues}>
+      {(values: ReturnType<typeof searchToFormValues>) => {
+        const options = formFieldsToEmbedOptions(values);
+        return (
           <MemoEmbedPreviewMockup
-            key={embedType}
-            embedType={embedType}
+            key="popup"
+            embedType="popup"
             popupPosition={options.popup.position}
             darkOverlay={options.popup.overlay === "dark"}
             emojiIcon={options.popup.emojiIcon}
             alignLeft={options.display.alignment === "left"}
             customization={customization}
           />
+        );
+      }}
+    </form.Subscribe>
 
-          <SidebarSection label="Customise" className="pb-2.75" action={<></>}>
-            <MemoEmbedConfigPanel form={form} embedType={embedType} section="customize" />
-          </SidebarSection>
+    <SidebarSection label="Preferences" collapsible={false}>
+      <PresentationRows
+        docPresentationMode={docPresentationMode}
+        docProgressBar={docProgressBar}
+        onModeChange={handlePresentationModeChange}
+        onProgressBarChange={handleProgressBarChange}
+      />
+    </SidebarSection>
 
-          <SidebarSection label="Pro Features" action={<></>}>
-            <MemoEmbedConfigPanel
-              form={form}
-              embedType={embedType}
-              section="pro"
-              docBranding={docBranding}
-              onBrandingChange={handleBrandingChange}
-              docAnalytics={docAnalytics}
-              onAnalyticsChange={handleAnalyticsChange}
-              orgId={orgId}
-              formId={formId}
-              customDomainId={activeDomainId}
-              formSlug={activeSlug}
-              formTitle={docTitle}
-              onDomainAssigned={handleDomainAssigned}
+    <SidebarSection label="Appearance" collapsible={false}>
+      <form.Field name="popupWidth">
+        {(field: AnyFieldApi) => (
+          <PreferenceRow label="Width">
+            <InlineNumberInput
+              value={field.state.value}
+              onChange={field.handleChange}
+              min={200}
+              max={600}
             />
-          </SidebarSection>
+          </PreferenceRow>
+        )}
+      </form.Field>
 
-          <Button onClick={handleOpenCodeDialog} variant="default" className="w-full text-base">
-            Get Code
-          </Button>
+      <form.Field name="emojiIcon">
+        {(field: AnyFieldApi) => (
+          <PreferenceRow label="Emoji">
+            <EmojiGlyphPicker
+              value={field.state.value}
+              onSelect={field.handleChange}
+              trigger={
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 font-case text-[14px] font-medium text-foreground"
+                >
+                  <span className="text-base leading-none">{field.state.value}</span>
+                  <span className="text-muted-foreground">Edit</span>
+                </button>
+              }
+            />
+          </PreferenceRow>
+        )}
+      </form.Field>
 
-          <EmbedCodeDialog
-            open={codeDialogOpen}
-            onOpenChange={setCodeDialogOpen}
-            embedType={embedType}
-            options={options}
-            shortId={shortId}
-            docTitle={docTitle || undefined}
-            customDomain={selectedDomainName}
-            formSlug={activeSlug ?? undefined}
-          />
-        </div>
-      );
-    }}
-  </form.Subscribe>
+      <form.Field name="hideTitle">
+        {(field: AnyFieldApi) => (
+          <PreferenceRow label="Hide title">
+            <Switch
+              aria-label="Hide title"
+              checked={field.state.value}
+              onCheckedChange={field.handleChange}
+              size="default"
+            />
+          </PreferenceRow>
+        )}
+      </form.Field>
+
+      <form.Field name="darkOverlay">
+        {(field: AnyFieldApi) => (
+          <PreferenceRow label="Dark overlay">
+            <Switch
+              aria-label="Dark overlay"
+              checked={field.state.value}
+              onCheckedChange={field.handleChange}
+              size="default"
+            />
+          </PreferenceRow>
+        )}
+      </form.Field>
+    </SidebarSection>
+
+    <SidebarSection label="Behaviour" collapsible={false}>
+      <form.Field name="popupTrigger">
+        {(field: AnyFieldApi) => (
+          <PreferenceRow label="Open form">
+            <Select
+              value={field.state.value}
+              onValueChange={(v) => {
+                if (v) field.handleChange(v);
+              }}
+            >
+              <SelectTrigger className={selectTriggerFigmaCls}>
+                {triggerLabels[field.state.value] ?? field.state.value}
+              </SelectTrigger>
+              <SelectContent align="end">
+                {Object.entries(triggerLabels).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </PreferenceRow>
+        )}
+      </form.Field>
+
+      <form.Field name="hideOnSubmit">
+        {(field: AnyFieldApi) => (
+          <PreferenceRow label="Hide on submit">
+            <Switch
+              aria-label="Hide on submit"
+              checked={field.state.value}
+              onCheckedChange={field.handleChange}
+              size="default"
+            />
+          </PreferenceRow>
+        )}
+      </form.Field>
+    </SidebarSection>
+
+    <SidebarSection label="Preferences" collapsible={false} divider={false}>
+      <ProRows
+        docBranding={docBranding}
+        onBrandingChange={handleBrandingChange}
+        docAnalytics={docAnalytics}
+        onAnalyticsChange={handleAnalyticsChange}
+        orgId={orgId}
+        formId={formId}
+        customDomainId={activeDomainId}
+        formSlug={activeSlug}
+        onDomainAssigned={handleDomainAssigned}
+        selectedDomainName={selectedDomainName}
+      />
+    </SidebarSection>
+  </div>
 );
 
-const ShareSidebarFooter = ({ shareUrl }: { shareUrl: string }) => (
-  <SidebarFooter className="p-2">
-    <div className="flex h-[30px] items-center gap-[6px] rounded-lg bg-secondary py-[3px] pr-[3px] pl-[10px]">
-      <span className="min-w-0 flex-1 truncate font-case text-sm font-normal text-muted-foreground">
-        {shareUrl}
+// Embed (standard iframe) tab — no preview; Appearance + Preferences flat sections.
+const EmbedTab = ({
+  form,
+  docPresentationMode,
+  docProgressBar,
+  handlePresentationModeChange,
+  handleProgressBarChange,
+  docBranding,
+  handleBrandingChange,
+  docAnalytics,
+  handleAnalyticsChange,
+  orgId,
+  formId,
+  activeDomainId,
+  activeSlug,
+  handleDomainAssigned,
+  selectedDomainName,
+}: FullPagePreferencesProps) => (
+  <div className="px-4 pt-3">
+    <SidebarSection label="Preferences" collapsible={false}>
+      <PresentationRows
+        docPresentationMode={docPresentationMode}
+        docProgressBar={docProgressBar}
+        onModeChange={handlePresentationModeChange}
+        onProgressBarChange={handleProgressBarChange}
+      />
+    </SidebarSection>
+
+    <SidebarSection label="Appearance" collapsible={false}>
+      {/* Manual height collapses while Dynamic height is on, matching the Figma hidden-row state. */}
+      <form.Subscribe selector={selectDynamicHeight}>
+        {(dynamicHeight: boolean) =>
+          dynamicHeight ? null : (
+            <form.Field name="height">
+              {(field: AnyFieldApi) => (
+                <PreferenceRow label="Height">
+                  <InlineNumberInput
+                    value={field.state.value}
+                    onChange={field.handleChange}
+                    min={200}
+                    max={1000}
+                  />
+                </PreferenceRow>
+              )}
+            </form.Field>
+          )
+        }
+      </form.Subscribe>
+
+      <form.Field name="dynamicHeight">
+        {(field: AnyFieldApi) => (
+          <PreferenceRow
+            label="Dynamic height"
+            hint={
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <span className="inline-flex text-muted-foreground">
+                      <InfoIcon className="size-4" />
+                    </span>
+                  }
+                />
+                <TooltipContent side="top" className="max-w-48 text-xs">
+                  Resize the embed automatically to fit the form's height.
+                </TooltipContent>
+              </Tooltip>
+            }
+          >
+            <Switch
+              aria-label="Dynamic height"
+              checked={field.state.value}
+              onCheckedChange={field.handleChange}
+              size="default"
+            />
+          </PreferenceRow>
+        )}
+      </form.Field>
+
+      <form.Field name="hideTitle">
+        {(field: AnyFieldApi) => (
+          <PreferenceRow label="Hide title">
+            <Switch
+              aria-label="Hide title"
+              checked={field.state.value}
+              onCheckedChange={field.handleChange}
+              size="default"
+            />
+          </PreferenceRow>
+        )}
+      </form.Field>
+
+      <form.Field name="transparentBackground">
+        {(field: AnyFieldApi) => (
+          <PreferenceRow label="Transparent background">
+            <Switch
+              aria-label="Transparent background"
+              checked={field.state.value}
+              onCheckedChange={field.handleChange}
+              size="default"
+            />
+          </PreferenceRow>
+        )}
+      </form.Field>
+    </SidebarSection>
+
+    <SidebarSection label="Preferences" collapsible={false} divider={false}>
+      <ProRows
+        docBranding={docBranding}
+        onBrandingChange={handleBrandingChange}
+        docAnalytics={docAnalytics}
+        onAnalyticsChange={handleAnalyticsChange}
+        orgId={orgId}
+        formId={formId}
+        customDomainId={activeDomainId}
+        formSlug={activeSlug}
+        onDomainAssigned={handleDomainAssigned}
+        selectedDomainName={selectedDomainName}
+      />
+    </SidebarSection>
+  </div>
+);
+
+interface CustomDomainRowProps {
+  orgId: string | undefined;
+  formId: string;
+  customDomainId: string | null | undefined;
+  formSlug: string | null | undefined;
+  onDomainAssigned: (domainId: string | null, slug: string | null) => void;
+  selectedDomainName: string | undefined;
+}
+
+// Sentinel value: the first dropdown row opens the workspace domain settings instead of selecting.
+const ADD_DOMAIN_VALUE = "__add_domain__";
+
+// Pencil → domain dropdown (apply immediately). Top row jumps to settings → Domains to add a new one.
+const CustomDomainRow = ({
+  orgId,
+  formId,
+  customDomainId,
+  formSlug,
+  onDomainAssigned,
+  selectedDomainName,
+}: CustomDomainRowProps) => {
+  const queryClient = useQueryClient();
+
+  const { data: domains } = useQuery({
+    ...orgDomainsQueryOptions(orgId ?? ""),
+    enabled: !!orgId,
+  });
+
+  const verifiedDomains = useMemo(
+    () => (domains ?? []).filter((d) => d.status === "verified"),
+    [domains],
+  );
+
+  const assignDomainMutation = useMutation({
+    mutationFn: (domainId: string | null) =>
+      assignFormDomain({ data: { formId, customDomainId: domainId } }),
+    onSuccess: (result, domainId) => {
+      const slug = (result.form as { slug?: string | null }).slug ?? null;
+      onDomainAssigned(domainId, slug);
+      void queryClient.invalidateQueries({ queryKey: ["forms", formId] });
+    },
+  });
+
+  const { mutate: assignDomain } = assignDomainMutation;
+
+  const handleValueChange = useCallback(
+    (value: string | null) => {
+      if (value === ADD_DOMAIN_VALUE) {
+        settingsDialogStore.open("domains");
+        return;
+      }
+      assignDomain(value || null);
+    },
+    [assignDomain],
+  );
+
+  const displayUrl =
+    selectedDomainName && formSlug
+      ? `https://${selectedDomainName}/${formSlug}`
+      : (selectedDomainName ?? null);
+
+  return (
+    <div className="flex h-7 items-center gap-3">
+      <span className="shrink-0 font-case text-[14px] font-normal text-muted-foreground">
+        Custom domain
       </span>
-      <CopyButton
-        text={shareUrl}
-        variant="ghost"
-        size="sm"
-        className="h-6 shrink-0 gap-1 rounded-[5px] border-none bg-(--color-gray-0) px-2 text-sm text-neutral-600 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-(--color-gray-0) [&_svg]:size-[13px]"
-      >
-        Copy
-      </CopyButton>
+      <div className="flex min-w-0 flex-1 justify-end">
+        <FeatureGate requiredPlan="pro">
+          <Select value={customDomainId ?? ""} onValueChange={handleValueChange} disabled={!orgId}>
+            <SelectTrigger
+              icon={<PencilIcon className="size-4 text-muted-foreground" />}
+              className="h-7 max-w-full gap-1.5 border-none bg-transparent px-0 py-0 text-[14px] font-medium text-foreground shadow-none"
+            >
+              <span className="truncate">{displayUrl ?? "Add domain"}</span>
+            </SelectTrigger>
+            <SelectContent align="end" alignItemWithTrigger={false}>
+              <SelectItem value={ADD_DOMAIN_VALUE} className="text-primary">
+                <PlusIcon className="size-4" />
+                Add domain
+              </SelectItem>
+              {verifiedDomains.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {d.domain}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FeatureGate>
+      </div>
     </div>
+  );
+};
+
+// Shared footer for every published embed tab: Copy Link (left) + Get Code (right).
+const ShareSidebarFooter = ({
+  shareUrl,
+  onGetCode,
+}: {
+  shareUrl: string;
+  onGetCode: () => void;
+}) => (
+  <SidebarFooter className="flex-row gap-2 px-4 pt-0 pb-3.5">
+    <CopyButton
+      text={shareUrl}
+      variant="ghost"
+      size="sm"
+      prefix={<LinkIcon className="size-4" />}
+      className="w-30 justify-center text-[14px] font-medium text-foreground"
+    >
+      Copy Link
+    </CopyButton>
+    <Button
+      onClick={onGetCode}
+      variant="default"
+      size="sm"
+      prefix={<CodeXmlIcon className="size-4" />}
+      className="flex-1 justify-center text-[14px] font-medium"
+    >
+      Get Code
+    </Button>
   </SidebarFooter>
 );

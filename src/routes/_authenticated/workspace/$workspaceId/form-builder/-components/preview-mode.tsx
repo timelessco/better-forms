@@ -54,7 +54,6 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
   const popupWidth = (search.embedPopupWidth as number) ?? 376;
   const darkOverlay = (search.embedDarkOverlay as boolean) ?? false;
   const showEmoji = (search.embedEmoji as boolean) ?? true;
-  const alignLeft = (search.embedAlignLeft as boolean) ?? false;
   const dynamicWidth = (search.embedDynamicWidth as boolean) ?? false;
 
   const [isPopupOpen, setIsPopupOpen] = useState(true);
@@ -110,7 +109,6 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
               transparentBackground={transparentBackground}
               dynamicHeight={dynamicHeight}
               height={height}
-              alignLeft={alignLeft}
               dynamicWidth={dynamicWidth}
               branding={branding}
               darkOverlay={darkOverlay}
@@ -161,7 +159,6 @@ type EmbedPreviewSurfaceProps = SharedPreviewProps & {
   transparentBackground: boolean;
   dynamicHeight: boolean;
   height: number;
-  alignLeft: boolean;
   dynamicWidth: boolean;
   branding: boolean;
   darkOverlay: boolean;
@@ -178,7 +175,6 @@ const EmbedPreviewSurface = ({
   transparentBackground,
   dynamicHeight,
   height,
-  alignLeft,
   dynamicWidth,
   branding,
   darkOverlay,
@@ -201,101 +197,78 @@ const EmbedPreviewSurface = ({
   return (
     <div className="flex flex-1 scrollbar-none flex-col overflow-x-hidden overflow-y-auto">
       <div className="relative flex-1 p-4 lg:p-0">
-        <div className="mx-auto max-w-[1000px] space-y-8 px-4 pt-4 lg:px-8">
-          <div className="flex items-center pt-2">
-            <span className="text-[10px] font-bold tracking-widest text-muted-foreground/40 uppercase">
-              Live Preview
-            </span>
-          </div>
-
-          <div className="space-y-4 opacity-40">
-            <div className="h-4 w-20 rounded-sm border border-border/50 bg-muted/50" />
-            <div className="flex items-end justify-between border-b border-border/30 pb-3">
-              <div className="flex gap-4 lg:gap-6">
-                <div className="h-1.5 w-8 rounded-full bg-muted/50 lg:w-10" />
-                <div className="h-1.5 w-8 rounded-full bg-muted/50 lg:w-10" />
-              </div>
-              <div className="h-6 w-12 rounded-md border border-border/30 bg-muted/30 lg:w-14" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-12 gap-4 pt-2 lg:gap-8">
-            <div className="col-span-3 hidden space-y-5 opacity-30 lg:block">
-              <div className="h-6 w-full rounded-sm bg-muted/40" />
-              <div className="space-y-2">
-                <div className="h-1.5 w-full rounded-full bg-muted/50" />
-                <div className="h-1.5 w-4/5 rounded-full bg-muted/50" />
-              </div>
-              <div className="h-24 w-full rounded-xl border border-dashed border-border/50 bg-muted/20" />
-            </div>
-
-            <div className="col-span-12 space-y-6 lg:col-span-9">
-              <div className="space-y-3 opacity-40">
-                <div className="h-5 w-2/3 rounded-sm border border-border/50 bg-muted/50" />
-                <div className="space-y-1.5">
-                  <div className="h-1.5 w-full rounded-full bg-muted/50" />
-                  <div className="h-1.5 w-full rounded-full bg-muted/50" />
-                </div>
-              </div>
-
-              {embedType === "standard" && (
-                <div className="group/embed relative">
-                  <div className="pointer-events-none absolute -top-5 right-0 text-[8px] font-bold tracking-widest text-muted-foreground/30 uppercase">
-                    Embedded State
+        <div className="mx-auto max-w-[1000px] space-y-10 px-4 pt-6 pb-10 lg:px-8">
+          {/* Popup floats over a rich host page; embed sits inline in a lighter one. */}
+          {embedType === "popup" ? (
+            <PopupHostSkeleton />
+          ) : (
+            <>
+              {/* Host-page content above the embed */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="size-14 shrink-0 rounded-full bg-muted" />
+                  <div className="flex-1 space-y-2.5">
+                    <div className="h-3 w-2/5 rounded-full bg-muted" />
+                    <div className="h-3 w-1/3 rounded-full bg-muted" />
                   </div>
+                </div>
+                <div className="h-3 w-full rounded-full bg-muted" />
+                <div className="h-20 w-full rounded-2xl bg-muted" />
+              </div>
 
+              <div className="flex w-full justify-start">
+                <div
+                  ref={setEmbedFrame}
+                  className={cn(
+                    "w-full overflow-hidden rounded-2xl transition-all duration-200",
+                    dynamicWidth ? "" : "max-w-[460px]",
+                    transparentBackground
+                      ? "bg-transparent"
+                      : "border border-border bg-background shadow-sm",
+                  )}
+                  style={{
+                    height: dynamicHeight ? "auto" : height,
+                  }}
+                >
                   <div
-                    ref={setEmbedFrame}
                     className={cn(
-                      "w-full overflow-hidden rounded-lg border-2 border-dashed border-border transition-all duration-200",
-                      transparentBackground
-                        ? "bg-[repeating-conic-gradient(#e8e8e8_0%_25%,white_0%_50%)] bg-[length:12px_12px]"
-                        : "bg-background",
+                      "size-full overflow-x-hidden",
+                      !dynamicHeight &&
+                        "scrollbar-thin scrollbar-thumb-muted-foreground/20 overflow-y-auto",
                     )}
-                    style={{
-                      height: dynamicHeight ? "auto" : height,
-                    }}
+                    style={
+                      dynamicWidth
+                        ? ({ "--bf-page-width": "100%" } as React.CSSProperties)
+                        : undefined
+                    }
                   >
-                    <div
-                      className={cn(
-                        "size-full overflow-x-hidden",
-                        !dynamicHeight &&
-                          "scrollbar-thin scrollbar-thumb-muted-foreground/20 overflow-y-auto",
-                        alignLeft ? "max-w-[600px]" : "",
-                      )}
-                      style={
-                        dynamicWidth
-                          ? ({ "--bf-page-width": "100%" } as React.CSSProperties)
-                          : undefined
-                      }
-                    >
-                      <PopoverContainerContext value={embedFrame}>
-                        <FormPreviewFromPlate
-                          content={content}
-                          title={hideTitle ? "" : (doc.title ?? undefined)}
-                          icon={showEmoji ? (doc.icon ?? undefined) : undefined}
-                          cover={doc.cover ?? undefined}
-                          onSubmit={noop}
-                          hideTitle={hideTitle}
-                          customization={customization}
-                          settings={previewSettings}
-                          formId={formId}
-                          boundToParent={previewSettings?.presentationMode === "field-by-field"}
-                        />
-                      </PopoverContainerContext>
-                    </div>
+                    <PopoverContainerContext value={embedFrame}>
+                      <FormPreviewFromPlate
+                        content={content}
+                        title={hideTitle ? "" : (doc.title ?? undefined)}
+                        icon={showEmoji ? (doc.icon ?? undefined) : undefined}
+                        cover={doc.cover ?? undefined}
+                        onSubmit={noop}
+                        hideTitle={hideTitle}
+                        customization={customization}
+                        settings={previewSettings}
+                        formId={formId}
+                        boundToParent={previewSettings?.presentationMode === "field-by-field"}
+                      />
+                    </PopoverContainerContext>
                   </div>
                 </div>
-              )}
+              </div>
 
-              <div className="space-y-2 pt-4 opacity-20">
-                <div className="h-1.5 w-full rounded-full bg-muted/50" />
-                <div className="h-1.5 w-3/4 rounded-full bg-muted/50" />
+              {/* Host-page content below the embed */}
+              <div className="space-y-3">
+                <div className="h-3 w-3/5 rounded-full bg-muted" />
+                <div className="h-3 w-1/5 rounded-full bg-muted" />
               </div>
 
               {branding && <BrandingBadge />}
-            </div>
-          </div>
+            </>
+          )}
         </div>
 
         {embedType === "popup" && (
@@ -316,6 +289,63 @@ const EmbedPreviewSurface = ({
             formId={formId}
           />
         )}
+      </div>
+    </div>
+  );
+};
+
+// Rich fake-webpage behind the popup, mirroring the Figma popup host mock.
+const PopupHostSkeleton = () => {
+  const authorRow = (
+    <div className="flex items-center gap-3">
+      <div className="size-14 shrink-0 rounded-full bg-muted" />
+      <div className="flex-1 space-y-2">
+        <div className="h-3 w-3/4 rounded-full bg-muted" />
+        <div className="h-3 w-3/5 rounded-full bg-muted" />
+      </div>
+    </div>
+  );
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center gap-4">
+        <div className="size-14 shrink-0 rounded-full bg-muted" />
+        <div className="flex-1 space-y-2.5">
+          <div className="h-3 w-2/5 rounded-full bg-muted" />
+          <div className="h-3 w-1/3 rounded-full bg-muted" />
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="h-3 w-full rounded-full bg-muted" />
+        <div className="h-3 w-full rounded-full bg-muted" />
+        <div className="h-20 w-full rounded-2xl bg-muted" />
+      </div>
+
+      <div className="space-y-3">
+        <div className="h-3 w-full rounded-full bg-muted" />
+        <div className="h-3 w-4/5 rounded-full bg-muted" />
+        <div className="h-3 w-full rounded-full bg-muted" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        <div className="h-32 rounded-2xl bg-muted" />
+        <div className="h-32 rounded-2xl bg-muted" />
+      </div>
+
+      <div className="space-y-3">
+        <div className="h-3 w-4/5 rounded-full bg-muted" />
+        <div className="h-3 w-full rounded-full bg-muted" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        {authorRow}
+        {authorRow}
+      </div>
+
+      <div className="space-y-3">
+        <div className="h-3 w-full rounded-full bg-muted" />
+        <div className="h-3 w-3/5 rounded-full bg-muted" />
+        <div className="h-3 w-[15%] rounded-full bg-muted" />
       </div>
     </div>
   );
@@ -355,7 +385,7 @@ const PopupPreviewOverlay = ({
       {darkOverlay && isPopupOpen && (
         <button
           type="button"
-          className="pointer-events-auto absolute inset-0 z-10 size-full cursor-default border-none bg-black/40 transition-opacity duration-300"
+          className="pointer-events-auto absolute inset-0 z-10 size-full cursor-default border-none bg-black/36 backdrop-blur-sm transition-opacity duration-300"
           onClick={handleClosePopup}
           aria-label="Close preview"
         />

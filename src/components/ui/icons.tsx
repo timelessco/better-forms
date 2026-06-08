@@ -26,6 +26,7 @@ import {
   CirclePlus as LucideCirclePlus,
   CircleX as LucideCircleX,
   Clock as LucideClock,
+  CodeXml as LucideCodeXml,
   CornerDownLeft as LucideCornerDownLeft,
   Crop as LucideCrop,
   Eraser as LucideEraser,
@@ -1524,6 +1525,7 @@ export const ArrowUpToLineIcon = createConsistentLucideIcon(LucideArrowUpToLine)
 export const AudioLinesIcon = createConsistentLucideIcon(LucideAudioLines);
 export const BoldIcon = createConsistentLucideIcon(LucideBold);
 export const BracesIcon = createConsistentLucideIcon(LucideBraces);
+export const CodeXmlIcon = createConsistentLucideIcon(LucideCodeXml);
 export const CornerDownLeftIcon = createConsistentLucideIcon(LucideCornerDownLeft);
 export const CropIcon = createConsistentLucideIcon(LucideCrop);
 export const EraserIcon = createConsistentLucideIcon(LucideEraser);

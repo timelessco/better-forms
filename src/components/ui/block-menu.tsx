@@ -2030,12 +2030,16 @@ const MultiChoiceFieldMenu = () => (
   </>
 );
 
-// Ranking: required option field, no min/max or extra toggles.
+// Ranking (Figma 25650-16106): Required + Shuffle + Image, then actions incl. Bulk insert.
 const RankingFieldMenu = () => (
   <>
     <RequiredToggle />
+    <ShuffleOptions />
+    <OptionImage />
     <MenuDivider />
-    <MenuActions />
+    <MenuActions>
+      <BulkInsertOptions />
+    </MenuActions>
   </>
 );
 

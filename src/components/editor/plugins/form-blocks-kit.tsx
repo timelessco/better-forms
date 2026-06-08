@@ -201,6 +201,12 @@ const handleFormFieldEnter = (editor: PlateEditor, event: React.KeyboardEvent): 
   if (node.type === "formLabel") {
     const siblings = editor.children as TElement[];
     const next = siblings[insertIndex];
+    // Option-based field (checkbox/multi-choice/dropdown/ranking): drop the caret into the first
+    // option to fill it, instead of splitting a stray paragraph between the label and its options.
+    if (next?.type === "formOptionItem") {
+      moveToPath(editor, [insertIndex]);
+      return true;
+    }
     if (next && VOID_FORM_INPUT_TYPES.has(next.type)) {
       insertIndex += 1;
     }
