@@ -95,7 +95,7 @@ export const MultiSelect = ({
             aria-labelledby={ariaLabelledBy}
             aria-invalid={ariaInvalid}
             className={cn(
-              "flex min-h-[30px] w-full cursor-pointer items-center gap-1 rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-2 py-1 text-sm elevation-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "flex min-h-[30px] w-full cursor-pointer items-center gap-1 rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-2 py-1 text-sm elevation-sm outline-none focus-visible:bg-accent",
               className,
             )}
           >
@@ -157,7 +157,8 @@ export const MultiSelect = ({
               type="button"
               data-mselect-option
               className={cn(
-                "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent",
+                // Gray-shade highlight (hover + keyboard focus), no focus ring — uniform with other options.
+                "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none hover:bg-accent focus-visible:bg-accent",
                 isSelected && cn(color.bg, color.text),
               )}
               onClick={() => toggleOption(opt.value)}

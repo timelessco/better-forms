@@ -10,6 +10,7 @@ const TimeField = ({ element, form, name }: FieldRendererProps<"Time">) => {
         <>
           <f.TimePicker
             id={fieldName}
+            use24Hour={element.use24Hour}
             aria-label={getAriaLabelFallback(element)}
             aria-labelledby={isArrayItem ? fieldLabelId(element.name) : getAriaLabelledBy(element)}
           />

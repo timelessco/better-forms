@@ -64,16 +64,29 @@ const CheckboxField = ({ element, form }: FieldRendererProps<"Checkbox">) => {
                     aria-pressed={isSelected}
                     aria-invalid={hasErrors}
                     className={cn(
-                      "flex cursor-pointer items-center gap-2 py-1 text-left text-sm transition-colors",
+                      // Figma selected state: gray-200 rounded row pill (badge flips to white). No
+                      // focus ring (the keyboard handler programmatically focuses, which would show
+                      // focus-visible on click); a subtle gray-100 bg marks keyboard focus instead.
+                      "flex cursor-pointer flex-col items-start gap-1.5 rounded-lg px-2 py-1.5 text-left text-sm transition-colors outline-none",
+                      isSelected ? "bg-gray-200" : "focus-visible:bg-gray-100",
                       hasErrors && "text-destructive",
                     )}
                   >
-                    <OptionOrdinalBadge
-                      text={getOptionOrdinal(labelStyle, idx)}
-                      selected={isSelected}
-                      hasErrors={hasErrors}
-                    />
-                    <span>{option.label}</span>
+                    <span className="flex items-center gap-1.5">
+                      <OptionOrdinalBadge
+                        text={getOptionOrdinal(labelStyle, idx)}
+                        selected={isSelected}
+                        hasErrors={hasErrors}
+                      />
+                      <span>{option.label}</span>
+                    </span>
+                    {option.image && (
+                      <img
+                        src={option.image}
+                        alt=""
+                        className="block h-auto max-w-[280px] rounded-lg"
+                      />
+                    )}
                   </button>
                 );
               })}

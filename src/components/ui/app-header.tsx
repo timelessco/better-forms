@@ -197,44 +197,54 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          {isLandingPage && <LogoToggle static className="-ml-1" />}
-          {/* Logo doubles as the sidebar trigger on mobile (always visible)
-              and on desktop when the sidebar is collapsed. The primary open
-              gesture on mobile is a rightward swipe from anywhere on the
-              page; this is the discoverability safety net. */}
-          {!isLandingPage && (state === "collapsed" || isMobile) && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <LogoToggle
-                    direction="right"
-                    onClick={() => toggleMainSidebar()}
-                    className="-ml-1"
+          {/* Share sidebar open: collapse the header to a single "Preview" label (Figma system-flat). */}
+          {isShareSidebarOpen ? (
+            <span className="p-1 text-[14px] font-medium tracking-[0.14px] text-gray-800">
+              Preview
+            </span>
+          ) : (
+            <>
+              {isLandingPage && <LogoToggle static className="-ml-1" />}
+              {/* Logo doubles as the sidebar trigger on mobile (always visible)
+                  and on desktop when the sidebar is collapsed. The primary open
+                  gesture on mobile is a rightward swipe from anywhere on the
+                  page; this is the discoverability safety net. */}
+              {!isLandingPage && (state === "collapsed" || isMobile) && (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <LogoToggle
+                        direction="right"
+                        onClick={() => toggleMainSidebar()}
+                        className="-ml-1"
+                      />
+                    }
                   />
-                }
-              />
-              <TooltipContent side="right">
-                <p>{isMobile ? "Open sidebar" : "Expand sidebar"}</p>
-                {!isMobile && (
-                  <p className="text-xs text-muted-foreground">
-                    {formatForDisplay(HOTKEYS.DISMISS_SIDEBARS)}
-                  </p>
-                )}
-              </TooltipContent>
-            </Tooltip>
-          )}
-          {isFormBuilder && savedDocs?.[0] && (
-            <HeaderBreadcrumb
-              workspace={workspace}
-              savedDoc={savedDocs[0]}
-              workspaceId={workspaceId}
-              formId={formId}
-              isEditRoute={isEditRoute}
-            />
+                  <TooltipContent side="right">
+                    <p>{isMobile ? "Open sidebar" : "Expand sidebar"}</p>
+                    {!isMobile && (
+                      <p className="text-xs text-muted-foreground">
+                        {formatForDisplay(HOTKEYS.DISMISS_SIDEBARS)}
+                      </p>
+                    )}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {isFormBuilder && savedDocs?.[0] && (
+                <HeaderBreadcrumb
+                  workspace={workspace}
+                  savedDoc={savedDocs[0]}
+                  workspaceId={workspaceId}
+                  formId={formId}
+                  isEditRoute={isEditRoute}
+                />
+              )}
+            </>
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
+        {/* Right-side actions are hidden while the Share sidebar is open. */}
+        <div className={cn("flex shrink-0 items-center gap-1", isShareSidebarOpen && "hidden")}>
           {isDashboard && (
             <Button
               variant="ghost"

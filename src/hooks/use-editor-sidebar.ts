@@ -1,7 +1,9 @@
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useCallback } from "react";
+import { flushSync } from "react-dom";
 import { editorUICollection } from "@/collections/local/editor-ui";
 import type { SettingsTab, ShareTab, SidebarType } from "@/collections/local/editor-ui";
+import { closeOpenBlockMenu } from "@/lib/editor/block-menu-close";
 
 export type { SettingsTab, SidebarType };
 export type EmbedType = "standard" | "popup" | "fullpage";
@@ -129,6 +131,10 @@ export const useEditorSidebar = () => {
   }, []);
 
   const enterPreview = useCallback(() => {
+    // Close any open block menu BEFORE hiding the editor. flushSync commits the close while the
+    // editor is still visible — otherwise React batches it with the previewMode flip and <Activity>
+    // freezes the (now-hidden) menu component before it re-renders to closed, leaving the portal.
+    flushSync(() => closeOpenBlockMenu());
     editorUICollection.update("editor-ui", (draft) => {
       draft.previewMode = true;
     });
@@ -141,6 +147,7 @@ export const useEditorSidebar = () => {
   }, []);
 
   const togglePreview = useCallback(() => {
+    flushSync(() => closeOpenBlockMenu());
     editorUICollection.update("editor-ui", (draft) => {
       draft.previewMode = !draft.previewMode;
     });

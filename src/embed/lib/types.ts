@@ -1,5 +1,7 @@
 export type PopupPosition = "bottom-right" | "bottom-left" | "center";
 export type PopupLayout = "default" | "modal";
+/** How the auto-bubble opens the popup. "button" = click the bubble; others auto-open once. */
+export type PopupTrigger = "button" | "auto" | "scroll" | "delay" | "exit-intent";
 export type EmojiAnimation = "wave" | "bounce" | "pulse" | "none";
 
 export interface EmojiOptions {

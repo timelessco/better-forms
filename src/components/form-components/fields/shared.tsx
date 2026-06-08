@@ -126,10 +126,11 @@ export const OptionOrdinalBadge = ({
 }) => (
   <span
     className={cn(
-      "flex size-4 shrink-0 items-center justify-center rounded-[4px] text-[9px]! leading-none font-semibold",
-      selected
-        ? "bg-primary text-primary-foreground"
-        : "bg-[var(--form-input-bg,var(--color-gray-50))] text-muted-foreground elevation-sm",
+      // Match the editor badge (form-option-item-node): dark gray-900 text @ 12px Medium, flat.
+      // Pinned grays (not --form-input-bg, which themed forms remap to white). Selected flips to a
+      // white badge on the gray-200 row pill (Figma 25578:9719/9720); default is a gray-100 fill.
+      "flex size-4 shrink-0 items-center justify-center rounded-[4px] text-[12px]! leading-none font-medium text-gray-900",
+      selected ? "bg-white" : "bg-gray-100",
       hasErrors && !selected && "ring-1 ring-destructive",
     )}
   >

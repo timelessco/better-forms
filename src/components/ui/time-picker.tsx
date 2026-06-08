@@ -13,6 +13,8 @@ export interface TimePickerProps {
   className?: string;
   /** Trigger label shown when no time is selected. */
   placeholder?: string;
+  /** Railway/24-hour mode: hour spinner 0–23, no AM/PM, "HH:MM" display. Default 12-hour. */
+  use24Hour?: boolean;
   id?: string;
   name?: string;
   "aria-label"?: string;
@@ -104,12 +106,14 @@ const TimeSegment = ({ value, min, max, ariaLabel, onCommit }: SegmentProps) => 
         <ChevronSelectIcon className="pointer-events-none absolute inset-0 m-auto size-3" />
         <button
           type="button"
+          tabIndex={-1}
           aria-label={`Increase ${ariaLabel}`}
           onClick={() => step(1)}
           className="flex-1"
         />
         <button
           type="button"
+          tabIndex={-1}
           aria-label={`Decrease ${ariaLabel}`}
           onClick={() => step(-1)}
           className="flex-1"
@@ -125,6 +129,7 @@ export const TimePicker = ({
   onBlur,
   className,
   placeholder = "Choose time",
+  use24Hour = false,
   id,
   name,
   "aria-label": ariaLabel,
@@ -135,6 +140,10 @@ export const TimePicker = ({
   const parts = parse(value);
   // Popover edits operate on the parsed value, falling back to a sensible default when unset.
   const view = parts ?? DEFAULT_PARTS;
+  const hour24 = view.period === "PM" ? (view.hour12 % 12) + 12 : view.hour12 % 12;
+  const displayText = use24Hour
+    ? `${String(hour24).padStart(2, "0")}:${String(view.minute).padStart(2, "0")}`
+    : formatDisplay(view);
 
   const emit = (next: Partial<TimeParts>) => onChange?.(serialize({ ...view, ...next }));
 
@@ -162,9 +171,7 @@ export const TimePicker = ({
               className,
             )}
           >
-            <span className="min-w-0 flex-1 truncate">
-              {parts ? formatDisplay(parts) : placeholder}
-            </span>
+            <span className="min-w-0 flex-1 truncate">{parts ? displayText : placeholder}</span>
             <ClockLineIcon className="size-4 shrink-0 text-muted-foreground" />
           </button>
         }
@@ -179,13 +186,25 @@ export const TimePicker = ({
       >
         <span className="text-[14px] font-medium text-foreground">Time</span>
         <div className="flex items-center gap-2">
-          <TimeSegment
-            value={view.hour12}
-            min={1}
-            max={12}
-            ariaLabel="Hours"
-            onCommit={(hour12) => emit({ hour12 })}
-          />
+          {use24Hour ? (
+            <TimeSegment
+              value={hour24}
+              min={0}
+              max={23}
+              ariaLabel="Hours"
+              onCommit={(h24) =>
+                emit({ hour12: h24 % 12 === 0 ? 12 : h24 % 12, period: h24 >= 12 ? "PM" : "AM" })
+              }
+            />
+          ) : (
+            <TimeSegment
+              value={view.hour12}
+              min={1}
+              max={12}
+              ariaLabel="Hours"
+              onCommit={(hour12) => emit({ hour12 })}
+            />
+          )}
           <TimeSegment
             value={view.minute}
             min={0}
@@ -193,14 +212,16 @@ export const TimePicker = ({
             ariaLabel="Minutes"
             onCommit={(minute) => emit({ minute })}
           />
-          <button
-            type="button"
-            aria-label="Toggle AM or PM"
-            onClick={() => emit({ period: view.period === "AM" ? "PM" : "AM" })}
-            className="flex shrink-0 items-center rounded-lg bg-(--color-gray-alpha-100) px-2.5 py-1.5 text-[14px] tracking-[0.28px] text-foreground tabular-nums"
-          >
-            {view.period}
-          </button>
+          {!use24Hour && (
+            <button
+              type="button"
+              aria-label="Toggle AM or PM"
+              onClick={() => emit({ period: view.period === "AM" ? "PM" : "AM" })}
+              className="flex shrink-0 items-center rounded-lg bg-(--color-gray-alpha-100) px-2.5 py-1.5 text-[14px] tracking-[0.28px] text-foreground tabular-nums"
+            >
+              {view.period}
+            </button>
+          )}
         </div>
       </PopoverContent>
     </Popover>

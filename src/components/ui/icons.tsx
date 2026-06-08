@@ -26,6 +26,7 @@ import {
   CirclePlus as LucideCirclePlus,
   CircleX as LucideCircleX,
   Clock as LucideClock,
+  CodeXml as LucideCodeXml,
   CornerDownLeft as LucideCornerDownLeft,
   Crop as LucideCrop,
   Eraser as LucideEraser,
@@ -44,6 +45,7 @@ import {
   Globe as LucideGlobe,
   GripHorizontal as LucideGripHorizontal,
   GripVertical as LucideGripVertical,
+  DecimalsArrowRight as LucideDecimalsArrowRight,
   Hash as LucideHash,
   HelpCircle as LucideHelpCircle,
   Indent as LucideIndent,
@@ -1523,6 +1525,7 @@ export const ArrowUpToLineIcon = createConsistentLucideIcon(LucideArrowUpToLine)
 export const AudioLinesIcon = createConsistentLucideIcon(LucideAudioLines);
 export const BoldIcon = createConsistentLucideIcon(LucideBold);
 export const BracesIcon = createConsistentLucideIcon(LucideBraces);
+export const CodeXmlIcon = createConsistentLucideIcon(LucideCodeXml);
 export const CornerDownLeftIcon = createConsistentLucideIcon(LucideCornerDownLeft);
 export const CropIcon = createConsistentLucideIcon(LucideCrop);
 export const EraserIcon = createConsistentLucideIcon(LucideEraser);
@@ -1554,6 +1557,7 @@ export const WrapTextIcon = createConsistentLucideIcon(LucideWrapText);
 export const AlertCircleIcon = createConsistentLucideIcon(LucideAlertCircle);
 export const AtSignIcon = createConsistentLucideIcon(LucideAtSign);
 export const HashIcon = createConsistentLucideIcon(LucideHash);
+export const DecimalsArrowRightIcon = createConsistentLucideIcon(LucideDecimalsArrowRight);
 export const PhoneIcon = createConsistentLucideIcon(LucidePhone);
 export const SquareCheckIcon = createConsistentLucideIcon(LucideSquareCheck);
 export const CheckCheckIcon = createConsistentLucideIcon(LucideCheckCheck);
