@@ -265,6 +265,13 @@ export const generateZodSchemaFromFields = (
           : v.optional(v.string());
         if (!field.required) isAlreadyOptional = true;
         break;
+      // Signature stores a PNG data URL string; required ⇒ non-empty.
+      case "Signature":
+        fieldSchema = field.required
+          ? v.pipe(v.string(), v.nonEmpty("Please provide a signature"))
+          : v.optional(v.string());
+        if (!field.required) isAlreadyOptional = true;
+        break;
       case "FileUpload": {
         const uploadedFileSchema = v.object({
           url: v.string(),
@@ -295,6 +302,8 @@ export const generateZodSchemaFromFields = (
         break;
       case "MultiChoice":
       case "Dropdown":
+      // Linear scale stores the picked number as a string (one value), like single-select.
+      case "LinearScale":
         if (field.required) {
           fieldSchema = v.pipe(v.string(), v.minLength(1, "Please select an option"));
         } else {
@@ -307,6 +316,46 @@ export const generateZodSchemaFromFields = (
           fieldSchema = v.pipe(v.array(v.string()), v.nonEmpty("Please rank the options"));
         } else {
           fieldSchema = v.optional(v.array(v.string()), []);
+          isAlreadyOptional = true;
+        }
+        break;
+      case "Matrix": {
+        // Answer is keyed by row value → column value (single) or value[] (multiple).
+        // Required ⇒ every row must be answered (checked here, not per-key, so a missing
+        // key fails too). Optional ⇒ default to {} and accept partial answers.
+        const rowKeys = field.rows.map((r) => r.value);
+        if (field.multiple) {
+          const rec = v.record(v.string(), v.array(v.string()));
+          fieldSchema = field.required
+            ? v.pipe(
+                rec,
+                v.check((val) => {
+                  const rec = val as Record<string, string[]>;
+                  return rowKeys.every((k) => Array.isArray(rec[k]) && rec[k].length > 0);
+                }, "Please answer every row"),
+              )
+            : v.optional(rec, {});
+        } else {
+          const rec = v.record(v.string(), v.string());
+          fieldSchema = field.required
+            ? v.pipe(
+                rec,
+                v.check((val) => {
+                  const rec = val as Record<string, string>;
+                  return rowKeys.every((k) => typeof rec[k] === "string" && rec[k].length > 0);
+                }, "Please answer every row"),
+              )
+            : v.optional(rec, {});
+        }
+        if (!field.required) isAlreadyOptional = true;
+        break;
+      }
+      // Rating stores the picked star count as a string (one value), like single-select.
+      case "Rating":
+        if (field.required) {
+          fieldSchema = v.pipe(v.string(), v.minLength(1, "Please select a rating"));
+        } else {
+          fieldSchema = v.optional(v.string(), "");
           isAlreadyOptional = true;
         }
         break;
@@ -387,7 +436,15 @@ export const generateDefaultValuesFromFields = (
       field.fieldType === "Ranking"
     ) {
       defaults[field.name] = [];
-    } else if (field.fieldType === "MultiChoice" || field.fieldType === "Dropdown") {
+    } else if (field.fieldType === "Matrix") {
+      // Row→column(s) record; seeded empty so required validation flags unanswered rows.
+      defaults[field.name] = {};
+    } else if (
+      field.fieldType === "MultiChoice" ||
+      field.fieldType === "Dropdown" ||
+      field.fieldType === "LinearScale" ||
+      field.fieldType === "Rating"
+    ) {
       defaults[field.name] = "";
     } else {
       defaults[field.name] =

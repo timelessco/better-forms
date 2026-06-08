@@ -12,8 +12,11 @@ import {
   FileIcon,
   HashIcon,
   HideIcon,
+  IconLinearScale,
   IconPhone,
+  IconRating,
   LabelsIcon,
+  ListTodoIcon,
   PhotoIcon,
   RepeatIcon,
   RequiredFieldIcon,
@@ -55,13 +58,21 @@ import type { OptionLabelStyle } from "@/components/ui/form-option-item-constant
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createLogicBlockNode } from "@/components/ui/logic-block-node";
+import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { registerBlockMenuClose, unregisterBlockMenuClose } from "@/lib/editor/block-menu-close";
 import { useReanchorThemeProps } from "@/hooks/use-form-theme";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { ALL_FILE_EXTENSIONS, FILE_CATEGORIES } from "@/lib/form-schema/file-upload-types";
-import { ALLOWED_LABEL_TYPES, FORM_INPUT_NODE_TYPES } from "@/lib/form-schema/form-field-constants";
+import {
+  ALLOWED_LABEL_TYPES,
+  FORM_INPUT_NODE_TYPES,
+  LINEAR_SCALE_BOUNDS,
+  LINEAR_SCALE_DEFAULTS,
+  RATING_DEFAULTS,
+  RATING_MAX_STARS,
+} from "@/lib/form-schema/form-field-constants";
 import type {
   DecimalSeparator,
   NumberFormatConfig,
@@ -78,10 +89,14 @@ type BlockFieldType =
   | "formDate"
   | "formTime"
   | "formFileUpload"
+  | "formLinearScale"
+  | "formMatrix"
   | "optionCheckbox" // formOptionItem variant="checkbox"
   | "optionMultiChoice" // formOptionItem variant="multiChoice"
   | "optionRanking" // formOptionItem variant="ranking"
   | "formMultiSelect" // formMultiSelectInput
+  | "formRating"
+  | "formSignature"
   | "formButton"
   | "static"
   | "unknown";
@@ -109,7 +124,11 @@ const getFieldType = (node: { type?: string; variant?: string } | undefined): Bl
   if (t === "formDate") return "formDate";
   if (t === "formTime") return "formTime";
   if (t === "formFileUpload") return "formFileUpload";
+  if (t === "formLinearScale") return "formLinearScale";
+  if (t === "formMatrix") return "formMatrix";
   if (t === "formMultiSelectInput") return "formMultiSelect";
+  if (t === "formRating") return "formRating";
+  if (t === "formSignature") return "formSignature";
   if (t === "formOptionItem") {
     const v = node.variant || "checkbox";
     if (v === "multiChoice") return "optionMultiChoice";
@@ -347,6 +366,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
         updateMinSelections: handlers.handleUpdateMinSelections,
         updateMaxSelections: handlers.handleUpdateMaxSelections,
         toggleRandomizeOrder: handlers.handleToggleRandomizeOrder,
+        toggleMultiple: handlers.handleToggleMultiple,
         toggleAllowOther: handlers.handleToggleAllowOther,
         toggleVerifyEmail: handlers.handleToggleVerifyEmail,
         setDefaultCountryCode: handlers.handleSetDefaultCountryCode,
@@ -354,6 +374,9 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
         toggleOptionImage: handlers.handleToggleOptionImage,
         setNumberFormat: handlers.handleSetNumberFormat,
         updateButtonText: handlers.handleUpdateButtonText,
+        setScaleRange: handlers.handleSetScaleRange,
+        setScaleStep: handlers.handleSetScaleStep,
+        updateStarCount: handlers.handleUpdateStarCount,
         deleteBlock: handleDelete,
         duplicateBlock: handleDuplicate,
         addLogic: handleAddLogic,
@@ -439,6 +462,11 @@ interface BlockMenuInputNode {
   maxSelections?: number;
   randomizeOrder?: boolean;
   allowOther?: boolean;
+  scaleMin?: number;
+  scaleMax?: number;
+  scaleStep?: number;
+  starCount?: number;
+  multiple?: boolean;
 }
 
 interface UseBlockMenuFieldHandlersOptions {
@@ -537,6 +565,36 @@ const useBlockMenuFieldHandlers = ({
     [getInputPath, editor.tf],
   );
 
+  // Linear scale start/end — set together from the dual-handle slider. Unlike
+  // updateNumericNode, 0 and negatives are valid values, so always set (never unset).
+  const handleSetScaleRange = React.useCallback(
+    (min: number, max: number) => {
+      const inputPath = getInputPath();
+      if (!inputPath) return;
+      editor.tf.setNodes({ scaleMin: min, scaleMax: max }, { at: inputPath });
+    },
+    [getInputPath, editor.tf],
+  );
+  const handleSetScaleStep = React.useCallback(
+    (step: number) => {
+      const inputPath = getInputPath();
+      if (!inputPath) return;
+      editor.tf.setNodes({ scaleStep: Math.max(1, step) }, { at: inputPath });
+    },
+    [getInputPath, editor.tf],
+  );
+  // Star count — default of 5 (never unset), clamped to 1…RATING_MAX_STARS.
+  const handleUpdateStarCount = React.useCallback(
+    (value: string) => {
+      const inputPath = getInputPath();
+      if (!inputPath) return;
+      const num = parseInt(value, 10) || RATING_DEFAULTS.starCount;
+      const clamped = Math.min(RATING_MAX_STARS, Math.max(1, num));
+      editor.tf.setNodes({ starCount: clamped }, { at: inputPath });
+    },
+    [getInputPath, editor.tf],
+  );
+
   const toggleBooleanNode = React.useCallback(
     (key: keyof BlockMenuInputNode) => {
       const inputPath = getInputPath();
@@ -566,6 +624,10 @@ const useBlockMenuFieldHandlers = ({
   }, [getInputPath, inputNode, editor.tf]);
   const handleToggleRandomizeOrder = React.useCallback(
     () => toggleBooleanNode("randomizeOrder"),
+    [toggleBooleanNode],
+  );
+  const handleToggleMultiple = React.useCallback(
+    () => toggleBooleanNode("multiple"),
     [toggleBooleanNode],
   );
   const handleToggleAllowOther = React.useCallback(
@@ -705,6 +767,7 @@ const useBlockMenuFieldHandlers = ({
       handleUpdateMinSelections,
       handleUpdateMaxSelections,
       handleToggleRandomizeOrder,
+      handleToggleMultiple,
       handleToggleAllowOther,
       handleToggleVerifyEmail,
       handleSetDefaultCountryCode,
@@ -712,6 +775,9 @@ const useBlockMenuFieldHandlers = ({
       handleToggleOptionImage,
       handleSetNumberFormat,
       handleUpdateButtonText,
+      handleSetScaleRange,
+      handleSetScaleStep,
+      handleUpdateStarCount,
     }),
     [
       handleToggleRequired,
@@ -728,6 +794,7 @@ const useBlockMenuFieldHandlers = ({
       handleUpdateMinSelections,
       handleUpdateMaxSelections,
       handleToggleRandomizeOrder,
+      handleToggleMultiple,
       handleToggleAllowOther,
       handleToggleVerifyEmail,
       handleSetDefaultCountryCode,
@@ -735,6 +802,9 @@ const useBlockMenuFieldHandlers = ({
       handleToggleOptionImage,
       handleSetNumberFormat,
       handleUpdateButtonText,
+      handleSetScaleRange,
+      handleSetScaleStep,
+      handleUpdateStarCount,
     ],
   );
 };
@@ -760,6 +830,7 @@ interface BlockMenuActions {
   updateMinSelections: (v: string) => void;
   updateMaxSelections: (v: string) => void;
   toggleRandomizeOrder: () => void;
+  toggleMultiple: () => void;
   toggleAllowOther: () => void;
   toggleVerifyEmail: () => void;
   setDefaultCountryCode: (code: string | undefined) => void;
@@ -767,6 +838,9 @@ interface BlockMenuActions {
   toggleOptionImage: () => void;
   setNumberFormat: (patch: Partial<NumberFormatConfig>) => void;
   updateButtonText: (v: string) => void;
+  setScaleRange: (min: number, max: number) => void;
+  setScaleStep: (step: number) => void;
+  updateStarCount: (v: string) => void;
   deleteBlock: () => void;
   duplicateBlock: () => void;
   addLogic: () => void;
@@ -1293,6 +1367,21 @@ const ShuffleOptions = () => {
   );
 };
 
+// Matrix "Multiple selection" (Figma node 25646-14665): off ⇒ one column per row (radio);
+// on ⇒ several columns per row (checkbox). Stored as `multiple` on the formMatrix node.
+const MultipleSelection = () => {
+  const { state, actions } = useBlockMenu();
+  return (
+    <SwitchRow
+      icon={<ListTodoIcon className="text-foreground/80" />}
+      label="Multiple selection"
+      ariaLabel="Multiple selection"
+      checked={Boolean(state.inputNode?.multiple)}
+      onToggle={actions.toggleMultiple}
+    />
+  );
+};
+
 // Per-option auto label style (Figma node 25472-18146): single-select Off / Letters / Numbers.
 const OPTION_LABEL_CHOICES: { value: OptionLabelStyle; label: string }[] = [
   { value: "none", label: "Off" },
@@ -1700,6 +1789,108 @@ const NumberFieldMenu = () => (
   </>
 );
 
+// Linear scale "Scale" submenu (Figma 25634-17867): dual-handle slider sets the scale's
+// Start/End within the allowed bounds; the values below echo the current selection.
+const ScaleRange = () => {
+  const { state, actions } = useBlockMenu();
+  const nodeMin = state.inputNode?.scaleMin ?? LINEAR_SCALE_DEFAULTS.min;
+  const nodeMax = state.inputNode?.scaleMax ?? LINEAR_SCALE_DEFAULTS.max;
+  // Drive the thumbs from local state so they track the pointer synchronously — routing every
+  // drag tick through the Slate editor lags a *controlled* slider and pins the thumb. Persist
+  // once on release; resync if the selected field (and thus the node values) changes.
+  const [range, setRange] = React.useState<[number, number]>([nodeMin, nodeMax]);
+  React.useEffect(() => {
+    setRange([nodeMin, nodeMax]);
+  }, [nodeMin, nodeMax]);
+  return (
+    <SettingsSubmenu icon={<IconLinearScale className="text-foreground/80" />} label="Scale">
+      <div className="flex items-center justify-between text-[14px] font-medium text-foreground">
+        <span>Start</span>
+        <span>End</span>
+      </div>
+      {/* Stop propagation so dragging the slider doesn't dismiss the menu. */}
+      <Slider
+        aria-label="Scale range"
+        min={LINEAR_SCALE_BOUNDS.min}
+        max={LINEAR_SCALE_BOUNDS.max}
+        value={range}
+        onClick={stopMouseEventPropagation}
+        onPointerDown={stopMouseEventPropagation}
+        onValueChange={(value) => {
+          const [a, b] = value as number[];
+          // Keep at least one step of span so the scale always has ≥2 points.
+          if (b > a) setRange([a, b]);
+        }}
+        onValueCommitted={(value) => {
+          const [a, b] = value as number[];
+          if (b > a) actions.setScaleRange(a, b);
+        }}
+      />
+      <div className="flex items-center justify-between text-[12px] text-muted-foreground tabular-nums">
+        <span>{range[0]}</span>
+        <span>{range[1]}</span>
+      </div>
+    </SettingsSubmenu>
+  );
+};
+
+// Linear scale "Scale step" submenu (Figma 25644-10393): single slider + value box for the
+// increment between points.
+const ScaleStep = () => {
+  const { state, actions } = useBlockMenu();
+  const nodeStep = state.inputNode?.scaleStep ?? LINEAR_SCALE_DEFAULTS.step;
+  // Local state for smooth dragging (see ScaleRange); persist on release.
+  const [step, setStep] = React.useState(nodeStep);
+  React.useEffect(() => {
+    setStep(nodeStep);
+  }, [nodeStep]);
+  return (
+    <SettingsSubmenu
+      icon={<HashIcon className="text-foreground/80" strokeWidth={1} />}
+      label="Scale step"
+    >
+      <div className="flex items-center gap-2.5">
+        {/* Stop propagation so dragging the slider doesn't dismiss the menu. */}
+        <Slider
+          aria-label="Scale step"
+          className="flex-1"
+          min={LINEAR_SCALE_BOUNDS.stepMin}
+          max={LINEAR_SCALE_BOUNDS.stepMax}
+          value={[step]}
+          onClick={stopMouseEventPropagation}
+          onPointerDown={stopMouseEventPropagation}
+          onValueChange={(value) => setStep((value as number[])[0])}
+          onValueCommitted={(value) => actions.setScaleStep((value as number[])[0])}
+        />
+        <div className="flex w-12 items-center justify-center rounded-lg bg-(--color-gray-alpha-100) px-2 py-1.5 text-[14px] font-medium text-foreground tabular-nums">
+          {step}
+        </div>
+      </div>
+    </SettingsSubmenu>
+  );
+};
+
+const LinearScaleFieldMenu = () => (
+  <>
+    <RequiredToggle />
+    <ScaleRange />
+    <ScaleStep />
+    <MenuDivider />
+    <MenuActions />
+  </>
+);
+
+// Matrix (Figma node 25646-14665): Required + Shuffle (randomizes rows) + Multiple selection.
+const MatrixFieldMenu = () => (
+  <>
+    <RequiredToggle />
+    <ShuffleOptions />
+    <MultipleSelection />
+    <MenuDivider />
+    <MenuActions />
+  </>
+);
+
 const FileFieldMenu = () => (
   <>
     <RequiredToggle />
@@ -1767,6 +1958,34 @@ const ButtonFieldMenu = () => (
 // Static (headings/paragraph/quote) and unknown blocks: actions only.
 const StaticFieldMenu = () => <MenuActions />;
 
+// Rating "Stars count" submenu (Figma 25647-15073): a stepper bounded to 1…RATING_MAX_STARS.
+const StarsCount = () => {
+  const { state, actions } = useBlockMenu();
+  return (
+    <SettingsSubmenu icon={<IconRating className="text-foreground/80" />} label="Stars count">
+      <StepperRow
+        label="Stars"
+        ariaLabel="Number of stars"
+        value={state.inputNode?.starCount}
+        onChange={actions.updateStarCount}
+        min={1}
+        max={RATING_MAX_STARS}
+        defaultHint={RATING_DEFAULTS.starCount}
+      />
+    </SettingsSubmenu>
+  );
+};
+
+// Rating (Figma 25647-15073): required + a star-count stepper.
+const RatingFieldMenu = () => (
+  <>
+    <RequiredToggle />
+    <StarsCount />
+    <MenuDivider />
+    <MenuActions />
+  </>
+);
+
 const FIELD_MENU_VARIANTS: Record<BlockFieldType, React.FC> = {
   textLike: TextFieldMenu,
   formEmail: EmailFieldMenu,
@@ -1775,10 +1994,14 @@ const FIELD_MENU_VARIANTS: Record<BlockFieldType, React.FC> = {
   formTime: TimeFieldMenu,
   formNumber: NumberFieldMenu,
   formFileUpload: FileFieldMenu,
+  formLinearScale: LinearScaleFieldMenu,
+  formMatrix: MatrixFieldMenu,
   optionCheckbox: CheckboxFieldMenu,
   optionMultiChoice: MultiChoiceFieldMenu,
   optionRanking: RankingFieldMenu,
   formMultiSelect: MultiSelectFieldMenu,
+  formRating: RatingFieldMenu,
+  formSignature: ScalarFieldMenu,
   formButton: ButtonFieldMenu,
   static: StaticFieldMenu,
   unknown: StaticFieldMenu,
@@ -1873,6 +2096,11 @@ interface BlockMenuFirstNode {
   maxSelections?: number;
   randomizeOrder?: boolean;
   allowOther?: boolean;
+  scaleMin?: number;
+  scaleMax?: number;
+  scaleStep?: number;
+  starCount?: number;
+  multiple?: boolean;
 }
 
 const useBlockMenuSelection = ({ editor, isOpen }: { editor: EditorRef; isOpen: boolean }) => {

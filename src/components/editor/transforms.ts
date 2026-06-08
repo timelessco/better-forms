@@ -8,6 +8,8 @@ import {
 } from "@platejs/media";
 import { insertToc } from "@platejs/toc";
 import { createLogicBlockNode } from "@/components/ui/logic-block-node";
+import { MATRIX_DEFAULTS } from "@/lib/form-schema/form-field-constants";
+import { generateShortId } from "@/lib/short-id";
 import { KEYS, PathApi } from "platejs";
 import type { NodeEntry, Path, TElement } from "platejs";
 import type { PlateEditor } from "platejs/react";
@@ -252,6 +254,57 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
     );
     editor.tf.select({ path: [...labelPath, 0], offset: 0 });
   },
+  formLinearScale: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        // Settings seed the NPS default (1–10, step 1); the block menu edits them.
+        {
+          type: "formLinearScale",
+          scaleMin: 1,
+          scaleMax: 10,
+          scaleStep: 1,
+          children: [{ text: "" }],
+        },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  formMatrix: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        // Single-select per row by default; the block menu's "Multiple selection" flips it.
+        {
+          type: "formMatrix",
+          rows: MATRIX_DEFAULTS.rows.map((label) => ({ id: generateShortId(), label })),
+          columns: MATRIX_DEFAULTS.columns.map((label) => ({ id: generateShortId(), label })),
+          children: [{ text: "" }],
+        },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
   formCheckbox: (editor) => {
     const block = editor.api.block();
     if (!block) return;
@@ -347,6 +400,44 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
         },
         { type: "formOptionItem", variant: "ranking", children: [{ text: "" }] },
         { type: "p", children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  formRating: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formRating", starCount: 5, children: [{ text: "" }] },
+      ] as unknown as TElement[],
+      { at: labelPath },
+    );
+    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  },
+  formSignature: (editor) => {
+    const block = editor.api.block();
+    if (!block) return;
+    const [, path] = block;
+    const labelPath = PathApi.next(path);
+    editor.tf.insertNodes(
+      [
+        {
+          type: "formLabel",
+          required: true,
+          placeholder: "Type a question",
+          children: [{ text: "" }],
+        },
+        { type: "formSignature", children: [{ text: "" }] },
       ] as unknown as TElement[],
       { at: labelPath },
     );

@@ -9,6 +9,10 @@ import { FormTextareaElement } from "@/components/ui/form-textarea-node";
 import { LogicBlockElement } from "@/components/ui/logic-block-node";
 import { PageBreakElement } from "@/components/ui/page-break-node";
 import { FormFileUploadElement } from "@/components/ui/form-file-upload-node";
+import { FormLinearScaleElement } from "@/components/ui/form-linear-scale-node";
+import { FormMatrixElement } from "@/components/ui/form-matrix-node";
+import { FormRatingElement } from "@/components/ui/form-rating-node";
+import { FormSignatureElement } from "@/components/ui/form-signature-node";
 import { FormMultiSelectInputElement } from "@/components/ui/form-multi-select-input-node";
 import { FormOptionItemElement } from "@/components/ui/form-option-item-node";
 import {
@@ -30,6 +34,9 @@ const FORM_FIELD_TYPES = new Set([
   "formFileUpload",
   "formMultiSelectInput",
   "formOptionItem",
+  "formLinearScale",
+  "formRating",
+  "formSignature",
   "formButton",
   "formLabel",
   "pageBreak",
@@ -38,7 +45,14 @@ const FORM_FIELD_TYPES = new Set([
 // Button types that should not be deleted
 const PROTECTED_BUTTON_TYPES = new Set(["formButton"]);
 
-const VOID_FORM_INPUT_TYPES = new Set(["formFileUpload", "formMultiSelectInput"]);
+const VOID_FORM_INPUT_TYPES = new Set([
+  "formFileUpload",
+  "formMultiSelectInput",
+  "formLinearScale",
+  "formRating",
+  "formMatrix",
+  "formSignature",
+]);
 
 const PAGE_FIELD_TYPES = new Set([
   "formInput",
@@ -49,6 +63,10 @@ const PAGE_FIELD_TYPES = new Set([
   "formOptionItem",
   "formSelect",
   "formDatePicker",
+  "formLinearScale",
+  "formRating",
+  "formMatrix",
+  "formSignature",
 ]);
 const NON_EDITABLE_BLOCK_TYPES = new Set([
   "formButton",
@@ -56,6 +74,10 @@ const NON_EDITABLE_BLOCK_TYPES = new Set([
   "formHeader",
   "formFileUpload",
   "formMultiSelectInput",
+  "formLinearScale",
+  "formRating",
+  "formMatrix",
+  "formSignature",
 ]);
 
 // Block is only content after a preceding pageBreak → delete both, move cursor to prev content block. Returns true if handled.
@@ -846,6 +868,42 @@ export const FormFileUploadPlugin = createPlatePlugin({
   },
 });
 
+export const FormLinearScalePlugin = createPlatePlugin({
+  key: "formLinearScale",
+  node: { isElement: true, isVoid: true, component: FormLinearScaleElement },
+  options: { gutterPosition: "center" },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+});
+
+export const FormRatingPlugin = createPlatePlugin({
+  key: "formRating",
+  node: { isElement: true, isVoid: true, component: FormRatingElement },
+  options: { gutterPosition: "center" },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+});
+
+export const FormMatrixPlugin = createPlatePlugin({
+  key: "formMatrix",
+  node: { isElement: true, isVoid: true, component: FormMatrixElement },
+  options: { gutterPosition: "center" },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+});
+
+export const FormSignaturePlugin = createPlatePlugin({
+  key: "formSignature",
+  node: { isElement: true, isVoid: true, component: FormSignatureElement },
+  options: { gutterPosition: "center" },
+  handlers: {
+    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
+  },
+});
+
 export const FormOptionItemPlugin = createPlatePlugin({
   key: "formOptionItem",
   node: { isElement: true, component: FormOptionItemElement },
@@ -931,6 +989,17 @@ const NavigationPlugin = createPlatePlugin({
       if (target) {
         moveToPath(editor, target);
         editor.tf.focus();
+        // Matrix is a void node authored via native label inputs — land focus inside it
+        // (first input forward, last input on Shift+Tab) so Tab traverses the whole field.
+        const targetNode = editor.api.node(target)?.[0] as TElement | undefined;
+        if (targetNode?.type === "formMatrix") {
+          const dom = editor.api.toDOMNode(targetNode);
+          const fieldInputs = dom?.querySelectorAll("input");
+          if (fieldInputs && fieldInputs.length > 0) {
+            const input = goPrev ? fieldInputs[fieldInputs.length - 1] : fieldInputs[0];
+            setTimeout(() => input.focus(), 0);
+          }
+        }
         return;
       }
 
@@ -975,6 +1044,10 @@ export const FormBlocksKit = [
   FormDatePlugin,
   FormTimePlugin,
   FormFileUploadPlugin,
+  FormLinearScalePlugin,
+  FormRatingPlugin,
+  FormMatrixPlugin,
+  FormSignaturePlugin,
   FormOptionItemPlugin,
   FormMultiSelectInputPlugin,
   PageBreakPlugin,

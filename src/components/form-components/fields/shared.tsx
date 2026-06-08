@@ -246,4 +246,6 @@ export const GROUP_FIELD_TYPES = new Set<PlateFormField["fieldType"]>([
   "Ranking",
   "MultiSelect",
   "Dropdown",
+  "LinearScale",
+  "Matrix",
 ]);

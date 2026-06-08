@@ -7,13 +7,17 @@ import DropdownField from "./fields/DropdownField";
 import EmailField from "./fields/EmailField";
 import FileUploadField from "./fields/FileUploadField";
 import InputField from "./fields/InputField";
+import LinearScaleField from "./fields/LinearScaleField";
 import LinkField from "./fields/LinkField";
+import MatrixField from "./fields/MatrixField";
 import MultiChoiceField from "./fields/MultiChoiceField";
 import MultiSelectField from "./fields/MultiSelectField";
 import NumberField from "./fields/NumberField";
 import PhoneField from "./fields/PhoneField";
 import RankingField from "./fields/RankingField";
+import RatingField from "./fields/RatingField";
 import { RepeatableField } from "./fields/RepeatableField";
+import SignatureField from "./fields/SignatureField";
 import type { FieldType } from "./fields/shared";
 import TextareaField from "./fields/TextareaField";
 import TimeField from "./fields/TimeField";
@@ -38,6 +42,10 @@ const FIELD_RENDERERS: Record<FieldType, React.ComponentType<{ element: never; f
   MultiSelect: MultiSelectField,
   Ranking: RankingField,
   Dropdown: DropdownField,
+  LinearScale: LinearScaleField,
+  Rating: RatingField,
+  Matrix: MatrixField,
+  Signature: SignatureField,
 } as const;
 
 export const RenderStepPreviewInputEager = ({

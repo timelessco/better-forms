@@ -26,6 +26,10 @@ const SOURCE_PATHS: Record<FieldType, string> = {
   MultiSelect: "src/components/form-components/fields/MultiSelectField.tsx",
   Ranking: "src/components/form-components/fields/RankingField.tsx",
   Dropdown: "src/components/form-components/fields/DropdownField.tsx",
+  LinearScale: "src/components/form-components/fields/LinearScaleField.tsx",
+  Rating: "src/components/form-components/fields/RatingField.tsx",
+  Matrix: "src/components/form-components/fields/MatrixField.tsx",
+  Signature: "src/components/form-components/fields/SignatureField.tsx",
 };
 
 // Paths Vite/Nitro may place the client manifest at, in priority order.

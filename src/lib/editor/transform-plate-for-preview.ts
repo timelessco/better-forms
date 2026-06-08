@@ -5,10 +5,17 @@ import {
   ALLOWED_LABEL_TYPES,
   INPUT_TYPE_TO_FIELD_TYPE,
   VARIANT_TO_FIELD_TYPE,
+  extractLinearScaleFields,
   extractNumberFields,
+  extractRatingFields,
   resolveRequired,
 } from "@/lib/form-schema/form-field-constants";
-import { buildOptionList, extractTextContent, slugify } from "./transform-plate-to-form";
+import {
+  buildMatrixEntries,
+  buildOptionList,
+  extractTextContent,
+  slugify,
+} from "./transform-plate-to-form";
 import type { PlateFormField } from "./transform-plate-to-form";
 
 export type StaticSegment = { type: "static"; nodes: Value };
@@ -178,6 +185,9 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
 
       const fileUploadFields = nodeType === "formFileUpload" ? extractFileUploadFields(node) : {};
       const numberFields = nodeType === "formNumber" ? extractNumberFields(node) : {};
+      const linearScaleFields =
+        nodeType === "formLinearScale" ? extractLinearScaleFields(node) : {};
+      const ratingFields = nodeType === "formRating" ? extractRatingFields(node) : {};
       const verifyEmail = nodeType === "formEmail" && node.verifyEmail === true ? true : undefined;
       const defaultCountryCode =
         nodeType === "formPhone" && typeof node.defaultCountryCode === "string"
@@ -202,6 +212,8 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
           initialRows,
           ...fileUploadFields,
           ...numberFields,
+          ...linearScaleFields,
+          ...ratingFields,
           ...(verifyEmail ? { verifyEmail } : {}),
           ...(defaultCountryCode ? { defaultCountryCode } : {}),
           ...(use24Hour ? { use24Hour } : {}),
@@ -240,6 +252,42 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
           labelType: label?.labelNode.type as string | undefined,
           required: isRequired,
           options,
+        } as PlateFormField,
+      });
+      fieldIndex++;
+      i++;
+      continue;
+    }
+
+    // Matrix — a single void node holding rows + columns on its props.
+    if (nodeType === "formMatrix") {
+      const label = lookBackForLabel(i);
+      flushStatic();
+      const labelText = label?.labelText ?? "";
+      const labelNode = label?.labelNode ?? null;
+      const isRequired = resolveRequired(node as Record<string, unknown>, labelNode);
+
+      const rows = buildMatrixEntries(node.rows, "row");
+      const columns = buildMatrixEntries(node.columns, "column");
+
+      const stableId =
+        (label?.labelNode as { id?: string } | undefined)?.id ?? (node as { id?: string }).id;
+      const baseName = slugify(labelText);
+      const name = stableId || `${baseName}_${fieldIndex}`;
+
+      segments.push({
+        type: "field",
+        field: {
+          id: name,
+          name,
+          fieldType: "Matrix",
+          label: labelText || undefined,
+          labelType: label?.labelNode.type as string | undefined,
+          required: isRequired,
+          rows,
+          columns,
+          ...(node.multiple === true ? { multiple: true } : {}),
+          ...(node.randomizeOrder === true ? { shuffle: true } : {}),
         } as PlateFormField,
       });
       fieldIndex++;

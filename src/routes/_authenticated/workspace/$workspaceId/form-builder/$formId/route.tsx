@@ -1,7 +1,7 @@
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
-import { getFormListings, isInitialized } from "@/collections";
+import { enrichFormDetail, getFormListings, isInitialized } from "@/collections";
 import { getFormVersionsQueryOption } from "@/lib/server-fn/form-versions";
 import { getFormbyIdQueryOption, getFormStatus } from "@/lib/server-fn/forms-queries";
 import type { FormStatus } from "@/lib/server-fn/forms-queries";
@@ -95,6 +95,13 @@ export const Route = createFileRoute("/_authenticated/workspace/$workspaceId/for
         context.queryClient.ensureQueryData(getFormbyIdQueryOption(params.formId)),
         context.queryClient.ensureQueryData(getFormVersionsQueryOption(params.formId)),
       ]);
+
+      // Seed the collection with full content so the editor reads it on first render — avoids the
+      // post-mount enrichment hop that flashes "Loading editor…". Reuses the ensureQueryData cache
+      // above (no extra network). Guarded: collections may not be init yet on SSR/first load.
+      if (isInitialized()) {
+        await enrichFormDetail(params.formId);
+      }
     },
     staleTime: 30_000,
     gcTime: 5 * 60_000,
