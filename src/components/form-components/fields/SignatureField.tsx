@@ -135,7 +135,7 @@ const SignaturePad = ({
           size="icon-sm"
           variant="outline"
           aria-label="Clear signature"
-          className="absolute right-2 bottom-2"
+          className="absolute bottom-2 left-2"
           onClick={clear}
         >
           <EraserIcon />
