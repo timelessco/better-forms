@@ -44,6 +44,7 @@ import {
   Globe as LucideGlobe,
   GripHorizontal as LucideGripHorizontal,
   GripVertical as LucideGripVertical,
+  DecimalsArrowRight as LucideDecimalsArrowRight,
   Hash as LucideHash,
   HelpCircle as LucideHelpCircle,
   Indent as LucideIndent,
@@ -1554,6 +1555,7 @@ export const WrapTextIcon = createConsistentLucideIcon(LucideWrapText);
 export const AlertCircleIcon = createConsistentLucideIcon(LucideAlertCircle);
 export const AtSignIcon = createConsistentLucideIcon(LucideAtSign);
 export const HashIcon = createConsistentLucideIcon(LucideHash);
+export const DecimalsArrowRightIcon = createConsistentLucideIcon(LucideDecimalsArrowRight);
 export const PhoneIcon = createConsistentLucideIcon(LucidePhone);
 export const SquareCheckIcon = createConsistentLucideIcon(LucideSquareCheck);
 export const CheckCheckIcon = createConsistentLucideIcon(LucideCheckCheck);

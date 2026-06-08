@@ -162,6 +162,8 @@ export type PlateFormField =
       labelType?: string;
       placeholder?: string;
       required?: boolean;
+      /** Railway/24-hour time entry (default 12-hour AM/PM). */
+      use24Hour?: boolean;
       isFieldArray?: boolean;
       /** Initial row count when `isFieldArray` is on — used by the editor and
        * by `generateDefaultValuesFromFields` to seed that many empty rows. */
@@ -187,7 +189,7 @@ export type PlateFormField =
       label?: string;
       labelType?: string;
       required?: boolean;
-      options: { value: string; label: string }[];
+      options: { value: string; label: string; image?: string }[];
       /** Leading marker style for the option group (Labels submenu). Default: native control. */
       optionLabel?: OptionLabelStyle;
     }
@@ -198,7 +200,7 @@ export type PlateFormField =
       label?: string;
       labelType?: string;
       required?: boolean;
-      options: { value: string; label: string }[];
+      options: { value: string; label: string; image?: string }[];
       /** Leading marker style for the option group (Labels submenu). Default: letters. */
       optionLabel?: OptionLabelStyle;
     }
@@ -324,9 +326,9 @@ export const slugify = (str: string): string =>
  * labels collide (e.g. two "Option 2" rows). Single-select must map a stored value
  * to exactly one option; duplicate values would highlight every matching row. */
 export const buildOptionList = (
-  nodes: Array<{ children?: Array<{ text?: string }> }>,
-): { value: string; label: string }[] => {
-  const options: { value: string; label: string }[] = [];
+  nodes: Array<{ children?: Array<{ text?: string }>; image?: string }>,
+): { value: string; label: string; image?: string }[] => {
+  const options: { value: string; label: string; image?: string }[] = [];
   const used = new Set<string>();
   for (const n of nodes) {
     const optText = extractTextContent((n.children ?? []) as Array<{ text?: string }>);
@@ -338,7 +340,11 @@ export const buildOptionList = (
       value = `${value}_${k}`;
     }
     used.add(value);
-    options.push({ value, label: optLabel });
+    options.push({
+      value,
+      label: optLabel,
+      ...(typeof n.image === "string" && n.image ? { image: n.image } : {}),
+    });
   }
   return options;
 };
@@ -497,6 +503,7 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
         nodeType === "formPhone" && typeof node.defaultCountryCode === "string"
           ? node.defaultCountryCode || undefined
           : undefined;
+      const use24Hour = nodeType === "formTime" && node.use24Hour === true ? true : undefined;
 
       elements.push({
         id: name,
@@ -514,6 +521,7 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
         ...numberFields,
         ...(verifyEmail ? { verifyEmail } : {}),
         ...(defaultCountryCode ? { defaultCountryCode } : {}),
+        ...(use24Hour ? { use24Hour } : {}),
       } as PlateFormField);
       fieldIndex++;
       i++;

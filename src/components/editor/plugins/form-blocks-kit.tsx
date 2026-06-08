@@ -873,6 +873,9 @@ export const FormOptionItemPlugin = createPlatePlugin({
           {
             type: "formOptionItem",
             variant: node.variant || "checkbox",
+            // Inherit the group's label style (letters/numbers/none) — else a new option reverts to
+            // the "letters" default and mismatches siblings the user switched to "off".
+            ...(node.optionLabel ? { optionLabel: node.optionLabel } : {}),
             children: [{ text: "" }],
           } as TElement,
           { at: nextPath },

@@ -2,11 +2,18 @@ import type { TElement } from "platejs";
 import type { PlateElementProps } from "platejs/react";
 
 import { DndPlugin } from "@platejs/dnd";
-import { PlateElement, useEditorRef, useEditorVersion, usePluginOption } from "platejs/react";
-import { useLayoutEffect, useMemo } from "react";
+import {
+  PlateElement,
+  useEditorRef,
+  useEditorSelector,
+  useEditorVersion,
+  usePluginOption,
+} from "platejs/react";
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCheckIcon, ChevronDownIcon } from "@/components/ui/icons";
+import { CheckCheckIcon, ChevronDownIcon, Loader2Icon, PhotoIcon } from "@/components/ui/icons";
+import { useUploadFile } from "@/hooks/use-upload-file";
 import { RequiredBadgeButton } from "@/components/ui/required-badge-button";
 import { cn } from "@/lib/utils";
 
@@ -16,9 +23,11 @@ import { getMultiSelectColor, getOptionOrdinal } from "@/components/ui/form-opti
 import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
 import { useFormIsDark } from "@/hooks/use-form-theme";
 
-// Letters/Numbers labels: an ordinal badge in a gray box (Figma nodes 25578:9710 / 25578:9688).
+// Letters/Numbers labels: an ordinal badge in a gray box (Figma nodes 25578:9710 / 25578:9688) —
+// gray-100 fill, dark gray-900 text @ 12px Medium, flat (no shadow). Pin gray-100 (not the form's
+// --form-input-bg, which themed forms remap to white → invisible badge).
 const OptionLabelBadge = ({ text }: { text: string }) => (
-  <span className="flex size-4 min-w-4 shrink-0 items-center justify-center rounded-[4px] bg-(--form-input-bg,var(--color-gray-50)) px-0.5 text-[9px] font-semibold text-muted-foreground elevation-sm">
+  <span className="flex size-4 min-w-4 shrink-0 items-center justify-center rounded-[4px] bg-gray-100 px-0.5 text-[12px] font-medium text-gray-900">
     {text}
   </span>
 );
@@ -55,7 +64,7 @@ const OptionIcon = ({
     case "multiChoice":
       // Labels "None" → the radio control (Figma node 25458:16773).
       return (
-        <span className="flex size-4 shrink-0 rounded-full border border-input bg-card elevation-sm" />
+        <span className="flex size-3.5 shrink-0 rounded-full border border-input bg-card elevation-sm" />
       );
     case "multiSelect": {
       const color = getMultiSelectColor(index, isDark);
@@ -76,6 +85,76 @@ const OptionIcon = ({
   }
 };
 
+// Per-option image (Figma 25755:3987): 144×60 rounded thumbnail below the label. Empty slot uploads
+// on click; filled slot offers replace/remove on hover.
+const OptionImageSlot = ({
+  image,
+  uploading,
+  onPick,
+  onRemove,
+}: {
+  image?: string;
+  uploading: boolean;
+  onPick: (file: File) => void;
+  onRemove: () => void;
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const open = () => inputRef.current?.click();
+  return (
+    <div contentEditable={false} className="mt-1.5 pl-6 select-none">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onPick(file);
+          e.target.value = "";
+        }}
+      />
+      {image ? (
+        <div className="group/img relative inline-block max-w-[280px] overflow-hidden rounded-lg">
+          {/* Show the whole image as-is (natural aspect), just rounded + width-capped. */}
+          <img src={image} alt="" className="block h-auto w-full" />
+          <div className="absolute inset-0 hidden items-center justify-center gap-1 bg-black/50 text-xs text-white group-hover/img:flex">
+            <button
+              type="button"
+              onClick={open}
+              className="rounded px-1.5 py-0.5 hover:bg-white/20"
+            >
+              Replace
+            </button>
+            <button
+              type="button"
+              onClick={onRemove}
+              className="rounded px-1.5 py-0.5 hover:bg-white/20"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={open}
+          disabled={uploading}
+          className="flex h-[60px] w-[144px] items-center justify-center gap-1.5 rounded-lg border border-dashed border-input bg-gray-100 text-xs text-muted-foreground hover:bg-gray-200 disabled:opacity-60"
+        >
+          {uploading ? (
+            <Loader2Icon className="size-4 animate-spin" />
+          ) : (
+            <>
+              <PhotoIcon className="size-4" />
+              Add image
+            </>
+          )}
+        </button>
+      )}
+    </div>
+  );
+};
+
 export const FormOptionItemElement = ({ children, ...props }: PlateElementProps) => {
   const { attributes, element, ...rest } = props;
   const variant = (element.variant as OptionVariant) || "checkbox";
@@ -89,7 +168,9 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
   // Subscribe to every editor change so optionIndex tracks reorders. props.path (useNodePath)
   // doesn't update on reorder (slate-react memoizes by identity); look up index by node identity.
   const version = useEditorVersion();
-  const focusIndex = editor.selection?.focus.path[0];
+  // Reactive focus index: useEditorVersion bumps on CONTENT only, not selection — read the focus via
+  // useEditorSelector so moving the caret into an option re-renders and shows the "Add option" ghost.
+  const focusIndex = useEditorSelector((ed) => ed.selection?.focus.path[0], []);
 
   const { optionIndex, isLastInGroup, isGroupFocused, isStandalone } = useMemo(() => {
     const nodes = editor.children as TElement[];
@@ -173,6 +254,25 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
 
   const colorStyle = variant === "multiSelect" ? getMultiSelectColor(optionIndex, isDark) : null;
 
+  // Per-option image (group "Image" toggle sets showImage on every sibling). Upload via the shared
+  // editor-media uploader, then store the URL on this option node.
+  const showImage = element.showImage === true;
+  const image = element.image as string | undefined;
+  const { uploadFile, isUploading } = useUploadFile();
+  const handleImagePick = useCallback(
+    async (file: File) => {
+      const uploaded = await uploadFile(file);
+      if (!uploaded?.url) return;
+      const idx = (editor.children as TElement[]).indexOf(element);
+      if (idx >= 0) editor.tf.setNodes({ image: uploaded.url } as Partial<TElement>, { at: [idx] });
+    },
+    [uploadFile, editor, element],
+  );
+  const handleImageRemove = useCallback(() => {
+    const idx = (editor.children as TElement[]).indexOf(element);
+    if (idx >= 0) editor.tf.unsetNodes(["image"], { at: [idx] });
+  }, [editor, element]);
+
   return (
     <PlateElement
       attributes={{ ...attributes, "data-bf-input": "true" }}
@@ -189,6 +289,15 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
         </span>
         <span className="min-w-0 flex-1 text-sm outline-none">{children}</span>
       </div>
+
+      {showImage && (
+        <OptionImageSlot
+          image={image}
+          uploading={isUploading}
+          onPick={handleImagePick}
+          onRemove={handleImageRemove}
+        />
+      )}
 
       {showGhost && (
         <div

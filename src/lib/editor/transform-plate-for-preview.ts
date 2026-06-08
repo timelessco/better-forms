@@ -183,6 +183,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
         nodeType === "formPhone" && typeof node.defaultCountryCode === "string"
           ? node.defaultCountryCode || undefined
           : undefined;
+      const use24Hour = nodeType === "formTime" && node.use24Hour === true ? true : undefined;
 
       segments.push({
         type: "field",
@@ -203,6 +204,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
           ...numberFields,
           ...(verifyEmail ? { verifyEmail } : {}),
           ...(defaultCountryCode ? { defaultCountryCode } : {}),
+          ...(use24Hour ? { use24Hour } : {}),
         } as PlateFormField,
       });
       fieldIndex++;
@@ -255,10 +257,10 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
 
       const variant = (node.variant as string) || "checkbox";
 
-      const optionNodes: Array<{ children?: Array<{ text?: string }> }> = [];
+      const optionNodes: Array<{ children?: Array<{ text?: string }>; image?: string }> = [];
       let j = i;
       while (j < nodes.length && nodes[j].type === "formOptionItem") {
-        optionNodes.push(nodes[j] as { children?: Array<{ text?: string }> });
+        optionNodes.push(nodes[j] as { children?: Array<{ text?: string }>; image?: string });
         j++;
       }
       const options = buildOptionList(optionNodes);

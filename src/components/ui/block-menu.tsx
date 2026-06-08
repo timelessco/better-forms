@@ -3,8 +3,10 @@ import {
   CharacterLimitIcon,
   CheckIcon,
   ChevronLeftIcon,
+  ClockLineIcon,
   ChevronSelectIcon,
   ConditionalLogicIcon,
+  DecimalsArrowRightIcon,
   DeleteIcon,
   DuplicateIcon,
   FileIcon,
@@ -55,7 +57,9 @@ import { Label } from "@/components/ui/label";
 import { createLogicBlockNode } from "@/components/ui/logic-block-node";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { registerBlockMenuClose, unregisterBlockMenuClose } from "@/lib/editor/block-menu-close";
 import { useReanchorThemeProps } from "@/hooks/use-form-theme";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { ALL_FILE_EXTENSIONS, FILE_CATEGORIES } from "@/lib/form-schema/file-upload-types";
 import { ALLOWED_LABEL_TYPES, FORM_INPUT_NODE_TYPES } from "@/lib/form-schema/form-field-constants";
 import type {
@@ -130,6 +134,15 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
   const openId = usePluginOption(BlockMenuPlugin, "openId");
   const themeReanchor = useReanchorThemeProps("w-[246px] p-1");
   const isOpen = openId === BLOCK_CONTEXT_MENU_ID;
+
+  // Entering preview keeps the editor mounted (Activity) but the menu is portaled to body, so it
+  // would linger over the preview. <Activity> tears down effects on hide (racing a reactive close),
+  // so instead register the close fn; the preview toggle calls it synchronously before hiding.
+  useMountEffect(() => {
+    const close = () => api.blockMenu.hide();
+    registerBlockMenuClose(close);
+    return () => unregisterBlockMenuClose(close);
+  });
 
   const position = usePluginOption(BlockMenuPlugin, "position");
   const { x, y } = position ?? { x: 0, y: 0 };
@@ -321,6 +334,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
       state: { fieldType, inputNode, buttonText },
       actions: {
         toggleRequired: handlers.handleToggleRequired,
+        toggleUse24Hour: handlers.handleToggleUse24Hour,
         toggleRepeatable: handlers.handleToggleFieldArray,
         updateMinLength: handlers.handleUpdateMinLength,
         updateMaxLength: handlers.handleUpdateMaxLength,
@@ -337,6 +351,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
         toggleVerifyEmail: handlers.handleToggleVerifyEmail,
         setDefaultCountryCode: handlers.handleSetDefaultCountryCode,
         setOptionLabel: handlers.handleSetOptionLabel,
+        toggleOptionImage: handlers.handleToggleOptionImage,
         setNumberFormat: handlers.handleSetNumberFormat,
         updateButtonText: handlers.handleUpdateButtonText,
         deleteBlock: handleDelete,
@@ -367,19 +382,24 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     <>
       <div ref={blockMenuTriggerRef}>{children}</div>
 
-      <DropdownMenu open={isOpen} onOpenChange={handleOpenChange} modal={false}>
-        <DropdownMenuContent
-          anchor={virtualAnchor}
-          className={themeReanchor.className}
-          style={themeReanchor.style}
-          align="end"
-          sideOffset={8}
-        >
-          <BlockMenuContext value={contextValue}>
-            <FieldMenu />
-          </BlockMenuContext>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* Conditionally MOUNTED (not just `open`): closing unmounts the portal immediately instead of
+          playing an exit animation. Entering preview hides the editor via <Activity>, which would
+          freeze a still-animating portal mid-close and leave it stuck over the preview. */}
+      {isOpen && (
+        <DropdownMenu open onOpenChange={handleOpenChange} modal={false}>
+          <DropdownMenuContent
+            anchor={virtualAnchor}
+            className={themeReanchor.className}
+            style={themeReanchor.style}
+            align="end"
+            sideOffset={8}
+          >
+            <BlockMenuContext value={contextValue}>
+              <FieldMenu />
+            </BlockMenuContext>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       <BulkInsertDialog
         open={bulkInsert !== null}
@@ -396,6 +416,8 @@ interface BlockMenuInputNode {
   type?: string;
   variant?: string;
   optionLabel?: OptionLabelStyle;
+  showImage?: boolean;
+  use24Hour?: boolean;
   numberFormat?: NumberFormatType;
   decimalSeparator?: DecimalSeparator;
   thousandsSeparator?: ThousandsSeparator;
@@ -442,6 +464,14 @@ const useBlockMenuFieldHandlers = ({
     const currentRequired = Boolean(inputNode?.required);
     editor.tf.setNodes({ required: !currentRequired }, { at: inputPath });
   }, [getInputPath, inputNode?.required, editor.tf]);
+
+  // Time field: toggle 24-hour (railway) entry. Unset to fall back to 12-hour AM/PM.
+  const handleToggleUse24Hour = React.useCallback(() => {
+    const inputPath = getInputPath();
+    if (!inputPath) return;
+    if (inputNode?.use24Hour) editor.tf.unsetNodes(["use24Hour"], { at: inputPath });
+    else editor.tf.setNodes({ use24Hour: true } as Partial<TElement>, { at: inputPath });
+  }, [getInputPath, inputNode?.use24Hour, editor.tf]);
 
   const handleToggleFieldArray = React.useCallback(() => {
     const inputPath = getInputPath();
@@ -582,6 +612,26 @@ const useBlockMenuFieldHandlers = ({
     [getInputPath, editor],
   );
 
+  // "Image" applies to the whole option group — toggle showImage on every contiguous sibling option.
+  const handleToggleOptionImage = React.useCallback(() => {
+    const inputPath = getInputPath();
+    if (!inputPath) return;
+    const start = inputPath[0];
+    const nodes = editor.children as TElement[];
+    if (nodes[start]?.type !== "formOptionItem") return;
+    let first = start;
+    let last = start;
+    while (first > 0 && nodes[first - 1]?.type === "formOptionItem") first--;
+    while (last < nodes.length - 1 && nodes[last + 1]?.type === "formOptionItem") last++;
+    const enabled = (nodes[start] as { showImage?: boolean }).showImage === true;
+    editor.tf.withoutNormalizing(() => {
+      for (let i = first; i <= last; i++) {
+        if (enabled) editor.tf.unsetNodes(["showImage"], { at: [i] });
+        else editor.tf.setNodes({ showImage: true } as Partial<TElement>, { at: [i] });
+      }
+    });
+  }, [getInputPath, editor]);
+
   // Number "Format" — patch one config field at a time; "off"/"none" unset to keep the node clean.
   const handleSetNumberFormat = React.useCallback(
     (patch: Partial<NumberFormatConfig>) => {
@@ -642,6 +692,7 @@ const useBlockMenuFieldHandlers = ({
   return React.useMemo(
     () => ({
       handleToggleRequired,
+      handleToggleUse24Hour,
       handleToggleFieldArray,
       handleUpdateMinLength,
       handleUpdateMaxLength,
@@ -658,11 +709,13 @@ const useBlockMenuFieldHandlers = ({
       handleToggleVerifyEmail,
       handleSetDefaultCountryCode,
       handleSetOptionLabel,
+      handleToggleOptionImage,
       handleSetNumberFormat,
       handleUpdateButtonText,
     }),
     [
       handleToggleRequired,
+      handleToggleUse24Hour,
       handleToggleFieldArray,
       handleUpdateMinLength,
       handleUpdateMaxLength,
@@ -679,6 +732,7 @@ const useBlockMenuFieldHandlers = ({
       handleToggleVerifyEmail,
       handleSetDefaultCountryCode,
       handleSetOptionLabel,
+      handleToggleOptionImage,
       handleSetNumberFormat,
       handleUpdateButtonText,
     ],
@@ -693,6 +747,7 @@ const useBlockMenuFieldHandlers = ({
  */
 interface BlockMenuActions {
   toggleRequired: () => void;
+  toggleUse24Hour: () => void;
   toggleRepeatable: () => void;
   updateMinLength: (v: string) => void;
   updateMaxLength: (v: string) => void;
@@ -709,6 +764,7 @@ interface BlockMenuActions {
   toggleVerifyEmail: () => void;
   setDefaultCountryCode: (code: string | undefined) => void;
   setOptionLabel: (style: OptionLabelStyle) => void;
+  toggleOptionImage: () => void;
   setNumberFormat: (patch: Partial<NumberFormatConfig>) => void;
   updateButtonText: (v: string) => void;
   deleteBlock: () => void;
@@ -1016,7 +1072,7 @@ const RepeatableToggle = () => {
   if (!REPEATABLE_BLOCK_FIELD_TYPES.has(state.fieldType)) return null;
   return (
     <SwitchRow
-      icon={<RepeatIcon className="text-foreground/80" strokeWidth={1} />}
+      icon={<RepeatIcon className="size-4 text-foreground/80" />}
       label="Repeatable"
       ariaLabel="Repeatable"
       checked={Boolean(state.inputNode?.isFieldArray)}
@@ -1136,6 +1192,8 @@ const NumberFormat = () => {
   const format = state.inputNode?.numberFormat ?? "off";
   const decimal = state.inputNode?.decimalSeparator ?? ".";
   const thousands = state.inputNode?.thousandsSeparator ?? "none";
+  // Decimal separator is meaningless without decimals — hide it unless "Allow decimals" is on.
+  const allowDecimals = state.inputNode?.allowDecimals !== false;
   return (
     <DropdownMenuSub open={open}>
       <DropdownMenuSubTrigger
@@ -1143,7 +1201,7 @@ const NumberFormat = () => {
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
       >
-        <HashIcon className="text-foreground/80" strokeWidth={1} />
+        <HashIcon className="size-4 text-foreground/80" />
         <span className="flex-1 text-left">Format</span>
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent
@@ -1156,15 +1214,19 @@ const NumberFormat = () => {
           active={format === "off"}
           onSelect={() => actions.setNumberFormat({ format: "off" })}
         />
-        <FormatSectionHeader label="Decimal separator" />
-        {NUMBER_DECIMAL_CHOICES.map((choice) => (
-          <FormatChoiceRow
-            key={choice.value}
-            label={choice.label}
-            active={decimal === choice.value}
-            onSelect={() => actions.setNumberFormat({ decimalSeparator: choice.value })}
-          />
-        ))}
+        {allowDecimals && (
+          <>
+            <FormatSectionHeader label="Decimal separator" />
+            {NUMBER_DECIMAL_CHOICES.map((choice) => (
+              <FormatChoiceRow
+                key={choice.value}
+                label={choice.label}
+                active={decimal === choice.value}
+                onSelect={() => actions.setNumberFormat({ decimalSeparator: choice.value })}
+              />
+            ))}
+          </>
+        )}
         <FormatSectionHeader label="Thousands separator" />
         {NUMBER_THOUSANDS_CHOICES.map((choice) => (
           <FormatChoiceRow
@@ -1278,14 +1340,26 @@ const OptionLabels = () => {
   );
 };
 
-const OptionImage = () => (
-  // TODO(wiring): open the option-group image picker / upload flow.
-  <DropdownMenuItem closeOnClick={false} className="text-foreground/80">
-    <PhotoIcon className="text-foreground/80" />
-    <span className="min-w-0 flex-1 text-left">Image</span>
-    <span className="shrink-0 text-muted-foreground">Upload</span>
-  </DropdownMenuItem>
-);
+// Toggles per-option image slots for the whole group; each option then uploads its own image inline.
+const OptionImage = () => {
+  const { state, actions } = useBlockMenu();
+  const enabled = state.inputNode?.showImage === true;
+  return (
+    <DropdownMenuItem
+      closeOnClick={false}
+      className="text-foreground/80"
+      onClick={actions.toggleOptionImage}
+    >
+      <PhotoIcon className="text-foreground/80" />
+      <span className="min-w-0 flex-1 text-left">Image</span>
+      {enabled ? (
+        <CheckIcon className="size-4 shrink-0 text-foreground/80" />
+      ) : (
+        <span className="shrink-0 text-muted-foreground">Upload</span>
+      )}
+    </DropdownMenuItem>
+  );
+};
 
 // File-upload "Selection limit" submenu (Figma node 25633-11549): max file size + max file count.
 const FileSelectionLimit = () => {
@@ -1351,7 +1425,7 @@ const AllowedFiles = () => {
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
       >
-        <FileIcon className="text-foreground/80" strokeWidth={1} />
+        <FileIcon className="size-4 text-foreground/80" />
         <span className="flex-1 text-left">Allowed files</span>
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent
@@ -1466,7 +1540,7 @@ const BulkInsertDialog = ({
             }
           }}
           placeholder="Type each options on a new line"
-          className="h-[180px] resize-none rounded-[12px] bg-muted shadow-none"
+          className="h-[180px] resize-none rounded-[12px] bg-muted shadow-none focus-visible:ring-0"
         />
         <div className="flex justify-end">
           <Button onClick={save} disabled={!canSave}>
@@ -1559,10 +1633,33 @@ const EmailFieldMenu = () => (
   </>
 );
 
-// Date and time: a required scalar with no extra settings (Repeatable comes from MenuActions).
+// Date: a required scalar with no extra settings (Repeatable comes from MenuActions).
 const ScalarFieldMenu = () => (
   <>
     <RequiredToggle />
+    <MenuDivider />
+    <MenuActions />
+  </>
+);
+
+const Use24HourToggle = () => {
+  const { state, actions } = useBlockMenu();
+  return (
+    <SwitchRow
+      icon={<ClockLineIcon className="text-foreground/80" />}
+      label="24-hour time"
+      ariaLabel="24-hour time"
+      checked={Boolean(state.inputNode?.use24Hour)}
+      onToggle={actions.toggleUse24Hour}
+    />
+  );
+};
+
+// Time: scalar + a 12h/24h (railway) toggle.
+const TimeFieldMenu = () => (
+  <>
+    <RequiredToggle />
+    <Use24HourToggle />
     <MenuDivider />
     <MenuActions />
   </>
@@ -1583,7 +1680,7 @@ const AllowDecimals = () => {
   const { state, actions } = useBlockMenu();
   return (
     <SwitchRow
-      icon={<HashIcon className="text-foreground/80" strokeWidth={1} />}
+      icon={<DecimalsArrowRightIcon className="size-4 text-foreground/80" />}
       label="Allow decimals"
       ariaLabel="Allow decimals"
       checked={state.inputNode?.allowDecimals !== false}
@@ -1675,7 +1772,7 @@ const FIELD_MENU_VARIANTS: Record<BlockFieldType, React.FC> = {
   formEmail: EmailFieldMenu,
   formPhone: PhoneFieldMenu,
   formDate: ScalarFieldMenu,
-  formTime: ScalarFieldMenu,
+  formTime: TimeFieldMenu,
   formNumber: NumberFieldMenu,
   formFileUpload: FileFieldMenu,
   optionCheckbox: CheckboxFieldMenu,
