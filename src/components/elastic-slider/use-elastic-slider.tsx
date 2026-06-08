@@ -333,7 +333,7 @@ export const useElasticSlider = ({
       if (!shouldReduceMotion && rubberStretch.get() !== 0) {
         animate(rubberStretch, 0, {
           type: "spring",
-          visualDuration: 0.35,
+          visualDuration: 0.25,
           bounce: 0.15,
         });
       }

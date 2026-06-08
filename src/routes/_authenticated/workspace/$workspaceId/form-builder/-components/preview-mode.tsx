@@ -247,7 +247,7 @@ const EmbedPreviewSurface = ({
                   <div
                     ref={setEmbedFrame}
                     className={cn(
-                      "w-full overflow-hidden rounded-lg border-2 border-dashed border-border transition-all duration-500",
+                      "w-full overflow-hidden rounded-lg border-2 border-dashed border-border transition-all duration-200",
                       transparentBackground
                         ? "bg-[repeating-conic-gradient(#e8e8e8_0%_25%,white_0%_50%)] bg-[length:12px_12px]"
                         : "bg-background",

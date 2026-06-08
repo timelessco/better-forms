@@ -18,7 +18,7 @@
   --text-swap-blur: 2px;
   --text-swap-ease: ease-in-out;
   /* Number pop-in */
-  --digit-dur: 500ms;
+  --digit-dur: 250ms;
   --digit-distance: 8px;
   --digit-stagger: 70ms;
   --digit-blur: 2px;
@@ -26,14 +26,14 @@
   --digit-dir-x: 0;
   --digit-dir-y: 1;
   /* Success check */
-  --check-opacity-dur: 550ms;
-  --check-rotate-dur: 550ms;
+  --check-opacity-dur: 300ms;
+  --check-rotate-dur: 300ms;
   --check-rotate-from: 80deg;
-  --check-bob-dur: 450ms;
+  --check-bob-dur: 250ms;
   --check-y-amount: 40px;
-  --check-blur-dur: 500ms;
+  --check-blur-dur: 280ms;
   --check-blur-from: 10px;
-  --check-path-dur: 550ms;
+  --check-path-dur: 280ms;
   --check-path-delay: 80ms;
   --check-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --check-ease-opacity: cubic-bezier(0.22, 1, 0.36, 1);
@@ -50,7 +50,7 @@
   --revert-dur: 280ms;
   /* Avatar group hover */
   --avatar-lift: -4px;
-  --avatar-dur: 320ms;
+  --avatar-dur: 280ms;
   --avatar-scale: 1.05;
   --avatar-falloff: 0.45;
   --avatar-ease-in: cubic-bezier(0.22, 1, 0.36, 1);

@@ -7,6 +7,7 @@ import { useCallback } from "react";
 import type { ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
+import { TextSwap } from "@/components/transitions/text-swap";
 import type { CopyState } from "@/hooks/use-copy-to-clipboard";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
@@ -21,7 +22,7 @@ export const motionIconProps: HTMLMotionProps<"span"> = {
   initial: "initial",
   animate: "animate",
   exit: "exit",
-  transition: { type: "spring", duration: 0.4, bounce: 0 },
+  transition: { type: "spring", duration: 0.25, bounce: 0 },
 };
 
 export const CopyStateIcon = ({
@@ -91,7 +92,13 @@ export const CopyButton = ({
       aria-label="Copy"
       {...props}
     >
-      {children}
+      {/* Swap the label to "Copied"/"Failed" while active, reverting on idle. Icon-only
+          buttons (no children) keep just the icon swap. */}
+      {children != null && (
+        <TextSwap key={state}>
+          {state === "done" ? "Copied" : state === "error" ? "Failed" : children}
+        </TextSwap>
+      )}
     </Button>
   );
 };
