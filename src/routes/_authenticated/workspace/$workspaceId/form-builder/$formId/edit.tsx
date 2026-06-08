@@ -141,7 +141,9 @@ export const Route = createFileRoute(
     embedEmoji: coercedBooleanWithCatch(true),
     embedEmojiIcon: v.optional(v.fallback(v.string(), "\uD83D\uDC4B")),
     embedEmojiAnimation: v.optional(v.fallback(v.picklist(["wave", "bounce", "pulse"]), "wave")),
-    embedPopupTrigger: v.optional(v.fallback(v.picklist(["button", "auto", "scroll"]), "button")),
+    embedPopupTrigger: v.optional(
+      v.fallback(v.picklist(["button", "auto", "scroll", "delay", "exit-intent"]), "button"),
+    ),
     embedHideOnSubmit: coercedBooleanWithCatch(false),
     embedHideOnSubmitDelay: coercedNumberWithCatch(0),
   }),

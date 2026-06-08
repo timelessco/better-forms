@@ -21,6 +21,9 @@ const data = emojiData as unknown as EmojiMartData;
 // Cap the rendered grid — the full set (~1.9k) is overkill for a bubble glyph.
 const MAX_RESULTS = 240;
 
+// Static emoji data — hoist out of the component so it's built once, not per instance.
+const ALL_EMOJIS = Object.values(data.emojis);
+
 interface EmojiGlyphPickerProps {
   value: string;
   onSelect: (native: string) => void;
@@ -33,16 +36,15 @@ export const EmojiGlyphPicker = ({ value, onSelect, trigger }: EmojiGlyphPickerP
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
-  const all = useMemo(() => Object.values(data.emojis), []);
   const results = useMemo(() => {
     const term = query.trim().toLowerCase();
     const list = term
-      ? all.filter(
+      ? ALL_EMOJIS.filter(
           (e) => e.name.toLowerCase().includes(term) || e.keywords?.some((k) => k.includes(term)),
         )
-      : all;
+      : ALL_EMOJIS;
     return list.slice(0, MAX_RESULTS);
-  }, [all, query]);
+  }, [query]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
