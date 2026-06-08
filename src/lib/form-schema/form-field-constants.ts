@@ -51,19 +51,18 @@ export const LINEAR_SCALE_BOUNDS = { min: -10, max: 10, stepMin: 1, stepMax: 10 
 /** Hard cap on rendered scale points — guards against a tiny step over a wide range. */
 const LINEAR_SCALE_MAX_POINTS = 100;
 
-/** Discrete scale points from min→max stepping by step (inclusive), order-agnostic. */
+/** Scale points: each tile = step × index, for the integer indices Start→End (the i=0 baseline
+ * is dropped). So Start 0 / End 10 → step 1 ⇒ 1…10, step 2 ⇒ 2,4,…,20, step 10 ⇒ 10,20,…,100. */
 export const buildScaleValues = (min: number, max: number, step: number): number[] => {
   const lo = Math.min(min, max);
   const hi = Math.max(min, max);
   const s = step > 0 ? step : 1;
   const values: number[] = [];
-  for (let v = lo; v <= hi + 1e-9 && values.length < LINEAR_SCALE_MAX_POINTS; v += s) {
-    // Round off float drift (e.g. 0.1 accumulation) to a clean label.
-    values.push(Math.round(v * 1e6) / 1e6);
+  for (let i = lo; i <= hi && values.length < LINEAR_SCALE_MAX_POINTS; i += 1) {
+    if (i === 0) continue; // a zero tile is 0 regardless of step — skip the baseline
+    // Round off any float drift to a clean label.
+    values.push(Math.round(i * s * 1e6) / 1e6);
   }
-  // A step wider than the span yields only `lo`; always include the endpoint so a
-  // scale across two distinct bounds renders ≥2 points.
-  if (hi > lo && values[values.length - 1] !== hi) values.push(hi);
   return values;
 };
 

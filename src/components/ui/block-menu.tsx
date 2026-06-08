@@ -80,6 +80,7 @@ import type {
   ThousandsSeparator,
 } from "@/lib/form-schema/number-format";
 import { PHONE_COUNTRIES } from "@/lib/phone/countries";
+import { cn } from "@/lib/utils";
 
 type BlockFieldType =
   | "textLike" // formInput, formTextarea, formLink
@@ -579,7 +580,9 @@ const useBlockMenuFieldHandlers = ({
     (step: number) => {
       const inputPath = getInputPath();
       if (!inputPath) return;
-      editor.tf.setNodes({ scaleStep: Math.max(1, step) }, { at: inputPath });
+      // Never persist a non-finite step (e.g. a stray NaN from the slider) — it'd render "NaN".
+      const safeStep = Number.isFinite(step) ? Math.max(1, step) : LINEAR_SCALE_DEFAULTS.step;
+      editor.tf.setNodes({ scaleStep: safeStep }, { at: inputPath });
     },
     [getInputPath, editor.tf],
   );
@@ -937,6 +940,9 @@ type StepperRowProps = {
   defaultHint?: number;
 };
 
+// How long an out-of-range value stays visible (red) before snapping back to the limit.
+const STEPPER_RESET_MS = 1500;
+
 // Submenu row matching Figma's limit panel: label left, value in a filled box with an
 // up/down stepper. Plain divs (not menu items) so there's no row-hover treatment.
 const StepperRow = ({
@@ -948,49 +954,125 @@ const StepperRow = ({
   max,
   defaultHint,
 }: StepperRowProps) => {
-  const step = (delta: number) => {
-    let next = (value ?? defaultHint ?? 0) + delta;
+  // While the typed value is out of range we hold it locally (red) instead of persisting, so
+  // the user sees what they entered and *why* it's wrong before it resets to the limit.
+  const [draft, setDraft] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const draftRef = React.useRef<string | null>(null); // mirrors `draft` for timer/blur callbacks
+  const resetTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const setDraftValue = (v: string | null) => {
+    draftRef.current = v;
+    setDraft(v);
+  };
+  const clearReset = () => {
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    resetTimer.current = null;
+  };
+  React.useEffect(() => clearReset, []);
+
+  // Persist a known-good value and drop the local draft/error so we follow the node again.
+  const commit = (raw: string) => {
+    clearReset();
+    setDraftValue(null);
+    setError(null);
+    onChange(raw);
+  };
+
+  // Clamp whatever's in the draft to the allowed range and persist it (blur or reset timer).
+  const resolveDraft = () => {
+    clearReset();
+    const current = draftRef.current;
+    setDraftValue(null);
+    setError(null);
+    if (current === null) return;
+    const n = Number.parseInt(current, 10);
+    if (Number.isNaN(n)) {
+      onChange(""); // handler applies the field's default
+      return;
+    }
+    let next = n;
     if (min !== undefined) next = Math.max(min, next);
     if (max !== undefined) next = Math.min(max, next);
     onChange(String(next));
   };
 
+  const handleChange = (raw: string) => {
+    clearReset();
+    setDraftValue(raw);
+    const n = Number.parseInt(raw, 10);
+    if (raw === "" || Number.isNaN(n)) {
+      setError(null); // let a blank settle to its default on blur
+      return;
+    }
+    const tooHigh = max !== undefined && n > max;
+    const tooLow = min !== undefined && n < min;
+    if (tooHigh || tooLow) {
+      setError(tooHigh ? `Maximum is ${max}` : `Minimum is ${min}`);
+      resetTimer.current = setTimeout(resolveDraft, STEPPER_RESET_MS);
+      return;
+    }
+    commit(raw); // in range → persist live
+  };
+
+  const step = (delta: number) => {
+    let next = (value ?? defaultHint ?? 0) + delta;
+    if (min !== undefined) next = Math.max(min, next);
+    if (max !== undefined) next = Math.min(max, next);
+    commit(String(next));
+  };
+
+  const display = draft ?? (value !== undefined ? String(value) : "");
+
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="min-w-0 flex-1 text-[14px] font-medium text-foreground">{label}</span>
-      <div className="flex w-[140px] items-center gap-2 rounded-lg bg-(--color-gray-alpha-100) px-2 py-1.5">
-        <input
-          type="number"
-          min={min}
-          max={max}
-          value={value ?? ""}
-          placeholder={defaultHint !== undefined ? String(defaultHint) : undefined}
-          onChange={(e) => onChange(e.target.value || "0")}
-          onKeyDown={stopKeyEventPropagation}
-          onClick={stopMouseEventPropagation}
-          onPointerDown={stopMouseEventPropagation}
-          aria-label={ariaLabel}
-          className="min-w-0 flex-1 [appearance:textfield] bg-transparent text-[14px] font-medium text-foreground tabular-nums outline-none placeholder:text-muted-foreground/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        />
-        {/* Single Figma stepper glyph; transparent top/bottom halves drive ±1. */}
-        <div className="relative flex h-4 w-3 shrink-0 flex-col text-muted-foreground">
-          <ChevronSelectIcon className="pointer-events-none absolute inset-0 m-auto size-3" />
-          <button
-            type="button"
-            aria-label={`Increase ${ariaLabel}`}
-            onClick={() => step(1)}
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2.5">
+        <span className="min-w-0 flex-1 text-[14px] font-medium text-foreground">{label}</span>
+        <div
+          className={cn(
+            "flex w-[140px] items-center gap-2 rounded-lg px-2 py-1.5",
+            error ? "bg-destructive/10 ring-1 ring-destructive" : "bg-(--color-gray-alpha-100)",
+          )}
+        >
+          <input
+            type="number"
+            min={min}
+            max={max}
+            value={display}
+            placeholder={defaultHint !== undefined ? String(defaultHint) : undefined}
+            onChange={(e) => handleChange(e.target.value)}
+            onBlur={resolveDraft}
+            onKeyDown={stopKeyEventPropagation}
+            onClick={stopMouseEventPropagation}
             onPointerDown={stopMouseEventPropagation}
-            className="flex-1"
+            aria-label={ariaLabel}
+            aria-invalid={error !== null}
+            className={cn(
+              "min-w-0 flex-1 [appearance:textfield] bg-transparent text-[14px] font-medium tabular-nums outline-none placeholder:text-muted-foreground/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+              error ? "text-destructive" : "text-foreground",
+            )}
           />
-          <button
-            type="button"
-            aria-label={`Decrease ${ariaLabel}`}
-            onClick={() => step(-1)}
-            onPointerDown={stopMouseEventPropagation}
-            className="flex-1"
-          />
+          {/* Single Figma stepper glyph; transparent top/bottom halves drive ±1. */}
+          <div className="relative flex h-4 w-3 shrink-0 flex-col text-muted-foreground">
+            <ChevronSelectIcon className="pointer-events-none absolute inset-0 m-auto size-3" />
+            <button
+              type="button"
+              aria-label={`Increase ${ariaLabel}`}
+              onClick={() => step(1)}
+              onPointerDown={stopMouseEventPropagation}
+              className="flex-1"
+            />
+            <button
+              type="button"
+              aria-label={`Decrease ${ariaLabel}`}
+              onClick={() => step(-1)}
+              onPointerDown={stopMouseEventPropagation}
+              className="flex-1"
+            />
+          </div>
         </div>
       </div>
+      {error ? <p className="text-right text-[12px] text-destructive">{error}</p> : null}
     </div>
   );
 };
@@ -1834,11 +1916,19 @@ const ScaleRange = () => {
   );
 };
 
+// base-ui's slider callbacks return a bare number for a single thumb but an array for multiple.
+const readSliderValue = (value: number | readonly number[]): number =>
+  Array.isArray(value) ? value[0] : (value as number);
+
 // Linear scale "Scale step" submenu (Figma 25644-10393): single slider + value box for the
 // increment between points.
 const ScaleStep = () => {
   const { state, actions } = useBlockMenu();
-  const nodeStep = state.inputNode?.scaleStep ?? LINEAR_SCALE_DEFAULTS.step;
+  // `??` only guards null/undefined — a corrupt NaN slips through and renders "NaN". Mirror
+  // extractLinearScaleFields: any non-finite/non-positive value falls back to the default.
+  const rawStep = state.inputNode?.scaleStep;
+  const nodeStep =
+    typeof rawStep === "number" && rawStep > 0 ? rawStep : LINEAR_SCALE_DEFAULTS.step;
   // Local state for smooth dragging (see ScaleRange); persist on release.
   const [step, setStep] = React.useState(nodeStep);
   React.useEffect(() => {
@@ -1859,8 +1949,10 @@ const ScaleStep = () => {
           value={[step]}
           onClick={stopMouseEventPropagation}
           onPointerDown={stopMouseEventPropagation}
-          onValueChange={(value) => setStep((value as number[])[0])}
-          onValueCommitted={(value) => actions.setScaleStep((value as number[])[0])}
+          // base-ui hands back a bare number for a single-thumb slider (collision resolver treats
+          // length-1 as non-range) but an array elsewhere — normalize both.
+          onValueChange={(value) => setStep(readSliderValue(value))}
+          onValueCommitted={(value) => actions.setScaleStep(readSliderValue(value))}
         />
         <div className="flex w-12 items-center justify-center rounded-lg bg-(--color-gray-alpha-100) px-2 py-1.5 text-[14px] font-medium text-foreground tabular-nums">
           {step}
