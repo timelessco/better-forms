@@ -1,4 +1,4 @@
-import { GitBranch, Zap } from "lucide-react";
+import { ChevronsUpDown, HelpCircle, Layers, Zap } from "lucide-react";
 import * as React from "react";
 import type { PlateElementProps } from "platejs/react";
 import {
@@ -9,7 +9,20 @@ import {
   useSelected,
 } from "platejs/react";
 
-import { MinusIcon, PlusIcon } from "@/components/ui/icons";
+import {
+  ConditionalLogicIcon,
+  DeleteIcon,
+  DuplicateIcon,
+  MinusIcon,
+  MoreHorizontalIcon,
+  PlusIcon,
+} from "@/components/ui/icons";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -109,7 +122,9 @@ const TokenSelect = ({
   <Select value={value} onValueChange={(next) => onChange(String(next))}>
     <SelectTrigger
       aria-label={ariaLabel}
-      className="gap-1 rounded-lg border-0 bg-[var(--form-input-bg,var(--color-gray-50))] ps-2.5 pe-2 text-foreground elevation-sm"
+      size="sm"
+      // 28px pill (Figma). `rounded-lg!` overrides the sm variant's tighter radius so corners match the sibling tokens.
+      className="gap-1 rounded-lg! border-0 bg-[var(--form-input-bg,var(--color-gray-50))] ps-2.5 pe-2 text-foreground elevation-sm"
     >
       <SelectValue className="font-normal">
         {(selected: string) => options.find((o) => o.value === selected)?.label ?? ""}
@@ -147,7 +162,7 @@ const TokenInput = ({
     placeholder={placeholder}
     onChange={(e) => onChange(e.target.value)}
     className={cn(
-      "h-8 rounded-lg border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-2 pl-2.5 text-[13px] text-foreground elevation-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring",
+      "h-7 rounded-lg border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-2 pl-2.5 text-[13px] text-foreground elevation-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring",
       widthClass,
     )}
   />
@@ -170,7 +185,7 @@ const TokenStepper = ({
   const parsed = Number(value);
   const current = Number.isFinite(parsed) ? parsed : 0;
   return (
-    <span className="flex h-8 items-center gap-1.5 rounded-lg bg-[var(--form-input-bg,var(--color-gray-50))] px-1.5 elevation-sm">
+    <span className="flex h-7 items-center gap-1.5 rounded-lg bg-[var(--form-input-bg,var(--color-gray-50))] px-1.5 elevation-sm">
       <button
         type="button"
         aria-label={`Decrease ${ariaLabel}`}
@@ -257,25 +272,58 @@ const AddToken = ({ onClick, label }: { onClick: () => void; label: string }) =>
   <button
     type="button"
     onClick={onClick}
-    className="flex h-8 w-fit items-center gap-1 rounded-lg border border-dashed border-border px-2.5 text-[13px] text-muted-foreground transition-colors outline-none hover:border-foreground/30 hover:text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+    className="flex h-7 w-fit items-center gap-1 rounded-lg border border-dashed border-border px-2.5 text-[13px] text-muted-foreground transition-colors outline-none hover:border-foreground/30 hover:text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
   >
     <PlusIcon className="size-3.5" />
     {label}
   </button>
 );
 
-const RemoveToken = ({ onClick, label }: { onClick: () => void; label: string }) => (
-  <button
-    type="button"
-    aria-label={label}
-    onClick={onClick}
-    className="flex size-6 items-center justify-center rounded text-muted-foreground outline-none hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-  >
-    <span className="text-base leading-none">×</span>
-  </button>
+/** Per-row overflow menu (Figma `•••`): row actions live here instead of inline. */
+interface RowMenuItem {
+  icon: React.ReactNode;
+  label: string;
+  onSelect: () => void;
+  variant?: "default" | "destructive";
+}
+
+const RowMenu = ({ items, ariaLabel }: { items: RowMenuItem[]; ariaLabel: string }) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger
+      aria-label={ariaLabel}
+      className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <MoreHorizontalIcon className="size-4" />
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end" className="w-[246px]">
+      {items.map((item) => (
+        <DropdownMenuItem
+          key={item.label}
+          variant={item.variant}
+          className="text-foreground/80"
+          onClick={item.onSelect}
+        >
+          {item.icon}
+          <span className="flex-1 text-left">{item.label}</span>
+        </DropdownMenuItem>
+      ))}
+    </DropdownMenuContent>
+  </DropdownMenu>
 );
 
-/** One labelled section ("If" / "Do" / "Else Do"): leading icon+label column,
+/** Row wrapper: flex-1 controls on the left, `•••` menu pinned right (Figma). */
+const TokenRow = ({ children, menu }: { children: React.ReactNode; menu: React.ReactNode }) => (
+  <div className="flex w-full items-start gap-1.5">
+    <div className="flex flex-1 flex-wrap items-center gap-1.5">{children}</div>
+    {menu}
+  </div>
+);
+
+// Fixed-width lead rail: keeps the When/Then/Else labels, the And/Or toggle, and the condition
+// tokens on the same vertical axis across every row and section (Figma).
+const LEAD_W = "w-[3.75rem]";
+
+/** One labelled section ("When" / "Then" / "Else"): leading icon+label column,
  * then a vertical stack of token rows. */
 const RowShell = ({
   icon,
@@ -287,30 +335,51 @@ const RowShell = ({
   children: React.ReactNode;
 }) => (
   <div className="flex gap-2 px-2 py-1.5">
-    <div className="flex h-8 shrink-0 items-center gap-2">
+    <div className={cn(LEAD_W, "flex h-7 shrink-0 items-center gap-2")}>
       {icon}
       <span className="text-[13px] text-muted-foreground">{label}</span>
     </div>
-    <div className="flex flex-1 flex-col items-start gap-1.5">{children}</div>
+    <div className="flex flex-1 flex-col items-start gap-2">{children}</div>
   </div>
 );
 
-const isCondition = (node: Condition | ConditionGroup): node is Condition =>
-  !("combinator" in node);
+/** And/Or toggle for the lead rail of every condition after the first — muted text + a vertical
+ * stepper (Figma), aligned under the "When" label. Toggles the group's single combinator. */
+const CombinatorLead = ({
+  value,
+  onChange,
+}: {
+  value: ConditionGroup["combinator"];
+  onChange: (value: string) => void;
+}) => (
+  <button
+    type="button"
+    aria-label="Toggle and / or"
+    onClick={() => onChange(value === "all" ? "any" : "all")}
+    className="flex h-7 items-center gap-0.5 text-[13px] text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:text-foreground"
+  >
+    {value === "all" ? "and" : "or"}
+    <ChevronsUpDown className="size-3" />
+  </button>
+);
+
+type CondNode = Condition | ConditionGroup;
+const isGroup = (node: CondNode): node is ConditionGroup => "combinator" in node;
+
+// "Learn" menu item — opens conditional-logic docs.
+const learnAboutLogic = () => {
+  // TODO: point at the real docs URL once published.
+};
 
 const ACTION_KIND_OPTIONS: Option[] = [
   { value: "show", label: "Show field" },
   { value: "hide", label: "Hide field" },
   { value: "require", label: "Require field" },
   { value: "setValue", label: "Set value" },
+  { value: "moveToNext", label: "Move to next field" },
   { value: "jump", label: "Jump to step" },
   { value: "hideSubmit", label: "Hide submit" },
   { value: "redirect", label: "Redirect to URL" },
-];
-
-const COMBINATOR_OPTIONS: Option[] = [
-  { value: "all", label: "all of" },
-  { value: "any", label: "any of" },
 ];
 
 const defaultActionForKind = (
@@ -328,21 +397,64 @@ const defaultActionForKind = (
   return { kind, target: fields[0]?.name ?? "" };
 };
 
-/** One condition: field · operator · value (stepper for numbers). */
+// ── Immutable edits on the `when` condition tree (root group is path []) ──
+
+/** Apply `fn` to the group at `path` ([] = root). Recurses into nested groups. */
+const mapGroupAt = (
+  group: ConditionGroup,
+  path: number[],
+  fn: (g: ConditionGroup) => ConditionGroup,
+): ConditionGroup => {
+  if (path.length === 0) return fn(group);
+  const [head, ...rest] = path;
+  return {
+    ...group,
+    children: group.children.map((child, i) =>
+      i === head && isGroup(child) ? mapGroupAt(child, rest, fn) : child,
+    ),
+  };
+};
+
+/** Keep the tree minimal and every level meaningful. Recursively:
+ *  - drop empty groups,
+ *  - unwrap single-child groups (a group of one is just the condition),
+ *  - inline a child group whose combinator equals its parent's — same-combinator nesting is
+ *    logically identical to a flat list (all-of-in-all-of ≡ all-of), so it carries no meaning.
+ * Result: nesting only persists when combinators differ (a real `A AND (B OR C)` scope). */
+const normalizeGroup = (group: ConditionGroup): ConditionGroup => {
+  const children: CondNode[] = [];
+  for (const child of group.children) {
+    if (!isGroup(child)) {
+      children.push(child);
+      continue;
+    }
+    const norm = normalizeGroup(child);
+    if (norm.children.length === 0)
+      continue; // drop empty
+    else if (norm.children.length === 1)
+      children.push(norm.children[0]); // unwrap singleton
+    else if (norm.combinator === group.combinator)
+      children.push(...norm.children); // flatten same-combinator
+    else children.push(norm);
+  }
+  return { ...group, children };
+};
+
+/** One condition: field · operator · value (stepper for numbers) · `•••` menu. */
 const ConditionRow = ({
   condition,
   sourceOptions,
   fieldTypeByName,
   fieldChoicesByName,
   onChange,
-  onRemove,
+  menuItems,
 }: {
   condition: Condition;
   sourceOptions: Option[];
   fieldTypeByName: Map<string, string>;
   fieldChoicesByName: Map<string, Option[]>;
   onChange: (next: Condition) => void;
-  onRemove: () => void;
+  menuItems: RowMenuItem[];
 }) => {
   const operatorOptions = operatorsForFieldType(fieldTypeByName.get(condition.source)).map(
     (op) => ({
@@ -352,7 +464,7 @@ const ConditionRow = ({
   );
   const choices = fieldChoicesByName.get(condition.source);
   return (
-    <div className="flex w-full flex-wrap items-center gap-1.5">
+    <TokenRow menu={<RowMenu ariaLabel="Condition options" items={menuItems} />}>
       <TokenSelect
         ariaLabel="Field"
         value={condition.source}
@@ -388,12 +500,11 @@ const ConditionRow = ({
             onChange={(value) => onChange({ ...condition, value })}
           />
         ))}
-      <RemoveToken onClick={onRemove} label="Remove condition" />
-    </div>
+    </TokenRow>
   );
 };
 
-/** One action: kind · target/step/url. */
+/** One action: kind · target/step/url · `•••` menu. */
 const ActionRow = ({
   action,
   fields,
@@ -402,7 +513,7 @@ const ActionRow = ({
   fieldTypeByName,
   stepOptions,
   onChange,
-  onRemove,
+  menuItems,
 }: {
   action: Action;
   fields: FieldInfo[];
@@ -412,9 +523,9 @@ const ActionRow = ({
   fieldTypeByName: Map<string, string>;
   stepOptions: Option[];
   onChange: (next: Action) => void;
-  onRemove: () => void;
+  menuItems: RowMenuItem[];
 }) => (
-  <div className="flex w-full flex-wrap items-center gap-1.5">
+  <TokenRow menu={<RowMenu ariaLabel="Action options" items={menuItems} />}>
     <TokenSelect
       ariaLabel="Action"
       value={action.kind}
@@ -423,7 +534,10 @@ const ActionRow = ({
         onChange(defaultActionForKind(kind as Action["kind"], fields, stepOptions))
       }
     />
-    {(action.kind === "show" || action.kind === "hide" || action.kind === "require") && (
+    {(action.kind === "show" ||
+      action.kind === "hide" ||
+      action.kind === "require" ||
+      action.kind === "moveToNext") && (
       <TokenSelect
         ariaLabel="Target field"
         value={action.target}
@@ -464,8 +578,7 @@ const ActionRow = ({
         onChange={(url) => onChange({ ...action, url })}
       />
     )}
-    <RemoveToken onClick={onRemove} label="Remove action" />
-  </div>
+  </TokenRow>
 );
 
 // Interactive controls inside the block, in DOM (tab) order. Drives Tab cycling within
@@ -500,7 +613,6 @@ export const LogicBlockElement = (props: PlateElementProps) => {
   const when = (element.when as ConditionGroup | undefined) ?? { combinator: "all", children: [] };
   const actions = (element.actions as Action[] | undefined) ?? [];
   const elseActions = (element.elseActions as Action[] | undefined) ?? [];
-  const conditions = when.children;
 
   const fields = collectFields(editor);
   const sources = fields.filter((f) => !f.isFieldArray); // Wave 1: repeatable can't be a source
@@ -580,57 +692,230 @@ export const LogicBlockElement = (props: PlateElementProps) => {
     [editor, element],
   );
 
-  // Conditions
-  const updateCondition = (index: number, next: Condition) =>
-    patch({ when: { ...when, children: conditions.map((c, i) => (i === index ? next : c)) } });
-  const removeCondition = (index: number) =>
-    patch({ when: { ...when, children: conditions.filter((_, i) => i !== index) } });
-  const addCondition = () => {
+  // ── Condition tree edits (operate on `when`, keyed by parent-group path + index) ──
+  const freshCondition = (): Condition => {
     const source = sources[0]?.name ?? "";
-    const operator = operatorsForFieldType(fieldTypeByName.get(source))[0];
-    patch({ when: { ...when, children: [...conditions, { source, operator, value: "" }] } });
+    return { source, operator: operatorsForFieldType(fieldTypeByName.get(source))[0], value: "" };
   };
-  const setCombinator = (combinator: string) =>
-    patch({ when: { ...when, combinator: combinator === "any" ? "any" : "all" } });
+  // Every write normalizes the tree (drop empties, unwrap single-child groups), so a
+  // redundant group can never linger around a lone condition.
+  const setWhen = (next: ConditionGroup) => patch({ when: normalizeGroup(next) });
+  const editParent = (parentPath: number[], fn: (children: CondNode[]) => CondNode[]) =>
+    setWhen(mapGroupAt(when, parentPath, (g) => ({ ...g, children: fn(g.children) })));
 
-  // Actions (Do) + else actions (Else Do) share helpers via a setter.
-  const makeActionHandlers = (
-    list: Action[],
-    key: "actions" | "elseActions",
-  ): {
-    update: (index: number, next: Action) => void;
-    remove: (index: number) => void;
-    add: () => void;
-  } => ({
-    update: (index, next) => patch({ [key]: list.map((a, i) => (i === index ? next : a)) }),
-    remove: (index) => patch({ [key]: list.filter((_, i) => i !== index) }),
-    add: () => patch({ [key]: [...list, { kind: "show", target: fields[0]?.name ?? "" }] }),
-  });
-  const doHandlers = makeActionHandlers(actions, "actions");
-  const elseHandlers = makeActionHandlers(elseActions, "elseActions");
+  const updateCondition = (parentPath: number[], index: number, next: Condition) =>
+    editParent(parentPath, (kids) => kids.map((c, i) => (i === index ? next : c)));
+  const removeNode = (parentPath: number[], index: number) =>
+    editParent(parentPath, (kids) => kids.filter((_, i) => i !== index));
+  const insertAfter = (parentPath: number[], index: number, node: CondNode) =>
+    editParent(parentPath, (kids) => [...kids.slice(0, index + 1), node, ...kids.slice(index + 1)]);
+  // "Group fields": fold a condition together with its adjacent sibling condition (next,
+  // else previous) into a sub-group of two real fields. The new group takes the *opposite*
+  // combinator of its parent, so it's logically meaningful (e.g. an OR scope inside an AND)
+  // and survives normalization — a same-combinator group would just flatten back.
+  const groupWithSibling = (parentPath: number[], index: number) =>
+    setWhen(
+      mapGroupAt(when, parentPath, (g) => {
+        const kids = g.children;
+        const next = kids[index + 1];
+        const prev = kids[index - 1];
+        let lo: number;
+        if (next != null && !isGroup(next)) lo = index;
+        else if (prev != null && !isGroup(prev)) lo = index - 1;
+        else return g; // no adjacent condition to group with
+        const grouped: ConditionGroup = {
+          combinator: g.combinator === "all" ? "any" : "all",
+          children: [kids[lo], kids[lo + 1]],
+        };
+        return { ...g, children: [...kids.slice(0, lo), grouped, ...kids.slice(lo + 2)] };
+      }),
+    );
+  const setCombinatorAt = (path: number[], combinator: string) =>
+    setWhen(
+      mapGroupAt(when, path, (g) => ({ ...g, combinator: combinator === "any" ? "any" : "all" })),
+    );
+  // Append a top-level condition (empty-state "Add condition" affordance).
+  const addRootCondition = () =>
+    setWhen({ ...when, children: [...when.children, freshCondition()] });
 
-  const renderActionRows = (list: Action[], handlers: ReturnType<typeof makeActionHandlers>) => (
+  // Render a condition group as rows aligned on the lead rail (Figma): row 0 carries `lead0` (the
+  // section "When" header for the top group), every later row shows the And/Or toggle under it. The
+  // combinator lives in the rail — never inline — so it sits on the same axis as the labels.
+  const renderConditionGroup = (
+    group: ConditionGroup,
+    path: number[],
+    lead0?: React.ReactNode,
+  ): React.ReactNode => (
     <>
-      {list.map((action, i) => (
-        <ActionRow
+      {group.children.map((child, i) => {
+        const lead =
+          i === 0 ? (
+            lead0
+          ) : (
+            // Spacer matches the icon column so the toggle aligns under the label text, not the icon.
+            <>
+              <span className="size-4 shrink-0" aria-hidden />
+              <CombinatorLead value={group.combinator} onChange={(c) => setCombinatorAt(path, c)} />
+            </>
+          );
+        const railCell = (
+          <div className={cn(LEAD_W, "flex h-7 shrink-0 items-center gap-2")}>{lead}</div>
+        );
+        if (isGroup(child)) {
+          return (
+            // eslint-disable-next-line @eslint-react/no-array-index-key
+            <div key={i} className="flex w-full items-start gap-2">
+              {railCell}
+              <div className="flex flex-1 flex-col items-start gap-2 border-l-2 border-border/70 pl-2.5">
+                {renderConditionGroup(child, [...path, i])}
+              </div>
+            </div>
+          );
+        }
+        // "Group fields" needs an adjacent condition to pair with — hide it otherwise.
+        const next = group.children[i + 1];
+        const prev = group.children[i - 1];
+        const canGroup = (next != null && !isGroup(next)) || (prev != null && !isGroup(prev));
+        // Hard cap: a section holds at most 2 rows, so adding/duplicating is gated.
+        const canAdd = group.children.length < 2;
+        return (
           // eslint-disable-next-line @eslint-react/no-array-index-key
-          key={i}
-          action={action}
-          fields={fields}
-          fieldOptions={fieldOptions}
-          setTargetOptions={setTargetOptions}
-          fieldTypeByName={fieldTypeByName}
-          stepOptions={stepOptions}
-          onChange={(next) => handlers.update(i, next)}
-          onRemove={() => handlers.remove(i)}
-        />
-      ))}
-      <AddToken onClick={handlers.add} label="Add action" />
+          <div key={i} className="flex w-full items-start gap-2">
+            {railCell}
+            <div className="min-w-0 flex-1">
+              <ConditionRow
+                condition={child}
+                sourceOptions={sourceOptions}
+                fieldTypeByName={fieldTypeByName}
+                fieldChoicesByName={fieldChoicesByName}
+                onChange={(nextCond) => updateCondition(path, i, nextCond)}
+                menuItems={[
+                  ...(canAdd
+                    ? [
+                        {
+                          icon: <ConditionalLogicIcon />,
+                          label: "Add condition",
+                          onSelect: () => insertAfter(path, i, freshCondition()),
+                        },
+                      ]
+                    : []),
+                  ...(canGroup
+                    ? [
+                        {
+                          icon: <Layers />,
+                          label: "Group fields",
+                          onSelect: () => groupWithSibling(path, i),
+                        },
+                      ]
+                    : []),
+                  ...(canAdd
+                    ? [
+                        {
+                          icon: <DuplicateIcon />,
+                          label: "Duplicate",
+                          onSelect: () => insertAfter(path, i, { ...child }),
+                        },
+                      ]
+                    : []),
+                  { icon: <HelpCircle />, label: "Learn", onSelect: learnAboutLogic },
+                  {
+                    icon: <DeleteIcon />,
+                    label: "Remove",
+                    onSelect: () => removeNode(path, i),
+                  },
+                ]}
+              />
+            </div>
+          </div>
+        );
+      })}
     </>
   );
 
+  // ── Action lists (Then / Else) — flat, no grouping ──
+  const makeActionMenu = (
+    list: Action[],
+    key: "actions" | "elseActions",
+    index: number,
+  ): RowMenuItem[] => {
+    const setList = (next: Action[]) => patch({ [key]: next });
+    // Hard cap: at most 2 actions per Then/Else, so adding/duplicating is gated.
+    const canAdd = list.length < 2;
+    return [
+      ...(canAdd
+        ? [
+            {
+              icon: <PlusIcon className="size-4" />,
+              label: "Add action",
+              onSelect: () =>
+                setList([
+                  ...list.slice(0, index + 1),
+                  defaultActionForKind("show", fields, stepOptions),
+                  ...list.slice(index + 1),
+                ]),
+            },
+            {
+              icon: <DuplicateIcon />,
+              label: "Duplicate",
+              onSelect: () =>
+                setList([
+                  ...list.slice(0, index + 1),
+                  { ...list[index] },
+                  ...list.slice(index + 1),
+                ]),
+            },
+          ]
+        : []),
+      { icon: <HelpCircle />, label: "Learn", onSelect: learnAboutLogic },
+      {
+        icon: <DeleteIcon />,
+        label: "Remove",
+        onSelect: () => setList(list.filter((_, i) => i !== index)),
+      },
+    ];
+  };
+
+  const renderActionRows = (list: Action[], key: "actions" | "elseActions") => {
+    const setList = (next: Action[]) => patch({ [key]: next });
+    if (list.length === 0)
+      return (
+        <AddToken
+          onClick={() => setList([defaultActionForKind("show", fields, stepOptions)])}
+          label="Add action"
+        />
+      );
+    return list.map((action, i) => (
+      <ActionRow
+        // eslint-disable-next-line @eslint-react/no-array-index-key
+        key={i}
+        action={action}
+        fields={fields}
+        fieldOptions={fieldOptions}
+        setTargetOptions={setTargetOptions}
+        fieldTypeByName={fieldTypeByName}
+        stepOptions={stepOptions}
+        onChange={(next) => setList(list.map((a, j) => (j === i ? next : a)))}
+        menuItems={makeActionMenu(list, key, i)}
+      />
+    ));
+  };
+
+  // "When" rail lead (icon + label) — row 0 of the condition list, and the empty/seed states.
+  const whenLead = (
+    <>
+      <ConditionalLogicIcon className="size-4 text-[#0289f7]" />
+      <span className="text-[13px] text-muted-foreground">When</span>
+    </>
+  );
+  const whenRail = (
+    <div className={cn(LEAD_W, "flex h-7 shrink-0 items-center gap-2")}>{whenLead}</div>
+  );
+
   return (
-    <PlateElement {...props} className="clear-both my-3">
+    // Figma: 12px between the field and its condition block. The field contributes its full
+    // --bf-block-margin (28px) and clear-both prevents collapse, so pull up by that amount to
+    // leave exactly 12px above (same calc(gap − block-margin) trick as tight option spacing).
+    <PlateElement {...props} className="clear-both mt-[calc(12px_-_var(--bf-block-margin))] mb-3">
       <div
         ref={blockRef}
         contentEditable={false}
@@ -642,49 +927,43 @@ export const LogicBlockElement = (props: PlateElementProps) => {
           selected && focused && "ring-[3px] ring-ring/50",
         )}
       >
-        {/* IF — conditions */}
-        <RowShell icon={<GitBranch className="size-4 text-[#7757ee]" />} label="If">
+        {/* WHEN — conditions. Custom rail layout so the And/Or toggle aligns under "When". */}
+        <div className="flex flex-col gap-2 px-2 py-1.5">
           {sources.length === 0 ? (
-            <span className="flex h-8 items-center text-[13px] text-muted-foreground">
-              Add a field to the form first.
-            </span>
+            <div className="flex w-full items-start gap-2">
+              {whenRail}
+              <span className="flex h-7 items-center text-[13px] text-muted-foreground">
+                Add a field to the form first.
+              </span>
+            </div>
+          ) : when.children.length === 0 ? (
+            <div className="flex w-full items-start gap-2">
+              {whenRail}
+              <AddToken onClick={addRootCondition} label="Add condition" />
+            </div>
           ) : (
             <>
-              {conditions.length > 1 && (
-                <TokenSelect
-                  value={when.combinator}
-                  onChange={setCombinator}
-                  ariaLabel="Match"
-                  options={COMBINATOR_OPTIONS}
-                />
+              {renderConditionGroup(when, [], whenLead)}
+              {/* Hard cap: 2 rows max — the add affordance disappears at 2. Empty rail keeps it
+                  aligned under the condition tokens. */}
+              {when.children.length < 2 && (
+                <div className="flex w-full items-start gap-2">
+                  <div className={cn(LEAD_W, "shrink-0")} />
+                  <AddToken onClick={addRootCondition} label="Add condition" />
+                </div>
               )}
-              {conditions.map((node, i) =>
-                isCondition(node) ? (
-                  <ConditionRow
-                    // eslint-disable-next-line @eslint-react/no-array-index-key
-                    key={i}
-                    condition={node}
-                    sourceOptions={sourceOptions}
-                    fieldTypeByName={fieldTypeByName}
-                    fieldChoicesByName={fieldChoicesByName}
-                    onChange={(next) => updateCondition(i, next)}
-                    onRemove={() => removeCondition(i)}
-                  />
-                ) : null,
-              )}
-              <AddToken onClick={addCondition} label="Add condition" />
             </>
           )}
+        </div>
+
+        {/* THEN — actions when conditions pass */}
+        <RowShell icon={<Zap className="size-4 text-amber-500" />} label="Then">
+          {renderActionRows(actions, "actions")}
         </RowShell>
 
-        {/* DO — actions when conditions pass */}
-        <RowShell icon={<Zap className="size-4 text-[#278f5e]" />} label="Do">
-          {renderActionRows(actions, doHandlers)}
-        </RowShell>
-
-        {/* ELSE DO — actions when conditions fail */}
-        <RowShell icon={<Zap className="size-4 text-muted-foreground" />} label="Else Do">
-          {renderActionRows(elseActions, elseHandlers)}
+        {/* ELSE — actions when conditions fail */}
+        <RowShell icon={<Zap className="size-4 text-muted-foreground" />} label="Else">
+          {renderActionRows(elseActions, "elseActions")}
         </RowShell>
       </div>
       {children}

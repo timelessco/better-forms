@@ -14,6 +14,8 @@ const totalPages = Math.ceil(iconOptions.length / ICONS_PER_PAGE);
 
 export type IconPickerContentProps = Omit<IconPickerProps, "buttonIconSize"> & {
   colors?: string[];
+  /** Hide the color row (icon renders in `currentColor`, so color is meaningless). */
+  hideColors?: boolean;
 };
 
 export const IconPickerContent = ({
@@ -22,6 +24,7 @@ export const IconPickerContent = ({
   onColorChange,
   onIconChange,
   colors,
+  hideColors = false,
 }: IconPickerContentProps) => {
   const [searchValue, setSearchValue] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
@@ -55,11 +58,16 @@ export const IconPickerContent = ({
   return (
     <div className="h-[368px] w-[310px] bg-muted/50 px-3">
       <IconPickerHeader searchValue={searchValue} onSearchChange={handleSearchChange} />
-      <div className="icon-color-container overflow-x-auto pt-2" style={{ scrollbarWidth: "none" }}>
-        <ColorPicker onChange={handleColorChange} selectedColor={iconColor} colors={colors} />
-      </div>
+      {!hideColors && (
+        <div
+          className="icon-color-container overflow-x-auto pt-2"
+          style={{ scrollbarWidth: "none" }}
+        >
+          <ColorPicker onChange={handleColorChange} selectedColor={iconColor} colors={colors} />
+        </div>
+      )}
       <div
-        className="flex h-[253px] flex-col overflow-y-auto pt-2 pb-3"
+        className={`flex flex-col overflow-y-auto pt-2 pb-3 ${hideColors ? "h-[300px]" : "h-[253px]"}`}
         style={{ scrollbarWidth: "none" }}
       >
         <IconGrid labels={filteredLabels} onSelect={onIconChange} />

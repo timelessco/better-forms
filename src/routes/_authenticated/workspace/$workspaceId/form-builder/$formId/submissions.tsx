@@ -41,6 +41,7 @@ import type {
   RowSelectionState,
   SortingState,
 } from "@tanstack/table-core";
+import { useTanStackTableDevtools } from "@tanstack/react-table-devtools";
 import { createAppColumnHelper, SelectionCheckbox, useAppTable } from "@/components/ui/data-grid";
 import type { DataGridApi, DataGridFeatures } from "@/components/ui/data-grid";
 
@@ -671,6 +672,7 @@ const SubmissionsPage = () => {
   );
 
   const table = useAppTable({
+    key: "submissions",
     data: submissions,
     columns,
     state: {
@@ -692,6 +694,9 @@ const SubmissionsPage = () => {
     columnResizeMode: "onChange",
     getRowId: (row) => row.id,
   });
+
+  // Registers the table with TanStack Devtools; no-op when no devtools listening.
+  useTanStackTableDevtools(table);
 
   const { handleBulkDelete, handleExportSelected, handleDownloadCSV } =
     useSubmissionExportAndDelete({

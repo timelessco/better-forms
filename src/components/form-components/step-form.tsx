@@ -42,14 +42,21 @@ export const StepForm = ({
   );
   const showAutoActionButton = autoActionButton && !hasAuthoredButton;
 
-  const { form, formName, handleFieldFocus, visibleFieldNames, lockedFieldNames, hideSubmit } =
-    useStepPreviewForm({
-      fields,
-      questions: stepQuestions,
-      stepIndex,
-      isLastStep,
-      formName: `stepForm-${stepIndex}`,
-    });
+  const {
+    form,
+    formName,
+    handleFieldFocus,
+    visibleFieldNames,
+    lockedFieldNames,
+    requiredFieldNames,
+    hideSubmit,
+  } = useStepPreviewForm({
+    fields,
+    questions: stepQuestions,
+    stepIndex,
+    isLastStep,
+    formName: `stepForm-${stepIndex}`,
+  });
 
   const groupedItems = useMemo(() => groupSegmentsForRendering(segments), [segments]);
 
@@ -213,19 +220,22 @@ export const StepForm = ({
               );
             }
 
-            // Fields auto-filled by a "Set value" action are locked (non-interactive)
-            // while the controlling logic is active; the value still submits.
-            const locked = lockedFieldNames.has(field.name);
+            // Fields auto-filled by a "Set value" action stay editable so a mistaken auto-fill
+            // can be corrected; they're only dimmed to hint that logic set the value.
+            const autoFilled = lockedFieldNames.has(field.name);
+            // Reflect logic-driven requiredness on the label (a passing "Require field" action),
+            // not just the authored flag.
+            const rendered = requiredFieldNames
+              ? { ...field, required: requiredFieldNames.has(field.name) }
+              : field;
             return (
               <div
                 key={field.id}
-                className={`w-full${locked ? " opacity-75" : ""}`}
+                className={`w-full${autoFilled ? " opacity-75" : ""}`}
                 data-bf-input
                 data-bf-question-id={field.id}
-                inert={locked || undefined}
-                aria-disabled={locked || undefined}
               >
-                <Renderer element={field} form={form} />
+                <Renderer element={rendered} form={form} />
               </div>
             );
           }

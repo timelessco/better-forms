@@ -31,6 +31,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    scrollbar-gutter: stable; /* reserve scrollbar space so content doesn't reflow */
   }
 
   /* When the form-builder editor is themed, propagate its background to html/body
@@ -638,6 +639,15 @@
     0 0 1px 0 rgba(0, 0, 0, 0.2),
     0 0 10px 2px rgba(0, 0, 0, 0.04),
     0 24px 30px -8px rgba(0, 0, 0, 0.1);
+}
+
+/* Figma `elevation/light/base` — the lightest tier, for tooltips and inline
+   popups. Includes the inset top highlight that reads on the dark surface. */
+@utility elevation-base {
+  box-shadow:
+    0 2px 5px 0 rgba(0, 0, 0, 0.14),
+    0 0 1.5px 0 rgba(0, 0, 0, 0.16),
+    inset 0 0.25px 1.5px 0 rgba(255, 255, 255, 0.08);
 }
 
 @keyframes drop-line-pulse {

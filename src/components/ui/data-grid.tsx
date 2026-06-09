@@ -69,10 +69,10 @@ export type DataGridFeatures = typeof DATA_GRID_FEATURES;
 // Full useAppTable return — state, registered tableComponents, and AppTable/AppCell/AppHeader wrappers.
 export type DataGridApi<TData extends RowData> = ReturnType<typeof useAppTable<TData>>;
 
-// Subscribes to table.store, not per-slice atoms: in v9 alpha.45 derived atoms don't fire
-// reliably when state is owned via options.state.X (baseAtoms sync during render). table.store
-// is what v9's own useTable uses; the subscription forces re-render on selection changes since
-// React Compiler can't track row.getIsSelected() via the stable Row reference.
+// Subscribes to table.store, not per-slice atoms: in v9 derived atoms don't fire reliably when
+// state is owned via options.state.X (baseAtoms sync during render). table.store is what v9's own
+// useTable uses; the subscription forces re-render on selection changes since React Compiler can't
+// track row.getIsSelected() via the stable Row reference.
 export const useRowSelected = <T extends RowData>(table: DataGridApi<T>, rowId: string): boolean =>
   useSelector(table.store, (state) => !!state.rowSelection?.[rowId]);
 
@@ -332,8 +332,8 @@ export const {
   useCellContext,
   useHeaderContext,
 } = createTableHook({
-  _features: DATA_GRID_FEATURES,
-  _rowModels: {
+  features: DATA_GRID_FEATURES,
+  rowModels: {
     facetedRowModel: createFacetedRowModel(),
     facetedUniqueValues: createFacetedUniqueValues(),
     filteredRowModel: createFilteredRowModel(filterFns),

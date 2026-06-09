@@ -39,7 +39,9 @@ import {
   selectTriggerFigmaCls,
   triggerLabels,
 } from "./embed-config-panel";
-import { EmojiGlyphPicker } from "@/components/ui/emoji-glyph-picker";
+import { IconPickerContent, IconPickerPreview } from "@/components/icon-picker";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { isValidUrl } from "@/lib/utils";
 import { EmbedCodeDialog, searchToFormValues, formValuesToSearch, tabs } from "./embed-section";
 import { EmbedPreviewMockup } from "./embed-preview-mockup";
 import type { FormSettings as FormSettingsType, PresentationMode } from "@/types/form-settings";
@@ -47,6 +49,63 @@ import type { FormSettings as FormSettingsType, PresentationMode } from "@/types
 // Memo'd at module scope so parent re-renders don't tear down subtrees. EmbedPreviewMockup takes only
 // primitives, so shallow-equal props skip render (dragging Popup Width changes nothing it consumes).
 const MemoEmbedPreviewMockup = memo(EmbedPreviewMockup);
+
+// Sprite names are >4 chars; emoji glyphs are short. resolveIconDisplay (popup preview) keys off the
+// same heuristic, so the icon picker writes a sprite name and it renders downstream as an icon.
+const isSpriteName = (value: string) => value.trim().length > 4 && !isValidUrl(value);
+
+// Emoji/icon picker for the popup bubble. Uses the app's own IconPickerContent (not a generic emoji
+// grid) and previews the actual chosen icon in `currentColor` (monochrome) so it tracks light/dark.
+const EmojiIconPicker = ({
+  value,
+  onSelect,
+}: {
+  value: string;
+  onSelect: (icon: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const spriteName = isSpriteName(value) ? value.trim() : null;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            className="flex items-center gap-1.5 font-case text-[14px] font-medium text-foreground"
+          />
+        }
+      >
+        {isValidUrl(value) ? (
+          <img src={value} alt="" className="size-[18px] rounded-full object-cover" />
+        ) : spriteName ? (
+          <IconPickerPreview
+            icon={spriteName}
+            iconColor={undefined}
+            monochrome
+            iconSize="14"
+            size="18"
+          />
+        ) : (
+          <span className="text-base leading-none">{value}</span>
+        )}
+        <span className="text-muted-foreground">Edit</span>
+      </PopoverTrigger>
+      <PopoverContent align="end" sideOffset={6} className="w-[310px] p-0">
+        <IconPickerContent
+          hideColors
+          iconValue={spriteName}
+          iconColor="currentColor"
+          onColorChange={() => {}}
+          onIconChange={(icon) => {
+            onSelect(icon);
+            setOpen(false);
+          }}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const selectValues = (state: { values: ReturnType<typeof searchToFormValues> }) => state.values;
 const selectEmbedType = (state: { values: ReturnType<typeof searchToFormValues> }) =>
@@ -532,8 +591,8 @@ const PresentationRows = ({
   </>
 );
 
-// Tooltip-annotated "Track analytics" hint icon, reused by the Pro rows.
-const AnalyticsHint = () => (
+// Muted info icon with a tooltip — used by the preference rows for inline help.
+const HintTooltip = ({ children }: { children: React.ReactNode }) => (
   <Tooltip>
     <TooltipTrigger
       render={
@@ -542,8 +601,8 @@ const AnalyticsHint = () => (
         </span>
       }
     />
-    <TooltipContent side="top" className="max-w-48 text-xs">
-      Track visits and completion rates for this form.
+    <TooltipContent side="top" className="max-w-56">
+      {children}
     </TooltipContent>
   </Tooltip>
 );
@@ -584,7 +643,12 @@ const ProRows = ({
       </FeatureGate>
     </PreferenceRow>
 
-    <PreferenceRow label="Track analytics" hint={<AnalyticsHint />}>
+    <PreferenceRow
+      label="Track analytics"
+      hint={
+        <HintTooltip>Track form views, submissions, completion rates, and drop-offs.</HintTooltip>
+      }
+    >
       <FeatureGate requiredPlan="pro">
         <Switch
           aria-label="Track analytics"
@@ -745,19 +809,7 @@ const PopupTab = ({
       <form.Field name="emojiIcon">
         {(field: AnyFieldApi) => (
           <PreferenceRow label="Emoji">
-            <EmojiGlyphPicker
-              value={field.state.value}
-              onSelect={field.handleChange}
-              trigger={
-                <button
-                  type="button"
-                  className="flex items-center gap-1.5 font-case text-[14px] font-medium text-foreground"
-                >
-                  <span className="text-base leading-none">{field.state.value}</span>
-                  <span className="text-muted-foreground">Edit</span>
-                </button>
-              }
-            />
+            <EmojiIconPicker value={field.state.value} onSelect={field.handleChange} />
           </PreferenceRow>
         )}
       </form.Field>
@@ -899,18 +951,7 @@ const EmbedTab = ({
           <PreferenceRow
             label="Dynamic height"
             hint={
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <span className="inline-flex text-muted-foreground">
-                      <InfoIcon className="size-4" />
-                    </span>
-                  }
-                />
-                <TooltipContent side="top" className="max-w-48 text-xs">
-                  Resize the embed automatically to fit the form's height.
-                </TooltipContent>
-              </Tooltip>
+              <HintTooltip>Resize the embed automatically to fit the form's height.</HintTooltip>
             }
           >
             <Switch

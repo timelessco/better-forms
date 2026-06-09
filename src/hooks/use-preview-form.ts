@@ -63,8 +63,11 @@ export const useStepPreviewForm = ({
   /** Field names currently visible per conditional logic — step-form hides the rest.
    * `null` when no logic context is mounted (render everything). */
   visibleFieldNames: Set<string> | null;
-  /** Field names auto-filled by an active "Set value" action — rendered read-only. */
+  /** Field names auto-filled by an active "Set value" action — dimmed, still editable. */
   lockedFieldNames: Set<string>;
+  /** Field names that are effectively required (authored OR a passing "Require field" action),
+   * so the rendered label shows the mark. `null` when no logic context is mounted. */
+  requiredFieldNames: Set<string> | null;
   /** True when a passing hide-submit action should suppress the completion button. */
   hideSubmit: boolean;
 } => {
@@ -92,6 +95,17 @@ export const useStepPreviewForm = ({
   const lockedFieldNames = useMemo<Set<string>>(
     () => new Set(evaluation ? Object.keys(evaluation.setValues) : []),
     [evaluation],
+  );
+  // Effective-required field names (authored OR a passing "Require field" action) so the
+  // rendered label can show the mark even when the requiredness comes from logic.
+  const requiredFieldNames = useMemo<Set<string> | null>(
+    () =>
+      evaluation
+        ? new Set(
+            fields.filter((f) => evaluation.effectiveRequired[f.name] === true).map((f) => f.name),
+          )
+        : null,
+    [evaluation, fields],
   );
 
   // `start` dedup latch keyed `visitId::questionId`, per Step mount. Cross-step idempotency via server upsert (coalesce on startedAt); StepForm remounts on back-nav, resetting this.
@@ -307,13 +321,35 @@ export const useStepPreviewForm = ({
     for (const [name, val] of Object.entries(next)) {
       if (prev[name] !== val && onThisStep(name)) form.setFieldValue(name, val);
     }
-    // Revert fields that were auto-filled but are no longer controlled, so a stale
-    // forced value doesn't persist after its condition stops matching.
+    // Clear an auto-fill when its condition stops matching — but only if the field still holds
+    // the value we forced. If the respondent has since edited it, keep their correction.
     for (const name of Object.keys(prev)) {
-      if (!(name in next) && onThisStep(name)) form.setFieldValue(name, "");
+      // normalize current value to a string, mirroring the engine's asString (arrays join, nullish → "")
+      const cur = form.getFieldValue(name);
+      const curStr = Array.isArray(cur) ? cur.join(", ") : cur == null ? "" : String(cur);
+      if (!(name in next) && onThisStep(name) && curStr === prev[name]) {
+        form.setFieldValue(name, "");
+      }
     }
     appliedSetValuesRef.current = { ...next };
   }, [evaluation, fields, form]);
+
+  // "Move to next field": when a passing rule targets a field rendered on this step, scroll it
+  // into view and focus it. Tracked by ref so it fires only when the target changes, never
+  // stealing focus on every keystroke while the same rule keeps passing.
+  const focusedFieldRef = useRef<string | null>(null);
+  useEffect(() => {
+    const target = evaluation?.focusField ?? null;
+    if (target === focusedFieldRef.current) return;
+    focusedFieldRef.current = target;
+    if (!target || !fields.some((f) => f.name === target)) return; // not on this step
+    // escape interpolated values — names with quotes/special chars would otherwise throw SyntaxError
+    const el = document.querySelector<HTMLElement>(
+      `#${CSS.escape(formName)} [name="${CSS.escape(target)}"]`,
+    );
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    el?.focus();
+  }, [evaluation, fields, formName]);
 
   return {
     form: form as unknown as AppForm,
@@ -321,6 +357,7 @@ export const useStepPreviewForm = ({
     handleFieldFocus,
     visibleFieldNames,
     lockedFieldNames,
+    requiredFieldNames,
     hideSubmit: evaluation?.hideSubmit ?? false,
   };
 };

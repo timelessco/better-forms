@@ -12,8 +12,6 @@ import {
 } from "@/components/editor/plugins/form-blocks-utils";
 import { BlockSelection } from "@/components/ui/block-selection";
 import { Checkbox } from "@/components/ui/checkbox";
-import { IconMatrix } from "@/components/ui/icons";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { MatrixEntry } from "@/lib/form-schema/form-field-constants";
 import { MATRIX_DEFAULTS, MATRIX_MAX } from "@/lib/form-schema/form-field-constants";
 import { generateShortId } from "@/lib/short-id";
@@ -208,7 +206,7 @@ export const FormMatrixElement = ({ children, ...props }: PlateElementProps) => 
   return (
     <PlateElement
       attributes={{ ...attributes, "data-bf-input": "true" }}
-      className="relative flex w-full cursor-default items-start gap-2 rounded-[8px]"
+      className="relative flex w-full cursor-default items-start rounded-[8px]"
       element={element}
       {...rest}
     >
@@ -216,96 +214,91 @@ export const FormMatrixElement = ({ children, ...props }: PlateElementProps) => 
 
       <div
         contentEditable={false}
-        className="flex-1 overflow-hidden rounded-lg bg-background elevation-sm dark:border dark:border-border dark:shadow-none"
+        className="flex flex-1 overflow-hidden rounded-lg bg-background elevation-sm dark:border dark:border-border dark:shadow-none"
       >
-        {/* Header: empty label cell + column-header inputs */}
-        <div
-          className="grid items-center border-b border-(--color-gray-200) bg-muted/30"
-          style={{ gridTemplateColumns }}
-        >
-          <div className="px-3 py-2" />
-          {columns.map((col) => (
-            <div key={col.id} className="px-2 py-2">
-              <input
-                ref={register(colKey(col.id))}
-                value={col.label}
-                onChange={(e) => renameColumn(col.id, e.target.value)}
-                onKeyDown={handleKeyDown("col", col)}
-                onPointerDown={(e) => e.stopPropagation()}
-                aria-label="Column label"
-                placeholder="Column"
-                className="w-full bg-transparent text-center text-xs font-medium text-muted-foreground outline-none placeholder:text-muted-foreground/60"
-              />
-            </div>
-          ))}
-        </div>
-
-        {/* Body rows */}
-        {rows.map((row, rowIdx) => (
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Header: empty label cell + column-header inputs */}
           <div
-            key={row.id}
-            className={cn("grid items-center", rowIdx > 0 && "border-t border-(--color-gray-200)")}
+            className="grid items-center border-b border-(--color-gray-200) bg-muted/30"
             style={{ gridTemplateColumns }}
           >
-            <div className="px-3 py-1.5">
-              <input
-                ref={register(rowKey(row.id))}
-                value={row.label}
-                onChange={(e) => renameRow(row.id, e.target.value)}
-                onKeyDown={handleKeyDown("row", row)}
-                onPointerDown={(e) => e.stopPropagation()}
-                aria-label="Row label"
-                placeholder="Row"
-                className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
-              />
-            </div>
+            <div className="px-3 py-2" />
             {columns.map((col) => (
-              <div key={col.id} className="flex items-center justify-center py-1.5">
-                <Checkbox disabled />
+              <div key={col.id} className="px-2 py-2">
+                <input
+                  ref={register(colKey(col.id))}
+                  value={col.label}
+                  onChange={(e) => renameColumn(col.id, e.target.value)}
+                  onKeyDown={handleKeyDown("col", col)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  aria-label="Column label"
+                  placeholder="Column"
+                  className="w-full bg-transparent text-center text-xs font-medium text-muted-foreground outline-none placeholder:text-muted-foreground/60"
+                />
               </div>
             ))}
           </div>
-        ))}
 
-        {/* Add row */}
-        <div className="border-t border-(--color-gray-200)">
-          <button
-            ref={register(ADD_ROW_KEY)}
-            type="button"
-            onClick={() => addRowAfter(null)}
-            onKeyDown={handleButtonKeyDown(ADD_ROW_KEY)}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="flex w-full items-center gap-1.5 rounded-b-lg px-3 py-2 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-          >
-            <PlusGlyph />
-            Add row
-          </button>
+          {/* Body rows */}
+          {rows.map((row, rowIdx) => (
+            <div
+              key={row.id}
+              className={cn(
+                "grid items-center",
+                rowIdx > 0 && "border-t border-(--color-gray-200)",
+              )}
+              style={{ gridTemplateColumns }}
+            >
+              <div className="px-3 py-1.5">
+                <input
+                  ref={register(rowKey(row.id))}
+                  value={row.label}
+                  onChange={(e) => renameRow(row.id, e.target.value)}
+                  onKeyDown={handleKeyDown("row", row)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  aria-label="Row label"
+                  placeholder="Row"
+                  className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
+                />
+              </div>
+              {columns.map((col) => (
+                <div key={col.id} className="flex items-center justify-center py-1.5">
+                  <Checkbox disabled />
+                </div>
+              ))}
+            </div>
+          ))}
+
+          {/* Add row — bottom-left corner rounds to the card; bottom-right meets the Add-column strip. */}
+          <div className="border-t border-(--color-gray-200)">
+            <button
+              ref={register(ADD_ROW_KEY)}
+              type="button"
+              onClick={() => addRowAfter(null)}
+              onKeyDown={handleButtonKeyDown(ADD_ROW_KEY)}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="flex w-full items-center gap-1.5 rounded-bl-lg px-3 py-2 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+            >
+              <PlusGlyph />
+              Add row
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Add column + type badge */}
-      <div contentEditable={false} className="flex shrink-0 flex-col items-center gap-1.5">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <button
-                ref={register(ADD_COL_KEY)}
-                type="button"
-                onClick={() => addColumnAfter(null)}
-                onKeyDown={handleButtonKeyDown(ADD_COL_KEY)}
-                onPointerDown={(e) => e.stopPropagation()}
-                aria-label="Add column"
-                className="flex size-6 items-center justify-center rounded-md border border-border text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            }
-          >
-            <PlusGlyph />
-          </TooltipTrigger>
-          <TooltipContent side="left">Add column</TooltipContent>
-        </Tooltip>
-        <span className="flex items-center justify-center text-muted-foreground select-none">
-          <IconMatrix className="size-3.5" />
-        </span>
+        {/* Add column — vertical strip that's part of the table surface (shares the card, split
+            by a left divider), mirroring the full-width "Add row". Right corners round to the card. */}
+        <button
+          ref={register(ADD_COL_KEY)}
+          type="button"
+          onClick={() => addColumnAfter(null)}
+          onKeyDown={handleButtonKeyDown(ADD_COL_KEY)}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label="Add column"
+          className="flex shrink-0 flex-col items-center justify-center gap-1.5 rounded-r-lg border-l border-(--color-gray-200) px-2 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        >
+          <PlusGlyph />
+          <span className="[writing-mode:vertical-rl]">Add column</span>
+        </button>
       </div>
 
       {/* BelowRootNodes (incl. BlockSelection) ride with hidden {children}; render explicitly. */}

@@ -80,30 +80,17 @@ export const getAriaLabelledBy = (element: PlateFormField): string | undefined =
   return undefined;
 };
 
+// Small inline asterisk right after the label text (Tally/Typeform style) — not a right-pinned
+// badge. The editor keeps its larger toggle button (RequiredBadgeButton); this is preview/live.
 const RequiredBadge = () => (
   <Tooltip>
     <TooltipTrigger
       render={
         <span
           aria-label="Required field"
-          className={cn(
-            "flex size-4 shrink-0 items-center justify-center rounded-[8px] bg-destructive/15 text-destructive",
-            "mr-1 ml-auto",
-          )}
+          className="shrink-0 leading-none text-destructive select-none"
         >
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <title>Required</title>
-            <path
-              d="M12.39 5.69L12.79 6.93L9.02 8.22L11.47 11.53L10.42 12.34L7.95 8.92L5.58 12.31L4.53 11.5L6.9 8.22L3.16 6.95L3.59 5.69L7.28 7.01V3.02H8.65V6.98L12.39 5.69Z"
-              fill="currentColor"
-            />
-          </svg>
+          *
         </span>
       }
     />
@@ -222,18 +209,18 @@ export const FieldLabelText = ({
     return (
       <span
         id={labelId}
-        className="flex w-full items-center gap-2 py-2.5 text-sm select-none"
+        className="flex w-full items-center gap-1 py-2.5 text-sm select-none"
         data-bf-field-label
       >
-        <span className="flex-1">{text}</span>
+        <span>{text}</span>
         {badge}
       </span>
     );
   }
 
   return (
-    <Label htmlFor={htmlFor} id={labelId} className="w-full" data-bf-field-label>
-      <span className="flex-1">{text}</span>
+    <Label htmlFor={htmlFor} id={labelId} className="w-full gap-1" data-bf-field-label>
+      <span>{text}</span>
       {badge}
     </Label>
   );

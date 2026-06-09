@@ -4,6 +4,8 @@ const isEmptyValue = (value: unknown): boolean => {
   if (value === null || value === undefined) return true;
   if (typeof value === "string") return value.trim() === "";
   if (Array.isArray(value)) return value.every((v) => isEmptyValue(v));
+  // Matrix answers are a row→column record; `{}` (or all-empty rows) means unanswered.
+  if (typeof value === "object") return Object.values(value).every((v) => isEmptyValue(v));
   return false;
 };
 

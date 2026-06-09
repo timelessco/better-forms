@@ -75,9 +75,11 @@ const OptionIcon = ({
         </span>
       );
     case "multiChoice":
-      // Labels "None" → the radio control (Figma node 25458:16773).
+      // Labels "None" → the radio control (Figma node 25458:16773). size-4 to match the
+      // letter/number badge column (and the published OptionRadioMark), so the label x stays
+      // put when the label style changes between None and Letters/Numbers.
       return (
-        <span className="flex size-3.5 shrink-0 rounded-full border border-input bg-card elevation-sm" />
+        <span className="flex size-4 shrink-0 rounded-full border border-input bg-card elevation-sm" />
       );
     case "multiSelect": {
       const color = getMultiSelectColor(index, isDark);
