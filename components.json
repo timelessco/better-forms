@@ -25,6 +25,7 @@
     "@ncdai": "https://chanhdai.com/r/{name}.json",
     "@reui": "https://reui.io/r/{style}/{name}.json",
     "@diceui": "https://diceui.com/r/{name}.json",
-    "@evilcharts": "https://evilcharts.com/r/{name}.json"
+    "@evilcharts": "https://evilcharts.com/r/{name}.json",
+    "@shadix-ui": "https://shadix-ui.vercel.app/r/{name}.json"
   }
 }

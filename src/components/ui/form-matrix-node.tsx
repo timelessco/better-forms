@@ -12,8 +12,6 @@ import {
 } from "@/components/editor/plugins/form-blocks-utils";
 import { BlockSelection } from "@/components/ui/block-selection";
 import { Checkbox } from "@/components/ui/checkbox";
-import { IconMatrix } from "@/components/ui/icons";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { MatrixEntry } from "@/lib/form-schema/form-field-constants";
 import { MATRIX_DEFAULTS, MATRIX_MAX } from "@/lib/form-schema/form-field-constants";
 import { generateShortId } from "@/lib/short-id";
@@ -283,30 +281,20 @@ export const FormMatrixElement = ({ children, ...props }: PlateElementProps) => 
         </div>
       </div>
 
-      {/* Add column + type badge */}
-      <div contentEditable={false} className="flex shrink-0 flex-col items-center gap-1.5">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <button
-                ref={register(ADD_COL_KEY)}
-                type="button"
-                onClick={() => addColumnAfter(null)}
-                onKeyDown={handleButtonKeyDown(ADD_COL_KEY)}
-                onPointerDown={(e) => e.stopPropagation()}
-                aria-label="Add column"
-                className="flex size-6 items-center justify-center rounded-md border border-border text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            }
-          >
-            <PlusGlyph />
-          </TooltipTrigger>
-          <TooltipContent side="left">Add column</TooltipContent>
-        </Tooltip>
-        <span className="flex items-center justify-center text-muted-foreground select-none">
-          <IconMatrix className="size-3.5" />
-        </span>
-      </div>
+      {/* Add column — vertical affordance mirroring the full-width "Add row" button. */}
+      <button
+        ref={register(ADD_COL_KEY)}
+        type="button"
+        contentEditable={false}
+        onClick={() => addColumnAfter(null)}
+        onKeyDown={handleButtonKeyDown(ADD_COL_KEY)}
+        onPointerDown={(e) => e.stopPropagation()}
+        aria-label="Add column"
+        className="flex shrink-0 flex-col items-center justify-center gap-1.5 self-stretch rounded-lg px-2 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      >
+        <PlusGlyph />
+        <span className="[writing-mode:vertical-rl]">Add column</span>
+      </button>
 
       {/* BelowRootNodes (incl. BlockSelection) ride with hidden {children}; render explicitly. */}
       <BlockSelection {...props} />

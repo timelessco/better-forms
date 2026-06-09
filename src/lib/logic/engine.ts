@@ -70,6 +70,7 @@ export const evaluate = (
   const passingHide = new Set<string>();
   const requiredByAction = new Set<string>();
   const setValues: Record<string, string> = {};
+  let focusField: string | null = null;
   let hideSubmit = false;
   let redirectUrl: string | null = null;
 
@@ -82,6 +83,8 @@ export const evaluate = (
         requiredByAction.add(action.target);
       else if (action.kind === "setValue" && knownNames.has(action.target))
         setValues[action.target] = action.value; // document order, last wins
+      else if (action.kind === "moveToNext" && knownNames.has(action.target))
+        focusField = action.target; // document order, last wins
       else if (action.kind === "hideSubmit") hideSubmit = true;
       else if (action.kind === "redirect") redirectUrl = action.url;
     }
@@ -118,6 +121,7 @@ export const evaluate = (
     effectiveRequired,
     computedValues: {},
     setValues,
+    focusField,
     hideSubmit,
     redirectUrl,
     resolveJump,

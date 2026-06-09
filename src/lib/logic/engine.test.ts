@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { evaluate } from "./engine";
 import { THANK_YOU_STEP } from "./types";
-import type { EngineField, Rule, Ruleset } from "./types";
+import type { Action, EngineField, EvaluationResult, OperatorId, Rule, Ruleset } from "./types";
 
 const ruleset = (rules: Rule[]): Ruleset => ({ rules, orphanedRefs: [] });
 
@@ -274,5 +274,292 @@ describe("evaluate — fail-closed orphans", () => {
       },
     ]);
     expect(evaluate(rs, { ghost: "x" }, fields).visibility.vat).toBe(true); // hide never fires
+  });
+});
+
+describe("evaluate — moveToNext (focusField)", () => {
+  it("focusField is the target of a passing Move-to-next-field action, else null", () => {
+    const rs = ruleset([
+      {
+        id: "r",
+        stepId: "s1",
+        when: {
+          combinator: "all",
+          children: [{ source: "country", operator: "equals", value: "DE" }],
+        },
+        actions: [{ kind: "moveToNext", target: "vat" }],
+      },
+    ]);
+    expect(evaluate(rs, { country: "DE" }, fields).focusField).toBe("vat");
+    expect(evaluate(rs, { country: "FR" }, fields).focusField).toBeNull();
+  });
+
+  it("ignores Move-to-next-field targets that are not known fields", () => {
+    const rs = ruleset([
+      {
+        id: "r",
+        stepId: "s1",
+        when: { combinator: "all", children: [{ source: "country", operator: "isNotEmpty" }] },
+        actions: [{ kind: "moveToNext", target: "ghost" }],
+      },
+    ]);
+    expect(evaluate(rs, { country: "DE" }, fields).focusField).toBeNull();
+  });
+
+  it("last passing Move-to-next-field wins (document order)", () => {
+    const move = (id: string, target: string): Rule => ({
+      id,
+      stepId: "s1",
+      when: { combinator: "all", children: [{ source: "country", operator: "isNotEmpty" }] },
+      actions: [{ kind: "moveToNext", target }],
+    });
+    const rs = ruleset([move("r1", "vat"), move("r2", "extra")]);
+    expect(evaluate(rs, { country: "DE" }, fields).focusField).toBe("extra");
+  });
+
+  it("uses the Else branch's Move-to-next-field when the condition fails", () => {
+    const rs = ruleset([
+      {
+        id: "r",
+        stepId: "s1",
+        when: {
+          combinator: "all",
+          children: [{ source: "country", operator: "equals", value: "DE" }],
+        },
+        actions: [{ kind: "moveToNext", target: "vat" }],
+        elseActions: [{ kind: "moveToNext", target: "extra" }],
+      },
+    ]);
+    expect(evaluate(rs, { country: "DE" }, fields).focusField).toBe("vat");
+    expect(evaluate(rs, { country: "FR" }, fields).focusField).toBe("extra");
+  });
+});
+
+describe("evaluate — setValue is never spontaneous (the prefill footgun)", () => {
+  // Mirrors the reported confusion: "When Short Answer contains 'baskar' → Set it to 'vijayabaskar'".
+  const rs = ruleset([
+    {
+      id: "r",
+      stepId: "s1",
+      when: {
+        combinator: "any",
+        children: [
+          { source: "extra", operator: "equals", value: "baskar" },
+          { source: "extra", operator: "contains", value: "baskar" },
+        ],
+      },
+      actions: [{ kind: "setValue", target: "extra", value: "vijayabaskar" }],
+    },
+  ]);
+
+  it("does NOT auto-fill on an empty/absent field — there is no spontaneous prefill", () => {
+    expect(evaluate(rs, {}, fields).setValues.extra).toBeUndefined();
+    expect(evaluate(rs, { extra: "" }, fields).setValues.extra).toBeUndefined();
+    expect(evaluate(rs, { extra: "hello" }, fields).setValues.extra).toBeUndefined();
+  });
+
+  it("only fills once the answer actually satisfies the condition", () => {
+    expect(evaluate(rs, { extra: "baskar" }, fields).setValues.extra).toBe("vijayabaskar");
+  });
+
+  it("a set-value whose result still matches its own condition stays applied (self-sustaining)", () => {
+    // "vijayabaskar" itself contains "baskar", so re-evaluating with the filled value keeps it
+    // applied. The engine is correct — the rule is self-referential, which is what causes the
+    // value to look 'stuck/prefilled' once a persisted draft seeds it.
+    expect(evaluate(rs, { extra: "vijayabaskar" }, fields).setValues.extra).toBe("vijayabaskar");
+  });
+});
+
+describe("evaluate — full operator × action matrix (text field)", () => {
+  // Condition source field is "x"; actions target a separate field "tgt".
+  const matrixFields: EngineField[] = [{ name: "x" }, { name: "tgt" }];
+
+  // Every text-field operator with an answer that makes it PASS and one that makes it FAIL.
+  const OPERATORS: Array<{ op: OperatorId; operand?: string; pass: unknown; fail: unknown }> = [
+    { op: "equals", operand: "baskar", pass: "baskar", fail: "other" },
+    { op: "notEquals", operand: "baskar", pass: "other", fail: "baskar" },
+    { op: "contains", operand: "baskar", pass: "vijayabaskar", fail: "vijaya" },
+    { op: "notContains", operand: "baskar", pass: "vijaya", fail: "vijayabaskar" },
+    { op: "isEmpty", pass: "", fail: "x" },
+    { op: "isNotEmpty", pass: "x", fail: "" },
+  ];
+
+  // Every action with how to assert its effect is present (condition passes) / absent (fails).
+  const ACTIONS: Array<{
+    name: string;
+    action: Action;
+    present: (r: EvaluationResult) => unknown;
+    absent: (r: EvaluationResult) => unknown;
+  }> = [
+    {
+      name: "show field",
+      action: { kind: "show", target: "tgt" },
+      present: (r) => r.visibility.tgt === true,
+      absent: (r) => r.visibility.tgt === false, // show-target hides by default
+    },
+    {
+      name: "hide field",
+      action: { kind: "hide", target: "tgt" },
+      present: (r) => r.visibility.tgt === false,
+      absent: (r) => r.visibility.tgt === true,
+    },
+    {
+      name: "require field",
+      action: { kind: "require", target: "tgt" },
+      present: (r) => r.effectiveRequired.tgt === true,
+      absent: (r) => r.effectiveRequired.tgt === false,
+    },
+    {
+      name: "set value",
+      action: { kind: "setValue", target: "tgt", value: "V" },
+      present: (r) => r.setValues.tgt === "V",
+      absent: (r) => r.setValues.tgt === undefined,
+    },
+    {
+      name: "move to next field",
+      action: { kind: "moveToNext", target: "tgt" },
+      present: (r) => r.focusField === "tgt",
+      absent: (r) => r.focusField === null,
+    },
+    {
+      name: "jump to step",
+      action: { kind: "jump", toStep: "s2" },
+      present: (r) => r.resolveJump("s1") === "s2",
+      absent: (r) => r.resolveJump("s1") === null,
+    },
+    {
+      name: "hide submit",
+      action: { kind: "hideSubmit" },
+      present: (r) => r.hideSubmit === true,
+      absent: (r) => r.hideSubmit === false,
+    },
+    {
+      name: "redirect",
+      action: { kind: "redirect", url: "https://x.test" },
+      present: (r) => r.redirectUrl === "https://x.test",
+      absent: (r) => r.redirectUrl === null,
+    },
+  ];
+
+  for (const o of OPERATORS) {
+    for (const a of ACTIONS) {
+      it(`${o.op} → ${a.name}`, () => {
+        const rs = ruleset([
+          {
+            id: "r",
+            stepId: "s1",
+            when: {
+              combinator: "all",
+              children: [{ source: "x", operator: o.op, value: o.operand }],
+            },
+            actions: [a.action],
+          },
+        ]);
+        expect(a.present(evaluate(rs, { x: o.pass }, matrixFields))).toBe(true); // passes → effect on
+        expect(a.absent(evaluate(rs, { x: o.fail }, matrixFields))).toBe(true); // fails → effect off
+      });
+    }
+  }
+
+  // Combinator coverage: And requires both, Or requires one — across both branches.
+  it("And (all) vs Or (any) gate the action correctly", () => {
+    const two = (combinator: "all" | "any"): Ruleset =>
+      ruleset([
+        {
+          id: "r",
+          stepId: "s1",
+          when: {
+            combinator,
+            children: [
+              { source: "x", operator: "equals", value: "a" },
+              { source: "tgt", operator: "equals", value: "b" },
+            ],
+          },
+          actions: [{ kind: "hideSubmit" }],
+        },
+      ]);
+    expect(evaluate(two("all"), { x: "a", tgt: "b" }, matrixFields).hideSubmit).toBe(true);
+    expect(evaluate(two("all"), { x: "a", tgt: "z" }, matrixFields).hideSubmit).toBe(false);
+    expect(evaluate(two("any"), { x: "a", tgt: "z" }, matrixFields).hideSubmit).toBe(true);
+    expect(evaluate(two("any"), { x: "z", tgt: "z" }, matrixFields).hideSubmit).toBe(false);
+  });
+
+  // Source-shape coverage: conditions reading non-text answers (single-choice string,
+  // multi-select array, numeric scale, Matrix object) drive actions end-to-end.
+  it("evaluates conditions over single-choice, multi-select, scale, and matrix sources", () => {
+    const fieldsX: EngineField[] = [
+      { name: "plan" }, // Dropdown/MultiChoice → string
+      { name: "colors" }, // MultiSelect/Checkbox → array
+      { name: "score" }, // LinearScale/Rating → numeric string
+      { name: "grid" }, // Matrix → row→column object
+      { name: "tgt" },
+    ];
+    const rs = ruleset([
+      {
+        id: "r",
+        stepId: "s1",
+        when: {
+          combinator: "all",
+          children: [
+            { source: "plan", operator: "equals", value: "Premium" },
+            { source: "colors", operator: "contains", value: "blue" },
+            { source: "score", operator: "greaterThanOrEqual", value: "4" },
+            { source: "grid", operator: "isNotEmpty" },
+          ],
+        },
+        actions: [{ kind: "show", target: "tgt" }],
+      },
+    ]);
+    // All four conditions pass → target shown.
+    expect(
+      evaluate(
+        rs,
+        { plan: "Premium", colors: ["red", "blue"], score: "5", grid: { row1: "a" } },
+        fieldsX,
+      ).visibility.tgt,
+    ).toBe(true);
+    // Any failing source (empty matrix, wrong choice, low score, missing color) → hidden.
+    expect(
+      evaluate(rs, { plan: "Premium", colors: ["red", "blue"], score: "5", grid: {} }, fieldsX)
+        .visibility.tgt,
+    ).toBe(false);
+    expect(
+      evaluate(
+        rs,
+        { plan: "Basic", colors: ["red", "blue"], score: "5", grid: { row1: "a" } },
+        fieldsX,
+      ).visibility.tgt,
+    ).toBe(false);
+    expect(
+      evaluate(rs, { plan: "Premium", colors: ["red"], score: "5", grid: { row1: "a" } }, fieldsX)
+        .visibility.tgt,
+    ).toBe(false);
+    expect(
+      evaluate(
+        rs,
+        { plan: "Premium", colors: ["red", "blue"], score: "2", grid: { row1: "a" } },
+        fieldsX,
+      ).visibility.tgt,
+    ).toBe(false);
+  });
+
+  // Else branch: the action fires when the condition FAILS instead of passes.
+  it("Else action fires on the failing branch for every operator", () => {
+    for (const o of OPERATORS) {
+      const rs = ruleset([
+        {
+          id: "r",
+          stepId: "s1",
+          when: {
+            combinator: "all",
+            children: [{ source: "x", operator: o.op, value: o.operand }],
+          },
+          actions: [],
+          elseActions: [{ kind: "setValue", target: "tgt", value: "ELSE" }],
+        },
+      ]);
+      expect(evaluate(rs, { x: o.fail }, matrixFields).setValues.tgt).toBe("ELSE"); // fails → Else
+      expect(evaluate(rs, { x: o.pass }, matrixFields).setValues.tgt).toBeUndefined(); // passes → no Else
+    }
   });
 });

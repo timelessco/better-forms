@@ -9,6 +9,16 @@ allowBuilds:
 # affect runtime.
 strictPeerDependencies: false
 
+# Pin rolldown's transitive @oxc-project/types to the mature version already in
+# the lockfile. A full re-resolve floats it to 0.134.0 (published 2026-06-01,
+# inside the 7-day quarantine). No-op functionally. Remove once 0.134.0 ages out.
+overrides:
+  "@oxc-project/types": "0.132.0"
+  # react-table-devtools beta.3 pulls @tanstack/devtools 0.12 (solid-js 1.9.13)
+  # while the other devtools sit on 0.11 (solid-js 1.9.12). Two Solid instances
+  # crash the shared devtools shell ("multiple instances of Solid"). Pin to one.
+  "solid-js": "1.9.13"
+
 # Quarantine bypass:
 #  - @tanstack/react-table & table-core: alpha.42 has a broken-on-arrival
 #    infinite render loop (setOptions inside useEffect with an inline-object
@@ -20,7 +30,9 @@ strictPeerDependencies: false
 #    the 7-day window.
 minimumReleaseAgeExclude:
   - "@tanstack/react-table"
+  - "@tanstack/react-table-devtools"
   - "@tanstack/table-core"
+  - "@tanstack/table-devtools"
   - "@tanstack/react-start"
   - "@tanstack/react-router"
   # AI SDK 6 migration (2026-05-22) off v5.0.28 — evlog 2.17 imports

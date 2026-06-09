@@ -232,7 +232,7 @@ const EmbedPreviewSurface = ({
                 >
                   <div
                     className={cn(
-                      "size-full overflow-x-hidden",
+                      "size-full overflow-x-hidden pb-6",
                       !dynamicHeight &&
                         "scrollbar-thin scrollbar-thumb-muted-foreground/20 overflow-y-auto",
                     )}
@@ -466,7 +466,7 @@ const PopupPreviewOverlay = ({
           type="button"
           onClick={handleOpenPopup}
           aria-label="Open form preview"
-          className="pointer-events-auto absolute z-20 flex size-14 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_4px_20px_rgba(0,0,0,0.15)] transition-[inset] duration-300 ease-out hover:scale-105 active:scale-95"
+          className="pointer-events-auto absolute z-20 flex size-14 cursor-pointer items-center justify-center rounded-full bg-background/50 text-muted-foreground shadow-[0_4px_20px_rgba(0,0,0,0.15)] ring-1 ring-border/50 backdrop-blur-sm transition-[inset] duration-300 ease-out hover:scale-105 hover:bg-muted active:scale-95"
           style={
             popupPosition === "bottom-left"
               ? { bottom: 24, left: 24, right: "auto" }

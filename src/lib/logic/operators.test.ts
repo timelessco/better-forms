@@ -53,4 +53,34 @@ describe("applyOperator", () => {
     // a real zero still compares
     expect(applyOperator("greaterThanOrEqual", "0", "0")).toBe(true);
   });
+
+  it("treats Matrix object answers (row→column record) as empty/filled correctly", () => {
+    // Unanswered matrix is `{}`; partially-answered rows seed `[]`.
+    expect(applyOperator("isEmpty", {}, undefined)).toBe(true);
+    expect(applyOperator("isEmpty", { row1: [] }, undefined)).toBe(true);
+    expect(applyOperator("isEmpty", { row1: "" }, undefined)).toBe(true);
+    expect(applyOperator("isNotEmpty", {}, undefined)).toBe(false);
+    // Any answered cell makes it non-empty.
+    expect(applyOperator("isNotEmpty", { row1: "col2" }, undefined)).toBe(true);
+    expect(applyOperator("isNotEmpty", { row1: ["col2"] }, undefined)).toBe(true);
+    expect(applyOperator("isEmpty", { row1: "col2" }, undefined)).toBe(false);
+  });
+
+  it("matches multi-select array answers via contains (membership)", () => {
+    // Checkbox/MultiSelect/Ranking answers are arrays of the selected option values.
+    expect(applyOperator("contains", ["red", "blue"], "blue")).toBe(true);
+    expect(applyOperator("contains", ["red", "blue"], "green")).toBe(false);
+    expect(applyOperator("notContains", ["red", "blue"], "green")).toBe(true);
+    expect(applyOperator("isEmpty", [], undefined)).toBe(true);
+  });
+
+  it("compares single-choice and numeric scale/rating answers as scalars", () => {
+    // Single option / dropdown answers are the chosen option string.
+    expect(applyOperator("equals", "Premium", "Premium")).toBe(true);
+    expect(applyOperator("notEquals", "Basic", "Premium")).toBe(true);
+    // LinearScale / Rating answers are numeric strings → numeric comparisons.
+    expect(applyOperator("greaterThanOrEqual", "4", "3")).toBe(true);
+    expect(applyOperator("lessThan", "2", "3")).toBe(true);
+    expect(applyOperator("equals", "5", "5")).toBe(true);
+  });
 });

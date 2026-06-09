@@ -213,14 +213,21 @@ const StepFormRSC = ({
   const { t } = useTranslation();
   const fields = stepRSC.fields;
 
-  const { form, formName, handleFieldFocus, visibleFieldNames, lockedFieldNames, hideSubmit } =
-    useStepPreviewForm({
-      fields,
-      stepIndex,
-      isLastStep,
-      formName: `stepForm-${stepIndex}`,
-      questions,
-    });
+  const {
+    form,
+    formName,
+    handleFieldFocus,
+    visibleFieldNames,
+    lockedFieldNames,
+    requiredFieldNames,
+    hideSubmit,
+  } = useStepPreviewForm({
+    fields,
+    stepIndex,
+    isLastStep,
+    formName: `stepForm-${stepIndex}`,
+    questions,
+  });
 
   const formRef = useRef<HTMLFormElement>(null);
   const [isTextareaFocused, setIsTextareaFocused] = useState(false);
@@ -316,17 +323,17 @@ const StepFormRSC = ({
           />
         );
       }
-      // Conditional logic: skip hidden fields; lock (non-interactive) auto-filled ones.
+      // Conditional logic: skip hidden fields. Auto-filled ("Set value") fields stay editable
+      // so a mistaken auto-fill can be corrected — only dimmed to hint that logic set the value.
       if (visibleFieldNames && !visibleFieldNames.has(field.name)) return null;
-      const locked = lockedFieldNames.has(field.name);
+      const autoFilled = lockedFieldNames.has(field.name);
+      // Reflect logic-driven requiredness (a passing "Require field" action) on the label.
+      const rendered = requiredFieldNames
+        ? { ...field, required: requiredFieldNames.has(field.name) }
+        : field;
       return (
-        <div
-          data-bf-question-id={field.id}
-          className={`w-full${locked ? " opacity-75" : ""}`}
-          inert={locked || undefined}
-          aria-disabled={locked || undefined}
-        >
-          <RenderFieldComponent key={fieldId} element={field} form={form} />
+        <div data-bf-question-id={field.id} className={`w-full${autoFilled ? " opacity-75" : ""}`}>
+          <RenderFieldComponent key={fieldId} element={rendered} form={form} />
         </div>
       );
     },
@@ -339,6 +346,7 @@ const StepFormRSC = ({
       t,
       visibleFieldNames,
       lockedFieldNames,
+      requiredFieldNames,
       hideSubmit,
     ],
   );

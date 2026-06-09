@@ -158,16 +158,15 @@ export const EmbedPreviewMockup = ({
   const hasAnimated = useRef(false);
   const isResizing = useRef(false);
 
-  // Measure content area — only re-measure on resize for fullpage
+  // Measure content area; re-measure on resize for every type so the popup bubble/card
+  // stays pinned to its corner (corner = PAD + cw - w, which drifts if cw goes stale).
   useIsomorphicLayoutEffect(() => {
     const el = contentRef.current;
     if (!el) return;
     let initialMeasure = true;
     const measure = () => {
-      if (!initialMeasure) {
-        if (embedType !== "fullpage") return;
-        isResizing.current = true;
-      }
+      // Snap repositions instantly (no morph spring) while the container resizes.
+      if (!initialMeasure) isResizing.current = true;
       initialMeasure = false;
       setSize({
         w: el.clientWidth - 32,

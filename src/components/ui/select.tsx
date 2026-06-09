@@ -3,7 +3,7 @@
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 import * as React from "react";
 
-import { CaretDownIcon, CaretUpIcon, CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
+import { CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 const Select = SelectPrimitive.Root;
@@ -145,14 +145,13 @@ export const SelectScrollUpButton = ({
 }: React.ComponentProps<typeof SelectPrimitive.ScrollUpArrow>) => (
   <SelectPrimitive.ScrollUpArrow
     data-slot="select-scroll-up-button"
+    // fade overlay hints at more options above; renders only when scrollable
     className={cn(
-      "top-0 z-10 flex w-full cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
+      "pointer-events-none top-0 z-10 h-7 w-full rounded-t-2xl bg-gradient-to-b from-popover to-transparent",
       className,
     )}
     {...props}
-  >
-    <CaretUpIcon />
-  </SelectPrimitive.ScrollUpArrow>
+  />
 );
 
 export const SelectScrollDownButton = ({
@@ -161,14 +160,13 @@ export const SelectScrollDownButton = ({
 }: React.ComponentProps<typeof SelectPrimitive.ScrollDownArrow>) => (
   <SelectPrimitive.ScrollDownArrow
     data-slot="select-scroll-down-button"
+    // fade overlay hints at more options below; renders only when scrollable
     className={cn(
-      "bottom-0 z-10 flex w-full cursor-default items-center justify-center bg-popover py-1 [&_svg:not([class*='size-'])]:size-4",
+      "pointer-events-none bottom-0 z-10 h-7 w-full rounded-b-2xl bg-gradient-to-t from-popover to-transparent",
       className,
     )}
     {...props}
-  >
-    <CaretDownIcon />
-  </SelectPrimitive.ScrollDownArrow>
+  />
 );
 
 export { Select };

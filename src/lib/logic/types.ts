@@ -34,6 +34,7 @@ export type Action =
   | { kind: "hide"; target: string }
   | { kind: "require"; target: string }
   | { kind: "setValue"; target: string; value: string } // auto-fill a field
+  | { kind: "moveToNext"; target: string } // focus/scroll to a field
   | { kind: "jump"; toStep: string } // step id, or the sentinel THANK_YOU_STEP
   | { kind: "hideSubmit" }
   | { kind: "redirect"; url: string };
@@ -74,6 +75,8 @@ export interface EvaluationResult {
   computedValues: Record<string, never>;
   /** fieldName → value to auto-fill (from a passing "Set value" action) */
   setValues: Record<string, string>;
+  /** field to focus/scroll to from a passing "Move to next field" action (last wins), else null */
+  focusField: string | null;
   hideSubmit: boolean;
   redirectUrl: string | null;
   /** first matching jump rule tied to `fromStep`, else null (caller falls through) */

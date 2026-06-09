@@ -1,21 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { EraserIcon } from "@/components/ui/icons";
+import { SignaturePad } from "@/components/ui/signature-pad";
+import type { SignaturePadRef } from "@/components/ui/signature-pad";
 import { cn } from "@/lib/utils";
 import { getAriaLabelledBy } from "./shared";
 import type { FieldRendererProps } from "./shared";
-
-type Point = { x: number; y: number };
 
 // Script font stack for the "Sign here" placeholder — no bundled font, falls back across OSes to a
 // handwriting face, then generic cursive.
 const SIGNATURE_FONT = '"Snell Roundhand", "Segoe Script", "Brush Script MT", cursive';
 
-// Self-contained canvas signature pad. Pointer events unify mouse/touch/pen; the backing store is
-// sized to the box × DPR so strokes stay crisp and coordinates map 1:1. Emits a PNG data URL on
-// pointer-up; "" once cleared. Stroke color follows the form theme via the canvas `color`.
-const SignaturePad = ({
+// Themed signature box (Figma: single border, "Sign here" glyph, eraser bottom-left). Drawing is
+// delegated to the vendored shadix-ui pad for gap-free strokes; emits a PNG data URL, "" once
+// cleared. Stroke color follows the form theme via the canvas `color` (text-foreground).
+const SignatureBox = ({
   value,
   onChange,
   invalid,
@@ -26,79 +26,8 @@ const SignaturePad = ({
   invalid?: boolean;
   ariaLabelledBy?: string;
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawing = useRef(false);
-  const last = useRef<Point | null>(null);
+  const padRef = useRef<SignaturePadRef>(null);
   const [hasInk, setHasInk] = useState(Boolean(value));
-
-  // Size the backing store to the element box × DPR; setting width/height resets the context, so
-  // re-apply the stroke styles after every resize.
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const apply = () => {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const rect = canvas.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.round(rect.width * dpr);
-      canvas.height = Math.round(rect.height * dpr);
-      ctx.scale(dpr, dpr);
-      ctx.lineWidth = 2;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = getComputedStyle(canvas).color || "#000";
-    };
-    apply();
-    const ro = new ResizeObserver(apply);
-    ro.observe(canvas);
-    return () => ro.disconnect();
-  }, []);
-
-  const pointFromEvent = (e: React.PointerEvent): Point => {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-  };
-
-  const start = (e: React.PointerEvent) => {
-    e.preventDefault();
-    canvasRef.current?.setPointerCapture(e.pointerId);
-    drawing.current = true;
-    last.current = pointFromEvent(e);
-  };
-
-  const move = (e: React.PointerEvent) => {
-    if (!drawing.current) return;
-    const ctx = canvasRef.current?.getContext("2d");
-    if (!ctx || !last.current) return;
-    const p = pointFromEvent(e);
-    // Quadratic smoothing through the midpoint keeps fast strokes from looking jagged.
-    const midX = (last.current.x + p.x) / 2;
-    const midY = (last.current.y + p.y) / 2;
-    ctx.beginPath();
-    ctx.moveTo(last.current.x, last.current.y);
-    ctx.quadraticCurveTo(last.current.x, last.current.y, midX, midY);
-    ctx.stroke();
-    last.current = p;
-    if (!hasInk) setHasInk(true);
-  };
-
-  const end = () => {
-    if (!drawing.current) return;
-    drawing.current = false;
-    last.current = null;
-    const canvas = canvasRef.current;
-    if (canvas) onChange(canvas.toDataURL("image/png"));
-  };
-
-  const clear = () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setHasInk(false);
-    onChange("");
-  };
 
   return (
     <div
@@ -115,19 +44,23 @@ const SignaturePad = ({
           Sign here
         </span>
       )}
-      <canvas
-        ref={canvasRef}
-        // touch-none lets pointer drawing work without the page scrolling under the finger.
-        className="size-full touch-none text-foreground"
+      <SignaturePad
+        ref={padRef}
+        variant="bare"
+        size="fill"
+        showButtons={false}
+        lineWidth={2}
+        // Ink follows the theme foreground (canvas reads this computed `color`): dark ink on the
+        // light pad in light mode, light ink on the dark pad in dark mode — always contrasting.
+        className="size-full text-foreground"
         role="img"
         aria-label="Signature pad"
         aria-labelledby={ariaLabelledBy}
         aria-invalid={invalid}
-        onPointerDown={start}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerLeave={end}
-        onPointerCancel={end}
+        onChange={(v) => {
+          setHasInk(Boolean(v));
+          onChange(v ?? "");
+        }}
       />
       {hasInk && (
         <Button
@@ -136,7 +69,7 @@ const SignaturePad = ({
           variant="outline"
           aria-label="Clear signature"
           className="absolute bottom-2 left-2"
-          onClick={clear}
+          onClick={() => padRef.current?.clear()}
         >
           <EraserIcon />
         </Button>
@@ -153,7 +86,7 @@ const SignatureField = ({ element, form, name }: FieldRendererProps<"Signature">
         const hasErrors = f.state.meta.errors.length > 0 && f.state.meta.isTouched;
         return (
           <>
-            <SignaturePad
+            <SignatureBox
               value={(f.state.value as string | undefined) ?? ""}
               onChange={(v) => f.handleChange(v)}
               invalid={hasErrors}
