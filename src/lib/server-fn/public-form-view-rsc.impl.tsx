@@ -46,24 +46,15 @@ const ServerPlateBlock = ({ nodes }: { nodes: Value }) => {
   );
 };
 
-// Server label + required badge. No hooks/Tooltip (client Radix); uses a title tooltip so
-// the required marker keeps an accessible hint without shipping JS.
+// Server label + required marker. Small inline asterisk right after the label text (matches the
+// client preview). No hooks/Tooltip (client Radix); uses a title attribute for the hint.
 const RequiredBadge = () => (
   <span
     aria-label="Required field"
     title="Required"
-    className={cn(
-      "flex size-4 shrink-0 items-center justify-center rounded-[8px] bg-destructive/15 text-destructive",
-      "mr-1 ml-auto",
-    )}
+    className="shrink-0 leading-none text-destructive select-none"
   >
-    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <title>Required</title>
-      <path
-        d="M12.39 5.69L12.79 6.93L9.02 8.22L11.47 11.53L10.42 12.34L7.95 8.92L5.58 12.31L4.53 11.5L6.9 8.22L3.16 6.95L3.59 5.69L7.28 7.01V3.02H8.65V6.98L12.39 5.69Z"
-        fill="currentColor"
-      />
-    </svg>
+    *
   </span>
 );
 
@@ -112,9 +103,9 @@ const ServerFieldLabel = ({
         id={labelId}
         data-slot="label"
         data-bf-field-label
-        className="flex w-full items-center gap-2 py-2.5 text-sm select-none"
+        className="flex w-full items-center gap-1 py-2.5 text-sm select-none"
       >
-        <span className="flex-1">{text}</span>
+        <span>{text}</span>
         {badge}
       </span>
     );
@@ -125,9 +116,9 @@ const ServerFieldLabel = ({
       htmlFor={htmlFor}
       id={labelId}
       data-slot="label"
-      className="flex w-full items-center gap-2 py-2.5 text-sm select-none"
+      className="flex w-full items-center gap-1 py-2.5 text-sm select-none"
     >
-      <span className="flex-1">{text}</span>
+      <span>{text}</span>
       {badge}
     </label>
   );

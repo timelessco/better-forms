@@ -145,12 +145,15 @@ export const SelectScrollUpButton = ({
 }: React.ComponentProps<typeof SelectPrimitive.ScrollUpArrow>) => (
   <SelectPrimitive.ScrollUpArrow
     data-slot="select-scroll-up-button"
-    // fade overlay hints at more options above; renders only when scrollable
+    // fade overlay hints at more options above; renders only when scrollable.
+    // Keep pointer events ON — base-ui drives hover-autoscroll from this element's onMouseMove.
     className={cn(
-      "pointer-events-none top-0 z-10 h-7 w-full rounded-t-2xl bg-gradient-to-b from-popover to-transparent",
+      "top-0 z-10 h-7 w-full rounded-t-2xl bg-gradient-to-b from-popover to-transparent",
       className,
     )}
     {...props}
+    // suppress base-ui's default ▲ glyph — the gradient is the only affordance we want
+    children={null}
   />
 );
 
@@ -160,12 +163,15 @@ export const SelectScrollDownButton = ({
 }: React.ComponentProps<typeof SelectPrimitive.ScrollDownArrow>) => (
   <SelectPrimitive.ScrollDownArrow
     data-slot="select-scroll-down-button"
-    // fade overlay hints at more options below; renders only when scrollable
+    // fade overlay hints at more options below; renders only when scrollable.
+    // Keep pointer events ON — base-ui drives hover-autoscroll from this element's onMouseMove.
     className={cn(
-      "pointer-events-none bottom-0 z-10 h-7 w-full rounded-b-2xl bg-gradient-to-t from-popover to-transparent",
+      "bottom-0 z-10 h-7 w-full rounded-b-2xl bg-gradient-to-t from-popover to-transparent",
       className,
     )}
     {...props}
+    // suppress base-ui's default ▼ glyph — the gradient is the only affordance we want
+    children={null}
   />
 );
 
