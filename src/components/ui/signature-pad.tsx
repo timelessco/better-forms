@@ -75,6 +75,7 @@ export const SignaturePad = React.forwardRef<SignaturePadRef, SignaturePadProps>
     const [isEmpty, setIsEmpty] = React.useState(true);
 
     const pointsRef = React.useRef<Point[]>([]);
+    const drewRef = React.useRef(false); // true once a real segment is stroked
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
     const ctxRef = React.useRef<CanvasRenderingContext2D | null>(null);
 
@@ -83,6 +84,7 @@ export const SignaturePad = React.forwardRef<SignaturePadRef, SignaturePadProps>
       const ctx = canvas?.getContext("2d");
       if (!canvas || !ctx) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drewRef.current = false;
       setIsEmpty(true);
       onChange?.(null);
     }, [onChange]);
@@ -144,7 +146,7 @@ export const SignaturePad = React.forwardRef<SignaturePadRef, SignaturePadProps>
       if (!p) return;
       setIsDrawing(true);
       pointsRef.current = [p];
-      setIsEmpty(false);
+      drewRef.current = false; // bare pointer-down is not ink
     };
 
     const draw = (e: React.MouseEvent | React.TouchEvent) => {
@@ -163,6 +165,8 @@ export const SignaturePad = React.forwardRef<SignaturePadRef, SignaturePadProps>
         ctx.moveTo(updated[0].x, updated[0].y);
         ctx.lineTo(updated[1].x, updated[1].y);
         ctx.stroke();
+        drewRef.current = true;
+        setIsEmpty(false);
         pointsRef.current = updated;
         return;
       }
@@ -174,6 +178,8 @@ export const SignaturePad = React.forwardRef<SignaturePadRef, SignaturePadProps>
       ctx.moveTo(cp1.x, cp1.y);
       ctx.quadraticCurveTo(cur.x, cur.y, cp2.x, cp2.y);
       ctx.stroke();
+      drewRef.current = true;
+      setIsEmpty(false);
       pointsRef.current = updated.slice(-3);
     };
 
@@ -181,6 +187,7 @@ export const SignaturePad = React.forwardRef<SignaturePadRef, SignaturePadProps>
       if (!isDrawing) return;
       setIsDrawing(false);
       pointsRef.current = [];
+      if (!drewRef.current) return; // no-movement click: no ink, no-op
       onChange?.(canvasRef.current?.toDataURL("image/png") ?? null);
     };
 

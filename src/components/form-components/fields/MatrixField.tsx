@@ -57,9 +57,6 @@ const MatrixField = ({ element, form }: FieldRendererProps<"Matrix">) => {
         return (
           <>
             <div
-              role="grid"
-              aria-labelledby={getAriaLabelledBy(element)}
-              aria-invalid={hasErrors}
               className={cn(
                 // Shadow-as-border to match the other inputs (border-0 + elevation-sm); hard
                 // border only in dark mode, like input.tsx.
@@ -68,7 +65,13 @@ const MatrixField = ({ element, form }: FieldRendererProps<"Matrix">) => {
               )}
             >
               {/* Horizontal scroll so narrow embeds/popups don't overlap headers. */}
-              <div className="overflow-x-auto">
+              {/* role=grid lives here so rows stay direct children of the grid. */}
+              <div
+                role="grid"
+                aria-labelledby={getAriaLabelledBy(element)}
+                aria-invalid={hasErrors}
+                className="overflow-x-auto"
+              >
                 {/* Column headers */}
                 <div
                   role="row"

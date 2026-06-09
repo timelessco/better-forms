@@ -324,7 +324,10 @@ export const useStepPreviewForm = ({
     // Clear an auto-fill when its condition stops matching — but only if the field still holds
     // the value we forced. If the respondent has since edited it, keep their correction.
     for (const name of Object.keys(prev)) {
-      if (!(name in next) && onThisStep(name) && form.getFieldValue(name) === prev[name]) {
+      // normalize current value to a string, mirroring the engine's asString (arrays join, nullish → "")
+      const cur = form.getFieldValue(name);
+      const curStr = Array.isArray(cur) ? cur.join(", ") : cur == null ? "" : String(cur);
+      if (!(name in next) && onThisStep(name) && curStr === prev[name]) {
         form.setFieldValue(name, "");
       }
     }
@@ -340,7 +343,10 @@ export const useStepPreviewForm = ({
     if (target === focusedFieldRef.current) return;
     focusedFieldRef.current = target;
     if (!target || !fields.some((f) => f.name === target)) return; // not on this step
-    const el = document.querySelector<HTMLElement>(`#${formName} [name="${target}"]`);
+    // escape interpolated values — names with quotes/special chars would otherwise throw SyntaxError
+    const el = document.querySelector<HTMLElement>(
+      `#${CSS.escape(formName)} [name="${CSS.escape(target)}"]`,
+    );
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
     el?.focus();
   }, [evaluation, fields, formName]);
