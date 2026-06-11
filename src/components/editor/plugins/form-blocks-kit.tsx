@@ -13,7 +13,6 @@ import { FormLinearScaleElement } from "@/components/ui/form-linear-scale-node";
 import { FormMatrixElement } from "@/components/ui/form-matrix-node";
 import { FormRatingElement } from "@/components/ui/form-rating-node";
 import { FormSignatureElement } from "@/components/ui/form-signature-node";
-import { FormMultiSelectInputElement } from "@/components/ui/form-multi-select-input-node";
 import { FormOptionItemElement } from "@/components/ui/form-option-item-node";
 import {
   findNextNonButtonPath,
@@ -32,7 +31,6 @@ const FORM_FIELD_TYPES = new Set([
   "formDate",
   "formTime",
   "formFileUpload",
-  "formMultiSelectInput",
   "formOptionItem",
   "formLinearScale",
   "formRating",
@@ -47,7 +45,6 @@ const PROTECTED_BUTTON_TYPES = new Set(["formButton"]);
 
 const VOID_FORM_INPUT_TYPES = new Set([
   "formFileUpload",
-  "formMultiSelectInput",
   "formLinearScale",
   "formRating",
   "formMatrix",
@@ -73,7 +70,6 @@ const NON_EDITABLE_BLOCK_TYPES = new Set([
   "pageBreak",
   "formHeader",
   "formFileUpload",
-  "formMultiSelectInput",
   "formLinearScale",
   "formRating",
   "formMatrix",
@@ -952,19 +948,6 @@ export const FormOptionItemPlugin = createPlatePlugin({
   },
 }));
 
-export const FormMultiSelectInputPlugin = createPlatePlugin({
-  key: "formMultiSelectInput",
-  node: {
-    isElement: true,
-    isVoid: true,
-    component: FormMultiSelectInputElement,
-  },
-  options: { gutterPosition: "center" },
-  handlers: {
-    onKeyDown: ({ editor, event }) => handleBackspace(editor, event),
-  },
-});
-
 // Global Tab/Shift+Tab nav (skips buttons, page-breaks, header) + Enter-on-form-field (inserts paragraph, doesn't split label; formOptionItem handled by its own insertBreak).
 const NavigationPlugin = createPlatePlugin({
   key: "navigation",
@@ -1055,7 +1038,6 @@ export const FormBlocksKit = [
   FormMatrixPlugin,
   FormSignaturePlugin,
   FormOptionItemPlugin,
-  FormMultiSelectInputPlugin,
   PageBreakPlugin,
   LogicBlockPlugin,
 ];

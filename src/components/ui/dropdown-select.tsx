@@ -78,7 +78,8 @@ export const DropdownSelect = ({
             aria-labelledby={ariaLabelledBy}
             aria-invalid={ariaInvalid}
             className={cn(
-              "flex min-h-[30px] w-full cursor-pointer items-center gap-1 rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-2 py-1 text-left text-sm elevation-sm outline-none focus-visible:bg-accent",
+              // Figma input-select (25632:9327): 30px gray/50 pill, 10px inline padding, 16px chevron.
+              "flex min-h-[30px] w-full cursor-pointer items-center gap-1 rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-2.5 py-1 text-left text-sm elevation-sm outline-none focus-visible:bg-accent",
               className,
             )}
           >
@@ -87,7 +88,7 @@ export const DropdownSelect = ({
             </span>
             <ChevronDownIcon
               className={cn(
-                "size-3 shrink-0 text-muted-foreground transition-transform",
+                "size-4 shrink-0 text-muted-foreground transition-transform",
                 open && "rotate-180",
               )}
             />

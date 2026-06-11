@@ -289,7 +289,6 @@ export const generateZodSchemaFromFields = (
         break;
       }
       case "Checkbox":
-      case "MultiSelect":
         if (field.required) {
           fieldSchema = v.pipe(
             v.array(v.string()),
@@ -301,7 +300,6 @@ export const generateZodSchemaFromFields = (
         }
         break;
       case "MultiChoice":
-      case "Dropdown":
       // Linear scale stores the picked number as a string (one value), like single-select.
       case "LinearScale":
         if (field.required) {
@@ -430,18 +428,13 @@ export const generateDefaultValuesFromFields = (
       defaults[field.name] = Array.from({ length: rows }, () => seed);
       continue;
     }
-    if (
-      field.fieldType === "Checkbox" ||
-      field.fieldType === "MultiSelect" ||
-      field.fieldType === "Ranking"
-    ) {
+    if (field.fieldType === "Checkbox" || field.fieldType === "Ranking") {
       defaults[field.name] = [];
     } else if (field.fieldType === "Matrix") {
       // Row→column(s) record; seeded empty so required validation flags unanswered rows.
       defaults[field.name] = {};
     } else if (
       field.fieldType === "MultiChoice" ||
-      field.fieldType === "Dropdown" ||
       field.fieldType === "LinearScale" ||
       field.fieldType === "Rating"
     ) {

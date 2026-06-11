@@ -6,6 +6,7 @@ import type {
   ThousandsSeparator,
 } from "@/lib/form-schema/number-format";
 import { extractFileUploadFields } from "@/lib/form-schema/file-upload-types";
+import { normalizeOptionNodes } from "@/lib/editor/normalize-option-nodes";
 import {
   ALLOWED_LABEL_TYPES,
   FORM_INPUT_NODE_TYPES,
@@ -102,8 +103,8 @@ export type PlateFormField =
       placeholder?: string;
       required?: boolean;
       isFieldArray?: boolean;
-      /** ISO country code seeding the input's country; unset ⇒ auto-detect from locale. */
-      defaultCountryCode?: string;
+      /** ISO codes whitelisted in the country dropdown; unset/empty ⇒ all countries, auto-detected. */
+      allowedCountries?: string[];
       /** Initial row count when `isFieldArray` is on — used by the editor and
        * by `generateDefaultValuesFromFields` to seed that many empty rows. */
       initialRows?: number;
@@ -194,6 +195,12 @@ export type PlateFormField =
       options: { value: string; label: string; image?: string }[];
       /** Leading marker style for the option group (Labels submenu). Default: native control. */
       optionLabel?: OptionLabelStyle;
+      /** Render as a multi-select dropdown instead of a checkbox list. */
+      showAsDropdown?: boolean;
+      /** Render options as a picture-choice grid of cover-cropped image tiles. */
+      showImage?: boolean;
+      /** Randomize option order in the live form. */
+      shuffle?: boolean;
     }
   | {
       id: string;
@@ -205,15 +212,12 @@ export type PlateFormField =
       options: { value: string; label: string; image?: string }[];
       /** Leading marker style for the option group (Labels submenu). Default: letters. */
       optionLabel?: OptionLabelStyle;
-    }
-  | {
-      id: string;
-      name: string;
-      fieldType: "MultiSelect";
-      label?: string;
-      labelType?: string;
-      required?: boolean;
-      options: { value: string; label: string }[];
+      /** Render as a single-select dropdown instead of a radio list. */
+      showAsDropdown?: boolean;
+      /** Render options as a picture-choice grid of cover-cropped image tiles. */
+      showImage?: boolean;
+      /** Randomize option order in the live form. */
+      shuffle?: boolean;
     }
   | {
       id: string;
@@ -223,16 +227,7 @@ export type PlateFormField =
       labelType?: string;
       required?: boolean;
       options: { value: string; label: string }[];
-    }
-  | {
-      id: string;
-      name: string;
-      fieldType: "Dropdown";
-      label?: string;
-      labelType?: string;
-      required?: boolean;
-      options: { value: string; label: string }[];
-      /** Randomize option order in the live form. */
+      /** Randomize initial option order in the live form. */
       shuffle?: boolean;
     }
   | {
@@ -486,12 +481,15 @@ const extractTableRows = (node: PlateNode): { cells: string[]; isHeader: boolean
  * value[i-1] as label; label nodes (formLabel/h1-3/p/blockquote) peek value[i+1] and
  * yield to a following input.
  * - form inputs + preceding label → typed fields
- * - formMultiSelectInput + label → MultiSelect; formOptionItem runs + label → Checkbox/etc.
+ * - formOptionItem runs + label → Checkbox/MultiChoice/Ranking
  * - h1-3 → headings; hr → Separator; p/blockquote → Description (unless consumed as labels)
- * @param value - Plate editor content array
+ * @param rawValue - Plate editor content array
  * @returns Array of elements for form rendering
  */
-export const transformPlateStateToFormElements = (value: Value): TransformedElement[] => {
+export const transformPlateStateToFormElements = (rawValue: Value): TransformedElement[] => {
+  // Published forms read stored content directly (no editor migration pass) — normalize legacy
+  // dropdown/multi-select shapes here too.
+  const value = normalizeOptionNodes(rawValue);
   const elements: TransformedElement[] = [];
   let fieldIndex = 0;
 
@@ -576,9 +574,9 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
         nodeType === "formLinearScale" ? extractLinearScaleFields(node) : {};
       const ratingFields = nodeType === "formRating" ? extractRatingFields(node) : {};
       const verifyEmail = nodeType === "formEmail" && node.verifyEmail === true ? true : undefined;
-      const defaultCountryCode =
-        nodeType === "formPhone" && typeof node.defaultCountryCode === "string"
-          ? node.defaultCountryCode || undefined
+      const allowedCountries =
+        nodeType === "formPhone" && Array.isArray(node.allowedCountries)
+          ? (node.allowedCountries.filter((c) => typeof c === "string") as string[])
           : undefined;
       const use24Hour = nodeType === "formTime" && node.use24Hour === true ? true : undefined;
 
@@ -599,38 +597,8 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
         ...linearScaleFields,
         ...ratingFields,
         ...(verifyEmail ? { verifyEmail } : {}),
-        ...(defaultCountryCode ? { defaultCountryCode } : {}),
+        ...(allowedCountries?.length ? { allowedCountries } : {}),
         ...(use24Hour ? { use24Hour } : {}),
-      } as PlateFormField);
-      fieldIndex++;
-      i++;
-      continue;
-    }
-
-    if (nodeType === "formMultiSelectInput") {
-      const label = lookBackForLabel(i);
-      const labelText = label?.labelText ?? "";
-      const labelNode = label?.labelNode ?? null;
-      const isRequired = resolveRequired(node as Record<string, unknown>, labelNode);
-
-      const rawOptions = (node.options as string[]) ?? [];
-      const options = rawOptions.map((opt, idx) => ({
-        value: slugify(opt) || `option_${idx + 1}`,
-        label: opt || `Option ${idx + 1}`,
-      }));
-
-      const stableId =
-        (label?.labelNode as { id?: string } | undefined)?.id ?? (node as { id?: string }).id;
-      const baseName = slugify(labelText);
-      const name = stableId || `${baseName}_${fieldIndex}`;
-
-      elements.push({
-        id: name,
-        name,
-        fieldType: "MultiSelect",
-        label: labelText || undefined,
-        required: isRequired,
-        options,
       } as PlateFormField);
       fieldIndex++;
       i++;
@@ -691,13 +659,16 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
       const name = stableId || `${baseName}_${fieldIndex}`;
 
       const fieldType = VARIANT_TO_FIELD_TYPE[variant] || "Checkbox";
-      // `shuffle` lives on the group's first option node; only Dropdown reads it today.
-      const shuffle = fieldType === "Dropdown" ? Boolean(node.shuffle) : undefined;
-      // `optionLabel` (Labels submenu) also lives on the first option node; Checkbox/MultiChoice render it.
-      const optionLabel =
-        fieldType === "Checkbox" || fieldType === "MultiChoice"
-          ? (node.optionLabel as OptionLabelStyle | undefined)
-          : undefined;
+      // Group flags live on the first option node: showAsDropdown (display mode), randomizeOrder
+      // (Shuffle toggle), optionLabel (Labels submenu); Checkbox/MultiChoice read them.
+      const isChoiceGroup = fieldType === "Checkbox" || fieldType === "MultiChoice";
+      const showAsDropdown = isChoiceGroup && node.showAsDropdown === true;
+      const showImage = isChoiceGroup && node.showImage === true;
+      // Shuffle applies to every option-group kind, Ranking included.
+      const shuffle = node.randomizeOrder === true;
+      const optionLabel = isChoiceGroup
+        ? (node.optionLabel as OptionLabelStyle | undefined)
+        : undefined;
 
       elements.push({
         id: name,
@@ -706,7 +677,9 @@ export const transformPlateStateToFormElements = (value: Value): TransformedElem
         label: labelText || undefined,
         required: isRequired,
         options,
-        ...(shuffle !== undefined ? { shuffle } : {}),
+        ...(shuffle ? { shuffle } : {}),
+        ...(showAsDropdown ? { showAsDropdown } : {}),
+        ...(showImage ? { showImage } : {}),
         ...(optionLabel ? { optionLabel } : {}),
       } as PlateFormField);
       fieldIndex++;

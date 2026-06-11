@@ -9,7 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Loader2Icon, MoreHorizontalIcon, PaletteIcon, PencilIcon } from "@/components/ui/icons";
+import { Loader2Icon, MoreHorizontalIcon, PencilIcon, PlayIcon } from "@/components/ui/icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -170,7 +170,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     isEditRoute,
     hasPublishedVersion,
     hasUnpublishedChanges,
-    canShare,
     workspaceId,
     formId,
     onToggleFavorite: handleToggleFavorite,
@@ -183,7 +182,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
       }
     },
     onToggleVersionHistory: toggleVersionHistory,
-    onToggleShareSidebar: toggleShareSidebar,
+    onToggleCustomizeSidebar: toggleCustomizeSidebar,
     onToggleSettingsSidebar: toggleSettingsSidebar,
     onSetActiveDialog: setActiveDialog,
   });
@@ -197,54 +196,46 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          {/* Share sidebar open: collapse the header to a single "Preview" label (Figma system-flat). */}
-          {isShareSidebarOpen ? (
-            <span className="p-1 text-[14px] font-medium tracking-[0.14px] text-gray-800">
-              Preview
-            </span>
-          ) : (
-            <>
-              {isLandingPage && <LogoToggle static className="-ml-1" />}
-              {/* Logo doubles as the sidebar trigger on mobile (always visible)
-                  and on desktop when the sidebar is collapsed. The primary open
-                  gesture on mobile is a rightward swipe from anywhere on the
-                  page; this is the discoverability safety net. */}
-              {!isLandingPage && (state === "collapsed" || isMobile) && (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <LogoToggle
-                        direction="right"
-                        onClick={() => toggleMainSidebar()}
-                        className="-ml-1"
-                      />
-                    }
+          {isLandingPage && <LogoToggle static className="-ml-1" />}
+          {/* Logo doubles as the sidebar trigger on mobile (always visible)
+              and on desktop when the sidebar is collapsed. The primary open
+              gesture on mobile is a rightward swipe from anywhere on the
+              page; this is the discoverability safety net. */}
+          {!isLandingPage && (state === "collapsed" || isMobile) && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <LogoToggle
+                    direction="right"
+                    onClick={() => toggleMainSidebar()}
+                    className="-ml-1"
                   />
-                  <TooltipContent side="right">
-                    <p>{isMobile ? "Open sidebar" : "Expand sidebar"}</p>
-                    {!isMobile && (
-                      <p className="text-xs text-muted-foreground">
-                        {formatForDisplay(HOTKEYS.DISMISS_SIDEBARS)}
-                      </p>
-                    )}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              {isFormBuilder && savedDocs?.[0] && (
-                <HeaderBreadcrumb
-                  workspace={workspace}
-                  savedDoc={savedDocs[0]}
-                  workspaceId={workspaceId}
-                  formId={formId}
-                  isEditRoute={isEditRoute}
-                />
-              )}
-            </>
+                }
+              />
+              <TooltipContent side="right">
+                <p>{isMobile ? "Open sidebar" : "Expand sidebar"}</p>
+                {!isMobile && (
+                  <p className="text-xs text-muted-foreground">
+                    {formatForDisplay(HOTKEYS.DISMISS_SIDEBARS)}
+                  </p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {isFormBuilder && savedDocs?.[0] && (
+            <HeaderBreadcrumb
+              workspace={workspace}
+              savedDoc={savedDocs[0]}
+              workspaceId={workspaceId}
+              formId={formId}
+              isEditRoute={isEditRoute}
+            />
           )}
         </div>
 
-        {/* Right-side actions are hidden while the Share sidebar is open. */}
-        <div className={cn("flex shrink-0 items-center gap-1", isShareSidebarOpen && "hidden")}>
+        {/* Header stays constant — preview now lives in its own full-page drawer, so the
+            Share sidebar no longer collapses it to a "Preview" label or hides actions. */}
+        <div className="flex shrink-0 items-center gap-1">
           {isDashboard && (
             <Button
               variant="ghost"
@@ -262,7 +253,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
           {isLandingPage && (
             <LandingPageActions
               previewMode={previewMode}
-              activeSidebar={activeSidebar}
               activeMenu={activeMenu}
               onTogglePreview={togglePreview}
               onToggleEditorSidebar={toggleEditorSidebar}
@@ -280,17 +270,15 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                 isPublishing,
                 previewMode,
                 canShare,
-                isShareSidebarOpen,
                 isLoadingSavedDocs,
               }}
-              activeSidebar={activeSidebar}
               activeMenu={activeMenu}
               workspaceId={workspaceId}
               formId={formId}
               savedDocs={savedDocs}
               menuItems={menuItems}
               onTogglePreview={togglePreview}
-              onToggleCustomizeSidebar={toggleCustomizeSidebar}
+              onToggleShareSidebar={toggleShareSidebar}
               onPublish={handlePublish}
               onSetActiveMenu={setActiveMenu}
             />
@@ -428,39 +416,36 @@ interface BuildFormBuilderMenuItemsOptions {
   isEditRoute: boolean;
   hasPublishedVersion: boolean;
   hasUnpublishedChanges: boolean;
-  canShare: boolean;
   workspaceId: string | undefined;
   formId: string | undefined;
   onToggleFavorite: () => Promise<void> | void;
   onNavigateInsights: () => void;
   onToggleVersionHistory: () => void;
-  onToggleShareSidebar: () => void;
+  onToggleCustomizeSidebar: () => void;
   onToggleSettingsSidebar: () => void;
   onSetActiveDialog: (dialog: ActiveDialog) => void;
 }
 
-// Overflow menu for the form-builder header (the ⋯ button). Customization lives on the
-// dedicated palette button now, so it isn't repeated here. Share/Settings are always
-// listed (no longer mobile-only) since their standalone header buttons were removed.
+// Overflow menu for the form-builder header (the ⋯ button). Customize lives here now
+// (palette button removed); Share moved out to a standalone header text button.
 const buildFormBuilderMenuItems = ({
   isEditRoute,
   hasPublishedVersion,
   hasUnpublishedChanges,
-  canShare,
   onToggleFavorite,
   onNavigateInsights,
   onToggleVersionHistory,
-  onToggleShareSidebar,
+  onToggleCustomizeSidebar,
   onToggleSettingsSidebar,
   onSetActiveDialog,
 }: BuildFormBuilderMenuItemsOptions): MenuItem[] =>
   [
     {
-      key: "share",
-      label: "Share",
-      shortcut: formatForDisplay(HOTKEYS.TOGGLE_SHARE_SIDEBAR),
-      onClick: onToggleShareSidebar,
-      show: canShare,
+      key: "customize",
+      label: "Customize",
+      shortcut: formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR),
+      onClick: onToggleCustomizeSidebar,
+      show: isEditRoute,
     },
     {
       key: "settings",
@@ -580,7 +565,6 @@ const HeaderBreadcrumb = ({
 
 interface LandingPageActionsProps {
   previewMode: boolean;
-  activeSidebar: string | null;
   activeMenu: ActiveMenu;
   onTogglePreview: () => void;
   onToggleEditorSidebar: (id: "about" | "settings" | "customize") => void;
@@ -590,7 +574,6 @@ interface LandingPageActionsProps {
 
 const LandingPageActions = ({
   previewMode,
-  activeSidebar,
   activeMenu,
   onTogglePreview,
   onToggleEditorSidebar,
@@ -598,7 +581,7 @@ const LandingPageActions = ({
   onSignIn,
 }: LandingPageActionsProps) => (
   <>
-    {/* ⋯ overflow menu — houses About + Settings (Figma layout: ⋯ · palette · Preview · Publish) */}
+    {/* ⋯ overflow menu — houses About + Settings + Customize (Figma layout: ⋯ · ▷ · Publish) */}
     <DropdownMenu
       open={activeMenu === "local"}
       onOpenChange={(open) => onSetActiveMenu(open ? "local" : null)}
@@ -625,13 +608,19 @@ const LandingPageActions = ({
             {formatForDisplay(HOTKEYS.TOGGLE_SETTINGS_SIDEBAR)}
           </DropdownMenuShortcut>
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onToggleEditorSidebar("customize")}>
+          <span className="flex-1 text-left">Customize</span>
+          <DropdownMenuShortcut>
+            {formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR)}
+          </DropdownMenuShortcut>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onSignIn}>
           <span className="flex-1 text-left">Sign in</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-    {/* Palette — Customize toggle */}
+    {/* Preview — play icon (Figma system-flat) */}
     <Tooltip>
       <TooltipTrigger
         render={
@@ -640,38 +629,14 @@ const LandingPageActions = ({
             size="sm"
             className={cn(
               "h-7 w-[30px] rounded-lg px-1.5 text-gray-700 hover:text-foreground",
-              activeSidebar === "customize" && "bg-accent/50 text-foreground",
-            )}
-            onClick={() => onToggleEditorSidebar("customize")}
-            aria-label="Customize"
-          />
-        }
-      >
-        <PaletteIcon className="size-[18px] text-gray-700" />
-      </TooltipTrigger>
-      <TooltipContent side="bottom" align="end">
-        <p>Customize</p>
-        <p className="text-xs text-muted-foreground">
-          {formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR)}
-        </p>
-      </TooltipContent>
-    </Tooltip>
-    {/* Preview */}
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "rounded-lg pr-2 pl-2.5 text-[14px] font-medium text-gray-700 hover:text-foreground",
               previewMode && "bg-accent/50 text-foreground",
             )}
             onClick={onTogglePreview}
+            aria-label={previewMode ? "Back to Editor" : "Preview Form"}
           />
         }
       >
-        {previewMode ? "Editor" : "Preview"}
+        <PlayIcon className="size-[18px] text-gray-700" />
       </TooltipTrigger>
       <TooltipContent side="bottom" align="end">
         <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
@@ -703,45 +668,48 @@ interface FormBuilderHeaderActionsFlags {
   isPublishing: boolean;
   previewMode: boolean;
   canShare: boolean;
-  isShareSidebarOpen: boolean;
   isLoadingSavedDocs: boolean;
 }
 
 interface FormBuilderHeaderActionsProps {
   flags: FormBuilderHeaderActionsFlags;
-  activeSidebar: string | null;
   activeMenu: ActiveMenu;
   workspaceId: string | undefined;
   formId: string | undefined;
   savedDocs: ReturnType<typeof useForm>["data"];
   menuItems: MenuItem[];
   onTogglePreview: () => void;
-  onToggleCustomizeSidebar: () => void;
+  onToggleShareSidebar: () => void;
   onPublish: () => Promise<void> | void;
   onSetActiveMenu: (menu: ActiveMenu) => void;
 }
 
 const FormBuilderHeaderActions = ({
   flags,
-  activeSidebar,
   activeMenu,
   workspaceId,
   formId,
   savedDocs,
   menuItems,
   onTogglePreview,
-  onToggleCustomizeSidebar,
+  onToggleShareSidebar,
   onPublish,
   onSetActiveMenu,
 }: FormBuilderHeaderActionsProps) => {
-  const { isEditRoute, hasUnpublishedChanges, isPublishing, previewMode, isLoadingSavedDocs } =
-    flags;
+  const {
+    isEditRoute,
+    hasUnpublishedChanges,
+    isPublishing,
+    previewMode,
+    canShare,
+    isLoadingSavedDocs,
+  } = flags;
   const showPublish = workspaceId && formId;
   const isUnpublished =
     !isLoadingSavedDocs && (hasUnpublishedChanges || savedDocs?.[0]?.status !== "published");
 
-  // Figma logged-in header: ⋯ · palette · Preview · Publish. Share/Settings/Version history/
-  // Discard live in the ⋯ menu; Customize is the palette button.
+  // Figma logged-in header: ⋯ · ▷ (preview) · Share · Publish. Customize/Settings/
+  // Version history/Discard live in the ⋯ menu.
   return (
     <div className="flex items-center gap-1">
       <DropdownMenu
@@ -770,33 +738,6 @@ const FormBuilderHeaderActions = ({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {isEditRoute && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "h-7 w-[30px] rounded-lg px-1.5 text-gray-700 hover:text-foreground",
-                  activeSidebar === "customize" && "bg-accent/50 text-foreground",
-                )}
-                onClick={onToggleCustomizeSidebar}
-                aria-label="Customize"
-              />
-            }
-          >
-            <PaletteIcon className="size-[18px] text-gray-700" />
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            <p>Customize</p>
-            <p className="text-xs text-muted-foreground">
-              {formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR)}
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      )}
-
       {isEditRoute ? (
         <Tooltip>
           <TooltipTrigger
@@ -805,14 +746,15 @@ const FormBuilderHeaderActions = ({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "hidden rounded-lg pr-2 pl-2.5 text-[14px] font-medium text-gray-700 hover:text-foreground md:inline-flex",
+                  "h-7 w-[30px] rounded-lg px-1.5 text-gray-700 hover:text-foreground",
                   previewMode && "bg-accent/50 text-foreground",
                 )}
                 onClick={onTogglePreview}
+                aria-label={previewMode ? "Back to Editor" : "Preview Form"}
               />
             }
           >
-            {previewMode ? "Editor" : "Preview"}
+            <PlayIcon className="size-[18px] text-gray-700" />
           </TooltipTrigger>
           <TooltipContent side="bottom" align="end">
             <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
@@ -848,6 +790,29 @@ const FormBuilderHeaderActions = ({
             </TooltipContent>
           </Tooltip>
         )
+      )}
+
+      {canShare && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hidden rounded-lg px-2 text-[13px] font-medium tracking-[0.13px] text-gray-800 hover:text-foreground md:inline-flex"
+                onClick={onToggleShareSidebar}
+              />
+            }
+          >
+            Share
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="end">
+            <p>Share Form</p>
+            <p className="text-xs text-muted-foreground">
+              {formatForDisplay(HOTKEYS.TOGGLE_SHARE_SIDEBAR)}
+            </p>
+          </TooltipContent>
+        </Tooltip>
       )}
 
       {showPublish && (

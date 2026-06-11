@@ -130,9 +130,9 @@ const PreviewFormHeader = ({
     return null;
   }
 
-  // Full-bleed cover using viewport-width trick (matches editor's form-header-node.tsx)
+  // Full-bleed cover using container-width breakout (matches editor; cqw → nearest data-bf-cover-pane, viewport fallback)
   const coverClass =
-    "relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] h-[120px] sm:h-[200px]";
+    "relative w-[100cqw] left-[50%] right-[50%] -ml-[50cqw] -mr-[50cqw] h-[120px] sm:h-[200px]";
 
   const renderCover = () => {
     if (!cover) return null;

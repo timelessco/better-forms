@@ -1559,6 +1559,47 @@ export const AtSignIcon = createConsistentLucideIcon(LucideAtSign);
 export const HashIcon = createConsistentLucideIcon(LucideHash);
 export const DecimalsArrowRightIcon = createConsistentLucideIcon(LucideDecimalsArrowRight);
 export const PhoneIcon = createConsistentLucideIcon(LucidePhone);
+export const LeftChevronIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    {/* Left chevron from Figma system-flat (node 25408:9024) */}
+    <path
+      transform="translate(10.5 13.5) rotate(180)"
+      d="M0.146446 0.146446C0.341708 -0.0488156 0.658215 -0.0488153 0.853477 0.146446L5.85348 5.14645C6.04874 5.34171 6.04874 5.65822 5.85348 5.85348L0.853477 10.8535C0.658215 11.0487 0.341708 11.0487 0.146446 10.8535C-0.0488154 10.6582 -0.0488154 10.3417 0.146446 10.1464L4.79293 5.49996L0.146446 0.853478C-0.0488154 0.658216 -0.0488154 0.341708 0.146446 0.146446Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+export const PlayIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 18 18"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    {/* Play from Figma system-flat (node 26017:5673) */}
+    <path
+      opacity="0.12"
+      d="M4.75 3.74213C4.75 3.01376 4.75 2.64958 4.90187 2.44882C5.03417 2.27393 5.23639 2.1657 5.4553 2.15263C5.70658 2.13763 6.0096 2.33964 6.61564 2.74367L14.5023 8.00145C15.0031 8.3353 15.2535 8.50222 15.3407 8.71261C15.417 8.89655 15.417 9.10328 15.3407 9.28722C15.2535 9.49761 15.0031 9.66453 14.5023 9.99837L6.61564 15.2562C6.0096 15.6602 5.70658 15.8622 5.4553 15.8472C5.23639 15.8341 5.03417 15.7259 4.90187 15.551C4.75 15.3503 4.75 14.9861 4.75 14.2577V3.74213Z"
+      fill="currentColor"
+    />
+    <path
+      d="M4.75 3.74213C4.75 3.01376 4.75 2.64958 4.90187 2.44882C5.03417 2.27393 5.23639 2.1657 5.4553 2.15263C5.70658 2.13763 6.0096 2.33964 6.61564 2.74367L14.5023 8.00145C15.0031 8.3353 15.2535 8.50222 15.3407 8.71261C15.417 8.89655 15.417 9.10328 15.3407 9.28722C15.2535 9.49761 15.0031 9.66453 14.5023 9.99837L6.61564 15.2562C6.0096 15.6602 5.70658 15.8622 5.4553 15.8472C5.23639 15.8341 5.03417 15.7259 4.90187 15.551C4.75 15.3503 4.75 14.9861 4.75 14.2577V3.74213Z"
+      stroke="currentColor"
+      strokeWidth="var(--stroke-width)"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
 export const SquareCheckIcon = createConsistentLucideIcon(LucideSquareCheck);
 export const CheckCheckIcon = createConsistentLucideIcon(LucideCheckCheck);
 export const ChevronsUpDownIcon = createConsistentLucideIcon(LucideChevronsUpDown);

@@ -5,7 +5,6 @@ import {
   CodeXmlIcon,
   InfoIcon,
   LinkIcon,
-  PencilIcon,
   PlusIcon,
   RocketIcon,
   XIcon,
@@ -42,6 +41,7 @@ import {
 import { IconPickerContent, IconPickerPreview } from "@/components/icon-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { isValidUrl } from "@/lib/utils";
+import { startScopedViewTransition } from "@/lib/view-transition";
 import { EmbedCodeDialog, searchToFormValues, formValuesToSearch, tabs } from "./embed-section";
 import { EmbedPreviewMockup } from "./embed-preview-mockup";
 import type { FormSettings as FormSettingsType, PresentationMode } from "@/types/form-settings";
@@ -312,6 +312,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
                       activeSlug={activeSlug}
                       handleDomainAssigned={handleDomainAssigned}
                       selectedDomainName={selectedDomainName}
+                      customization={doc.customization as Record<string, string> | null}
                     />
                   );
                 }
@@ -355,6 +356,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
                     activeSlug={activeSlug}
                     handleDomainAssigned={handleDomainAssigned}
                     selectedDomainName={selectedDomainName}
+                    customization={doc.customization as Record<string, string> | null}
                   />
                 );
               }}
@@ -429,12 +431,8 @@ const ShareSidebarHeader = ({ isDraft, form, navigate, closeSidebar }: ShareSide
                   });
                 });
               };
-              if (document.startViewTransition) {
-                // eslint-disable-next-line react-doctor/no-document-start-view-transition -- transition wraps a router navigate + form state flush; React's <ViewTransition> doesn't drive non-component DOM (URL, focus restoration)
-                document.startViewTransition(update);
-              } else {
-                update();
-              }
+              // Scoped: only "preview-content" cross-fades; the app sidebar/header stay static.
+              startScopedViewTransition(update);
             }}
             className="pl-1"
           >
@@ -686,6 +684,7 @@ interface FullPagePreferencesProps {
   activeSlug: string | null | undefined;
   handleDomainAssigned: (domainId: string | null, slug: string | null) => void;
   selectedDomainName: string | undefined;
+  customization?: Record<string, string> | null;
 }
 
 const FullPagePreferences = ({
@@ -704,8 +703,11 @@ const FullPagePreferences = ({
   activeSlug,
   handleDomainAssigned,
   selectedDomainName,
+  customization,
 }: FullPagePreferencesProps) => (
-  <div className="px-4 pt-3">
+  <div className="flex flex-col gap-4 px-4 pt-3">
+    <MemoEmbedPreviewMockup key="fullpage" embedType="fullpage" customization={customization} />
+
     <SidebarSection label="Preferences" collapsible={false} divider={false}>
       <PresentationRows
         docPresentationMode={docPresentationMode}
@@ -743,9 +745,7 @@ const FullPagePreferences = ({
   </div>
 );
 
-interface PopupTabProps extends FullPagePreferencesProps {
-  customization?: Record<string, string> | null;
-}
+type PopupTabProps = FullPagePreferencesProps;
 
 const PopupTab = ({
   form,
@@ -765,7 +765,7 @@ const PopupTab = ({
   selectedDomainName,
   customization,
 }: PopupTabProps) => (
-  <div className="flex flex-col gap-3 px-4 pt-3">
+  <div className="flex flex-col gap-4 px-4 pt-3">
     <form.Subscribe selector={selectValues}>
       {(values: ReturnType<typeof searchToFormValues>) => {
         const options = formFieldsToEmbedOptions(values);
@@ -897,7 +897,7 @@ const PopupTab = ({
   </div>
 );
 
-// Embed (standard iframe) tab — no preview; Appearance + Preferences flat sections.
+// Embed (standard iframe) tab — inline preview + Appearance + Preferences flat sections.
 const EmbedTab = ({
   form,
   docPresentationMode,
@@ -914,8 +914,20 @@ const EmbedTab = ({
   activeSlug,
   handleDomainAssigned,
   selectedDomainName,
+  customization,
 }: FullPagePreferencesProps) => (
-  <div className="px-4 pt-3">
+  <div className="flex flex-col gap-4 px-4 pt-3">
+    <form.Subscribe selector={selectValues}>
+      {(values: ReturnType<typeof searchToFormValues>) => (
+        <MemoEmbedPreviewMockup
+          key="standard"
+          embedType="standard"
+          alignLeft={formFieldsToEmbedOptions(values).display.alignment === "left"}
+          customization={customization}
+        />
+      )}
+    </form.Subscribe>
+
     <SidebarSection label="Preferences" collapsible={false}>
       <PresentationRows
         docPresentationMode={docPresentationMode}
@@ -1077,10 +1089,7 @@ const CustomDomainRow = ({
       <div className="flex min-w-0 flex-1 justify-end">
         <FeatureGate requiredPlan="pro">
           <Select value={customDomainId ?? ""} onValueChange={handleValueChange} disabled={!orgId}>
-            <SelectTrigger
-              icon={<PencilIcon className="size-4 text-muted-foreground" />}
-              className="h-7 max-w-full gap-1.5 border-none bg-transparent px-0 py-0 text-[14px] font-medium text-foreground shadow-none"
-            >
+            <SelectTrigger className="h-7 max-w-full gap-1.5 border-none bg-transparent px-0 py-0 text-[14px] font-medium text-foreground shadow-none">
               <span className="truncate">{displayUrl ?? "Add domain"}</span>
             </SelectTrigger>
             <SelectContent align="end" alignItemWithTrigger={false}>

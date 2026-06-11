@@ -82,13 +82,15 @@ const getTargetStyle = (
 ) => {
   switch (embedType) {
     case "standard": {
-      const w = alignLeft ? cw * 0.65 : cw - 16;
+      // Embedded iframe: a narrow, tall form panel inset on the left edge of the host page; the
+      // page's own copy flows full-width above and below it (see Figma 26068-6831). alignLeft keeps
+      // it pinned left; otherwise nudge it slightly in from the edge.
       return {
-        left: PAD + 8,
-        top: PAD + (ch - 64) / 2,
-        width: w,
-        height: 64,
-        borderRadius: 12,
+        left: PAD + (alignLeft ? 0 : 6),
+        top: PAD + ch * 0.2,
+        width: cw * 0.3,
+        height: ch * 0.58,
+        borderRadius: 8,
       };
     }
     case "fullpage":
@@ -224,6 +226,18 @@ export const EmbedPreviewMockup = ({
   const isPopup = embedType === "popup";
   const popupIconDisplay = resolveIconDisplay(emojiIcon);
 
+  // At-rest bubble = icon-picker-preview form-logo style: a bg-card surface chip with a foreground
+  // glyph (themed via bf-themed when customized). Avoids bg-primary, whose glyph is text-primary-
+  // foreground — but `.bf-themed` force-sets `color: --bf-foreground`, so on a #212121 primary the
+  // light-mode glyph collapses to the same color and vanishes. bg-card/foreground always contrast.
+  const atRestBubble = isPopup && !isPopupExpanded;
+  let bubbleSurfaceClass = "bg-input";
+  if (atRestBubble) {
+    bubbleSurfaceClass = hasCustomization
+      ? "bf-themed bg-card text-foreground"
+      : "bg-card text-foreground";
+  }
+
   return (
     <div className="overflow-hidden rounded-[12px] bg-secondary">
       <div className="flex items-center gap-1 px-2.25 pt-2.5 pb-2">
@@ -239,21 +253,21 @@ export const EmbedPreviewMockup = ({
           {embedType === "standard" && (
             <motion.div
               key="standard-bg"
-              className="absolute inset-4 flex flex-col justify-center gap-4 py-2"
+              className="absolute inset-4 flex flex-col justify-between"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={FADE_TRANSITION}
             >
-              <div className="space-y-2 px-2 opacity-30">
-                <div className="h-2 w-1/4 rounded-full bg-input" />
-                <div className="h-1.5 w-full rounded-full bg-input" />
-                <div className="h-1.5 w-4/5 rounded-full bg-input" />
+              {/* Host-page copy above the embed. */}
+              <div className="space-y-1.5">
+                <div className="h-1.5 w-1/4 rounded-full bg-input/70" />
+                <div className="h-1.5 w-[92%] rounded-full bg-input/50" />
               </div>
-              <div className="h-16" />
-              <div className="space-y-2 px-2 opacity-10">
-                <div className="h-1.5 w-full rounded-full bg-input" />
-                <div className="h-1.5 w-11/12 rounded-full bg-input" />
+              {/* Host-page copy below the embed. */}
+              <div className="space-y-1.5">
+                <div className="h-1.5 w-3/4 rounded-full bg-input/50" />
+                <div className="h-1.5 w-[56%] rounded-full bg-input/50" />
               </div>
             </motion.div>
           )}
@@ -293,34 +307,18 @@ export const EmbedPreviewMockup = ({
           <motion.div
             className={cn(
               "absolute z-20 overflow-hidden shadow-[0_2px_10px_rgba(0,0,0,0.04)]",
-              isPopup && !isPopupExpanded ? "bg-primary text-primary-foreground" : "bg-input",
-              isPopup && !isPopupExpanded && hasCustomization && "bf-themed",
+              bubbleSurfaceClass,
             )}
-            style={isPopup && !isPopupExpanded && hasCustomization ? themeVars : undefined}
+            style={atRestBubble && hasCustomization ? themeVars : undefined}
             animate={target}
             transition={transition}
             onAnimationComplete={handleAnimationComplete}
             onMouseEnter={isPopup ? handleMouseEnterMorph : undefined}
             onMouseLeave={isPopup ? handleMouseLeaveMorph : undefined}
           >
-            {embedType === "fullpage" && (
-              <div className="absolute inset-0 flex flex-col">
-                <div className="relative h-1/3 bg-secondary/70">
-                  <div className="absolute -bottom-3 left-3 size-6 rounded-full bg-secondary shadow-[0_1px_3px_rgba(0,0,0,0.12)]" />
-                </div>
-                <div className="flex flex-1 flex-col gap-2 px-3 pt-5 pb-2">
-                  <div className="h-2 w-2/5 rounded-full bg-secondary" />
-                  <div className="mt-1 space-y-1.5">
-                    <div className="h-1.5 w-1/4 rounded-full bg-secondary/80" />
-                    <div className="h-3 w-full rounded-[3px] bg-secondary/60" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="h-1.5 w-1/5 rounded-full bg-secondary/80" />
-                    <div className="h-3 w-full rounded-[3px] bg-secondary/60" />
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Fullpage = the form fills the whole host page: a single solid panel filling the
+                browser viewport (see Figma 26068-6990). No inner chrome — the morph box itself is
+                the panel. */}
 
             {isPopup && isPopupExpanded && (
               <button

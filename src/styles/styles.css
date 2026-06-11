@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+/* Vendored from vaul-base/style.css — its exports map doesn't expose the css, so a package import breaks Vite resolution. */
+@import "./vaul-base.css";
 @import "./inter-v.css";
 @import "./transitions.css";
 
@@ -795,17 +797,25 @@
   padding-right: var(--editor-px);
 }
 
+/* Cover full-bleed measures the PANE, not the viewport: editor/preview panes are narrower
+   than the window (app sidebars, drawer inset), where 100vw misaligns (zoom/scrollbars/pane
+   offsets skew it). cqw resolves against the nearest container — these panes — and falls back
+   to the small viewport width where no container exists (public form = full window). */
+[data-bf-cover-pane] {
+  container-type: inline-size;
+}
+
 .bf-themed [data-bf-cover] {
   height: var(--bf-cover-height);
   /* unset = current square cover; overflow clips img once a radius is set */
   border-radius: var(--bf-cover-radius, 0);
   overflow: hidden;
-  /* Full-bleed by default (var fallbacks reproduce the w-screen breakout). Cover width "fit"
+  /* Full-bleed by default (var fallbacks reproduce the 100cqw breakout). Cover width "fit"
      makes generate-theme-css emit these vars to bleed the cover 28px past the form width on
      each side (into the editor gutter), so a radius rounds corners that are on-screen. */
-  width: var(--bf-cover-w, 100vw);
-  margin-left: var(--bf-cover-mx, -50vw);
-  margin-right: var(--bf-cover-mx, -50vw);
+  width: var(--bf-cover-w, 100cqw);
+  margin-left: var(--bf-cover-mx, -50cqw);
+  margin-right: var(--bf-cover-mx, -50cqw);
   left: var(--bf-cover-x, 50%);
   right: var(--bf-cover-x, 50%);
 }
@@ -1131,6 +1141,25 @@
 ::view-transition-new(preview-content) {
   animation-duration: 200ms;
   animation-timing-function: ease-out;
+}
+
+/* View Transition: version-history enter/switch/exit. Cross-fades the editor surface so the
+   content + spacing swap eases in instead of jumping (see edit.tsx committed snapshot). */
+::view-transition-old(editor-content),
+::view-transition-new(editor-content) {
+  animation-duration: 220ms;
+  animation-timing-function: ease-out;
+}
+
+/* Isolate a localized cross-fade to its named groups only. startScopedViewTransition() (see
+   lib/view-transition.ts) marks :root with .vt-isolate-root for the duration of the transition;
+   this cancels the global root transition (below) so the app sidebar, header and side panels stay
+   static while only the explicitly-named groups (e.g. "editor-content", "preview-content") animate.
+   The theme toggle intentionally skips this class so it still gets the full-page root cross-fade. */
+:root.vt-isolate-root::view-transition-group(root),
+:root.vt-isolate-root::view-transition-old(root),
+:root.vt-isolate-root::view-transition-new(root) {
+  animation: none !important;
 }
 
 /* View Transition: public-form theme toggle. Smooths the light↔dark

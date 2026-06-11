@@ -401,37 +401,6 @@ export const FormMultiChoicePreview = () => (
   </div>
 );
 
-export const FormDropdownPreview = () => (
-  <div className="flex h-[130px] flex-col justify-center px-3">
-    <FormFieldLabel />
-    <div className="flex h-8 items-center gap-1.5 rounded-md border border-input px-2">
-      <span className="flex-1 text-xs text-muted-foreground">Select an option</span>
-      <svg
-        className="size-3 shrink-0 text-muted-foreground"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-        viewBox="0 0 24 24"
-      >
-        <title>Dropdown</title>
-        <path d="m6 9 6 6 6-6" />
-      </svg>
-    </div>
-  </div>
-);
-
-export const FormMultiSelectPreview = () => (
-  <div className="flex h-[130px] flex-col justify-center px-3">
-    <FormFieldLabel />
-    <div className="flex h-8 items-center gap-1.5 rounded-md border border-input px-2">
-      <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">Tag 1</span>
-      <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">Tag 2</span>
-    </div>
-  </div>
-);
-
 export const FormMatrixPreview = () => (
   <div className="flex h-[130px] flex-col justify-center px-3">
     <FormFieldLabel />

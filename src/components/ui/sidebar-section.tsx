@@ -52,7 +52,7 @@ export const SidebarSection = ({
   const resetKey = use(SidebarSectionResetContext);
 
   if (!collapsible) {
-    // Figma rhythm: 16px header→rows, 8px between rows, 16px pad + divider below.
+    // Figma rhythm: 16px header→rows, 6px between rows, 16px pad + divider below.
     return (
       <div className={cn("flex flex-col gap-4 pb-4", divider && "border-b border-border")}>
         <div className="flex min-h-[15px] items-center gap-3">
@@ -60,7 +60,7 @@ export const SidebarSection = ({
           {headerRight}
           {action}
         </div>
-        <div className={cn("flex flex-col gap-2", className)}>{children}</div>
+        <div className={cn("flex flex-col gap-1.5", className)}>{children}</div>
       </div>
     );
   }

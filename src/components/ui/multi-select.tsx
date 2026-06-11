@@ -4,7 +4,7 @@
 import { useState } from "react";
 
 import { getMultiSelectColor } from "@/components/ui/form-option-item-constants";
-import { ChevronDownIcon } from "@/components/ui/icons";
+import { CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFormIsDark, useReanchorThemeProps } from "@/hooks/use-form-theme";
 import { cn } from "@/lib/utils";
@@ -95,7 +95,8 @@ export const MultiSelect = ({
             aria-labelledby={ariaLabelledBy}
             aria-invalid={ariaInvalid}
             className={cn(
-              "flex min-h-[30px] w-full cursor-pointer items-center gap-1 rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-2 py-1 text-sm elevation-sm outline-none focus-visible:bg-accent",
+              // Figma input-select (25632:9327): 30px gray/50 pill, 10px inline padding, 16px chevron.
+              "flex min-h-[30px] w-full cursor-pointer items-center gap-1 rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-2.5 py-1 text-sm elevation-sm outline-none focus-visible:bg-accent",
               className,
             )}
           >
@@ -134,7 +135,7 @@ export const MultiSelect = ({
             </div>
             <ChevronDownIcon
               className={cn(
-                "size-3 shrink-0 text-muted-foreground transition-transform",
+                "size-4 shrink-0 text-muted-foreground transition-transform",
                 open && "rotate-180",
               )}
             />
@@ -144,7 +145,8 @@ export const MultiSelect = ({
       <PopoverContent
         align="start"
         sideOffset={4}
-        className={cn("w-(--anchor-width) p-1", themeReanchor.className)}
+        // Figma dropdown (25632:9452): 8px row gap, elevation-xl, every option as its colored chip.
+        className={cn("w-(--anchor-width) gap-2 p-1 elevation-xl", themeReanchor.className)}
         style={themeReanchor.style}
         onKeyDown={handleOptionsKeyDown}
       >
@@ -157,13 +159,16 @@ export const MultiSelect = ({
               type="button"
               data-mselect-option
               className={cn(
-                // Gray-shade highlight (hover + keyboard focus), no focus ring — uniform with other options.
-                "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none hover:bg-accent focus-visible:bg-accent",
-                isSelected && cn(color.bg, color.text),
+                // Content-hugging colored chip (cell-primitive); checkmark marks selection. No focus
+                // ring — a subtle outline-offset highlight marks keyboard focus instead.
+                "flex h-7 cursor-pointer items-center gap-1.5 self-start rounded-[8px] px-1.5 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                color.bg,
+                color.text,
               )}
               onClick={() => toggleOption(opt.value)}
             >
               <span>{opt.label}</span>
+              {isSelected && <CheckIcon className="size-3.5 shrink-0" />}
             </button>
           );
         })}

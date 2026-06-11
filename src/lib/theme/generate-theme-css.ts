@@ -69,6 +69,19 @@ export const TOKEN_NAMES = [
   "ring",
 ] as const;
 
+/** Tokens a user (or the AI) may override per-mode. Everything else in TOKEN_NAMES is
+ * structural — always derived from the base/accent palette, never overridable. The Advanced
+ * raw-token UI (which exposed the full set) was removed, so only the semantic Colors tokens
+ * stay overridable; stored overrides for any other token are now inert. */
+export const OVERRIDABLE_TOKEN_NAMES = [
+  "background",
+  "foreground",
+  "primary",
+  "destructive",
+  "success",
+  "input",
+] as const;
+
 /** Resolve design tokens from a customization record. Cascade: preset → BASE_COLORS
  * → THEME_COLORS → derive secondary=muted/destructive=const → font+radius → Pro token overrides. */
 const resolveTokens = (customization: Record<string, string>): Record<string, string> => {
@@ -105,9 +118,10 @@ const resolveTokens = (customization: Record<string, string>): Record<string, st
   const spacingValue = SPACING_MAP[spacingName] ?? SPACING_MAP.normal;
   tokens.spacing = spacingValue;
 
-  // Override priority: mode-prefixed key (e.g. "light:primary") > unprefixed legacy key
+  // Override priority: mode-prefixed key (e.g. "light:primary") > unprefixed legacy key.
+  // Only the overridable (semantic) tokens are honored — advanced raw-token overrides are inert.
   const mode = isDark ? "dark" : "light";
-  for (const tokenName of TOKEN_NAMES) {
+  for (const tokenName of OVERRIDABLE_TOKEN_NAMES) {
     const prefixedKey = `${mode}:${tokenName}`;
     if (customization[prefixedKey]) {
       tokens[tokenName] = customization[prefixedKey];
@@ -189,7 +203,9 @@ const buildModeAgnosticEntries = (
   }
 
   // Cover width: "fit" bleeds 28px past the form width on each side (Figma) into the editor
-  // gutter (always >= 64px); "fill"/unset stays full-bleed via the styles.css var() fallbacks.
+  // gutter (always >= 64px). "fill"/unset emits the full-bleed values EXPLICITLY (same as the
+  // styles.css fallbacks) — relying on key absence let stale fit vars survive a fit→fill
+  // switch on some apply paths, leaving the cover form-width with gaps while set to Fill.
   if (customization.coverWidth === "fit") {
     entries.push(
       ["--bf-cover-w", "calc(100% + 56px)"],
@@ -198,6 +214,18 @@ const buildModeAgnosticEntries = (
       // Fit is a clean rounded card (Figma) — suppress the bottom fade/blur dissolve.
       ["--bf-cover-fade", "none"],
       // Fill the card height (crop), not letterbox — overrides any stale coverFit:"contain".
+      ["--bf-cover-fit", "cover"],
+    );
+  } else {
+    // cqw = nearest [data-bf-cover-pane] container (editor/preview pane); falls back to the
+    // small viewport width on the public form where no container exists.
+    entries.push(
+      ["--bf-cover-w", "100cqw"],
+      ["--bf-cover-mx", "-50cqw"],
+      ["--bf-cover-x", "50%"],
+      ["--bf-cover-fade", "block"],
+      // Crop to fill, never letterbox — stale legacy coverFit:"contain" centers the image
+      // inside the full-bleed box, which reads as side gaps while the box itself is full width.
       ["--bf-cover-fit", "cover"],
     );
   }

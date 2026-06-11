@@ -1,8 +1,4 @@
-import {
-  ConfigCard,
-  ConfigRow,
-  selectTriggerFigmaCls,
-} from "@/components/form-builder/embed-config-panel";
+import { ConfigRow, selectTriggerFigmaCls } from "@/components/form-builder/embed-config-panel";
 import { useTheme, useResolvedTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { IconPickerPreview } from "@/components/icon-picker";
@@ -10,8 +6,9 @@ import { ColorPicker } from "@/components/ui/color-picker";
 import { FeatureGate } from "@/components/ui/feature-gate";
 import {
   CaretDownIcon,
+  CornerRadiusIcon,
   DarkModeIcon,
-  InfoIcon,
+  ImageIcon,
   LightModeIcon,
   SelectChevronIcon,
   SystemModeIcon,
@@ -20,69 +17,30 @@ import {
   TextAlignRightIcon,
   XIcon,
 } from "@/components/ui/icons";
+import { CoverPickerContent, LogoPickerContent } from "@/components/ui/form-header-node";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Sidebar, SidebarContent, SidebarHeader } from "@/components/ui/sidebar";
 import { SidebarSection } from "@/components/ui/sidebar-section";
 import { StyleNumberInput } from "@/components/ui/style-controls";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getFormListings } from "@/collections";
 import { localFormCollection } from "@/collections/local/form";
-import { useEditorTheme } from "@/contexts/editor-theme-context";
+import { getHeaderMediaSetter } from "@/lib/editor/header-media-registry";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
-import { useFileUpload } from "@/hooks/use-file-upload";
 import { useForm, useLocalForm } from "@/hooks/use-live-hooks";
 import { FONT_REGISTRY } from "@/lib/theme/font-registry";
-import { TOKEN_NAMES } from "@/lib/theme/generate-theme-css";
+import { OVERRIDABLE_TOKEN_NAMES } from "@/lib/theme/generate-theme-css";
 import { loadGoogleFont } from "@/lib/theme/load-google-font";
-import type { BaseColorMap } from "@/lib/theme/theme-presets";
 import { BASE_COLORS, DARK_BASE_COLORS, STYLES, THEME_COLORS } from "@/lib/theme/theme-presets";
 import { cn, isValidUrl } from "@/lib/utils";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { domMax, LazyMotion, m } from "motion/react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 
 const FONT_OPTIONS = Object.keys(FONT_REGISTRY).map((name) => ({
   label: name,
   value: name,
 }));
-
-const STYLE_OPTIONS: { label: string; value: string }[] = [
-  { label: "Vega", value: "vega" },
-  { label: "Nova", value: "nova" },
-  { label: "Maia", value: "maia" },
-  { label: "Lyra", value: "lyra" },
-  { label: "Mira", value: "mira" },
-];
-
-const THEME_COLOR_OPTIONS: { label: string; value: string }[] = [
-  { label: "Neutral", value: "neutral" },
-  { label: "Zinc", value: "zinc" },
-  { label: "Rose", value: "rose" },
-  { label: "Blue", value: "blue" },
-  { label: "Green", value: "green" },
-  { label: "Amber", value: "amber" },
-  { label: "Orange", value: "orange" },
-  { label: "Violet", value: "violet" },
-  { label: "Emerald", value: "emerald" },
-  { label: "Cyan", value: "cyan" },
-  { label: "Indigo", value: "indigo" },
-  { label: "Pink", value: "pink" },
-  { label: "Red", value: "red" },
-];
-
-const BASE_COLOR_OPTIONS: { label: string; value: string }[] = [
-  { label: "Neutral", value: "neutral" },
-  { label: "Zinc", value: "zinc" },
-  { label: "Slate", value: "slate" },
-  { label: "Stone", value: "stone" },
-  { label: "Gray", value: "gray" },
-];
-
-const RADIUS_OPTIONS: { label: string; value: string }[] = [
-  { label: "None", value: "none" },
-  { label: "Small", value: "small" },
-  { label: "Medium", value: "medium" },
-  { label: "Large", value: "large" },
-];
 
 // Cover box width: Fill = full-bleed (edge to edge), Fit = contained to the form width.
 const COVER_WIDTH_OPTIONS: { label: string; value: string }[] = [
@@ -111,46 +69,35 @@ const SEMANTIC_COLOR_TOKENS = [
   { key: "success", label: "Success" },
 ] as const;
 
-// Full token set for the Advanced disclosure (power users).
-const ADVANCED_COLOR_TOKENS = [
-  { key: "primary", label: "Primary" },
-  { key: "primary-foreground", label: "Primary FG" },
-  { key: "secondary", label: "Secondary" },
-  { key: "secondary-foreground", label: "Secondary FG" },
-  { key: "accent", label: "Accent" },
-  { key: "accent-foreground", label: "Accent FG" },
-  { key: "background", label: "Background" },
-  { key: "foreground", label: "Foreground" },
-  { key: "destructive", label: "Destructive" },
-  { key: "destructive-foreground", label: "Destructive FG" },
-  { key: "success", label: "Success" },
-  { key: "input", label: "Input" },
-  { key: "border", label: "Border" },
-  { key: "muted", label: "Muted" },
-  { key: "muted-foreground", label: "Muted FG" },
-  { key: "ring", label: "Ring" },
-] as const;
-
 // Borderless compact trigger for header-right scope/mode selects (Figma Title/Light).
 const scopeTriggerCls =
   "h-auto gap-1 border-none bg-transparent p-0 text-[13px] font-normal text-foreground shadow-none data-[size=default]:h-auto [&>svg]:size-3.5";
 
 const CONFIG_INPUT_CLS = "!rounded-none !border-0 bg-background !h-7";
 
+// Radius (dot) variant: on hover the whole row gets a rounded-lg grey tile (nav-item style, Figma
+// 25441-4851), gray-300 with var(--radius) corners. Tile spans the full row (inset 0) so the label
+// and value stay FLUSH — aligned with every other row. overflow-visible lets the rounded corners
+// show past the square (rounded-none) track instead of being clipped.
+const RADIUS_INPUT_CLS = cn(
+  CONFIG_INPUT_CLS,
+  "overflow-visible [--elastic-slider-tile-bg:var(--color-gray-300)] [--elastic-slider-tile-radius:var(--radius)]",
+);
+
 // Plain flush numeric row (bare scrubber) so values align with ConfigRow/ColorPicker rows.
 const NumberRow = (props: React.ComponentProps<typeof StyleNumberInput>) => (
   <StyleNumberInput bare {...props} />
 );
 
-const ColorSwatch = ({ color }: { color?: string }) => {
-  if (!color) return null;
-  return (
-    <div
-      className="size-3 shrink-0 rounded-full border border-border/60"
-      style={{ backgroundColor: color }}
-    />
-  );
-};
+// Figma radius variant (nodes 25441-4674 / 4850, 25446-4875): dot hash marks + a corner-radius
+// glyph in the value slot instead of the number. Stroke width is set explicitly since the icon
+// reads it from --stroke-width; muted color so it stays a quiet affordance, not active text.
+const RADIUS_END_ICON = (
+  <CornerRadiusIcon
+    className="size-4 text-muted-foreground"
+    style={{ "--stroke-width": "1.5" } as React.CSSProperties}
+  />
+);
 
 const ProBadge = () => (
   <div className="rounded-[4px] bg-teal-100 px-1.5 py-px text-[9px] font-bold tracking-wider text-teal-700 uppercase shadow-sm dark:bg-teal-700/20 dark:text-teal-400">
@@ -158,7 +105,9 @@ const ProBadge = () => (
   </div>
 );
 
-/** Figma segmented pill toggle (Theme sun/moon/monitor, Alignment L/C/R). */
+/** Figma segmented pill toggle (Theme sun/moon/monitor, Alignment L/C/R). The value follows the
+ * pointer as it slides across segments (hover applies, no click needed); the highlight pill
+ * glides between segments via a shared layoutId. Click stays for touch/keyboard. */
 const PillToggle = ({
   value,
   onChange,
@@ -167,30 +116,44 @@ const PillToggle = ({
   value: string;
   onChange: (value: string) => void;
   options: { value: string; label: string; icon: React.ReactNode }[];
-}) => (
-  <div className="flex w-[141px] items-center gap-1.5 rounded-lg bg-muted p-px">
-    {options.map((o) => {
-      const active = value === o.value;
-      return (
-        <button
-          key={o.value}
-          type="button"
-          aria-label={o.label}
-          aria-pressed={active}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            "flex flex-1 items-center justify-center rounded-md py-1 transition-colors",
-            active
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {o.icon}
-        </button>
-      );
-    })}
-  </div>
-);
+}) => {
+  const pillId = useId();
+  return (
+    <LazyMotion features={domMax} strict>
+      <div className="flex w-[141px] items-center gap-1.5 rounded-lg bg-muted p-px">
+        {options.map((o) => {
+          const active = value === o.value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              aria-label={o.label}
+              aria-pressed={active}
+              onClick={() => onChange(o.value)}
+              onPointerEnter={(e) => {
+                if (e.pointerType === "mouse" && !active) onChange(o.value);
+              }}
+              className={cn(
+                "relative flex flex-1 items-center justify-center rounded-md py-1 transition-colors",
+                active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {active && (
+                <m.span
+                  aria-hidden
+                  layoutId={`${pillId}-pill`}
+                  className="absolute inset-0 rounded-md bg-background shadow-sm"
+                  transition={{ type: "spring", duration: 0.25, bounce: 0 }}
+                />
+              )}
+              <span className="relative">{o.icon}</span>
+            </button>
+          );
+        })}
+      </div>
+    </LazyMotion>
+  );
+};
 
 /** Header-right scope/mode select (Figma "Title ⌄" / "Light ⌄"). */
 const ScopeSelect = ({
@@ -223,7 +186,6 @@ interface CustomizeSidebarProps {
 
 export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => {
   const { closeSidebar } = useEditorSidebar();
-  const { updateHeaderMedia } = useEditorTheme();
   const { setTheme } = useTheme();
   const cloudForm = useForm(isLocal ? undefined : formId);
   const localFormResult = useLocalForm(isLocal ? formId : undefined);
@@ -237,9 +199,40 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
     [formDoc?.customization],
   );
 
-  // Cover/logo images live on the Plate header node (not customization) — read-only here.
-  const coverImage = (formDoc as { cover?: string | null } | null)?.cover ?? null;
-  const logoImage = (formDoc as { icon?: string | null } | null)?.icon ?? null;
+  // Cover/logo live on the Plate header node — the editor's source of truth. Read them straight
+  // from the live `content` (formHeader at index 0) instead of the top-level columns, which can
+  // drift out of sync (a legacy node with no cover key never writes a null back to the column).
+  const headerNode = useMemo(() => {
+    const content = (formDoc as { content?: unknown } | null)?.content;
+    if (Array.isArray(content) && content[0]?.type === "formHeader") {
+      return content[0] as {
+        cover?: string | null;
+        icon?: string | null;
+        iconColor?: string | null;
+      };
+    }
+    return null;
+  }, [formDoc]);
+  const coverImage = headerNode?.cover ?? null;
+  const logoImage = headerNode?.icon ?? null;
+  const logoColor = headerNode?.iconColor ?? null;
+
+  // Header cover/logo edits push to the editable editor's Plate node (live setter, registered by
+  // formId) AND mirror cover/icon to the top-level columns, keeping the public-form/preload paths
+  // in sync. iconColor lives only on the node (no column) so it flows through the setter alone.
+  const formDocId = formDoc?.id;
+  const updateHeaderMedia = useCallback(
+    (field: "icon" | "cover" | "iconColor", value: string | null) => {
+      getHeaderMediaSetter(formId)?.(field, value);
+      if (formDocId && field !== "iconColor") {
+        collection.update(formDocId, (draft) => {
+          (draft as Record<string, unknown>)[field] = value;
+          draft.updatedAt = new Date().toISOString();
+        });
+      }
+    },
+    [formId, formDocId, collection],
+  );
 
   const resolvedStyle = useMemo(() => {
     const presetName = customization.preset || "vega";
@@ -284,32 +277,6 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
     [formDoc?.id, collection],
   );
 
-  const selectStyle = useCallback(
-    (styleName: string) => {
-      const style = STYLES[styleName];
-      if (!style) return;
-
-      const updates: Record<string, string> = {
-        preset: styleName,
-        radius: style.radius,
-        spacing: style.spacing,
-        baseColor: style.baseColor,
-        themeColor: style.themeColor,
-        font: style.font,
-      };
-
-      // Clear all color token overrides so preset base/theme colors take effect
-      for (const tokenName of TOKEN_NAMES) {
-        updates[tokenName] = "";
-        updates[`light:${tokenName}`] = "";
-        updates[`dark:${tokenName}`] = "";
-      }
-
-      updateFields(updates);
-    },
-    [updateFields],
-  );
-
   const updateWithCustomPreset = useCallback(
     (field: string, value: string) => {
       updateFields({ [field]: value, preset: "custom" });
@@ -339,7 +306,7 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
       const updates: Record<string, string> = {};
 
       // One-time migration: move unprefixed overrides to source mode's prefix
-      for (const tokenName of TOKEN_NAMES) {
+      for (const tokenName of OVERRIDABLE_TOKEN_NAMES) {
         const unprefixed = customization[tokenName];
         if (unprefixed && !customization[`${sourceMode}:${tokenName}`]) {
           updates[`${sourceMode}:${tokenName}`] = unprefixed;
@@ -356,44 +323,11 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
     [updateFields, customization, setTheme],
   );
 
-  const activePreset = customization.preset || "vega";
   const activeMode = resolvedAppTheme;
-  const activeThemeColor = getValue("themeColor");
-  const activeBaseColors = activeMode === "dark" ? DARK_BASE_COLORS : BASE_COLORS;
-  const activeBaseColor = getValue("baseColor");
   const activeFont = getValue("font");
-  const activeRadius = getValue("radius");
 
   const cssKey = `${activeMode}:customCss`;
   const cssValue = customization[cssKey] || customization.customCss || "";
-
-  const clearColorTokenOverrides = useCallback((updates: Record<string, string | null>) => {
-    for (const tokenName of TOKEN_NAMES) {
-      updates[tokenName] = null;
-      updates[`light:${tokenName}`] = null;
-      updates[`dark:${tokenName}`] = null;
-    }
-  }, []);
-
-  const handleThemeColorChange = useCallback(
-    (v: string) => {
-      if (!v) return;
-      const updates: Record<string, string | null> = { themeColor: v, preset: "custom" };
-      clearColorTokenOverrides(updates);
-      updateFields(updates);
-    },
-    [updateFields, clearColorTokenOverrides],
-  );
-
-  const handleBaseColorChange = useCallback(
-    (v: string) => {
-      if (!v) return;
-      const updates: Record<string, string | null> = { baseColor: v, preset: "custom" };
-      clearColorTokenOverrides(updates);
-      updateFields(updates);
-    },
-    [updateFields, clearColorTokenOverrides],
-  );
 
   const handleFontChange = useCallback(
     (v: string) => {
@@ -436,6 +370,7 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
             customization={customization}
             coverImage={coverImage}
             logoImage={logoImage}
+            logoColor={logoColor}
             updateScrubberField={updateScrubberField}
             resetScrubberField={resetScrubberField}
             updateFields={updateFields}
@@ -478,20 +413,6 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
             handleCssChange={handleCssChange}
             activeMode={activeMode}
           />
-
-          <AdvancedSection
-            activePreset={activePreset}
-            selectStyle={selectStyle}
-            activeThemeColor={activeThemeColor}
-            handleThemeColorChange={handleThemeColorChange}
-            activeBaseColor={activeBaseColor}
-            activeBaseColors={activeBaseColors}
-            handleBaseColorChange={handleBaseColorChange}
-            activeRadius={activeRadius}
-            updateWithCustomPreset={updateWithCustomPreset}
-            customization={customization}
-            activeMode={activeMode}
-          />
         </div>
       </SidebarContent>
     </Sidebar>
@@ -525,6 +446,7 @@ const AppearanceSection = ({
   customization,
   coverImage,
   logoImage,
+  logoColor,
   updateScrubberField,
   resetScrubberField,
   updateFields,
@@ -532,8 +454,9 @@ const AppearanceSection = ({
 }: ScrubberProps & {
   coverImage: string | null;
   logoImage: string | null;
+  logoColor: string | null;
   updateFields: (fields: Record<string, string | null>) => void;
-  updateHeaderMedia?: (field: "icon" | "cover", value: string | null) => void;
+  updateHeaderMedia?: (field: "icon" | "cover" | "iconColor", value: string | null) => void;
 }) => (
   <SidebarSection label="Appearance" collapsible={false}>
     <NumberRow
@@ -550,11 +473,9 @@ const AppearanceSection = ({
       className={CONFIG_INPUT_CLS}
     />
     <ConfigRow label="Cover" surface="flat">
-      <MediaEditButton
-        value={coverImage}
-        kind="cover"
-        rounded="rounded-[4px]"
-        onUpload={updateHeaderMedia && ((url) => updateHeaderMedia("cover", url))}
+      <CoverPickerButton
+        cover={coverImage}
+        onCoverChange={updateHeaderMedia && ((value) => updateHeaderMedia("cover", value))}
       />
     </ConfigRow>
     <ConfigRow label="Cover width" surface="flat">
@@ -590,14 +511,16 @@ const AppearanceSection = ({
       step={2}
       unit="px"
       displayUnit=""
-      className={CONFIG_INPUT_CLS}
+      markStyle="dot"
+      endIcon={RADIUS_END_ICON}
+      className={RADIUS_INPUT_CLS}
     />
     <ConfigRow label="Logo" surface="flat">
-      <MediaEditButton
-        value={logoImage}
-        kind="logo"
-        rounded="rounded-full"
-        onUpload={updateHeaderMedia && ((url) => updateHeaderMedia("icon", url))}
+      <LogoPickerButton
+        logo={logoImage}
+        logoColor={logoColor}
+        onIconChange={updateHeaderMedia && ((value) => updateHeaderMedia("icon", value))}
+        onIconColorChange={updateHeaderMedia && ((color) => updateHeaderMedia("iconColor", color))}
       />
     </ConfigRow>
     <NumberRow
@@ -612,7 +535,9 @@ const AppearanceSection = ({
       step={2}
       unit="px"
       displayUnit=""
-      className={CONFIG_INPUT_CLS}
+      markStyle="dot"
+      endIcon={RADIUS_END_ICON}
+      className={RADIUS_INPUT_CLS}
     />
     <ConfigRow label="Theme" surface="flat">
       <PillToggle
@@ -628,60 +553,116 @@ const AppearanceSection = ({
   </SidebarSection>
 );
 
-// Edit opens a file dialog and writes the blob URL to the Plate header node via updateHeaderMedia.
-// Logo may be an icon name (not a URL) — render the glyph, not a broken <img>.
-const MediaEditButton = ({
-  value,
-  kind,
-  rounded,
-  onUpload,
+// Cover row control (Figma 25424:12044 empty / 25424:12768 filled): opens the same gallery+upload
+// picker as the editor's in-cover "Change" button. Empty → image icon + "Upload"; set → 24×16
+// thumbnail + "Edit". Disabled (no popover) when the header media isn't editable here.
+const CoverPickerButton = ({
+  cover,
+  onCoverChange,
 }: {
-  value: string | null;
-  kind: "cover" | "logo";
-  rounded: string;
-  onUpload?: (url: string) => void;
+  cover: string | null;
+  onCoverChange?: (value: string | null) => void;
 }) => {
-  const [, { openFileDialog, getInputProps }] = useFileUpload({
-    accept: "image/*",
-    maxSize: 5 * 1024 * 1024,
-    multiple: false,
-    onFilesChange: (files) => {
-      const file = files[0]?.file;
-      if (file instanceof File) onUpload?.(URL.createObjectURL(file));
-    },
-  });
-  const isUrl = value ? isValidUrl(value) : false;
+  const [open, setOpen] = useState(false);
+  const isUrl = cover ? isValidUrl(cover) : false;
+  const trigger = (
+    <button
+      type="button"
+      disabled={!onCoverChange}
+      title={cover ? "Edit cover" : "Add cover"}
+      className="flex items-center gap-1.5 text-[14px] font-medium text-foreground enabled:cursor-pointer disabled:cursor-default"
+    >
+      {cover ? (
+        <>
+          {isUrl ? (
+            <img src={cover} alt="" className="h-4 w-6 rounded-[4px] object-cover" />
+          ) : (
+            <span className="h-4 w-6 rounded-[4px]" style={{ backgroundColor: cover }} />
+          )}
+          Edit
+        </>
+      ) : (
+        <>
+          <ImageIcon className="size-4" />
+          Upload
+        </>
+      )}
+    </button>
+  );
+  if (!onCoverChange) return trigger;
   return (
-    <span className="flex items-center">
-      <button
-        type="button"
-        onClick={onUpload ? openFileDialog : undefined}
-        disabled={!onUpload}
-        title="Upload image"
-        className="flex items-center gap-1.5 text-[14px] font-medium text-foreground enabled:cursor-pointer disabled:cursor-default"
-      >
-        {isUrl ? (
-          <img src={value ?? ""} alt="" className={cn("size-4 object-cover", rounded)} />
-        ) : kind === "logo" && value ? (
-          <span className={cn("flex size-4 items-center justify-center overflow-hidden", rounded)}>
-            <IconPickerPreview
-              icon={value}
-              iconColor={undefined}
-              useThemeColor
-              iconSize="10"
-              size="16"
-              standaloneIcon
-            />
-          </span>
-        ) : kind === "cover" && value ? (
-          <span className={cn("size-4", rounded)} style={{ backgroundColor: value }} />
-        ) : (
-          <span className={cn("size-4 bg-muted", rounded)} />
-        )}
-        Edit
-      </button>
-      <input {...getInputProps()} className="sr-only" />
-    </span>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger render={trigger} />
+      <CoverPickerContent
+        cover={cover}
+        onCoverChange={onCoverChange}
+        onClose={() => setOpen(false)}
+      />
+    </Popover>
+  );
+};
+
+// Logo row control: opens the same icon/upload picker as the editor's in-header logo button
+// (not a bare file dialog). Logo may be an icon name (not a URL) — render the glyph, not a broken
+// <img>. Empty → user icon + "Upload"; set → glyph/thumbnail + "Edit". Disabled when not editable.
+const LogoPickerButton = ({
+  logo,
+  logoColor,
+  onIconChange,
+  onIconColorChange,
+}: {
+  logo: string | null;
+  logoColor: string | null;
+  onIconChange?: (value: string | null) => void;
+  onIconColorChange?: (color: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const isUrl = logo ? isValidUrl(logo) : false;
+  const trigger = (
+    <button
+      type="button"
+      disabled={!onIconChange}
+      title={logo ? "Edit logo" : "Add logo"}
+      className="flex items-center gap-1.5 text-[14px] font-medium text-foreground enabled:cursor-pointer disabled:cursor-default"
+    >
+      {logo ? (
+        <>
+          {isUrl ? (
+            <img src={logo} alt="" className="size-4 rounded-full object-cover" />
+          ) : (
+            <span className="flex size-4 items-center justify-center overflow-hidden rounded-full">
+              <IconPickerPreview
+                icon={logo}
+                iconColor={logoColor || undefined}
+                useThemeColor={!logoColor}
+                iconSize="10"
+                size="16"
+                standaloneIcon
+              />
+            </span>
+          )}
+          Edit
+        </>
+      ) : (
+        <>
+          <ImageIcon className="size-4" />
+          Upload
+        </>
+      )}
+    </button>
+  );
+  if (!onIconChange) return trigger;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger render={trigger} />
+      <LogoPickerContent
+        icon={logo}
+        iconColor={logoColor}
+        onIconChange={onIconChange}
+        onIconColorChange={onIconColorChange ?? (() => {})}
+        onClose={() => setOpen(false)}
+      />
+    </Popover>
   );
 };
 
@@ -728,7 +709,7 @@ const TypographySection = ({
       }
     >
       <FeatureGate requiredPlan="pro" variant="block">
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5">
           <ConfigRow label="Font" surface="flat">
             <Select value={fontValue} onValueChange={(v) => v && onFontChange(v)}>
               <SelectTrigger
@@ -841,7 +822,7 @@ const ColorsSection = ({
     }
   >
     <FeatureGate requiredPlan="pro" variant="block">
-      <div className="relative isolate z-50 flex flex-col gap-2 overflow-visible">
+      <div className="relative isolate z-50 flex flex-col gap-1.5 overflow-visible">
         <DeferredColorPickers
           tokens={SEMANTIC_COLOR_TOKENS}
           customization={customization}
@@ -860,7 +841,7 @@ const InputsSection = ({
 }: ScrubberProps) => (
   <SidebarSection label="Inputs" collapsible={false} headerRight={<ProBadge />}>
     <FeatureGate requiredPlan="pro" variant="block">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         <NumberRow
           label="Input width"
           value={customization.inputWidth}
@@ -900,7 +881,9 @@ const InputsSection = ({
           step={1}
           unit="px"
           displayUnit=""
-          className={CONFIG_INPUT_CLS}
+          markStyle="dot"
+          endIcon={RADIUS_END_ICON}
+          className={RADIUS_INPUT_CLS}
         />
         <NumberRow
           label="Margin bottom"
@@ -942,7 +925,7 @@ const ButtonsSection = ({
 }: ScrubberProps) => (
   <SidebarSection label="Buttons" collapsible={false} headerRight={<ProBadge />}>
     <FeatureGate requiredPlan="pro" variant="block">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         <NumberRow
           label="Width"
           value={customization.buttonWidth}
@@ -997,154 +980,19 @@ interface CustomCssSectionProps {
 }
 
 const CustomCssSection = ({ cssValue, handleCssChange, activeMode }: CustomCssSectionProps) => (
-  <SidebarSection label="Custom CSS" collapsible={false} headerRight={<ProBadge />}>
+  <SidebarSection label="Custom CSS" collapsible={false} divider={false} headerRight={<ProBadge />}>
     <FeatureGate requiredPlan="pro" variant="block">
       <div className="overflow-hidden rounded-lg bg-muted">
         <Textarea
           value={cssValue}
           onChange={handleCssChange}
           aria-label={`Custom CSS (${activeMode} mode)`}
-          className="h-32 rounded-none border-0 bg-muted p-3 font-mono text-[14px] text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-          placeholder=".bf-themed { ... }"
+          className="h-36 rounded-none border-0 bg-muted p-3 font-mono text-[14px] text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          placeholder={"<style>\n.reform-block {...\n\n\n</style>"}
           spellCheck={false}
         />
       </div>
-      <div className="flex items-center gap-1.5 px-1 pt-2">
-        <Tooltip>
-          <TooltipTrigger
-            render={<InfoIcon className="size-3 cursor-help text-muted-foreground/60" />}
-          />
-          <TooltipContent side="bottom" className="max-w-[240px] text-[11px]">
-            Supports shadcn tokens: --bf-primary, --bf-background, --bf-foreground, etc.
-          </TooltipContent>
-        </Tooltip>
-        <span className="text-[11px] text-muted-foreground/60">
-          Use --bf-* tokens for overrides
-        </span>
-      </div>
     </FeatureGate>
-  </SidebarSection>
-);
-
-interface AdvancedSectionProps {
-  activePreset: string;
-  selectStyle: (styleName: string) => void;
-  activeThemeColor: string;
-  handleThemeColorChange: (v: string) => void;
-  activeBaseColor: string;
-  activeBaseColors: BaseColorMap;
-  handleBaseColorChange: (v: string) => void;
-  activeRadius: string;
-  updateWithCustomPreset: (field: string, value: string) => void;
-  customization: Record<string, string>;
-  activeMode: "light" | "dark";
-}
-
-// Power-user disclosure: the preset abstraction + full raw token set (not in Figma layout).
-const AdvancedSection = ({
-  activePreset,
-  selectStyle,
-  activeThemeColor,
-  handleThemeColorChange,
-  activeBaseColor,
-  activeBaseColors,
-  handleBaseColorChange,
-  activeRadius,
-  updateWithCustomPreset,
-  customization,
-  activeMode,
-}: AdvancedSectionProps) => (
-  <SidebarSection label="Advanced" initialOpen={false} divider={false}>
-    <div className="flex flex-col gap-3">
-      <ConfigCard>
-        <ConfigRow label="Preset" surface="flat">
-          <Select value={activePreset} onValueChange={(v) => v && selectStyle(v)}>
-            <SelectTrigger
-              className={selectTriggerFigmaCls}
-              icon={<CaretDownIcon className="size-3" />}
-            >
-              {STYLE_OPTIONS.find((o) => o.value === activePreset)?.label ?? activePreset}
-            </SelectTrigger>
-            <SelectContent>
-              {STYLE_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </ConfigRow>
-        <ConfigRow label="Accent" surface="flat">
-          <Select value={activeThemeColor} onValueChange={(v) => v && handleThemeColorChange(v)}>
-            <SelectTrigger
-              className={selectTriggerFigmaCls}
-              icon={<CaretDownIcon className="size-3" />}
-            >
-              <ColorSwatch color={THEME_COLORS[activeThemeColor]?.primary} />
-              {THEME_COLOR_OPTIONS.find((o) => o.value === activeThemeColor)?.label ??
-                activeThemeColor}
-            </SelectTrigger>
-            <SelectContent>
-              {THEME_COLOR_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  <ColorSwatch color={THEME_COLORS[o.value]?.primary} />
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </ConfigRow>
-        <ConfigRow label="Base" surface="flat">
-          <Select value={activeBaseColor} onValueChange={(v) => v && handleBaseColorChange(v)}>
-            <SelectTrigger
-              className={selectTriggerFigmaCls}
-              icon={<CaretDownIcon className="size-3" />}
-            >
-              <ColorSwatch color={activeBaseColors[activeBaseColor]?.muted} />
-              {BASE_COLOR_OPTIONS.find((o) => o.value === activeBaseColor)?.label ??
-                activeBaseColor}
-            </SelectTrigger>
-            <SelectContent>
-              {BASE_COLOR_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  <ColorSwatch color={activeBaseColors[o.value]?.muted} />
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </ConfigRow>
-        <ConfigRow label="Radius" surface="flat">
-          <Select
-            value={activeRadius}
-            onValueChange={(v) => v && updateWithCustomPreset("radius", v)}
-          >
-            <SelectTrigger
-              className={selectTriggerFigmaCls}
-              icon={<CaretDownIcon className="size-3" />}
-            >
-              {RADIUS_OPTIONS.find((o) => o.value === activeRadius)?.label ?? activeRadius}
-            </SelectTrigger>
-            <SelectContent>
-              {RADIUS_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </ConfigRow>
-      </ConfigCard>
-
-      <div className="relative isolate z-40 flex flex-col gap-2 overflow-visible">
-        <DeferredColorPickers
-          tokens={ADVANCED_COLOR_TOKENS}
-          customization={customization}
-          updateField={updateWithCustomPreset}
-          mode={activeMode}
-        />
-      </div>
-    </div>
   </SidebarSection>
 );
 

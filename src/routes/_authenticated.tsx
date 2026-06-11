@@ -733,7 +733,10 @@ const AppSidebar = () => {
                           });
                         }}
                       >
-                        <FileTextIcon className="size-4" />
+                        <SidebarFormIcon
+                          icon={form.icon}
+                          customization={form.customization as Record<string, string> | undefined}
+                        />
                         <span>{form.title || "Untitled form"}</span>
                       </CommandItem>
                     ))}

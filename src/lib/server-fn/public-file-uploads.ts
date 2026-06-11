@@ -28,7 +28,6 @@ const MAX_PER_WINDOW = 20;
 const CLEANUP_PROBABILITY = 0.01;
 // Hard upper bound: refuse beyond this even if a field is configured higher.
 const HARD_MAX_FILE_BYTES = 50 * 1024 * 1024;
-const DEFAULT_ACCEPT = "image/*,.pdf,.doc,.docx";
 
 const getClientIp = (): string => getRequestIP({ xForwardedFor: true }) ?? "unknown";
 
@@ -165,15 +164,13 @@ const assertFormFileField = async (
       ? field.accept
       : null;
   const allowedExtensions = resolveAllowedExtensions(allowedFileTypes, allowedFileExtensions);
-  // Flat extensions (or legacy category) drive the accept; else fall back to a stored accept
-  // string from forms predating the type picker, then the broad default.
-  const hasGranularConfig =
-    allowedExtensions.length > 0 ||
-    allowedFileTypes !== undefined ||
-    allowedFileExtensions !== undefined;
-  const accept = hasGranularConfig
-    ? buildAcceptFromExtensions(allowedExtensions)
-    : (legacyAccept ?? DEFAULT_ACCEPT);
+  // Explicit picker config drives the accept; else fall back to a stored accept string from
+  // forms predating the type picker, then the resolver's image-only default.
+  const hasGranularConfig = allowedFileTypes !== undefined || allowedFileExtensions !== undefined;
+  const accept =
+    hasGranularConfig || !legacyAccept
+      ? buildAcceptFromExtensions(allowedExtensions)
+      : legacyAccept;
 
   const fieldMaxFileSize =
     "maxFileSize" in field && typeof field.maxFileSize === "number" && field.maxFileSize > 0

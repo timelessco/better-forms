@@ -8,14 +8,19 @@ import { useVersionHistorySidebar } from "@/hooks/use-version-history-sidebar";
 import { getFormStatus } from "@/lib/server-fn/forms-queries";
 import type { FormStatus } from "@/lib/server-fn/forms-queries";
 import { cn } from "@/lib/utils";
+import { startScopedViewTransition } from "@/lib/view-transition";
 import { createFileRoute, isRedirect, redirect, useLocation } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { Loader2Icon } from "@/components/ui/icons";
 import type { Value } from "platejs";
-import { Activity, Suspense, lazy } from "react";
+import { Activity, Suspense, lazy, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import * as v from "valibot";
 import { coercedBooleanWithCatch, coercedNumberWithCatch } from "@/lib/valibot-search";
 import EditorApp from "../-components/editor-app";
+// Eager import — lazy-loading this on first preview click pulls vaul-base into a Vite
+// dep re-optimize that full-reloads the page (same class of bug as codeSplitGroupings below).
+import { PreviewDrawer } from "../-components/preview-drawer";
 
 const PreviewMode = lazy(() =>
   import("../-components/preview-mode").then((m) => ({ default: m.PreviewMode })),
@@ -36,16 +41,62 @@ const DesignPage = () => {
 
   const versionData = versionContentDataArray?.[0];
 
-  const { previewMode } = useEditorSidebar();
+  const { previewMode, activeSidebar, exitPreview } = useEditorSidebar();
+  // Share keeps the inline side-by-side preview pane; every other preview entry
+  // (play button / hotkey) opens the full-page drawer instead.
+  const isSharePreview = previewMode && activeSidebar === "share";
+  const isDrawerPreview = previewMode && activeSidebar !== "share";
   const formatDateTime = (dateString: string) => format(new Date(dateString), "MMM d, h:mm a");
 
   const versionContent = versionData?.content as Value | undefined;
   const versionCustomization = versionData?.customization as Record<string, unknown> | undefined;
 
+  // Smoothly cross-fade version enter/switch/exit instead of an instant jump — same view-transition
+  // approach as the share preview tabs. The content swap is render-time + async (content loads after
+  // the click), so we hold a COMMITTED snapshot and only advance it inside startViewTransition+
+  // flushSync, forcing EditorApp's remount to happen within the transition (browser captures
+  // before/after and cross-fades). We commit only TERMINAL states (editing, or a fully-loaded
+  // version) — while a version is still loading the previous committed content stays on screen for
+  // continuity, so there's a single cross-fade to the final content (no intermediate spinner flash).
+  // The banner reflects the LIVE loading state so the user gets immediate feedback.
+  const versionReady = isViewingVersion && !isLoadingVersionContent && versionContent !== undefined;
+  const desired = {
+    viewing: isViewingVersion,
+    content: versionReady ? versionContent : undefined,
+    customization: versionReady ? versionCustomization : undefined,
+    publishedAt: versionReady ? versionData?.publishedAt : undefined,
+  };
+  const canCommit = !isViewingVersion || versionReady;
+  const [committed, setCommitted] = useState(desired);
+  const committedRef = useRef(committed);
+  useEffect(() => {
+    if (!canCommit) return;
+    const c = committedRef.current;
+    const unchanged =
+      c.viewing === desired.viewing &&
+      c.content === desired.content &&
+      c.customization === desired.customization &&
+      c.publishedAt === desired.publishedAt;
+    if (unchanged) return;
+    // Scoped: only the named "editor-content" group cross-fades; sidebars/header/version panel
+    // hold static. flushSync forces EditorApp's render-time remount to happen inside the transition.
+    startScopedViewTransition(() =>
+      flushSync(() => {
+        committedRef.current = desired;
+        setCommitted(desired);
+      }),
+    );
+    // eslint-disable-next-line eslint-plugin-react-hooks/exhaustive-deps -- desired is a fresh object each render; compare fields via committedRef instead
+  }, [canCommit, desired.viewing, desired.content, desired.customization, desired.publishedAt]);
+
+  // Banner follows live state (immediate feedback) but lingers through the exit cross-fade while
+  // the committed content is still the version being faded out.
+  const showVersionBanner = isViewingVersion || committed.viewing;
+
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <main className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto bg-background">
-        {isViewingVersion && (
+        {showVersionBanner && (
           <div className="flex shrink-0 items-center justify-between border-b border-accent/20 bg-accent/50 px-4 py-2">
             <span className="text-accent-800 text-sm">
               {isLoadingVersionContent ? (
@@ -53,10 +104,10 @@ const DesignPage = () => {
                   <Loader2Icon className="size-4 animate-spin" />
                   Loading version…
                 </span>
-              ) : versionData?.publishedAt ? (
+              ) : committed.publishedAt ? (
                 <>
                   Viewing version from{" "}
-                  <span className="font-semibold">{formatDateTime(versionData.publishedAt)}</span>
+                  <span className="font-semibold">{formatDateTime(committed.publishedAt)}</span>
                 </>
               ) : (
                 "Viewing version..."
@@ -70,9 +121,10 @@ const DesignPage = () => {
 
         <div
           data-editor-scroll
+          data-bf-cover-pane
           className={cn(
             "flex-1 overflow-x-hidden",
-            previewMode ? "h-full overflow-hidden" : "overflow-y-auto",
+            isSharePreview ? "h-full overflow-hidden" : "overflow-y-auto",
           )}
         >
           {/* Mirror the editor side and keep PreviewMode mounted across toggles
@@ -81,16 +133,15 @@ const DesignPage = () => {
               in-progress respondent state (typed values, cleared values, added
               repeatable-field rows) — only past Continue-clicks survived
               because `useFormPersistence` only writes on step advance. */}
-          <Activity mode={previewMode ? "visible" : "hidden"}>
+          <Activity mode={isSharePreview ? "visible" : "hidden"}>
             <PreviewMode formId={formId} workspaceId={workspaceId} />
           </Activity>
           {/* <Activity> keeps EditorApp fiber/Slate doc/DOM alive across preview toggles — fresh Plate mount (50+ elements, per-element effects) is ~600ms; only re-runs effects on hidden↔visible flip. */}
-          <Activity mode={previewMode ? "hidden" : "visible"}>
-            {isViewingVersion && isLoadingVersionContent ? (
-              <div className="flex size-full items-center justify-center">
-                <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
+          <Activity mode={isSharePreview ? "hidden" : "visible"}>
+            {/* Stable named box so version enter/switch/exit cross-fades (driven by the committed
+                snapshot above) instead of jumping. Mirrors the share preview's "preview-content".
+                No loading spinner here — the previous committed content stays put during load. */}
+            <div className="min-h-full" style={{ viewTransitionName: "editor-content" }}>
               <Suspense
                 fallback={
                   <div className="flex h-full items-center justify-center">
@@ -102,14 +153,18 @@ const DesignPage = () => {
                   key={formId}
                   formId={formId}
                   workspaceId={workspaceId}
-                  versionContent={isViewingVersion ? versionContent : undefined}
-                  versionCustomization={isViewingVersion ? versionCustomization : undefined}
-                  readOnly={isViewingVersion}
+                  versionContent={committed.viewing ? committed.content : undefined}
+                  versionCustomization={committed.viewing ? committed.customization : undefined}
+                  readOnly={committed.viewing}
                 />
               </Suspense>
-            )}
+            </div>
           </Activity>
         </div>
+
+        <PreviewDrawer open={isDrawerPreview} onClose={exitPreview}>
+          <PreviewMode formId={formId} workspaceId={workspaceId} />
+        </PreviewDrawer>
       </main>
     </div>
   );

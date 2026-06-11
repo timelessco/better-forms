@@ -3,6 +3,7 @@ import {
   CharacterLimitIcon,
   CheckIcon,
   ChevronLeftIcon,
+  ChevronRightIcon,
   ClockLineIcon,
   ChevronSelectIcon,
   ConditionalLogicIcon,
@@ -12,6 +13,7 @@ import {
   FileIcon,
   HashIcon,
   HideIcon,
+  IconDropdown,
   IconLinearScale,
   IconPhone,
   IconRating,
@@ -36,23 +38,16 @@ import { KEYS, PathApi } from "platejs";
 import { useEditorPlugin, useEditorSelector, useHotkeys, usePluginOption } from "platejs/react";
 import * as React from "react";
 
+import { AnimatePresence, m } from "motion/react";
+
+import { AnimatedSize } from "@/components/transitions/animated-size";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
 import { Input } from "@/components/ui/input";
@@ -64,7 +59,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { registerBlockMenuClose, unregisterBlockMenuClose } from "@/lib/editor/block-menu-close";
 import { useReanchorThemeProps } from "@/hooks/use-form-theme";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { ALL_FILE_EXTENSIONS, FILE_CATEGORIES } from "@/lib/form-schema/file-upload-types";
+import {
+  DEFAULT_FILE_UPLOAD_EXTENSIONS,
+  FILE_CATEGORIES,
+} from "@/lib/form-schema/file-upload-types";
 import {
   ALLOWED_LABEL_TYPES,
   FORM_INPUT_NODE_TYPES,
@@ -95,7 +93,6 @@ type BlockFieldType =
   | "optionCheckbox" // formOptionItem variant="checkbox"
   | "optionMultiChoice" // formOptionItem variant="multiChoice"
   | "optionRanking" // formOptionItem variant="ranking"
-  | "formMultiSelect" // formMultiSelectInput
   | "formRating"
   | "formSignature"
   | "formButton"
@@ -127,7 +124,6 @@ const getFieldType = (node: { type?: string; variant?: string } | undefined): Bl
   if (t === "formFileUpload") return "formFileUpload";
   if (t === "formLinearScale") return "formLinearScale";
   if (t === "formMatrix") return "formMatrix";
-  if (t === "formMultiSelectInput") return "formMultiSelect";
   if (t === "formRating") return "formRating";
   if (t === "formSignature") return "formSignature";
   if (t === "formOptionItem") {
@@ -152,7 +148,8 @@ const stopKeyEventPropagation = (e: React.KeyboardEvent) => {
 export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
   const { api, editor } = useEditorPlugin(BlockMenuPlugin);
   const openId = usePluginOption(BlockMenuPlugin, "openId");
-  const themeReanchor = useReanchorThemeProps("w-[246px] p-1");
+  // Width/padding live on the views inside AnimatedSize so the popup can morph between them.
+  const themeReanchor = useReanchorThemeProps("w-auto p-0");
   const isOpen = openId === BLOCK_CONTEXT_MENU_ID;
 
   // Entering preview keeps the editor mounted (Activity) but the menu is portaled to body, so it
@@ -168,10 +165,31 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
   const { x, y } = position ?? { x: 0, y: 0 };
 
   const [buttonText, setButtonText] = React.useState("");
+  // Inline subviews: instead of side flyouts, the popup morphs in place between the menu and the
+  // active panel (keyed into INLINE_PANELS). Bulk insert holds the option group's tail + variant
+  // captured when entering its view; lines splice in on Save.
+  const [view, setView] = React.useState<string | null>(null);
+  // Slide axis: panels enter from the trigger's chevron side (+1); back reverses (-1).
+  const [direction, setDirection] = React.useState(1);
+  // Side the popup actually rendered on, frozen right after open. View morphs resize the popup
+  // and Base UI re-runs collision logic on every resize — without the lock a menu flipped above
+  // the anchor snaps below it when a shorter panel opens. Locking the side keeps the popup
+  // hugging the anchor (same gap), growing away from it.
+  const [lockedSide, setLockedSide] = React.useState<"top" | "bottom" | null>(null);
+  const [bulkInsert, setBulkInsert] = React.useState<{ at: number; variant: string } | null>(null);
   const blockMenuTriggerRef = React.useRef<HTMLDivElement | null>(null);
+
+  const changeView = React.useCallback((next: string | null) => {
+    setDirection(next === null ? -1 : 1);
+    setView(next);
+  }, []);
 
   const { firstNode, firstPath, nodeType, inputNode, fieldType, getInputPath } =
     useBlockMenuSelection({ editor, isOpen });
+
+  // Turn-into swaps the block's type — fine for labels/static text, but converting an actual
+  // input node (or the submit button) breaks the form flow, so those never offer it.
+  const canTurnInto = !FORM_INPUT_NODE_TYPES.has(nodeType ?? "") && nodeType !== "formButton";
 
   const [wasOpen, setWasOpen] = React.useState(false);
   if (isOpen && !wasOpen) {
@@ -181,6 +199,9 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     }
   } else if (!isOpen && wasOpen) {
     setWasOpen(false);
+    setView(null);
+    setBulkInsert(null);
+    setLockedSide(null);
   }
 
   const handlers = useBlockMenuFieldHandlers({
@@ -235,10 +256,6 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     api.blockMenu.hide();
   }, [api.blockMenu]);
 
-  // Bulk insert: capture the option group's tail + variant when the dialog opens (the menu
-  // closes, which clears the selection), then splice the parsed lines in on Save.
-  const [bulkInsert, setBulkInsert] = React.useState<{ at: number; variant: string } | null>(null);
-
   const handleOpenBulkInsert = React.useCallback(() => {
     const optionPath = getInputPath();
     if (!optionPath) return;
@@ -252,13 +269,9 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
       if (nodes[i]?.type === "formOptionItem") lastIndex = i;
       else break;
     }
-    const variant = startNode.variant || "checkbox";
-    const at = lastIndex + 1;
-    api.blockMenu.hide();
-    // Defer past the click that closed the menu — opening the modal synchronously lets that
-    // same pointer event dismiss it, so the dialog would flash and never appear.
-    setTimeout(() => setBulkInsert({ at, variant }), 0);
-  }, [getInputPath, editor, api.blockMenu]);
+    setBulkInsert({ at: lastIndex + 1, variant: startNode.variant || "checkbox" });
+    changeView("bulk-insert");
+  }, [getInputPath, editor, changeView]);
 
   const handleBulkInsertSubmit = React.useCallback(
     (text: string) => {
@@ -279,13 +292,14 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
           }) as unknown as TElement,
       );
       editor.tf.insertNodes(newNodes, { at: [target.at] });
+      api.blockMenu.hide();
       // Focus back to the last inserted option, cursor at its end.
       const lastPath = [target.at + labels.length - 1];
       editor.tf.focus();
       const end = editor.api.end(lastPath);
       if (end) editor.tf.select(end);
     },
-    [bulkInsert, editor],
+    [bulkInsert, editor, api.blockMenu],
   );
 
   useBlockMenuContextMenuAndHotkeys({
@@ -331,6 +345,47 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     [api.blockMenu],
   );
 
+  // Keyboard: Tab/Shift+Tab cycles rows (Base UI only arrow-navigates; Tab would blur-close the
+  // popup); Enter activates via Base UI; Escape steps back out of an inline panel first.
+  const handleMenuKeyDown = React.useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "Escape" && view !== null) {
+        e.preventDefault();
+        e.stopPropagation();
+        changeView(null);
+        return;
+      }
+      if (e.key !== "Tab") return;
+      e.preventDefault();
+      e.stopPropagation();
+      const items = Array.from(
+        e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'),
+      );
+      if (items.length === 0) return;
+      const active = document.activeElement;
+      const idx = items.findIndex(
+        (el) => el === active || (active instanceof Node && el.contains(active)),
+      );
+      const next = e.shiftKey
+        ? items[idx <= 0 ? items.length - 1 : idx - 1]
+        : items[idx === -1 || idx === items.length - 1 ? 0 : idx + 1];
+      next?.focus();
+    },
+    [view, changeView],
+  );
+
+  // Read which side Base UI settled on one frame after open, then lock it for the session.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const raf = requestAnimationFrame(() => {
+      const side = document
+        .querySelector('[data-slot="dropdown-menu-content"]')
+        ?.getAttribute("data-side");
+      if (side === "top" || side === "bottom") setLockedSide(side);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [isOpen]);
+
   const virtualAnchor = React.useMemo(() => {
     if (!isOpen) return undefined;
     return {
@@ -351,7 +406,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
   // Dependency-injected context: pieces read state + actions, never prop-drilled handlers.
   const contextValue = React.useMemo<BlockMenuContextValue>(
     () => ({
-      state: { fieldType, inputNode, buttonText },
+      state: { fieldType, inputNode, buttonText, canTurnInto },
       actions: {
         toggleRequired: handlers.handleToggleRequired,
         toggleUse24Hour: handlers.handleToggleUse24Hour,
@@ -367,10 +422,11 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
         updateMinSelections: handlers.handleUpdateMinSelections,
         updateMaxSelections: handlers.handleUpdateMaxSelections,
         toggleRandomizeOrder: handlers.handleToggleRandomizeOrder,
+        toggleShowAsDropdown: handlers.handleToggleShowAsDropdown,
         toggleMultiple: handlers.handleToggleMultiple,
         toggleAllowOther: handlers.handleToggleAllowOther,
         toggleVerifyEmail: handlers.handleToggleVerifyEmail,
-        setDefaultCountryCode: handlers.handleSetDefaultCountryCode,
+        toggleAllowedCountry: handlers.handleToggleAllowedCountry,
         setOptionLabel: handlers.handleSetOptionLabel,
         toggleOptionImage: handlers.handleToggleOptionImage,
         setNumberFormat: handlers.handleSetNumberFormat,
@@ -384,12 +440,15 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
         hide: handleHide,
         turnInto: handleTurnInto,
         openBulkInsert: handleOpenBulkInsert,
+        submitBulkInsert: handleBulkInsertSubmit,
+        setView: changeView,
       },
     }),
     [
       fieldType,
       inputNode,
       buttonText,
+      canTurnInto,
       handlers,
       handleDelete,
       handleDuplicate,
@@ -397,10 +456,13 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
       handleHide,
       handleTurnInto,
       handleOpenBulkInsert,
+      handleBulkInsertSubmit,
+      changeView,
     ],
   );
 
   const FieldMenu = FIELD_MENU_VARIANTS[fieldType];
+  const activePanel = view === null ? null : (INLINE_PANELS[view] ?? null);
 
   return (
     <>
@@ -415,21 +477,54 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
             anchor={virtualAnchor}
             className={themeReanchor.className}
             style={themeReanchor.style}
+            // Pre-lock: collision-aware placement off the click point. Locked: keep the settled
+            // side with avoidance off, so view morphs grow away from the anchor instead of
+            // flipping the popup around it.
             align="end"
+            side={lockedSide ?? "bottom"}
             sideOffset={8}
+            collisionAvoidance={
+              lockedSide ? { side: "none", align: "none", fallbackAxisSide: "none" } : undefined
+            }
+            onKeyDown={handleMenuKeyDown}
           >
             <BlockMenuContext value={contextValue}>
-              <FieldMenu />
+              <AnimatedSize>
+                <AnimatePresence initial={false} mode="popLayout" custom={direction}>
+                  {activePanel === null ? (
+                    <m.div
+                      key="menu"
+                      className="w-[246px] p-1"
+                      custom={direction}
+                      variants={slideVariants}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                    >
+                      <FieldMenu />
+                    </m.div>
+                  ) : (
+                    <m.div
+                      key={view}
+                      className={cn("p-1", activePanel.width ?? "w-[246px]")}
+                      custom={direction}
+                      variants={slideVariants}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                    >
+                      <PanelHeader label={activePanel.label} />
+                      <activePanel.Panel />
+                    </m.div>
+                  )}
+                </AnimatePresence>
+              </AnimatedSize>
             </BlockMenuContext>
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-
-      <BulkInsertDialog
-        open={bulkInsert !== null}
-        onClose={() => setBulkInsert(null)}
-        onSubmit={handleBulkInsertSubmit}
-      />
     </>
   );
 };
@@ -446,7 +541,7 @@ interface BlockMenuInputNode {
   decimalSeparator?: DecimalSeparator;
   thousandsSeparator?: ThousandsSeparator;
   verifyEmail?: boolean;
-  defaultCountryCode?: string;
+  allowedCountries?: string[];
   required?: boolean;
   isFieldArray?: boolean;
   defaultValue?: string;
@@ -462,6 +557,7 @@ interface BlockMenuInputNode {
   minSelections?: number;
   maxSelections?: number;
   randomizeOrder?: boolean;
+  showAsDropdown?: boolean;
   allowOther?: boolean;
   scaleMin?: number;
   scaleMax?: number;
@@ -629,6 +725,28 @@ const useBlockMenuFieldHandlers = ({
     () => toggleBooleanNode("randomizeOrder"),
     [toggleBooleanNode],
   );
+  // Display mode lives on the group's FIRST option node (where the transforms read it), so
+  // resolve the group start instead of writing to whichever option row anchored the menu.
+  // Mutually exclusive with "Image": a dropdown can't present image tiles.
+  const handleToggleShowAsDropdown = React.useCallback(() => {
+    const inputPath = getInputPath();
+    if (!inputPath) return;
+    let first = inputPath[0];
+    const nodes = editor.children as TElement[];
+    if (nodes[first]?.type !== "formOptionItem") return;
+    while (first > 0 && nodes[first - 1]?.type === "formOptionItem") first--;
+    let last = first;
+    while (last < nodes.length - 1 && nodes[last + 1]?.type === "formOptionItem") last++;
+    const enabled = (nodes[first] as { showAsDropdown?: boolean }).showAsDropdown === true;
+    editor.tf.withoutNormalizing(() => {
+      if (enabled) {
+        editor.tf.unsetNodes(["showAsDropdown"], { at: [first] });
+        return;
+      }
+      editor.tf.setNodes({ showAsDropdown: true } as Partial<TElement>, { at: [first] });
+      for (let i = first; i <= last; i++) editor.tf.unsetNodes(["showImage"], { at: [i] });
+    });
+  }, [getInputPath, editor]);
   const handleToggleMultiple = React.useCallback(
     () => toggleBooleanNode("multiple"),
     [toggleBooleanNode],
@@ -642,18 +760,23 @@ const useBlockMenuFieldHandlers = ({
     [toggleBooleanNode],
   );
 
-  // Default country code — store the ISO code, or unset to fall back to the browser locale.
-  const handleSetDefaultCountryCode = React.useCallback(
-    (code: string | undefined) => {
+  // Allowed countries — toggle an ISO code in the whitelist. Empty ⇒ unset ⇒ all countries
+  // allowed, auto-detected from the browser locale.
+  const handleToggleAllowedCountry = React.useCallback(
+    (code: string) => {
       const inputPath = getInputPath();
       if (!inputPath) return;
-      if (code) {
-        editor.tf.setNodes({ defaultCountryCode: code }, { at: inputPath });
+      const current = inputNode?.allowedCountries;
+      const next = current?.includes(code)
+        ? current.filter((c) => c !== code)
+        : [...(current ?? []), code];
+      if (next.length > 0) {
+        editor.tf.setNodes({ allowedCountries: next }, { at: inputPath });
       } else {
-        editor.tf.unsetNodes(["defaultCountryCode"], { at: inputPath });
+        editor.tf.unsetNodes(["allowedCountries"], { at: inputPath });
       }
     },
-    [getInputPath, editor.tf],
+    [getInputPath, inputNode?.allowedCountries, editor.tf],
   );
 
   // Labels apply to the whole option group — set optionLabel on every contiguous sibling option.
@@ -678,6 +801,7 @@ const useBlockMenuFieldHandlers = ({
   );
 
   // "Image" applies to the whole option group — toggle showImage on every contiguous sibling option.
+  // Mutually exclusive with "Show as dropdown": a dropdown can't present image tiles.
   const handleToggleOptionImage = React.useCallback(() => {
     const inputPath = getInputPath();
     if (!inputPath) return;
@@ -694,6 +818,7 @@ const useBlockMenuFieldHandlers = ({
         if (enabled) editor.tf.unsetNodes(["showImage"], { at: [i] });
         else editor.tf.setNodes({ showImage: true } as Partial<TElement>, { at: [i] });
       }
+      if (!enabled) editor.tf.unsetNodes(["showAsDropdown"], { at: [first] });
     });
   }, [getInputPath, editor]);
 
@@ -721,14 +846,14 @@ const useBlockMenuFieldHandlers = ({
     [getInputPath, editor],
   );
 
-  // Allowed files — store the flat extension allow-list. Empty or the full catalog ⇒ unset, which
-  // the runtime treats as "all files allowed". Also clears any legacy allowedFileTypes category.
+  // Allowed files — store the flat extension allow-list. Empty ⇒ unset, which the runtime treats
+  // as the image-only default. Also clears any legacy allowedFileTypes category.
   const handleSetAllowedExtensions = React.useCallback(
     (next: string[]) => {
       const inputPath = getInputPath();
       if (!inputPath) return;
       const deduped = [...new Set(next)];
-      if (deduped.length === 0 || deduped.length >= ALL_FILE_EXTENSIONS.length) {
+      if (deduped.length === 0) {
         editor.tf.unsetNodes(["allowedFileExtensions", "allowedFileTypes"], { at: inputPath });
         return;
       }
@@ -770,10 +895,11 @@ const useBlockMenuFieldHandlers = ({
       handleUpdateMinSelections,
       handleUpdateMaxSelections,
       handleToggleRandomizeOrder,
+      handleToggleShowAsDropdown,
       handleToggleMultiple,
       handleToggleAllowOther,
       handleToggleVerifyEmail,
-      handleSetDefaultCountryCode,
+      handleToggleAllowedCountry,
       handleSetOptionLabel,
       handleToggleOptionImage,
       handleSetNumberFormat,
@@ -797,10 +923,11 @@ const useBlockMenuFieldHandlers = ({
       handleUpdateMinSelections,
       handleUpdateMaxSelections,
       handleToggleRandomizeOrder,
+      handleToggleShowAsDropdown,
       handleToggleMultiple,
       handleToggleAllowOther,
       handleToggleVerifyEmail,
-      handleSetDefaultCountryCode,
+      handleToggleAllowedCountry,
       handleSetOptionLabel,
       handleToggleOptionImage,
       handleSetNumberFormat,
@@ -833,10 +960,11 @@ interface BlockMenuActions {
   updateMinSelections: (v: string) => void;
   updateMaxSelections: (v: string) => void;
   toggleRandomizeOrder: () => void;
+  toggleShowAsDropdown: () => void;
   toggleMultiple: () => void;
   toggleAllowOther: () => void;
   toggleVerifyEmail: () => void;
-  setDefaultCountryCode: (code: string | undefined) => void;
+  toggleAllowedCountry: (code: string) => void;
   setOptionLabel: (style: OptionLabelStyle) => void;
   toggleOptionImage: () => void;
   setNumberFormat: (patch: Partial<NumberFormatConfig>) => void;
@@ -850,6 +978,9 @@ interface BlockMenuActions {
   hide: () => void;
   turnInto: (type: string) => void;
   openBulkInsert: () => void;
+  submitBulkInsert: (text: string) => void;
+  /** Switch the popup's inline view: an INLINE_PANELS id, or null for the menu. */
+  setView: (view: string | null) => void;
 }
 
 interface BlockMenuContextValue {
@@ -857,6 +988,8 @@ interface BlockMenuContextValue {
     fieldType: BlockFieldType;
     inputNode: BlockMenuInputNode | null | undefined;
     buttonText: string;
+    /** Selected block may type-swap — false on actual input nodes and the submit button. */
+    canTurnInto: boolean;
   };
   actions: BlockMenuActions;
 }
@@ -869,64 +1002,57 @@ const useBlockMenu = (): BlockMenuContextValue => {
   return ctx;
 };
 
-// Hover open/close with a close grace period — Base UI's auto trigger↔content bridging is
-// unreliable inside this non-modal virtual-anchored popup, so submenus drive open state by hand.
-const useHoverSubmenu = () => {
-  const [open, setOpen] = React.useState(false);
-  const closeTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const onPointerEnter = React.useCallback(() => {
-    clearTimeout(closeTimer.current);
-    setOpen(true);
-  }, []);
-  const onPointerLeave = React.useCallback(() => {
-    closeTimer.current = setTimeout(() => setOpen(false), 150);
-  }, []);
-  React.useEffect(() => () => clearTimeout(closeTimer.current), []);
-  return { open, setOpen, onPointerEnter, onPointerLeave };
+// Inline subview slide: panels enter from the trigger's chevron side (>), back reverses.
+const slideVariants = {
+  initial: (dir: number) => ({ opacity: 0, x: 24 * dir }),
+  animate: { opacity: 1, x: 0 },
+  exit: (dir: number) => ({ opacity: 0, x: -24 * dir }),
 };
 
-// Groups a field's numeric settings behind a submenu trigger (Figma "Character limit" pattern).
-// Hover-controlled like the Turn-into submenu — Base UI's auto trigger↔content bridging is
-// unreliable inside this non-modal virtual-anchored popup, and these submenus hold inputs.
-const SettingsSubmenu = ({
+// Trigger row for an inline subview — replaces the old side-flyout submenus: the popup itself
+// morphs into the panel (AnimatedSize + slide) instead of opening a second popup.
+const SubmenuRow = ({
   icon,
   label,
-  children,
+  view,
 }: {
   icon: React.ReactNode;
   label: string;
-  children: React.ReactNode;
+  view: string;
 }) => {
-  const { open, setOpen, onPointerEnter: onEnter, onPointerLeave: onLeave } = useHoverSubmenu();
-
+  const { actions } = useBlockMenu();
   return (
-    <DropdownMenuSub open={open}>
-      <DropdownMenuSubTrigger
-        className="text-sm text-foreground/80"
-        onPointerEnter={onEnter}
-        onPointerLeave={onLeave}
-      >
-        {icon}
-        <span className="flex-1 text-left">{label}</span>
-      </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent
-        className="flex w-[216px] flex-col gap-3 p-2"
-        onPointerEnter={onEnter}
-        onPointerLeave={onLeave}
-      >
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="flex items-center gap-0.5 text-[14px] text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ChevronLeftIcon className="-ms-0.5 size-4" />
-          <span>{label}</span>
-        </button>
-        <div className="flex flex-col gap-2">{children}</div>
-      </DropdownMenuSubContent>
-    </DropdownMenuSub>
+    <DropdownMenuItem
+      closeOnClick={false}
+      className="text-sm text-foreground/80"
+      onClick={() => actions.setView(view)}
+    >
+      {icon}
+      <span className="flex-1 text-left">{label}</span>
+      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+    </DropdownMenuItem>
   );
 };
+
+// Back header shown above every inline panel.
+const PanelHeader = ({ label }: { label: string }) => {
+  const { actions } = useBlockMenu();
+  return (
+    <button
+      type="button"
+      onClick={() => actions.setView(null)}
+      className="flex w-full items-center gap-0.5 px-1 py-1 text-[14px] text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <ChevronLeftIcon className="-ms-0.5 size-4" />
+      <span>{label}</span>
+    </button>
+  );
+};
+
+// Standard layout for numeric-settings panels (StepperRows etc.).
+const PanelBody = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex flex-col gap-2 p-1">{children}</div>
+);
 
 type StepperRowProps = {
   /** Visible label (e.g. "Min") — the submenu header carries the rest of the context. */
@@ -1098,16 +1224,23 @@ const SwitchRow = ({
   // Pass `inset` only when there's no icon. `inset={false}` would still render
   // data-inset="false", and the `data-inset:ps-7` variant ([data-inset]) matches any value —
   // wrongly indenting iconed rows by 28px. Omitting it (undefined) drops the attribute.
-  <DropdownMenuItem closeOnClick={false} onClick={onToggle} inset={icon ? undefined : true}>
+  <DropdownMenuItem
+    closeOnClick={false}
+    onClick={onToggle}
+    inset={icon ? undefined : true}
+    aria-label={ariaLabel}
+  >
     {icon}
     <span className="min-w-0 flex-1 text-left text-foreground/80">{label}</span>
+    {/* Visual only — the row owns the click. An interactive Switch double-fires: Base UI's menu
+        item activates on the native click before React's stopPropagation runs, so a direct switch
+        click toggled twice (= no visible change). */}
     <Switch
-      aria-label={ariaLabel}
+      aria-hidden
+      tabIndex={-1}
       size="sm"
-      className={SWITCH_OFF_TRACK}
+      className={cn(SWITCH_OFF_TRACK, "pointer-events-none")}
       checked={checked}
-      onCheckedChange={onToggle}
-      onClick={stopMouseEventPropagation}
     />
   </DropdownMenuItem>
 );
@@ -1140,14 +1273,21 @@ const VerifyEmail = () => {
   );
 };
 
-// Default country code (Figma node 25633-9894): searchable country list with an "Off" option;
-// the chosen ISO code seeds the live phone input's country. Search header stays pinned while the
-// list scrolls.
-const DefaultCountryCode = () => {
-  const { open, onPointerEnter, onPointerLeave } = useHoverSubmenu();
+// Allowed countries (Figma node 25633-9894): searchable, multi-select country whitelist. The
+// chosen ISO codes are the only options shown in the live phone input's country dropdown; none
+// selected ⇒ all countries, auto-detected from locale. Search header stays pinned while scrolling.
+const DefaultCountryCode = () => (
+  <SubmenuRow
+    icon={<IconPhone className="text-foreground/80" />}
+    label="Allowed countries"
+    view="default-country-code"
+  />
+);
+
+const DefaultCountryCodePanel = () => {
   const { state, actions } = useBlockMenu();
   const [search, setSearch] = React.useState("");
-  const current = state.inputNode?.defaultCountryCode;
+  const selected = state.inputNode?.allowedCountries;
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -1158,67 +1298,47 @@ const DefaultCountryCode = () => {
   }, [search]);
 
   return (
-    <DropdownMenuSub open={open}>
-      <DropdownMenuSubTrigger
-        className="text-sm text-foreground/80"
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-      >
-        <IconPhone className="text-foreground/80" />
-        <span className="flex-1 text-left">Default country code</span>
-      </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent
-        className="w-[246px]"
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-      >
-        <div className="flex h-7 items-center gap-1.5 rounded-lg bg-secondary px-2 focus-within:ring-2 focus-within:ring-ring/50">
-          <SearchLineIcon className="size-4 shrink-0 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={stopKeyEventPropagation}
-            onPointerDown={stopMouseEventPropagation}
-            placeholder="Search"
-            aria-label="Search countries"
-            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/70"
-          />
-        </div>
-        {/* Unset ⇒ the live phone input auto-detects from the browser locale (already wired in
-            phone-input.tsx). This is the default state, so it sits first and is checked when no
-            explicit country is chosen. */}
-        <DropdownMenuItem
-          closeOnClick={false}
-          className="mt-1 text-foreground/80"
-          onClick={() => actions.setDefaultCountryCode(undefined)}
-        >
-          <span className="min-w-0 flex-1 text-left">Auto-detect</span>
-          {!current && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
-        </DropdownMenuItem>
-        <div className="mt-0.5 max-h-[260px] overflow-y-auto overscroll-contain">
-          {filtered.length === 0 ? (
-            <div className="px-2 py-1.5 text-sm text-muted-foreground">No country found.</div>
-          ) : (
-            filtered.map((c) => (
-              <DropdownMenuItem
-                key={c.code}
-                closeOnClick={false}
-                className="text-foreground/80"
-                onClick={() => actions.setDefaultCountryCode(c.code)}
-              >
-                <span aria-hidden className="shrink-0 text-base leading-none">
-                  {c.flag}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-left">
-                  {c.name} (+{c.dialCode})
-                </span>
-                {current === c.code && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
-              </DropdownMenuItem>
-            ))
-          )}
-        </div>
-      </DropdownMenuSubContent>
-    </DropdownMenuSub>
+    <div className="p-1">
+      <div className="flex h-7 items-center gap-1.5 rounded-lg bg-secondary px-2 focus-within:ring-2 focus-within:ring-ring/50">
+        <SearchLineIcon className="size-4 shrink-0 text-muted-foreground" />
+        <input
+          autoFocus
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={stopKeyEventPropagation}
+          onPointerDown={stopMouseEventPropagation}
+          placeholder="Search"
+          aria-label="Search countries"
+          className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/70"
+        />
+      </div>
+      {/* Multi-select whitelist. None selected ⇒ all countries allowed, auto-detected from the
+          browser locale (wired in phone-input.tsx) — that's the implicit default, no explicit row. */}
+      <div className="mt-1 max-h-[260px] overflow-y-auto overscroll-contain">
+        {filtered.length === 0 ? (
+          <div className="px-2 py-1.5 text-sm text-muted-foreground">No country found.</div>
+        ) : (
+          filtered.map((c) => (
+            <DropdownMenuItem
+              key={c.code}
+              closeOnClick={false}
+              className="text-foreground/80"
+              onClick={() => actions.toggleAllowedCountry(c.code)}
+            >
+              <span aria-hidden className="shrink-0 text-base leading-none">
+                {c.flag}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-left">
+                {c.name} (+{c.dialCode})
+              </span>
+              {selected?.includes(c.code) && (
+                <CheckIcon className="size-4 shrink-0 text-foreground/80" />
+              )}
+            </DropdownMenuItem>
+          ))
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -1241,14 +1361,19 @@ const RepeatableToggle = () => {
 // text-like fields cap both. Centralized so adding an unbounded field is a one-line change here.
 const supportsMaxLength = (type: BlockMenuInputNode["type"] | undefined) => type !== "formTextarea";
 
-const CharacterLimit = () => {
+const CharacterLimit = () => (
+  <SubmenuRow
+    icon={<CharacterLimitIcon className="text-foreground/80" />}
+    label="Character limit"
+    view="character-limit"
+  />
+);
+
+const CharacterLimitPanel = () => {
   const { state, actions } = useBlockMenu();
   const { inputNode } = state;
   return (
-    <SettingsSubmenu
-      icon={<CharacterLimitIcon className="text-foreground/80" />}
-      label="Character limit"
-    >
+    <PanelBody>
       <StepperRow
         label="Min"
         ariaLabel="Min characters"
@@ -1269,18 +1394,23 @@ const CharacterLimit = () => {
           defaultHint={100}
         />
       )}
-    </SettingsSubmenu>
+    </PanelBody>
   );
 };
 
-const ValueRange = () => {
+const ValueRange = () => (
+  <SubmenuRow
+    icon={<SelectionLimitIcon className="text-foreground/80" />}
+    label="Value range"
+    view="value-range"
+  />
+);
+
+const ValueRangePanel = () => {
   const { state, actions } = useBlockMenu();
   const { inputNode } = state;
   return (
-    <SettingsSubmenu
-      icon={<SelectionLimitIcon className="text-foreground/80" />}
-      label="Value range"
-    >
+    <PanelBody>
       <StepperRow
         label="Min"
         ariaLabel="Min value"
@@ -1299,7 +1429,7 @@ const ValueRange = () => {
         max={999999}
         defaultHint={100}
       />
-    </SettingsSubmenu>
+    </PanelBody>
   );
 };
 
@@ -1342,8 +1472,15 @@ const FormatSectionHeader = ({ label }: { label: string }) => (
   <div className="px-2 pt-2 pb-0.5 text-[12px] text-muted-foreground">{label}</div>
 );
 
-const NumberFormat = () => {
-  const { open, onPointerEnter, onPointerLeave } = useHoverSubmenu();
+const NumberFormat = () => (
+  <SubmenuRow
+    icon={<HashIcon className="size-4 text-foreground/80" />}
+    label="Format"
+    view="number-format"
+  />
+);
+
+const NumberFormatPanel = () => {
   const { state, actions } = useBlockMenu();
   const format = state.inputNode?.numberFormat ?? "off";
   const decimal = state.inputNode?.decimalSeparator ?? ".";
@@ -1351,69 +1488,60 @@ const NumberFormat = () => {
   // Decimal separator is meaningless without decimals — hide it unless "Allow decimals" is on.
   const allowDecimals = state.inputNode?.allowDecimals !== false;
   return (
-    <DropdownMenuSub open={open}>
-      <DropdownMenuSubTrigger
-        className="text-sm text-foreground/80"
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-      >
-        <HashIcon className="size-4 text-foreground/80" />
-        <span className="flex-1 text-left">Format</span>
-      </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent
-        className="max-h-[340px] w-[200px] overflow-y-auto"
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-      >
+    <div className="max-h-[340px] overflow-y-auto overscroll-contain p-1">
+      <FormatChoiceRow
+        label="Off"
+        active={format === "off"}
+        onSelect={() => actions.setNumberFormat({ format: "off" })}
+      />
+      {allowDecimals && (
+        <>
+          <FormatSectionHeader label="Decimal separator" />
+          {NUMBER_DECIMAL_CHOICES.map((choice) => (
+            <FormatChoiceRow
+              key={choice.value}
+              label={choice.label}
+              active={decimal === choice.value}
+              onSelect={() => actions.setNumberFormat({ decimalSeparator: choice.value })}
+            />
+          ))}
+        </>
+      )}
+      <FormatSectionHeader label="Thousands separator" />
+      {NUMBER_THOUSANDS_CHOICES.map((choice) => (
         <FormatChoiceRow
-          label="Off"
-          active={format === "off"}
-          onSelect={() => actions.setNumberFormat({ format: "off" })}
+          key={choice.value}
+          label={choice.label}
+          active={thousands === choice.value}
+          onSelect={() => actions.setNumberFormat({ thousandsSeparator: choice.value })}
         />
-        {allowDecimals && (
-          <>
-            <FormatSectionHeader label="Decimal separator" />
-            {NUMBER_DECIMAL_CHOICES.map((choice) => (
-              <FormatChoiceRow
-                key={choice.value}
-                label={choice.label}
-                active={decimal === choice.value}
-                onSelect={() => actions.setNumberFormat({ decimalSeparator: choice.value })}
-              />
-            ))}
-          </>
-        )}
-        <FormatSectionHeader label="Thousands separator" />
-        {NUMBER_THOUSANDS_CHOICES.map((choice) => (
-          <FormatChoiceRow
-            key={choice.value}
-            label={choice.label}
-            active={thousands === choice.value}
-            onSelect={() => actions.setNumberFormat({ thousandsSeparator: choice.value })}
-          />
-        ))}
-        <FormatSectionHeader label="Formats" />
-        {NUMBER_FORMAT_CHOICES.map((choice) => (
-          <FormatChoiceRow
-            key={choice.value}
-            label={choice.label}
-            active={format === choice.value}
-            onSelect={() => actions.setNumberFormat({ format: choice.value })}
-          />
-        ))}
-      </DropdownMenuSubContent>
-    </DropdownMenuSub>
+      ))}
+      <FormatSectionHeader label="Formats" />
+      {NUMBER_FORMAT_CHOICES.map((choice) => (
+        <FormatChoiceRow
+          key={choice.value}
+          label={choice.label}
+          active={format === choice.value}
+          onSelect={() => actions.setNumberFormat({ format: choice.value })}
+        />
+      ))}
+    </div>
   );
 };
 
-const SelectionLimit = () => {
+const SelectionLimit = () => (
+  <SubmenuRow
+    icon={<SelectionLimitIcon className="text-foreground/80" />}
+    label="Selection limit"
+    view="selection-limit"
+  />
+);
+
+const SelectionLimitPanel = () => {
   const { state, actions } = useBlockMenu();
   const { inputNode } = state;
   return (
-    <SettingsSubmenu
-      icon={<SelectionLimitIcon className="text-foreground/80" />}
-      label="Selection limit"
-    >
+    <PanelBody>
       <StepperRow
         label="Min"
         ariaLabel="Min selections"
@@ -1432,7 +1560,7 @@ const SelectionLimit = () => {
         max={50}
         defaultHint={3}
       />
-    </SettingsSubmenu>
+    </PanelBody>
   );
 };
 
@@ -1445,6 +1573,21 @@ const ShuffleOptions = () => {
       ariaLabel="Shuffle options"
       checked={Boolean(state.inputNode?.randomizeOrder)}
       onToggle={actions.toggleRandomizeOrder}
+    />
+  );
+};
+
+// Display mode (Figma 25632:9327/9452): the live form renders the option group as a dropdown —
+// single-select for Multi-choice, multi-select for Checkbox. Pure presentation; answers unchanged.
+const ShowAsDropdown = () => {
+  const { state, actions } = useBlockMenu();
+  return (
+    <SwitchRow
+      icon={<IconDropdown className="text-foreground/80" />}
+      label="Show as dropdown"
+      ariaLabel="Show as dropdown"
+      checked={Boolean(state.inputNode?.showAsDropdown)}
+      onToggle={actions.toggleShowAsDropdown}
     />
   );
 };
@@ -1471,76 +1614,61 @@ const OPTION_LABEL_CHOICES: { value: OptionLabelStyle; label: string }[] = [
   { value: "numbers", label: "Numbers" },
 ];
 
-const OptionLabels = () => {
-  const { open, onPointerEnter, onPointerLeave } = useHoverSubmenu();
+const OptionLabels = () => (
+  <SubmenuRow icon={<LabelsIcon className="text-foreground/80" />} label="Labels" view="labels" />
+);
+
+const OptionLabelsPanel = () => {
   const { state, actions } = useBlockMenu();
   // Mirror the editor's default: multiChoice shows letters until changed, others none.
   const current: OptionLabelStyle =
     state.inputNode?.optionLabel ??
     (state.inputNode?.variant === "multiChoice" ? "letters" : "none");
   return (
-    <DropdownMenuSub open={open}>
-      <DropdownMenuSubTrigger
-        className="text-sm text-foreground/80"
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-      >
-        <LabelsIcon className="text-foreground/80" />
-        <span className="flex-1 text-left">Labels</span>
-      </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent
-        className="w-[160px]"
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-      >
-        {OPTION_LABEL_CHOICES.map((choice) => (
-          <DropdownMenuItem
-            key={choice.value}
-            closeOnClick={false}
-            className="text-foreground/80"
-            onClick={() => actions.setOptionLabel(choice.value)}
-          >
-            <span className="min-w-0 flex-1 text-left">{choice.label}</span>
-            {current === choice.value && (
-              <CheckIcon className="size-4 shrink-0 text-foreground/80" />
-            )}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuSubContent>
-    </DropdownMenuSub>
+    <div className="p-1">
+      {OPTION_LABEL_CHOICES.map((choice) => (
+        <DropdownMenuItem
+          key={choice.value}
+          closeOnClick={false}
+          className="text-foreground/80"
+          onClick={() => actions.setOptionLabel(choice.value)}
+        >
+          <span className="min-w-0 flex-1 text-left">{choice.label}</span>
+          {current === choice.value && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
+        </DropdownMenuItem>
+      ))}
+    </div>
   );
 };
 
 // Toggles per-option image slots for the whole group; each option then uploads its own image inline.
 const OptionImage = () => {
   const { state, actions } = useBlockMenu();
-  const enabled = state.inputNode?.showImage === true;
   return (
-    <DropdownMenuItem
-      closeOnClick={false}
-      className="text-foreground/80"
-      onClick={actions.toggleOptionImage}
-    >
-      <PhotoIcon className="text-foreground/80" />
-      <span className="min-w-0 flex-1 text-left">Image</span>
-      {enabled ? (
-        <CheckIcon className="size-4 shrink-0 text-foreground/80" />
-      ) : (
-        <span className="shrink-0 text-muted-foreground">Upload</span>
-      )}
-    </DropdownMenuItem>
+    <SwitchRow
+      icon={<PhotoIcon className="text-foreground/80" />}
+      label="Image"
+      ariaLabel="Image"
+      checked={state.inputNode?.showImage === true}
+      onToggle={actions.toggleOptionImage}
+    />
   );
 };
 
 // File-upload "Selection limit" submenu (Figma node 25633-11549): max file size + max file count.
-const FileSelectionLimit = () => {
+const FileSelectionLimit = () => (
+  <SubmenuRow
+    icon={<SelectionLimitIcon className="text-foreground/80" />}
+    label="Selection limit"
+    view="file-selection-limit"
+  />
+);
+
+const FileSelectionLimitPanel = () => {
   const { state, actions } = useBlockMenu();
   const { inputNode } = state;
   return (
-    <SettingsSubmenu
-      icon={<SelectionLimitIcon className="text-foreground/80" />}
-      label="Selection limit"
-    >
+    <PanelBody>
       <StepperRow
         label="Max size (MB)"
         ariaLabel="Max file size in MB"
@@ -1559,21 +1687,28 @@ const FileSelectionLimit = () => {
         max={20}
         defaultHint={1}
       />
-    </SettingsSubmenu>
+    </PanelBody>
   );
 };
 
 // File-upload "Allowed files" submenu (Figma node 25633-11852): a categorized extension allow-list.
 // Empty selection ⇒ every extension is implicitly allowed (and shown active), so toggling narrows
 // down. Each category's "All" row flips the whole group.
-const AllowedFiles = () => {
-  const { open, onPointerEnter, onPointerLeave } = useHoverSubmenu();
+const AllowedFiles = () => (
+  <SubmenuRow
+    icon={<FileIcon className="size-4 text-foreground/80" />}
+    label="Allowed files"
+    view="allowed-files"
+  />
+);
+
+const AllowedFilesPanel = () => {
   const { state, actions } = useBlockMenu();
-  const selected = (state.inputNode?.allowedFileExtensions ?? []).filter((e) => e.startsWith("."));
-  const allActive = selected.length === 0;
-  const isActive = (ext: string) => allActive || selected.includes(ext);
-  // Baseline to toggle against — the implicit full set when nothing is explicitly chosen yet.
-  const baseline = () => (allActive ? [...ALL_FILE_EXTENSIONS] : selected);
+  const explicit = (state.inputNode?.allowedFileExtensions ?? []).filter((e) => e.startsWith("."));
+  // Unset ⇒ the image-only default (mirrors resolveAllowedExtensions).
+  const selected = explicit.length > 0 ? explicit : DEFAULT_FILE_UPLOAD_EXTENSIONS;
+  const isActive = (ext: string) => selected.includes(ext);
+  const baseline = () => selected;
 
   const toggleExtension = (ext: string) => {
     const base = baseline();
@@ -1590,50 +1725,36 @@ const AllowedFiles = () => {
   };
 
   return (
-    <DropdownMenuSub open={open}>
-      <DropdownMenuSubTrigger
-        className="text-sm text-foreground/80"
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-      >
-        <FileIcon className="size-4 text-foreground/80" />
-        <span className="flex-1 text-left">Allowed files</span>
-      </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent
-        className="max-h-[340px] w-[200px] overflow-y-auto"
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-      >
-        {FILE_CATEGORIES.map((category) => {
-          const exts = category.extensions.map((e) => e.ext);
-          const allCategoryActive = exts.every((e) => isActive(e));
-          return (
-            <React.Fragment key={category.id}>
-              <FormatSectionHeader label={category.label} />
+    <div className="max-h-[340px] overflow-y-auto overscroll-contain p-1">
+      {FILE_CATEGORIES.map((category) => {
+        const exts = category.extensions.map((e) => e.ext);
+        const allCategoryActive = exts.every((e) => isActive(e));
+        return (
+          <React.Fragment key={category.id}>
+            {/* Header doubles as the group toggle — ticked when every extension is allowed. */}
+            <DropdownMenuItem
+              closeOnClick={false}
+              className="mt-1 text-[12px] text-muted-foreground first:mt-0"
+              onClick={() => toggleCategory(exts)}
+            >
+              <span className="min-w-0 flex-1 text-left">{category.label}</span>
+              {allCategoryActive && <CheckIcon className="size-4 shrink-0 text-muted-foreground" />}
+            </DropdownMenuItem>
+            {category.extensions.map((e) => (
               <DropdownMenuItem
+                key={`${category.id}${e.ext}`}
                 closeOnClick={false}
                 className="text-foreground/80"
-                onClick={() => toggleCategory(exts)}
+                onClick={() => toggleExtension(e.ext)}
               >
-                <span className="min-w-0 flex-1 text-left">All</span>
-                {allCategoryActive && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
+                <span className="min-w-0 flex-1 text-left">{e.ext}</span>
+                {isActive(e.ext) && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
               </DropdownMenuItem>
-              {category.extensions.map((e) => (
-                <DropdownMenuItem
-                  key={`${category.id}${e.ext}`}
-                  closeOnClick={false}
-                  className="text-foreground/80"
-                  onClick={() => toggleExtension(e.ext)}
-                >
-                  <span className="min-w-0 flex-1 text-left">{e.ext}</span>
-                  {isActive(e.ext) && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
-                </DropdownMenuItem>
-              ))}
-            </React.Fragment>
-          );
-        })}
-      </DropdownMenuSubContent>
-    </DropdownMenuSub>
+            ))}
+          </React.Fragment>
+        );
+      })}
+    </div>
   );
 };
 
@@ -1660,7 +1781,12 @@ const MenuDivider = () => <DropdownMenuSeparator />;
 const BulkInsertOptions = () => {
   const { actions } = useBlockMenu();
   return (
-    <DropdownMenuItem className="text-foreground/80" onClick={actions.openBulkInsert}>
+    // closeOnClick={false}: the popup stays open and morphs into the bulk-insert panel.
+    <DropdownMenuItem
+      closeOnClick={false}
+      className="text-foreground/80"
+      onClick={actions.openBulkInsert}
+    >
       <BulkInsertIcon />
       <span className="flex-1 text-left">Bulk insert options</span>
       <DropdownMenuShortcut>⌘O</DropdownMenuShortcut>
@@ -1668,70 +1794,58 @@ const BulkInsertOptions = () => {
   );
 };
 
-// "Add Options" dialog (Figma node 25578-11410): paste one option per line, Save splices them
-// into the option group. Self-contained — its open state lives in BlockMenu so it survives the
-// menu closing.
-const BulkInsertDialog = ({
-  open,
-  onClose,
-  onSubmit,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onSubmit: (text: string) => void;
-}) => {
+// Inline "Add Options" panel — the menu popup morphs into this view (no separate dialog).
+// Paste one option per line; Save splices them into the option group.
+const BulkInsertPanel = () => {
+  const { actions } = useBlockMenu();
   const [value, setValue] = React.useState("");
-  React.useEffect(() => {
-    if (!open) setValue("");
-  }, [open]);
-
   const canSave = value.trim().length > 0;
   const save = () => {
-    if (canSave) onSubmit(value);
+    if (canSave) actions.submitBulkInsert(value);
   };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent showCloseButton={false} className="gap-5 rounded-[20px] p-5 sm:max-w-[420px]">
-        <DialogHeader className="gap-1.5">
-          <DialogTitle className="text-[18px]">Add Options</DialogTitle>
-          <DialogDescription className="mt-0 text-[14px] leading-normal text-gray-700">
-            Write or paste your options below. Each option must be on a separate line.
-          </DialogDescription>
-        </DialogHeader>
-        <Textarea
-          autoFocus
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          // ⌘/Ctrl+Enter saves; plain Enter must add a new line (one option per line).
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-              event.preventDefault();
-              save();
-            }
-          }}
-          placeholder="Type each options on a new line"
-          className="h-[180px] resize-none rounded-[12px] bg-muted shadow-none focus-visible:ring-0"
-        />
-        <div className="flex justify-end">
-          <Button onClick={save} disabled={!canSave}>
-            Save
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <div className="flex flex-col gap-2 p-1">
+      <p className="text-[12px] leading-normal text-muted-foreground">
+        Write or paste your options below, one per line.
+      </p>
+      <Textarea
+        autoFocus
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        // Stop the menu's typeahead/arrow-nav from swallowing keys; Escape backs out to the
+        // menu view; ⌘/Ctrl+Enter saves; plain Enter must add a new line (one option per line).
+        onKeyDown={(event) => {
+          event.stopPropagation();
+          if (event.key === "Escape") {
+            event.preventDefault();
+            actions.setView(null);
+            return;
+          }
+          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+            event.preventDefault();
+            save();
+          }
+        }}
+        onKeyUp={stopKeyEventPropagation}
+        onClick={stopMouseEventPropagation}
+        onPointerDown={stopMouseEventPropagation}
+        placeholder="Type each options on a new line"
+        className="h-[140px] resize-none rounded-[10px] bg-muted shadow-none focus-visible:ring-0"
+      />
+      <div className="flex justify-end">
+        <Button size="sm" onClick={save} disabled={!canSave}>
+          Save
+        </Button>
+      </div>
+    </div>
   );
 };
 
 // `children` are rendered right after "Add conditional logic" — option menus slot the
 // "Bulk insert options" action in there to match Figma's ordering.
 const MenuActions = ({ children }: { children?: React.ReactNode }) => {
-  const { actions } = useBlockMenu();
-  const {
-    open: turnIntoOpen,
-    onPointerEnter: onEnter,
-    onPointerLeave: onLeave,
-  } = useHoverSubmenu();
+  const { state, actions } = useBlockMenu();
 
   return (
     <>
@@ -1760,26 +1874,31 @@ const MenuActions = ({ children }: { children?: React.ReactNode }) => {
         <DropdownMenuShortcut>Del</DropdownMenuShortcut>
       </DropdownMenuItem>
 
-      <DropdownMenuSub open={turnIntoOpen}>
-        <DropdownMenuSubTrigger
-          className="text-sm text-foreground/80"
-          onPointerEnter={onEnter}
-          onPointerLeave={onLeave}
-        >
-          <TurnIntoIcon />
-          <span className="flex-1 text-left">Turn into</span>
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent onPointerEnter={onEnter} onPointerLeave={onLeave}>
-          <DropdownMenuItem onClick={() => actions.turnInto(KEYS.p)}>Paragraph</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => actions.turnInto(KEYS.h1)}>Heading 1</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => actions.turnInto(KEYS.h2)}>Heading 2</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => actions.turnInto(KEYS.h3)}>Heading 3</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => actions.turnInto(KEYS.blockquote)}>
-            Blockquote
-          </DropdownMenuItem>
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
+      {state.canTurnInto && <TurnInto />}
     </>
+  );
+};
+
+const TurnInto = () => <SubmenuRow icon={<TurnIntoIcon />} label="Turn into" view="turn-into" />;
+
+const TURN_INTO_CHOICES: { type: string; label: string }[] = [
+  { type: KEYS.p, label: "Paragraph" },
+  { type: KEYS.h1, label: "Heading 1" },
+  { type: KEYS.h2, label: "Heading 2" },
+  { type: KEYS.h3, label: "Heading 3" },
+  { type: KEYS.blockquote, label: "Blockquote" },
+];
+
+const TurnIntoPanel = () => {
+  const { actions } = useBlockMenu();
+  return (
+    <div className="p-1">
+      {TURN_INTO_CHOICES.map((choice) => (
+        <DropdownMenuItem key={choice.type} onClick={() => actions.turnInto(choice.type)}>
+          {choice.label}
+        </DropdownMenuItem>
+      ))}
+    </div>
   );
 };
 
@@ -1871,9 +1990,17 @@ const NumberFieldMenu = () => (
   </>
 );
 
-// Linear scale "Scale" submenu (Figma 25634-17867): dual-handle slider sets the scale's
+// Linear scale "Scale" panel (Figma 25634-17867): dual-handle slider sets the scale's
 // Start/End within the allowed bounds; the values below echo the current selection.
-const ScaleRange = () => {
+const ScaleRange = () => (
+  <SubmenuRow
+    icon={<IconLinearScale className="text-foreground/80" />}
+    label="Scale"
+    view="scale"
+  />
+);
+
+const ScaleRangePanel = () => {
   const { state, actions } = useBlockMenu();
   const nodeMin = state.inputNode?.scaleMin ?? LINEAR_SCALE_DEFAULTS.min;
   const nodeMax = state.inputNode?.scaleMax ?? LINEAR_SCALE_DEFAULTS.max;
@@ -1885,7 +2012,7 @@ const ScaleRange = () => {
     setRange([nodeMin, nodeMax]);
   }, [nodeMin, nodeMax]);
   return (
-    <SettingsSubmenu icon={<IconLinearScale className="text-foreground/80" />} label="Scale">
+    <PanelBody>
       <div className="flex items-center justify-between text-[14px] font-medium text-foreground">
         <span>Start</span>
         <span>End</span>
@@ -1912,7 +2039,7 @@ const ScaleRange = () => {
         <span>{range[0]}</span>
         <span>{range[1]}</span>
       </div>
-    </SettingsSubmenu>
+    </PanelBody>
   );
 };
 
@@ -1920,9 +2047,17 @@ const ScaleRange = () => {
 const readSliderValue = (value: number | readonly number[]): number =>
   Array.isArray(value) ? value[0] : (value as number);
 
-// Linear scale "Scale step" submenu (Figma 25644-10393): single slider + value box for the
+// Linear scale "Scale step" panel (Figma 25644-10393): single slider + value box for the
 // increment between points.
-const ScaleStep = () => {
+const ScaleStep = () => (
+  <SubmenuRow
+    icon={<HashIcon className="text-foreground/80" strokeWidth={1} />}
+    label="Scale step"
+    view="scale-step"
+  />
+);
+
+const ScaleStepPanel = () => {
   const { state, actions } = useBlockMenu();
   // `??` only guards null/undefined — a corrupt NaN slips through and renders "NaN". Mirror
   // extractLinearScaleFields: any non-finite/non-positive value falls back to the default.
@@ -1935,10 +2070,7 @@ const ScaleStep = () => {
     setStep(nodeStep);
   }, [nodeStep]);
   return (
-    <SettingsSubmenu
-      icon={<HashIcon className="text-foreground/80" strokeWidth={1} />}
-      label="Scale step"
-    >
+    <PanelBody>
       <div className="flex items-center gap-2.5">
         {/* Stop propagation so dragging the slider doesn't dismiss the menu. */}
         <Slider
@@ -1958,7 +2090,7 @@ const ScaleStep = () => {
           {step}
         </div>
       </div>
-    </SettingsSubmenu>
+    </PanelBody>
   );
 };
 
@@ -1997,6 +2129,7 @@ const CheckboxFieldMenu = () => (
   <>
     <RequiredToggle />
     <ShuffleOptions />
+    <ShowAsDropdown />
     <SelectionLimit />
     <OptionLabels />
     <OptionImage />
@@ -2007,19 +2140,11 @@ const CheckboxFieldMenu = () => (
   </>
 );
 
-const MultiSelectFieldMenu = () => (
-  <>
-    <RequiredToggle />
-    <SelectionLimit />
-    <MenuDivider />
-    <MenuActions />
-  </>
-);
-
 const MultiChoiceFieldMenu = () => (
   <>
     <RequiredToggle />
     <ShuffleOptions />
+    <ShowAsDropdown />
     <SelectionLimit />
     <OptionLabels />
     <OptionImage />
@@ -2054,11 +2179,19 @@ const ButtonFieldMenu = () => (
 // Static (headings/paragraph/quote) and unknown blocks: actions only.
 const StaticFieldMenu = () => <MenuActions />;
 
-// Rating "Stars count" submenu (Figma 25647-15073): a stepper bounded to 1…RATING_MAX_STARS.
-const StarsCount = () => {
+// Rating "Stars count" panel (Figma 25647-15073): a stepper bounded to 1…RATING_MAX_STARS.
+const StarsCount = () => (
+  <SubmenuRow
+    icon={<IconRating className="text-foreground/80" />}
+    label="Stars count"
+    view="stars-count"
+  />
+);
+
+const StarsCountPanel = () => {
   const { state, actions } = useBlockMenu();
   return (
-    <SettingsSubmenu icon={<IconRating className="text-foreground/80" />} label="Stars count">
+    <PanelBody>
       <StepperRow
         label="Stars"
         ariaLabel="Number of stars"
@@ -2068,7 +2201,7 @@ const StarsCount = () => {
         max={RATING_MAX_STARS}
         defaultHint={RATING_DEFAULTS.starCount}
       />
-    </SettingsSubmenu>
+    </PanelBody>
   );
 };
 
@@ -2081,6 +2214,24 @@ const RatingFieldMenu = () => (
     <MenuActions />
   </>
 );
+
+// Inline subview registry — SubmenuRow triggers reference these ids; BlockMenu renders the
+// active panel in place of the menu (PanelHeader + Panel), morphing the popup between them.
+const INLINE_PANELS: Record<string, { label: string; width?: string; Panel: React.FC }> = {
+  "character-limit": { label: "Character limit", Panel: CharacterLimitPanel },
+  "value-range": { label: "Value range", Panel: ValueRangePanel },
+  "selection-limit": { label: "Selection limit", Panel: SelectionLimitPanel },
+  "file-selection-limit": { label: "Selection limit", Panel: FileSelectionLimitPanel },
+  "allowed-files": { label: "Allowed files", Panel: AllowedFilesPanel },
+  "default-country-code": { label: "Allowed countries", Panel: DefaultCountryCodePanel },
+  "number-format": { label: "Format", Panel: NumberFormatPanel },
+  labels: { label: "Labels", Panel: OptionLabelsPanel },
+  scale: { label: "Scale", Panel: ScaleRangePanel },
+  "scale-step": { label: "Scale step", Panel: ScaleStepPanel },
+  "stars-count": { label: "Stars count", Panel: StarsCountPanel },
+  "turn-into": { label: "Turn into", Panel: TurnIntoPanel },
+  "bulk-insert": { label: "Add options", Panel: BulkInsertPanel },
+};
 
 const FIELD_MENU_VARIANTS: Record<BlockFieldType, React.FC> = {
   textLike: TextFieldMenu,
@@ -2095,7 +2246,6 @@ const FIELD_MENU_VARIANTS: Record<BlockFieldType, React.FC> = {
   optionCheckbox: CheckboxFieldMenu,
   optionMultiChoice: MultiChoiceFieldMenu,
   optionRanking: RankingFieldMenu,
-  formMultiSelect: MultiSelectFieldMenu,
   formRating: RatingFieldMenu,
   formSignature: ScalarFieldMenu,
   formButton: ButtonFieldMenu,
@@ -2172,7 +2322,7 @@ interface BlockMenuFirstNode {
   decimalSeparator?: DecimalSeparator;
   thousandsSeparator?: ThousandsSeparator;
   verifyEmail?: boolean;
-  defaultCountryCode?: string;
+  allowedCountries?: string[];
   required?: boolean;
   isFieldArray?: boolean;
   placeholder?: string;
@@ -2191,6 +2341,7 @@ interface BlockMenuFirstNode {
   minSelections?: number;
   maxSelections?: number;
   randomizeOrder?: boolean;
+  showAsDropdown?: boolean;
   allowOther?: boolean;
   scaleMin?: number;
   scaleMax?: number;

@@ -42,6 +42,65 @@ const GUTTER_CENTER_TYPES = new Set<string>([
   KEYS.blockquote,
 ]);
 
+// In readOnly (version view / in-editor preview) the DnD plugin is editOnly, so BlockDraggable
+// never runs and `.slate-blockWrapper` is never emitted — block spacing (driven entirely by the
+// .slate-blockWrapper CSS rules in styles.css) collapses to 0. This non-DnD wrapper re-emits the
+// SAME two-level structure (outer attr div + inner .slate-blockWrapper) for top-level blocks so
+// spacing matches the editable editor exactly, minus drag affordances. The two levels matter: the
+// heading/paragraph CSS rules are parent-scoped (`parent:has(> .slate-blockWrapper > .slate-h1)
+// > .slate-blockWrapper`), so each wrapper needs its OWN parent div — a flat single div makes the
+// editor the shared parent and leaks the heading margins onto every sibling. The data-bf-input /
+// data-bf-chrome / data-bf-standalone attrs mirror Draggable's outer div (option-collapse + chrome
+// exclusion rules read them). Keep this in sync with Draggable's wrapper attrs below.
+const ReadOnlyBlock = ({
+  editor,
+  element,
+  path,
+  children,
+}: {
+  editor: PlateEditor;
+  element: TElement;
+  path: number[];
+  children: React.ReactNode;
+}) => {
+  const isFormInput = FORM_INPUT_NODE_TYPES.has(element.type);
+  const chromeAttrs = element.type === "formHeader" ? { "data-bf-chrome": "" } : {};
+
+  const isStandaloneInput = (() => {
+    if (!isFormInput) return false;
+    if (element.type === "formTextarea" || element.type === "formFileUpload") return false;
+    const idx = path[0];
+    if (typeof idx !== "number") return false;
+    const prev = (editor.children as TElement[])[idx - 1];
+    if (!prev) return true;
+    if (prev.type === "formLabel") return false;
+    if (element.type === "formOptionItem" && prev.type === "formOptionItem") return false;
+    return true;
+  })();
+
+  const inputAttrs = isFormInput
+    ? isStandaloneInput
+      ? { "data-bf-input": "true", "data-bf-standalone": "true" }
+      : { "data-bf-input": "true" }
+    : {};
+
+  return (
+    <div className="relative" {...chromeAttrs} {...inputAttrs}>
+      <div className="slate-blockWrapper flow-root">{children}</div>
+    </div>
+  );
+};
+
+export const ReadOnlyBlockWrapper: RenderNodeWrapper = ({ editor, element, path }) => {
+  if (!editor.dom.readOnly) return; // edit mode: BlockDraggable owns the wrapper
+  if (path.length !== 1 || isType(editor, element, UNDRAGGABLE_KEYS)) return;
+  return ({ children }) => (
+    <ReadOnlyBlock editor={editor} element={element} path={path}>
+      {children}
+    </ReadOnlyBlock>
+  );
+};
+
 export const BlockDraggable: RenderNodeWrapper = (props) => {
   const { editor, element, path } = props;
 

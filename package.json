@@ -138,6 +138,7 @@
     "type-fest": "^5.6.0",
     "use-file-picker": "2.1.2",
     "valibot": "1.4.0",
+    "vaul-base": "^1.0.0",
     "vite-tsconfig-paths": "^6.1.1",
     "web-vitals": "5.2.0"
   },

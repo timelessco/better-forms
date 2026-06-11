@@ -1,5 +1,13 @@
 import { animate, useMotionValue, useTransform } from "motion/react";
-import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 
 import { useControllableState } from "@/hooks/use-controllable-state/use-controllable-state";
 
@@ -101,6 +109,8 @@ export interface UseElasticSliderOptions {
   isAuto: boolean;
   onAutoChange?: () => void;
   shouldReduceMotion: boolean | null;
+  /** "dot" turns the hash marks into discrete snap stops the handle locks onto. */
+  markStyle: "line" | "dot";
 }
 
 export const useElasticSlider = ({
@@ -116,6 +126,7 @@ export const useElasticSlider = ({
   isAuto,
   onAutoChange,
   shouldReduceMotion,
+  markStyle,
 }: UseElasticSliderOptions) => {
   const hasAutoSlot = allowAuto && typeof onAutoChange === "function";
   const slotOffset = hasAutoSlot ? AUTO_SLOT_PERCENT : 0;
@@ -194,6 +205,30 @@ export const useElasticSlider = ({
   const percentFromValue = useCallback(
     (v: number) => slotOffset + ((v - min) / (max - min)) * numericTrackPercent,
     [min, max, slotOffset, numericTrackPercent],
+  );
+
+  // Dot variant: the marks ARE the snap stops. Place ~7 interior stops (Figma Radius) at a whole
+  // number of steps (clean increments) and snap the value to the nearest of {min, …stops, max}.
+  // Rendering reads the same list, so a dot always sits exactly where the handle can land.
+  const markStops = useMemo(() => {
+    if (markStyle !== "dot") return null;
+    const range = max - min;
+    if (range <= 0) return [];
+    const interval = Math.max(step, Math.round(range / 8 / step) * step);
+    const interior: number[] = [];
+    for (let v = min + interval; v < max - 1e-9; v += interval) {
+      interior.push(roundValue(v, step));
+    }
+    return interior;
+  }, [markStyle, min, max, step]);
+
+  const snapToMark = useCallback(
+    (v: number): number => {
+      if (!markStops) return v;
+      const stops = [min, ...markStops, max];
+      return stops.reduce((best, s) => (Math.abs(s - v) < Math.abs(best - v) ? s : best), stops[0]);
+    },
+    [markStops, min, max],
   );
 
   // Animate fill to target percent; jump instantly under reduced motion (position still updates, only spring skipped).
@@ -312,22 +347,27 @@ export const useElasticSlider = ({
     (e: React.PointerEvent) => {
       if (!isInteracting) return;
 
-      if (isClickRef.current) {
-        const next = positionToState(e.clientX);
-        if (next.kind === "auto") {
+      const next = positionToState(e.clientX);
+      if (next.kind === "auto") {
+        if (isClickRef.current) {
           animateFillTo(0);
           onAutoChange?.();
-        } else {
-          // Coarse sliders (≤10 positions) snap to nearest step; continuous ones keep decile-magnetic.
-          const discreteSteps = (max - min) / step;
-          const snapped =
-            discreteSteps <= 10
-              ? clamp(min + Math.round((next.value - min) / step) * step, min, max)
-              : snapToDecile(next.value, min, max);
-
-          animateFillTo(percentFromValue(snapped));
-          setValue(roundValue(snapped, step));
         }
+      } else if (markStops) {
+        // Dot variant: land on the nearest snap stop whether the gesture was a click or a drag.
+        const snapped = snapToMark(next.value);
+        animateFillTo(percentFromValue(snapped));
+        setValue(roundValue(snapped, step));
+      } else if (isClickRef.current) {
+        // Coarse sliders (≤10 positions) snap to nearest step; continuous ones keep decile-magnetic.
+        const discreteSteps = (max - min) / step;
+        const snapped =
+          discreteSteps <= 10
+            ? clamp(min + Math.round((next.value - min) / step) * step, min, max)
+            : snapToDecile(next.value, min, max);
+
+        animateFillTo(percentFromValue(snapped));
+        setValue(roundValue(snapped, step));
       }
 
       if (!shouldReduceMotion && rubberStretch.get() !== 0) {
@@ -353,6 +393,8 @@ export const useElasticSlider = ({
       rubberStretch,
       shouldReduceMotion,
       onAutoChange,
+      markStops,
+      snapToMark,
     ],
   );
 
@@ -468,6 +510,17 @@ export const useElasticSlider = ({
     [discreteSteps, max, min, step, slotOffset, numericTrackPercent],
   );
 
+  // Dot variant: render a dot per snap stop, hiding the one the handle is currently on/nearest so the
+  // handle never collides with a dot (matches the Figma filled states).
+  const dotMarks = useMemo(() => {
+    if (!markStops) return null;
+    const hideWithin = markStops.length > 0 ? 100 / (markStops.length + 1) / 2 : 5;
+    return markStops.map((v) => {
+      const pct = percentFromValue(v);
+      return { pct, hidden: Math.abs(pct - percentage) < hideWithin };
+    });
+  }, [markStops, percentFromValue, percentage]);
+
   return {
     wrapperRef,
     trackRef,
@@ -482,6 +535,7 @@ export const useElasticSlider = ({
     handleOpacity,
     hashMarkCount,
     hashMarkPct,
+    dotMarks,
     fillWidth,
     handleLeft,
     rubberWidth,

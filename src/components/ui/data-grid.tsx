@@ -3,15 +3,12 @@ import type { ReactNode, Ref, UIEventHandler } from "react";
 import { useSelector } from "@tanstack/react-store";
 import { createTableHook } from "@tanstack/react-table";
 import {
-  columnFacetingFeature,
   columnFilteringFeature,
   columnOrderingFeature,
   columnPinningFeature,
   columnResizingFeature,
   columnSizingFeature,
   columnVisibilityFeature,
-  createFacetedRowModel,
-  createFacetedUniqueValues,
   createFilteredRowModel,
   createPaginatedRowModel,
   createSortedRowModel,
@@ -50,7 +47,6 @@ import { DataGridVirtualTable } from "@/components/ui/data-grid-virtual-table";
 
 // Stable module-level reference required by v9's `_features`.
 export const DATA_GRID_FEATURES = tableFeatures({
-  columnFacetingFeature,
   columnFilteringFeature,
   columnOrderingFeature,
   columnPinningFeature,
@@ -69,16 +65,14 @@ export type DataGridFeatures = typeof DATA_GRID_FEATURES;
 // Full useAppTable return — state, registered tableComponents, and AppTable/AppCell/AppHeader wrappers.
 export type DataGridApi<TData extends RowData> = ReturnType<typeof useAppTable<TData>>;
 
-// Subscribes to table.store, not per-slice atoms: in v9 derived atoms don't fire reliably when
-// state is owned via options.state.X (baseAtoms sync during render). table.store is what v9's own
-// useTable uses; the subscription forces re-render on selection changes since React Compiler can't
-// track row.getIsSelected() via the stable Row reference.
+// Why subscribe at all: React Compiler caches row.getIsSelected() etc against the stable Row
+// reference, so direct reads go stale; per-slice atoms re-render only on that slice (store is deprecated).
 export const useRowSelected = <T extends RowData>(table: DataGridApi<T>, rowId: string): boolean =>
-  useSelector(table.store, (state) => !!state.rowSelection?.[rowId]);
+  useSelector(table.atoms.rowSelection, (rowSelection) => !!rowSelection?.[rowId]);
 
 export const useRowExpanded = <T extends RowData>(table: DataGridApi<T>, rowId: string): boolean =>
-  useSelector(table.store, (state) =>
-    typeof state.expanded === "object" ? !!state.expanded?.[rowId] : !!state.expanded,
+  useSelector(table.atoms.expanded, (expanded) =>
+    typeof expanded === "object" ? !!expanded?.[rowId] : !!expanded,
   );
 
 export type RowPinPosition = "top" | "bottom" | false;
@@ -86,9 +80,9 @@ export const useRowPinned = <T extends RowData>(
   table: DataGridApi<T>,
   rowId: string,
 ): RowPinPosition =>
-  useSelector(table.store, (state) => {
-    if (state.rowPinning?.top?.includes(rowId)) return "top";
-    if (state.rowPinning?.bottom?.includes(rowId)) return "bottom";
+  useSelector(table.atoms.rowPinning, (rowPinning) => {
+    if (rowPinning?.top?.includes(rowId)) return "top";
+    if (rowPinning?.bottom?.includes(rowId)) return "bottom";
     return false;
   });
 
@@ -97,8 +91,8 @@ export const useColumnSorted = <T extends RowData>(
   table: DataGridApi<T>,
   columnId: string,
 ): ColumnSortDirection =>
-  useSelector(table.store, (state) => {
-    const found = state.sorting?.find((s) => s.id === columnId);
+  useSelector(table.atoms.sorting, (sorting) => {
+    const found = sorting?.find((s) => s.id === columnId);
     if (!found) return false;
     return found.desc ? "desc" : "asc";
   });
@@ -108,14 +102,17 @@ export const useColumnPinned = <T extends RowData>(
   table: DataGridApi<T>,
   columnId: string,
 ): ColumnPinPosition =>
-  useSelector(table.store, (state) => {
-    if (state.columnPinning?.left?.includes(columnId)) return "left";
-    if (state.columnPinning?.right?.includes(columnId)) return "right";
+  useSelector(table.atoms.columnPinning, (columnPinning) => {
+    if (columnPinning?.left?.includes(columnId)) return "left";
+    if (columnPinning?.right?.includes(columnId)) return "right";
     return false;
   });
 
 export const useColumnResizingId = <T extends RowData>(table: DataGridApi<T>): false | string =>
-  useSelector(table.store, (state) => state.columnResizing?.isResizingColumn ?? false);
+  useSelector(
+    table.atoms.columnResizing,
+    (columnResizing) => columnResizing?.isResizingColumn ?? false,
+  );
 
 declare module "@tanstack/table-core" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -333,9 +330,9 @@ export const {
   useHeaderContext,
 } = createTableHook({
   features: DATA_GRID_FEATURES,
+  // Expansion is content-row-only: rowExpandingFeature w/o createExpandedRowModel, so getSubRows
+  // flattening silently no-ops — meta.expandedContent rows are rendered manually instead.
   rowModels: {
-    facetedRowModel: createFacetedRowModel(),
-    facetedUniqueValues: createFacetedUniqueValues(),
     filteredRowModel: createFilteredRowModel(filterFns),
     paginatedRowModel: createPaginatedRowModel(),
     sortedRowModel: createSortedRowModel(sortFns),
@@ -355,16 +352,21 @@ export const {
 // in a cell: function reads stale; subscribing here re-renders just this checkbox on selection.
 export const SelectionCheckbox = <TData extends RowData>({
   row,
+  ariaLabel,
 }: {
   row: Row<DataGridFeatures, TData>;
+  ariaLabel?: string;
 }) => {
   const table = useTableContext<TData>();
-  const isSelected = useSelector(table.store, (state) => !!state.rowSelection?.[row.id]);
+  const isSelected = useSelector(
+    table.atoms.rowSelection,
+    (rowSelection) => !!rowSelection?.[row.id],
+  );
   return (
     <Checkbox
       checked={isSelected}
       onCheckedChange={(value) => row.toggleSelected(!!value)}
-      aria-label="Select row"
+      aria-label={ariaLabel ?? "Select row"}
       className="translate-y-[2px]"
     />
   );

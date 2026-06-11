@@ -25,11 +25,14 @@ const FIELD_TYPE_MAP: Record<string, { nodeType: string; defaultPlaceholder?: st
   fileUpload: { nodeType: "formFileUpload" },
 };
 
-const CHOICE_VARIANT_MAP: Record<string, string> = {
-  checkbox: "checkbox",
-  multiChoice: "multiChoice",
-  ranking: "ranking",
-  dropdown: "dropdown",
+// Dropdown / multi-select are display modes of multiChoice / checkbox (showAsDropdown on the
+// group's first option node), not variants.
+const CHOICE_VARIANT_MAP: Record<string, { variant: string; showAsDropdown?: boolean }> = {
+  checkbox: { variant: "checkbox" },
+  multiChoice: { variant: "multiChoice" },
+  ranking: { variant: "ranking" },
+  dropdown: { variant: "multiChoice", showAsDropdown: true },
+  multiSelect: { variant: "checkbox", showAsDropdown: true },
 };
 
 const buildLabelNode = (label: string, required: boolean): TElement =>
@@ -60,35 +63,25 @@ const buildStandardFieldNodes = (
   return [label, fieldNode];
 };
 
-const buildChoiceFieldNodes = (args: FormBlockArgs, variant: string): TElement[] => {
+const buildChoiceFieldNodes = (
+  args: FormBlockArgs,
+  choice: { variant: string; showAsDropdown?: boolean },
+): TElement[] => {
   const label = buildLabelNode(args.label, args.required ?? false);
   const options = args.options && args.options.length > 0 ? args.options : [""];
 
   const optionNodes = options.map(
-    (text) =>
+    (text, idx) =>
       ({
         type: "formOptionItem",
-        variant,
+        variant: choice.variant,
+        // display flag lives on the group's first option node
+        ...(idx === 0 && choice.showAsDropdown ? { showAsDropdown: true } : {}),
         children: [{ text }],
       }) as TElement,
   );
 
   return [label, ...optionNodes, { type: "p", children: [{ text: "" }] } as TElement];
-};
-
-const buildMultiSelectNodes = (args: FormBlockArgs): TElement[] => {
-  const label = buildLabelNode(args.label, args.required ?? false);
-  const options = args.options && args.options.length > 0 ? args.options : [];
-
-  return [
-    label,
-    {
-      type: "formMultiSelectInput",
-      options,
-      children: [{ text: "" }],
-    } as TElement,
-    { type: "p", children: [{ text: "" }] } as TElement,
-  ];
 };
 
 export const buildFormBlockNodes = (args: FormBlockArgs): TElement[] => {
@@ -99,13 +92,9 @@ export const buildFormBlockNodes = (args: FormBlockArgs): TElement[] => {
     return buildStandardFieldNodes(args, standardField.nodeType, standardField.defaultPlaceholder);
   }
 
-  const choiceVariant = CHOICE_VARIANT_MAP[fieldType];
-  if (choiceVariant) {
-    return buildChoiceFieldNodes(args, choiceVariant);
-  }
-
-  if (fieldType === "multiSelect") {
-    return buildMultiSelectNodes(args);
+  const choice = CHOICE_VARIANT_MAP[fieldType];
+  if (choice) {
+    return buildChoiceFieldNodes(args, choice);
   }
 
   // Fallback: treat unknown field types as input

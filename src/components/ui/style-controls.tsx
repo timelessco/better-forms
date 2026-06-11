@@ -32,6 +32,10 @@ interface StyleNumberInputProps {
   isAuto?: boolean;
   /** Called when the far-left auto state is selected. */
   onAutoChange?: () => void;
+  /** Hash-mark style — "dot" for the Figma radius variant. Default "line". */
+  markStyle?: "line" | "dot";
+  /** Replaces the right-side value text with an icon (Figma radius variant). */
+  endIcon?: React.ReactNode;
 }
 
 export const StyleNumberInput = ({
@@ -48,6 +52,8 @@ export const StyleNumberInput = ({
   isAuto = false,
   onAutoChange,
   bare = false,
+  markStyle,
+  endIcon,
 }: StyleNumberInputProps) => {
   const match = value?.toString().match(VALUE_PARSE_RE);
   const numValue = match ? parseFloat(match[1]) : min;
@@ -76,13 +82,12 @@ export const StyleNumberInput = ({
       allowAuto={allowAuto}
       isAuto={isAuto}
       onAutoChange={onAutoChange}
+      markStyle={markStyle}
+      endIcon={endIcon}
       aria-label={isAuto ? `${label}: Auto` : `${label}: ${numValue}${shownUnit}`}
       className={cn(
         bare ? "h-7 [--elastic-slider-height:1.75rem]" : "h-[34px] [--elastic-slider-height:34px]",
         "[--elastic-slider-bg:var(--background)]",
-        bare
-          ? "[--elastic-slider-fill-active:transparent] [--elastic-slider-fill:transparent]"
-          : "[--elastic-slider-fill-active:var(--secondary)] [--elastic-slider-fill:var(--secondary)]",
         bare
           ? "[&_[data-slot=elastic-slider-label]]:inset-s-0 [&_[data-slot=elastic-slider-label]]:text-[14px] [&_[data-slot=elastic-slider-label]]:font-normal [&_[data-slot=elastic-slider-label]]:text-muted-foreground"
           : "[&_[data-slot=elastic-slider-label]]:inset-s-2 [&_[data-slot=elastic-slider-label]]:text-base [&_[data-slot=elastic-slider-label]]:font-normal",
