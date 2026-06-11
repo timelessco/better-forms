@@ -107,11 +107,11 @@ export const ElasticSlider = ({
           "[--elastic-slider-height:--spacing(9)] [--elastic-slider-radius:var(--radius-lg)]",
           "[--elastic-slider-bg:var(--muted)]",
           // Filled state (Figma gray/300): a rounded tile spanning left edge → handle. Override
-          // --elastic-slider-tile-radius per row (e.g. theme --radius for the Radius variant).
-          "[--elastic-slider-tile-bg:var(--color-gray-300)]",
+          // --elastic-slider-tile-radius per row. Dark equivalents keep contrast on dark surfaces.
+          "[--elastic-slider-tile-bg:var(--color-gray-300)] dark:[--elastic-slider-tile-bg:var(--color-gray-600)]",
           "[--elastic-slider-tile-radius:var(--elastic-slider-radius)]",
-          "[--elastic-slider-hash:var(--color-gray-400)]",
-          "[--elastic-slider-handle:var(--foreground)]",
+          "[--elastic-slider-hash:var(--color-gray-400)] dark:[--elastic-slider-hash:var(--color-gray-500)]",
+          "[--elastic-slider-handle:var(--color-gray-500)] dark:[--elastic-slider-handle:var(--color-gray-400)]",
           "[--elastic-slider-label:var(--muted-foreground)]",
           "[--elastic-slider-focus:var(--foreground)]",
           "relative h-(--elastic-slider-height)",
@@ -192,7 +192,7 @@ const SliderHashMarks = ({
       return (
         <div
           key={`hash-${pct}`}
-          className="absolute top-1/2 h-2 w-px -translate-x-1/2 -translate-y-1/2 rounded-full bg-(--elastic-slider-hash) rtl:translate-x-1/2"
+          className="absolute top-1/2 h-1.5 w-px -translate-x-1/2 -translate-y-1/2 rounded-full bg-(--elastic-slider-hash) rtl:translate-x-1/2"
           style={{ left: `${pct}%` }}
         />
       );
@@ -229,6 +229,7 @@ interface SliderHandleProps {
   shouldReduceMotion: boolean | null;
 }
 
+// Figma Frame 1533208826: 2×12px rounded bar, always visible, riding the fill tile's right edge.
 const SliderHandle = ({
   handleLeft,
   handleOpacity,
@@ -239,22 +240,16 @@ const SliderHandle = ({
   <m.div
     data-slot="elastic-slider-handle"
     aria-hidden="true"
-    className="pointer-events-none absolute top-1/2 h-5 w-1 rounded-full bg-(--elastic-slider-handle)"
+    className="pointer-events-none absolute top-1/2 h-3 w-[2px] rounded-full bg-(--elastic-slider-handle)"
     style={{ left: handleLeft, y: "-50%" }}
     animate={{
       opacity: handleOpacity,
-      scaleX: isActive ? 1 : 0.25,
       scaleY: isActive && valueDodge ? 0.75 : 1,
     }}
     transition={
       shouldReduceMotion
         ? { duration: 0 }
         : {
-            scaleX: {
-              type: "spring",
-              visualDuration: 0.25,
-              bounce: 0.15,
-            },
             scaleY: { type: "spring", visualDuration: 0.2, bounce: 0.1 },
             opacity: { duration: 0.15 },
           }

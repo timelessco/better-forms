@@ -17,9 +17,8 @@ const DEAD_ZONE = 32;
 const MAX_CURSOR_RANGE = 200;
 const MAX_STRETCH = 8;
 
-// Layout offsets used by the "handle dodges label/value" calculation.
+// Layout offsets used by the "handle dodges value text" calculation.
 const HANDLE_BUFFER = 8;
-const LABEL_OFFSET = 12 + 4;
 const VALUE_OFFSET = 12 - 8;
 
 // Width of the hidden "auto" zone reserved at the left edge when allowAuto.
@@ -162,8 +161,17 @@ export const useElasticSlider = ({
 
   // Fill + handle driven by a single motion value for imperative updates.
   const fillPercent = useMotionValue(percentage);
-  const fillWidth = useTransform(fillPercent, (pct) => `${pct}%`);
-  const handleLeft = useTransform(fillPercent, (pct) => `max(4px, calc(${pct}% - 8px))`);
+  // Figma: the fill tile never collapses behind the label — min width = label end + handle
+  // clearance (measured below). Auto (pct 0) still collapses to nothing; handle parks at 2px.
+  const minFillPx = useMotionValue(0);
+  const fillWidth = useTransform(() =>
+    fillPercent.get() <= 0.01 ? "0%" : `max(${fillPercent.get()}%, ${minFillPx.get()}px)`,
+  );
+  const handleLeft = useTransform(() =>
+    fillPercent.get() <= 0.01
+      ? "2px"
+      : `calc(max(${fillPercent.get()}%, ${minFillPx.get()}px) - 10px)`,
+  );
 
   // Rubber band: widens the track and pulls it left when dragged past bounds.
   const rubberStretch = useMotionValue(0);
@@ -460,8 +468,9 @@ export const useElasticSlider = ({
     dispatchInteraction({ type: "hover-leave" });
   }, []);
 
-  // Measure label + value to derive "dodge" thresholds so handle fades when it would overlap either text.
-  const [dodge, setDodge] = useState({ left: 38, right: 72 });
+  // Measure label + value: min fill clamp (tile ≥ label + clearance, Figma) and the right-side
+  // dodge threshold so the handle fades when it would sit under the value text.
+  const [dodge, setDodge] = useState({ right: 72 });
 
   useLayoutEffect(() => {
     const wrapper = wrapperRef.current;
@@ -474,15 +483,14 @@ export const useElasticSlider = ({
       const labelEl = labelRef.current;
       const valueEl = valueRef.current;
 
-      const left = labelEl
-        ? ((LABEL_OFFSET + labelEl.offsetWidth + HANDLE_BUFFER) / trackWidth) * 100
-        : 38;
+      // Figma 25441:4643 — label ends, 14px gap, 2px handle, 8px tile padding ⇒ +24.
+      if (labelEl) minFillPx.set(labelEl.offsetLeft + labelEl.offsetWidth + 24);
 
       const right = valueEl
         ? ((trackWidth - VALUE_OFFSET - valueEl.offsetWidth - HANDLE_BUFFER) / trackWidth) * 100
         : 72;
 
-      setDodge((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
+      setDodge((prev) => (prev.right === right ? prev : { right }));
     };
 
     measure();
@@ -494,10 +502,12 @@ export const useElasticSlider = ({
     if (valueRef.current) observer.observe(valueRef.current);
 
     return () => observer.disconnect();
-  }, [label, displayValue]);
+  }, [label, displayValue, minFillPx]);
 
-  const valueDodge = percentage < dodge.left || percentage > dodge.right;
-  const handleOpacity = isAuto || !isActive ? 0 : valueDodge ? 0.1 : isDragging ? 0.8 : 0.5;
+  const valueDodge = percentage > dodge.right;
+  // Figma rest states: handle always visible inside the tile; faint 2px sliver at the left edge
+  // in Auto; fades only when it would collide with the value text.
+  const handleOpacity = isAuto ? 0.35 : valueDodge ? 0.15 : 1;
 
   const discreteSteps = (max - min) / step;
   const hashMarkCount = discreteSteps <= 10 ? discreteSteps - 1 : 9;

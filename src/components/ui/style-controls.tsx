@@ -88,11 +88,13 @@ export const StyleNumberInput = ({
       className={cn(
         bare ? "h-7 [--elastic-slider-height:1.75rem]" : "h-[34px] [--elastic-slider-height:34px]",
         "[--elastic-slider-bg:var(--background)]",
+        // 6px inner padding (Figma): pairs with the -mx-1.5 bleed on sidebar rows so the label
+        // column stays flush-aligned with non-slider rows while the track extends past it.
         bare
-          ? "[&_[data-slot=elastic-slider-label]]:inset-s-0 [&_[data-slot=elastic-slider-label]]:text-[14px] [&_[data-slot=elastic-slider-label]]:font-normal [&_[data-slot=elastic-slider-label]]:text-muted-foreground"
+          ? "[&_[data-slot=elastic-slider-label]]:inset-s-1.5 [&_[data-slot=elastic-slider-label]]:text-[14px] [&_[data-slot=elastic-slider-label]]:font-normal [&_[data-slot=elastic-slider-label]]:text-muted-foreground"
           : "[&_[data-slot=elastic-slider-label]]:inset-s-2 [&_[data-slot=elastic-slider-label]]:text-base [&_[data-slot=elastic-slider-label]]:font-normal",
         bare
-          ? "[&_[data-slot=elastic-slider-value]]:inset-e-0 [&_[data-slot=elastic-slider-value]]:text-[14px] [&_[data-slot=elastic-slider-value]]:font-medium [&_[data-slot=elastic-slider-value]]:text-foreground [&_[data-slot=elastic-slider-value]]:tabular-nums"
+          ? "[&_[data-slot=elastic-slider-value]]:inset-e-1.5 [&_[data-slot=elastic-slider-value]]:text-[14px] [&_[data-slot=elastic-slider-value]]:font-medium [&_[data-slot=elastic-slider-value]]:text-foreground [&_[data-slot=elastic-slider-value]]:tabular-nums"
           : "[&_[data-slot=elastic-slider-value]]:inset-e-[11px] [&_[data-slot=elastic-slider-value]]:text-[13px] [&_[data-slot=elastic-slider-value]]:tabular-nums",
         className,
       )}

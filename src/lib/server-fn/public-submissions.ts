@@ -20,6 +20,7 @@ import {
 } from "@/lib/editor/transform-plate-to-form";
 import type { ErrorCode } from "@/lib/errors/codes";
 import { buildVisibleSchema, sanitizeSubmission } from "@/lib/logic/sanitize-submission";
+import { isEmailVerifiedToken } from "./email-otp.server";
 import { isServerPlan } from "./plan-helpers";
 import { recordOwnerSubmissionNotification } from "./notifications-helpers.server";
 import { sendFormSubmissionNotification, sendRespondentConfirmation } from "@/integrations/email";
@@ -104,6 +105,8 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
       draftId: v.optional(v.pipe(v.string(), v.uuid())),
       lastStepReached: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
       visitId: v.nullish(v.pipe(v.string(), v.uuid())),
+      /** fieldName → verified token from verifyEmailOtp, for "Verify email" fields. */
+      emailVerification: v.optional(v.record(v.string(), v.pipe(v.string(), v.maxLength(2048)))),
     }),
   )
   .handler(async ({ data }) => {
@@ -263,6 +266,28 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
           internal: { issueCount: result.issues.length },
         });
       }
+
+      // Verify-email gate: every visible "Verify email" field with a value must carry a
+      // verified token matching that exact email + form. Don't trust the client UI.
+      const verifyFields = getEditableFields(
+        transformPlateStateToFormElements(publishedContent),
+      ).filter((f) => f.fieldType === "Email" && f.verifyEmail === true);
+      for (const field of verifyFields) {
+        const value = cleaned[field.name];
+        if (typeof value !== "string" || value.trim() === "") continue; // hidden/empty → skip
+        const token = data.emailVerification?.[field.name];
+        if (!token || !isEmailVerifiedToken(token, value, data.formId)) {
+          throw createError({
+            code: "submissions/email-not-verified" satisfies ErrorCode,
+            status: 400,
+            message: "Email address has not been verified",
+            why: "A Verify-email field was submitted without a valid verification token",
+            fix: "Complete the email verification step before submitting",
+            internal: { fieldName: field.name },
+          });
+        }
+      }
+
       sanitizedData = cleaned;
     }
 

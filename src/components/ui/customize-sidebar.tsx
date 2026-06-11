@@ -6,7 +6,6 @@ import { ColorPicker } from "@/components/ui/color-picker";
 import { FeatureGate } from "@/components/ui/feature-gate";
 import {
   CaretDownIcon,
-  CornerRadiusIcon,
   DarkModeIcon,
   ImageIcon,
   LightModeIcon,
@@ -73,31 +72,34 @@ const SEMANTIC_COLOR_TOKENS = [
 const scopeTriggerCls =
   "h-auto gap-1 border-none bg-transparent p-0 text-[13px] font-normal text-foreground shadow-none data-[size=default]:h-auto [&>svg]:size-3.5";
 
-const CONFIG_INPUT_CLS = "!rounded-none !border-0 bg-background !h-7";
+// Figma slider rows are rounded with a gray-100 track (the design's square rows are a designer
+// inconsistency — Size was the intended treatment). 6px label/value padding lives in the bare
+// styles; NumberRow's -mx-1.5 bleed cancels it so text stays flush with non-slider rows.
+const CONFIG_INPUT_CLS = "!border-0 bg-muted/60 !h-7";
 
-// Radius (dot) variant: on hover the whole row gets a rounded-lg grey tile (nav-item style, Figma
-// 25441-4851), gray-300 with var(--radius) corners. Tile spans the full row (inset 0) so the label
-// and value stay FLUSH — aligned with every other row. overflow-visible lets the rounded corners
-// show past the square (rounded-none) track instead of being clipped.
-const RADIUS_INPUT_CLS = cn(
-  CONFIG_INPUT_CLS,
-  "overflow-visible [--elastic-slider-tile-bg:var(--color-gray-300)] [--elastic-slider-tile-radius:var(--radius)]",
-);
-
-// Plain flush numeric row (bare scrubber) so values align with ConfigRow/ColorPicker rows.
+// Numeric row (bare scrubber): track bleeds 6px past the text column (Figma row = column + 6px
+// each side) so labels/values align with ConfigRow rows while the rounded track extends beyond.
 const NumberRow = (props: React.ComponentProps<typeof StyleNumberInput>) => (
-  <StyleNumberInput bare {...props} />
+  <div className="-mx-1.5">
+    <StyleNumberInput bare {...props} />
+  </div>
 );
 
-// Figma radius variant (nodes 25441-4674 / 4850, 25446-4875): dot hash marks + a corner-radius
-// glyph in the value slot instead of the number. Stroke width is set explicitly since the icon
-// reads it from --stroke-width; muted color so it stays a quiet affordance, not active text.
-const RADIUS_END_ICON = (
-  <CornerRadiusIcon
-    className="size-4 text-muted-foreground"
-    style={{ "--stroke-width": "1.5" } as React.CSSProperties}
-  />
-);
+// Figma radius variant (nodes 25441-4674 / 4850, 25446-4875): dot hash marks + a corner glyph in
+// the value slot. The glyph is LIVE — its corner radius scales with the row's value (square at 0,
+// full quarter-curve at max) and CSS-transitions between snap stops as you drag.
+const RadiusEndIcon = ({ value, max }: { value?: string; max: number }) => {
+  const n = Number.parseFloat(value ?? "") || 0;
+  const r = (Math.min(Math.max(n, 0), max) / max) * 7;
+  return (
+    <span aria-hidden className="flex size-4 items-center justify-center text-muted-foreground">
+      <span
+        className="block size-[9px] border-t-[1.5px] border-r-[1.5px] border-current transition-[border-radius] duration-200 ease-out"
+        style={{ borderTopRightRadius: `${r}px` }}
+      />
+    </span>
+  );
+};
 
 const ProBadge = () => (
   <div className="rounded-[4px] bg-teal-100 px-1.5 py-px text-[9px] font-bold tracking-wider text-teal-700 uppercase shadow-sm dark:bg-teal-700/20 dark:text-teal-400">
@@ -512,8 +514,8 @@ const AppearanceSection = ({
       unit="px"
       displayUnit=""
       markStyle="dot"
-      endIcon={RADIUS_END_ICON}
-      className={RADIUS_INPUT_CLS}
+      endIcon={<RadiusEndIcon value={customization.coverRadius} max={48} />}
+      className={CONFIG_INPUT_CLS}
     />
     <ConfigRow label="Logo" surface="flat">
       <LogoPickerButton
@@ -536,8 +538,8 @@ const AppearanceSection = ({
       unit="px"
       displayUnit=""
       markStyle="dot"
-      endIcon={RADIUS_END_ICON}
-      className={RADIUS_INPUT_CLS}
+      endIcon={<RadiusEndIcon value={customization.logoRadius} max={48} />}
+      className={CONFIG_INPUT_CLS}
     />
     <ConfigRow label="Theme" surface="flat">
       <PillToggle
@@ -882,8 +884,8 @@ const InputsSection = ({
           unit="px"
           displayUnit=""
           markStyle="dot"
-          endIcon={RADIUS_END_ICON}
-          className={RADIUS_INPUT_CLS}
+          endIcon={<RadiusEndIcon value={customization.inputRadius} max={32} />}
+          className={CONFIG_INPUT_CLS}
         />
         <NumberRow
           label="Margin bottom"

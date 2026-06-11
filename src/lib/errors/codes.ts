@@ -53,6 +53,13 @@ export type ErrorCode =
   | "submissions/draft-too-large"
   | "submissions/missing-draft-id"
   | "submissions/invalid"
+  | "submissions/email-not-verified" // verifyEmail field submitted without a valid verification token
+
+  // --- Email OTP (public-form "Verify email") ---------------------------
+  | "otp/rate-limited"
+  | "otp/not-applicable" // form has no verify-email field — refuse to send
+  | "otp/invalid-code"
+  | "otp/expired"
 
   // --- Notifications ---------------------------------------------------
   | "notifications/forbidden"
