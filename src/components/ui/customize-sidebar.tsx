@@ -3,7 +3,6 @@ import { useTheme, useResolvedTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { IconPickerPreview } from "@/components/icon-picker";
 import { ColorPicker } from "@/components/ui/color-picker";
-import { FeatureGate } from "@/components/ui/feature-gate";
 import {
   CaretDownIcon,
   DarkModeIcon,
@@ -362,7 +361,8 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
     <Sidebar
       side="right"
       collapsible="none"
-      className="size-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
+      // [font-variation-settings:normal] un-pins the global opsz20/wght450 so font-weight utils + Figma optical size apply
+      className="size-full animate-in border-none duration-200 ease-out [font-variation-settings:normal] slide-in-from-right-[40%]"
     >
       <CustomizeSidebarHeader closeSidebar={closeSidebar} />
 
@@ -424,7 +424,8 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
 const CustomizeSidebarHeader = ({ closeSidebar }: { closeSidebar: () => void }) => (
   <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
     <div className="flex items-center justify-between">
-      <h2 className="pl-2.5 font-sans text-base font-normal text-foreground">Customize</h2>
+      {/* drop font-sans so the root's variation reset isn't re-pinned */}
+      <h2 className="pl-2.5 text-base font-normal text-foreground">Customize</h2>
       <Button
         variant="ghost"
         size="icon-xs"
@@ -710,91 +711,90 @@ const TypographySection = ({
         </div>
       }
     >
-      <FeatureGate requiredPlan="pro" variant="block">
-        <div className="flex flex-col gap-1.5">
-          <ConfigRow label="Font" surface="flat">
-            <Select value={fontValue} onValueChange={(v) => v && onFontChange(v)}>
-              <SelectTrigger
-                className={selectTriggerFigmaCls}
-                icon={<CaretDownIcon className="size-3" />}
-              >
-                {FONT_OPTIONS.find((o) => o.value === fontValue)?.label ?? fontValue}
-              </SelectTrigger>
-              <SelectContent>
-                {FONT_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </ConfigRow>
-          <NumberRow
-            label="Size"
-            value={customization[sizeKey]}
-            onChange={(v) => updateScrubberField(sizeKey, v)}
-            allowAuto
-            isAuto={!customization[sizeKey]}
-            onAutoChange={() => resetScrubberField(sizeKey)}
-            min={isTitle ? 24 : 12}
-            max={isTitle ? 72 : 24}
-            step={isTitle ? 2 : 1}
-            unit="px"
-            displayUnit=""
-            className={CONFIG_INPUT_CLS}
+      {/* No hard Pro gate — free users can experiment; publish strips Pro keys (pro-publish-gate) */}
+      <div className="flex flex-col gap-1.5">
+        <ConfigRow label="Font" surface="flat">
+          <Select value={fontValue} onValueChange={(v) => v && onFontChange(v)}>
+            <SelectTrigger
+              className={selectTriggerFigmaCls}
+              icon={<CaretDownIcon className="size-3" />}
+            >
+              {FONT_OPTIONS.find((o) => o.value === fontValue)?.label ?? fontValue}
+            </SelectTrigger>
+            <SelectContent>
+              {FONT_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </ConfigRow>
+        <NumberRow
+          label="Size"
+          value={customization[sizeKey]}
+          onChange={(v) => updateScrubberField(sizeKey, v)}
+          allowAuto
+          isAuto={!customization[sizeKey]}
+          onAutoChange={() => resetScrubberField(sizeKey)}
+          min={isTitle ? 24 : 12}
+          max={isTitle ? 72 : 24}
+          step={isTitle ? 2 : 1}
+          unit="px"
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+        <NumberRow
+          label="Spacing"
+          value={customization[spacingKey]}
+          onChange={(v) => updateScrubberField(spacingKey, v)}
+          allowAuto
+          isAuto={!customization[spacingKey]}
+          onAutoChange={() => resetScrubberField(spacingKey)}
+          min={isTitle ? -3 : 0}
+          max={isTitle ? 3 : 0.2}
+          step={isTitle ? 0.25 : 0.005}
+          unit={isTitle ? "px" : "em"}
+          displayUnit=""
+          className={CONFIG_INPUT_CLS}
+        />
+        <NumberRow
+          label="Line height"
+          value={customization[lineHeightKey]}
+          onChange={(v) => updateScrubberField(lineHeightKey, v)}
+          allowAuto
+          isAuto={!customization[lineHeightKey]}
+          onAutoChange={() => resetScrubberField(lineHeightKey)}
+          min={1}
+          max={2}
+          step={0.05}
+          unit=""
+          className={CONFIG_INPUT_CLS}
+        />
+        <ConfigRow label="Alignment" surface="flat">
+          <PillToggle
+            value={customization[alignKey] || "left"}
+            onChange={(v) => updateScrubberField(alignKey, v)}
+            options={[
+              {
+                value: "left",
+                label: "Left",
+                icon: <TextAlignLeftIcon className="size-[18px]" />,
+              },
+              {
+                value: "center",
+                label: "Center",
+                icon: <TextAlignCenterIcon className="size-[18px]" />,
+              },
+              {
+                value: "right",
+                label: "Right",
+                icon: <TextAlignRightIcon className="size-[18px]" />,
+              },
+            ]}
           />
-          <NumberRow
-            label="Spacing"
-            value={customization[spacingKey]}
-            onChange={(v) => updateScrubberField(spacingKey, v)}
-            allowAuto
-            isAuto={!customization[spacingKey]}
-            onAutoChange={() => resetScrubberField(spacingKey)}
-            min={isTitle ? -3 : 0}
-            max={isTitle ? 3 : 0.2}
-            step={isTitle ? 0.25 : 0.005}
-            unit={isTitle ? "px" : "em"}
-            displayUnit=""
-            className={CONFIG_INPUT_CLS}
-          />
-          <NumberRow
-            label="Line height"
-            value={customization[lineHeightKey]}
-            onChange={(v) => updateScrubberField(lineHeightKey, v)}
-            allowAuto
-            isAuto={!customization[lineHeightKey]}
-            onAutoChange={() => resetScrubberField(lineHeightKey)}
-            min={1}
-            max={2}
-            step={0.05}
-            unit=""
-            className={CONFIG_INPUT_CLS}
-          />
-          <ConfigRow label="Alignment" surface="flat">
-            <PillToggle
-              value={customization[alignKey] || "left"}
-              onChange={(v) => updateScrubberField(alignKey, v)}
-              options={[
-                {
-                  value: "left",
-                  label: "Left",
-                  icon: <TextAlignLeftIcon className="size-[18px]" />,
-                },
-                {
-                  value: "center",
-                  label: "Center",
-                  icon: <TextAlignCenterIcon className="size-[18px]" />,
-                },
-                {
-                  value: "right",
-                  label: "Right",
-                  icon: <TextAlignRightIcon className="size-[18px]" />,
-                },
-              ]}
-            />
-          </ConfigRow>
-        </div>
-      </FeatureGate>
+        </ConfigRow>
+      </div>
     </SidebarSection>
   );
 };
@@ -823,16 +823,14 @@ const ColorsSection = ({
       </div>
     }
   >
-    <FeatureGate requiredPlan="pro" variant="block">
-      <div className="relative isolate z-50 flex flex-col gap-1.5 overflow-visible">
-        <DeferredColorPickers
-          tokens={SEMANTIC_COLOR_TOKENS}
-          customization={customization}
-          updateField={updateWithCustomPreset}
-          mode={activeMode}
-        />
-      </div>
-    </FeatureGate>
+    <div className="relative isolate z-50 flex flex-col gap-1.5 overflow-visible">
+      <DeferredColorPickers
+        tokens={SEMANTIC_COLOR_TOKENS}
+        customization={customization}
+        updateField={updateWithCustomPreset}
+        mode={activeMode}
+      />
+    </div>
   </SidebarSection>
 );
 
@@ -842,81 +840,79 @@ const InputsSection = ({
   resetScrubberField,
 }: ScrubberProps) => (
   <SidebarSection label="Inputs" collapsible={false} headerRight={<ProBadge />}>
-    <FeatureGate requiredPlan="pro" variant="block">
-      <div className="flex flex-col gap-1.5">
-        <NumberRow
-          label="Input width"
-          value={customization.inputWidth}
-          onChange={(v) => updateScrubberField("inputWidth", v)}
-          allowAuto
-          isAuto={!customization.inputWidth}
-          onAutoChange={() => resetScrubberField("inputWidth")}
-          min={20}
-          max={100}
-          step={5}
-          unit="%"
-          className={CONFIG_INPUT_CLS}
-        />
-        <NumberRow
-          label="Input height"
-          value={customization.inputHeight}
-          onChange={(v) => updateScrubberField("inputHeight", v)}
-          allowAuto
-          isAuto={!customization.inputHeight}
-          onAutoChange={() => resetScrubberField("inputHeight")}
-          min={24}
-          max={64}
-          step={1}
-          unit="px"
-          displayUnit=""
-          className={CONFIG_INPUT_CLS}
-        />
-        <NumberRow
-          label="Radius"
-          value={customization.inputRadius}
-          onChange={(v) => updateScrubberField("inputRadius", v)}
-          allowAuto
-          isAuto={!customization.inputRadius}
-          onAutoChange={() => resetScrubberField("inputRadius")}
-          min={0}
-          max={32}
-          step={1}
-          unit="px"
-          displayUnit=""
-          markStyle="dot"
-          endIcon={<RadiusEndIcon value={customization.inputRadius} max={32} />}
-          className={CONFIG_INPUT_CLS}
-        />
-        <NumberRow
-          label="Margin bottom"
-          value={customization.inputMarginBottom}
-          onChange={(v) => updateScrubberField("inputMarginBottom", v)}
-          allowAuto
-          isAuto={!customization.inputMarginBottom}
-          onAutoChange={() => resetScrubberField("inputMarginBottom")}
-          min={0}
-          max={64}
-          step={2}
-          unit="px"
-          displayUnit=""
-          className={CONFIG_INPUT_CLS}
-        />
-        <NumberRow
-          label="Padding"
-          value={customization.inputPadding}
-          onChange={(v) => updateScrubberField("inputPadding", v)}
-          allowAuto
-          isAuto={!customization.inputPadding}
-          onAutoChange={() => resetScrubberField("inputPadding")}
-          min={0}
-          max={32}
-          step={1}
-          unit="px"
-          displayUnit=""
-          className={CONFIG_INPUT_CLS}
-        />
-      </div>
-    </FeatureGate>
+    <div className="flex flex-col gap-1.5">
+      <NumberRow
+        label="Input width"
+        value={customization.inputWidth}
+        onChange={(v) => updateScrubberField("inputWidth", v)}
+        allowAuto
+        isAuto={!customization.inputWidth}
+        onAutoChange={() => resetScrubberField("inputWidth")}
+        min={20}
+        max={100}
+        step={5}
+        unit="%"
+        className={CONFIG_INPUT_CLS}
+      />
+      <NumberRow
+        label="Input height"
+        value={customization.inputHeight}
+        onChange={(v) => updateScrubberField("inputHeight", v)}
+        allowAuto
+        isAuto={!customization.inputHeight}
+        onAutoChange={() => resetScrubberField("inputHeight")}
+        min={24}
+        max={64}
+        step={1}
+        unit="px"
+        displayUnit=""
+        className={CONFIG_INPUT_CLS}
+      />
+      <NumberRow
+        label="Radius"
+        value={customization.inputRadius}
+        onChange={(v) => updateScrubberField("inputRadius", v)}
+        allowAuto
+        isAuto={!customization.inputRadius}
+        onAutoChange={() => resetScrubberField("inputRadius")}
+        min={0}
+        max={32}
+        step={1}
+        unit="px"
+        displayUnit=""
+        markStyle="dot"
+        endIcon={<RadiusEndIcon value={customization.inputRadius} max={32} />}
+        className={CONFIG_INPUT_CLS}
+      />
+      <NumberRow
+        label="Margin bottom"
+        value={customization.inputMarginBottom}
+        onChange={(v) => updateScrubberField("inputMarginBottom", v)}
+        allowAuto
+        isAuto={!customization.inputMarginBottom}
+        onAutoChange={() => resetScrubberField("inputMarginBottom")}
+        min={0}
+        max={64}
+        step={2}
+        unit="px"
+        displayUnit=""
+        className={CONFIG_INPUT_CLS}
+      />
+      <NumberRow
+        label="Padding"
+        value={customization.inputPadding}
+        onChange={(v) => updateScrubberField("inputPadding", v)}
+        allowAuto
+        isAuto={!customization.inputPadding}
+        onAutoChange={() => resetScrubberField("inputPadding")}
+        min={0}
+        max={32}
+        step={1}
+        unit="px"
+        displayUnit=""
+        className={CONFIG_INPUT_CLS}
+      />
+    </div>
   </SidebarSection>
 );
 
@@ -926,52 +922,50 @@ const ButtonsSection = ({
   resetScrubberField,
 }: ScrubberProps) => (
   <SidebarSection label="Buttons" collapsible={false} headerRight={<ProBadge />}>
-    <FeatureGate requiredPlan="pro" variant="block">
-      <div className="flex flex-col gap-1.5">
-        <NumberRow
-          label="Width"
-          value={customization.buttonWidth}
-          onChange={(v) => updateScrubberField("buttonWidth", v)}
-          allowAuto
-          isAuto={!customization.buttonWidth}
-          onAutoChange={() => resetScrubberField("buttonWidth")}
-          min={80}
-          max={400}
-          step={4}
-          unit="px"
-          displayUnit=""
-          className={CONFIG_INPUT_CLS}
-        />
-        <NumberRow
-          label="Height"
-          value={customization.buttonHeight}
-          onChange={(v) => updateScrubberField("buttonHeight", v)}
-          allowAuto
-          isAuto={!customization.buttonHeight}
-          onAutoChange={() => resetScrubberField("buttonHeight")}
-          min={24}
-          max={64}
-          step={1}
-          unit="px"
-          displayUnit=""
-          className={CONFIG_INPUT_CLS}
-        />
-        <NumberRow
-          label="Radius"
-          value={customization.buttonRadius}
-          onChange={(v) => updateScrubberField("buttonRadius", v)}
-          allowAuto
-          isAuto={!customization.buttonRadius}
-          onAutoChange={() => resetScrubberField("buttonRadius")}
-          min={0}
-          max={32}
-          step={1}
-          unit="px"
-          displayUnit=""
-          className={CONFIG_INPUT_CLS}
-        />
-      </div>
-    </FeatureGate>
+    <div className="flex flex-col gap-1.5">
+      <NumberRow
+        label="Width"
+        value={customization.buttonWidth}
+        onChange={(v) => updateScrubberField("buttonWidth", v)}
+        allowAuto
+        isAuto={!customization.buttonWidth}
+        onAutoChange={() => resetScrubberField("buttonWidth")}
+        min={80}
+        max={400}
+        step={4}
+        unit="px"
+        displayUnit=""
+        className={CONFIG_INPUT_CLS}
+      />
+      <NumberRow
+        label="Height"
+        value={customization.buttonHeight}
+        onChange={(v) => updateScrubberField("buttonHeight", v)}
+        allowAuto
+        isAuto={!customization.buttonHeight}
+        onAutoChange={() => resetScrubberField("buttonHeight")}
+        min={24}
+        max={64}
+        step={1}
+        unit="px"
+        displayUnit=""
+        className={CONFIG_INPUT_CLS}
+      />
+      <NumberRow
+        label="Radius"
+        value={customization.buttonRadius}
+        onChange={(v) => updateScrubberField("buttonRadius", v)}
+        allowAuto
+        isAuto={!customization.buttonRadius}
+        onAutoChange={() => resetScrubberField("buttonRadius")}
+        min={0}
+        max={32}
+        step={1}
+        unit="px"
+        displayUnit=""
+        className={CONFIG_INPUT_CLS}
+      />
+    </div>
   </SidebarSection>
 );
 
@@ -983,18 +977,16 @@ interface CustomCssSectionProps {
 
 const CustomCssSection = ({ cssValue, handleCssChange, activeMode }: CustomCssSectionProps) => (
   <SidebarSection label="Custom CSS" collapsible={false} divider={false} headerRight={<ProBadge />}>
-    <FeatureGate requiredPlan="pro" variant="block">
-      <div className="overflow-hidden rounded-lg bg-muted">
-        <Textarea
-          value={cssValue}
-          onChange={handleCssChange}
-          aria-label={`Custom CSS (${activeMode} mode)`}
-          className="h-36 rounded-none border-0 bg-muted p-3 font-mono text-[14px] text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-          placeholder={"<style>\n.reform-block {...\n\n\n</style>"}
-          spellCheck={false}
-        />
-      </div>
-    </FeatureGate>
+    <div className="overflow-hidden rounded-lg bg-muted">
+      <Textarea
+        value={cssValue}
+        onChange={handleCssChange}
+        aria-label={`Custom CSS (${activeMode} mode)`}
+        className="h-36 rounded-none border-0 bg-muted p-3 font-mono text-[14px] text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        placeholder={"<style>\n.reform-block {...\n\n\n</style>"}
+        spellCheck={false}
+      />
+    </div>
   </SidebarSection>
 );
 

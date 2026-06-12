@@ -651,7 +651,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        prefix={<CircleUserRoundIcon />}
+                        prefix={<CircleUserRoundIcon className="size-4" />}
                         onMouseDown={(e) => e.preventDefault()}
                       />
                     }
@@ -664,7 +664,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                     variant="ghost"
                     size="sm"
                     onClick={handleAddCover}
-                    prefix={<ImageIcon />}
+                    prefix={<ImageIcon className="size-4" />}
                     onMouseDown={(e) => e.preventDefault()}
                   >
                     Add cover

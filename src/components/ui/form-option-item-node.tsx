@@ -21,9 +21,9 @@ import { BlockSelection } from "@/components/ui/block-selection";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   ChevronDownIcon,
-  ChevronsUpDownIcon,
   Loader2Icon,
   PhotoIcon,
+  RankDragHandleIcon,
   TagIcon,
   XIcon,
 } from "@/components/ui/icons";
@@ -69,10 +69,10 @@ const OptionIcon = ({
         </span>
       );
     case "ranking":
-      // Reorder handle (Figma 25650-15798): up/down chevrons left of each rankable option.
+      // Reorder handle (Figma 26153-13884): "=" two-bar drag glyph left of each rankable option.
       return (
         <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground">
-          <ChevronsUpDownIcon className="size-3.5" />
+          <RankDragHandleIcon className="size-4" />
         </span>
       );
     case "multiChoice":

@@ -226,7 +226,7 @@ export type PlateFormField =
       label?: string;
       labelType?: string;
       required?: boolean;
-      options: { value: string; label: string }[];
+      options: { value: string; label: string; image?: string }[];
       /** Randomize initial option order in the live form. */
       shuffle?: boolean;
     }
@@ -241,6 +241,10 @@ export type PlateFormField =
       min: number;
       max: number;
       step: number;
+      /** Anchor labels rendered under the scale (Figma 25634-16668), e.g. Bad … Good. */
+      anchorLeft?: string;
+      anchorCenter?: string;
+      anchorRight?: string;
     }
   | {
       id: string;

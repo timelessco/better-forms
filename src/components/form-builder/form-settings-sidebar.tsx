@@ -16,7 +16,8 @@ export const FormSettingsSidebar = ({ formId, isLocal }: FormSettingsSidebarProp
     <Sidebar
       side="right"
       collapsible="none"
-      className="size-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
+      // [font-variation-settings:normal] un-pins the global opsz20/wght450 so font-weight utils + Figma optical size apply
+      className="size-full animate-in border-none duration-200 ease-out [font-variation-settings:normal] slide-in-from-right-[40%]"
     >
       <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
         <div className="flex items-center justify-between">

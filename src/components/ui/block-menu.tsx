@@ -433,6 +433,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
         updateButtonText: handlers.handleUpdateButtonText,
         setScaleRange: handlers.handleSetScaleRange,
         setScaleStep: handlers.handleSetScaleStep,
+        setAnchorLabel: handlers.handleSetAnchorLabel,
         updateStarCount: handlers.handleUpdateStarCount,
         deleteBlock: handleDelete,
         duplicateBlock: handleDuplicate,
@@ -562,6 +563,9 @@ interface BlockMenuInputNode {
   scaleMin?: number;
   scaleMax?: number;
   scaleStep?: number;
+  anchorLeft?: string;
+  anchorCenter?: string;
+  anchorRight?: string;
   starCount?: number;
   multiple?: boolean;
 }
@@ -679,6 +683,17 @@ const useBlockMenuFieldHandlers = ({
       // Never persist a non-finite step (e.g. a stray NaN from the slider) — it'd render "NaN".
       const safeStep = Number.isFinite(step) ? Math.max(1, step) : LINEAR_SCALE_DEFAULTS.step;
       editor.tf.setNodes({ scaleStep: safeStep }, { at: inputPath });
+    },
+    [getInputPath, editor.tf],
+  );
+  // Linear scale anchor labels (Figma 26153-13445) — written per keystroke; empty unsets so
+  // the anchor row under the scale hides.
+  const handleSetAnchorLabel = React.useCallback(
+    (key: "anchorLeft" | "anchorCenter" | "anchorRight", value: string) => {
+      const inputPath = getInputPath();
+      if (!inputPath) return;
+      if (value) editor.tf.setNodes({ [key]: value }, { at: inputPath });
+      else editor.tf.unsetNodes([key], { at: inputPath });
     },
     [getInputPath, editor.tf],
   );
@@ -906,6 +921,7 @@ const useBlockMenuFieldHandlers = ({
       handleUpdateButtonText,
       handleSetScaleRange,
       handleSetScaleStep,
+      handleSetAnchorLabel,
       handleUpdateStarCount,
     }),
     [
@@ -934,6 +950,7 @@ const useBlockMenuFieldHandlers = ({
       handleUpdateButtonText,
       handleSetScaleRange,
       handleSetScaleStep,
+      handleSetAnchorLabel,
       handleUpdateStarCount,
     ],
   );
@@ -971,6 +988,7 @@ interface BlockMenuActions {
   updateButtonText: (v: string) => void;
   setScaleRange: (min: number, max: number) => void;
   setScaleStep: (step: number) => void;
+  setAnchorLabel: (key: "anchorLeft" | "anchorCenter" | "anchorRight", value: string) => void;
   updateStarCount: (v: string) => void;
   deleteBlock: () => void;
   duplicateBlock: () => void;
@@ -1883,6 +1901,7 @@ const TurnInto = () => <SubmenuRow icon={<TurnIntoIcon />} label="Turn into" vie
 
 const TURN_INTO_CHOICES: { type: string; label: string }[] = [
   { type: KEYS.p, label: "Paragraph" },
+  { type: "formLabel", label: "Label" },
   { type: KEYS.h1, label: "Heading 1" },
   { type: KEYS.h2, label: "Heading 2" },
   { type: KEYS.h3, label: "Heading 3" },
@@ -2094,12 +2113,46 @@ const ScaleStepPanel = () => {
   );
 };
 
+// Linear scale "Add Anchor" (Figma 25634-16937 / 26153-13445): Left/Center/Right labels
+// rendered under the scale tiles (e.g. Bad … Good).
+const AddAnchor = () => (
+  <SubmenuRow icon={<ConditionalLogicIcon />} label="Add Anchor" view="scale-anchor" />
+);
+
+const ANCHOR_ROWS = [
+  { key: "anchorLeft", label: "Left" },
+  { key: "anchorCenter", label: "Center" },
+  { key: "anchorRight", label: "Right" },
+] as const;
+
+const ScaleAnchorPanel = () => {
+  const { state, actions } = useBlockMenu();
+  return (
+    <PanelBody>
+      {ANCHOR_ROWS.map(({ key, label }) => (
+        <div key={key} className="flex items-center gap-2.5">
+          <span className="w-[60px] shrink-0 text-[14px] text-foreground">{label}</span>
+          <Input
+            value={state.inputNode?.[key] ?? ""}
+            onChange={(e) => actions.setAnchorLabel(key, e.target.value)}
+            onKeyDown={stopKeyEventPropagation}
+            placeholder="Add a label"
+            aria-label={`${label} anchor label`}
+            className="h-7 flex-1 rounded-lg border-none bg-(--color-gray-alpha-100) px-2 text-[13px] shadow-none"
+          />
+        </div>
+      ))}
+    </PanelBody>
+  );
+};
+
 const LinearScaleFieldMenu = () => (
   <>
     <RequiredToggle />
     <ScaleRange />
     <ScaleStep />
     <MenuDivider />
+    <AddAnchor />
     <MenuActions />
   </>
 );
@@ -2228,6 +2281,7 @@ const INLINE_PANELS: Record<string, { label: string; width?: string; Panel: Reac
   labels: { label: "Labels", Panel: OptionLabelsPanel },
   scale: { label: "Scale", Panel: ScaleRangePanel },
   "scale-step": { label: "Scale step", Panel: ScaleStepPanel },
+  "scale-anchor": { label: "Scale Anchor", Panel: ScaleAnchorPanel },
   "stars-count": { label: "Stars count", Panel: StarsCountPanel },
   "turn-into": { label: "Turn into", Panel: TurnIntoPanel },
   "bulk-insert": { label: "Add options", Panel: BulkInsertPanel },
@@ -2346,6 +2400,9 @@ interface BlockMenuFirstNode {
   scaleMin?: number;
   scaleMax?: number;
   scaleStep?: number;
+  anchorLeft?: string;
+  anchorCenter?: string;
+  anchorRight?: string;
   starCount?: number;
   multiple?: boolean;
 }

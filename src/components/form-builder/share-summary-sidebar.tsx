@@ -29,6 +29,8 @@ import { useForm } from "@/hooks/use-live-hooks";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import type { EmbedType } from "@/hooks/use-editor-sidebar";
 import { publishForm } from "@/hooks/use-form-versions";
+import { useProPublishGate } from "@/components/form-builder/pro-publish-gate";
+import type { PublishOptions } from "@/components/form-builder/pro-publish-gate";
 import { getFormListings } from "@/collections";
 import { useSession } from "@/lib/auth/auth-client";
 import { orgDomainsQueryOptions } from "@/lib/server-fn/custom-domains";
@@ -243,16 +245,29 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
     setDomainState({ domainId, slug });
   }, []);
 
-  const handlePublish = useCallback(async () => {
-    try {
-      const tx = publishForm(formId);
-      await tx.isPersisted.promise;
-      toast.success("Form published successfully!");
-    } catch (error) {
-      toast.error("Failed to publish form");
-      console.error(error);
-    }
-  }, [formId]);
+  // Soft Pro gate: free drafts can hold Pro styles; publishing asks upgrade-or-strip first.
+  const { guardPublish, proPublishDialog } = useProPublishGate(formId);
+
+  const performPublish = useCallback(
+    async ({ stripProStyles }: PublishOptions) => {
+      try {
+        const tx = publishForm(formId, { stripProStyles });
+        await tx.isPersisted.promise;
+        toast.success(
+          stripProStyles ? "Form published without Pro styles" : "Form published successfully!",
+        );
+      } catch (error) {
+        toast.error("Failed to publish form");
+        console.error(error);
+      }
+    },
+    [formId],
+  );
+
+  const handlePublish = useCallback(
+    () => guardPublish((opts) => void performPublish(opts)),
+    [guardPublish, performPublish],
+  );
 
   if (!doc) return null;
 
@@ -266,7 +281,8 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
     <Sidebar
       side="right"
       collapsible="none"
-      className="size-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
+      // [font-variation-settings:normal] un-pins the global opsz20/wght450 so font-weight utils + Figma optical size apply
+      className="size-full animate-in border-none duration-200 ease-out [font-variation-settings:normal] slide-in-from-right-[40%]"
     >
       <ShareSidebarHeader
         isDraft={isDraft}
@@ -382,6 +398,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
           </form.Subscribe>
         </>
       )}
+      {proPublishDialog}
     </Sidebar>
   );
 };

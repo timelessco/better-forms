@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { requiresProForFormSettings } from "@/lib/server-fn/plan-helpers";
 import {
   mergeSetThemeOpIntoCustomization,
   mergeThemeIntoCustomization,
@@ -36,9 +35,6 @@ describe("mergeThemeIntoCustomization (theme-mode optimistic write)", () => {
       ...freeThemePayload,
       preset: "custom",
     });
-
-    // The whole point of Bug 1's fix: the gate must NOT fire for this payload.
-    expect(requiresProForFormSettings({ customization: merged })).toBeFalsy();
   });
 
   it("merges a free-tier theme on top of an existing free preset without triggering the Pro gate", () => {
@@ -50,15 +46,13 @@ describe("mergeThemeIntoCustomization (theme-mode optimistic write)", () => {
     // Theme overrides existing themeColor; preset is rewritten to "custom".
     expect(merged.themeColor).toBe("blue");
     expect(merged.preset).toBe("custom");
-
-    expect(requiresProForFormSettings({ customization: merged })).toBeFalsy();
   });
 
-  it("merges a Pro-tier theme — gate fires (so the server can plan-check)", () => {
+  it("merges a Pro-tier theme — light/dark token overrides land in customization", () => {
+    // Customization is no longer a draft-write gate (soft Pro gate strips at publish instead).
     const merged = mergeThemeIntoCustomization({}, proThemePayload);
-
-    // Pro payload writes light:/dark: token overrides. Those are Pro-only.
-    expect(requiresProForFormSettings({ customization: merged })).toBeTruthy();
+    expect(merged["light:primary"]).toBe("#2563eb");
+    expect(merged["dark:primary"]).toBe("#3b82f6");
   });
 
   it("strips stale Pro-tier keys when merging a free-tier theme (no key carry-over)", () => {
@@ -78,17 +72,16 @@ describe("mergeThemeIntoCustomization (theme-mode optimistic write)", () => {
     expect(merged.customCss).toBeUndefined();
   });
 
-  it("after stripping stale Pro keys on a free-tier merge, the resulting customization passes the gate", () => {
+  it("after stripping stale Pro keys on a free-tier merge, only free keys remain", () => {
     const merged = mergeThemeIntoCustomization(
       { "light:primary": "#abcdef", customCss: ".x {}", themeColor: "zinc" },
       freeThemePayload,
     );
 
-    // New theme is applied, preset flipped to custom.
+    // New theme is applied, preset flipped to custom; no Pro-tier keys survive the strip.
     expect(merged.themeColor).toBe("blue");
     expect(merged.preset).toBe("custom");
-    // The whole point: the resulting customization no longer trips the gate.
-    expect(requiresProForFormSettings({ customization: merged })).toBeFalsy();
+    expect(Object.keys(merged).some((k) => k.includes(":") || k === "customCss")).toBeFalsy();
   });
 
   it("keeps existing Pro-tier keys when merging a Pro-tier theme (Pro users retain their full customization)", () => {

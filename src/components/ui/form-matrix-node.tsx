@@ -206,17 +206,18 @@ export const FormMatrixElement = ({ children, ...props }: PlateElementProps) => 
   return (
     <PlateElement
       attributes={{ ...attributes, "data-bf-input": "true" }}
-      className="relative flex w-full cursor-default items-start rounded-[8px]"
+      className="group/matrix relative flex w-full cursor-default items-start rounded-[8px]"
       element={element}
       {...rest}
     >
       <div className="hidden">{children}</div>
 
-      <div
-        contentEditable={false}
-        className="flex flex-1 overflow-hidden rounded-lg bg-background elevation-sm dark:border dark:border-border dark:shadow-none"
-      >
-        <div className="flex min-w-0 flex-1 flex-col">
+      {/* Figma 25644-10558: bare table card; add-column / add-row live OUTSIDE as gray pill
+          strips (26153-13554 / 13569) with a 4px gap. The strips FLOAT (absolute, out of flow)
+          so the hidden state reserves no space and revealing them never reflows the table.
+          Tab-order is unchanged: column headers → add-column → row labels → add-row. */}
+      <div contentEditable={false} className="relative min-w-0 flex-1">
+        <div className="flex min-w-0 flex-col overflow-hidden rounded-lg bg-background elevation-sm dark:border dark:border-border dark:shadow-none">
           {/* Header: empty label cell + column-header inputs */}
           <div
             className="grid items-center border-b border-(--color-gray-200) bg-muted/30"
@@ -268,25 +269,10 @@ export const FormMatrixElement = ({ children, ...props }: PlateElementProps) => 
               ))}
             </div>
           ))}
-
-          {/* Add row — bottom-left corner rounds to the card; bottom-right meets the Add-column strip. */}
-          <div className="border-t border-(--color-gray-200)">
-            <button
-              ref={register(ADD_ROW_KEY)}
-              type="button"
-              onClick={() => addRowAfter(null)}
-              onKeyDown={handleButtonKeyDown(ADD_ROW_KEY)}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="flex w-full items-center gap-1.5 rounded-bl-lg px-3 py-2 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-            >
-              <PlusGlyph />
-              Add row
-            </button>
-          </div>
         </div>
 
-        {/* Add column — vertical strip that's part of the table surface (shares the card, split
-            by a left divider), mirroring the full-width "Add row". Right corners round to the card. */}
+        {/* Add column — floating 24px pill spanning the table height, 4px right of the card
+            (Figma 26153-13554). Hidden until the matrix is hovered or the strip is Tab-focused. */}
         <button
           ref={register(ADD_COL_KEY)}
           type="button"
@@ -294,10 +280,23 @@ export const FormMatrixElement = ({ children, ...props }: PlateElementProps) => 
           onKeyDown={handleButtonKeyDown(ADD_COL_KEY)}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label="Add column"
-          className="flex shrink-0 flex-col items-center justify-center gap-1.5 rounded-r-lg border-l border-(--color-gray-200) px-2 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          className="absolute inset-y-0 -right-7 flex w-6 items-center justify-center rounded-full bg-muted text-muted-foreground opacity-0 transition-opacity duration-150 outline-none group-hover/matrix:opacity-100 hover:text-foreground focus-visible:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
         >
           <PlusGlyph />
-          <span className="[writing-mode:vertical-rl]">Add column</span>
+        </button>
+
+        {/* Add row — floating 24px pill spanning the table width, 4px below the card
+            (Figma 26153-13569). Same reveal rules as add-column. */}
+        <button
+          ref={register(ADD_ROW_KEY)}
+          type="button"
+          onClick={() => addRowAfter(null)}
+          onKeyDown={handleButtonKeyDown(ADD_ROW_KEY)}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label="Add row"
+          className="absolute inset-x-0 -bottom-7 flex h-6 items-center justify-center rounded-full bg-muted text-muted-foreground opacity-0 transition-opacity duration-150 outline-none group-hover/matrix:opacity-100 hover:text-foreground focus-visible:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <PlusGlyph />
         </button>
       </div>
 

@@ -13,6 +13,7 @@ import {
   publishFormVersion,
   restoreFormVersion,
 } from "@/lib/server-fn/form-versions";
+import { stripProCustomization } from "@/lib/theme/pro-customization";
 import { useForm } from "./use-live-hooks";
 
 const EMPTY_STATUS = {
@@ -82,8 +83,9 @@ export const useFormPublishStatus = (formId: string | undefined) => {
 export const useHasUnpublishedChanges = (formId: string | undefined): boolean =>
   useFormPublishStatus(formId).hasAnyChanges;
 
-/** Publish draft. Optimistically sets status "published". */
-export const publishForm = (formId: string) => {
+/** Publish draft. Optimistically sets status "published". `stripProStyles` mirrors the server's
+ * free-plan Pro-key strip so the optimistic publishedContentHash matches what the server stores. */
+export const publishForm = (formId: string, opts?: { stripProStyles?: boolean }) => {
   const queryClient = getQueryClient();
   const tx = createTransaction({
     mutationFn: async () => {
@@ -105,7 +107,9 @@ export const publishForm = (formId: string) => {
       // Align publishedContentHash + liveSettings so both dirty flags clear before server refetch.
       draft.publishedContentHash = computeContentHash({
         content: draft.content,
-        customization: draft.customization,
+        customization: opts?.stripProStyles
+          ? stripProCustomization((draft.customization ?? {}) as Record<string, string>)
+          : draft.customization,
         title: draft.title,
         icon: draft.icon,
         cover: draft.cover,

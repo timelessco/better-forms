@@ -3,6 +3,7 @@ import { useResolvedTheme, useTheme } from "@/components/theme-provider";
 import { IconSwap } from "@/components/transitions/icon-swap";
 import { auth, useSession } from "@/lib/auth/auth-client";
 import { settingsDialogStore } from "@/hooks/use-settings-dialog";
+import { useUserPlan } from "@/hooks/use-user-plan";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
@@ -50,6 +51,10 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
     select: (d) => d.activeOrg,
   });
   const displayName = activeOrg?.name ?? session?.user?.name ?? "User";
+
+  // Was hardcoded "Free Plan" — read the active org's real subscription tier.
+  const { plan, isLoading: isPlanLoading } = useUserPlan();
+  const planLabel = { free: "Free Plan", pro: "Pro Plan", business: "Business Plan" }[plan];
 
   const signOutMutation = useMutation(
     auth.signOut.mutationOptions({
@@ -148,7 +153,10 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
             </div>
             <div className="flex min-w-0 flex-col">
               <span className="truncate text-[13px] text-foreground">{displayName}</span>
-              <span className="text-[11px] text-muted-foreground">Free Plan</span>
+              {/* nbsp placeholder while loading — avoids flashing the wrong tier */}
+              <span className="text-[11px] text-muted-foreground">
+                {isPlanLoading ? " " : planLabel}
+              </span>
             </div>
           </div>
 

@@ -131,14 +131,36 @@ export const MATRIX_DEFAULTS = {
 /** Hard caps for the matrix editor's add-row / add-column affordances. */
 export const MATRIX_MAX = { rows: 50, columns: 20 } as const;
 
-/** `formLinearScale` settings live on the node (`scaleMin`/`scaleMax`/`scaleStep`);
- * fall back to the NPS defaults so a freshly inserted field renders 1–10. */
+// Anchor label (Left/Center/Right under the scale) — only non-blank strings survive.
+const readAnchor = (value: unknown): string | undefined =>
+  typeof value === "string" && value.trim() ? value : undefined;
+
+/** `formLinearScale` settings live on the node (`scaleMin`/`scaleMax`/`scaleStep`,
+ * `anchorLeft`/`anchorCenter`/`anchorRight`); fall back to the NPS defaults so a
+ * freshly inserted field renders 1–10. */
 export const extractLinearScaleFields = (
   node: Record<string, unknown>,
-): { min: number; max: number; step: number } => {
+): {
+  min: number;
+  max: number;
+  step: number;
+  anchorLeft?: string;
+  anchorCenter?: string;
+  anchorRight?: string;
+} => {
   const min = typeof node.scaleMin === "number" ? node.scaleMin : LINEAR_SCALE_DEFAULTS.min;
   const max = typeof node.scaleMax === "number" ? node.scaleMax : LINEAR_SCALE_DEFAULTS.max;
   const rawStep = node.scaleStep;
   const step = typeof rawStep === "number" && rawStep > 0 ? rawStep : LINEAR_SCALE_DEFAULTS.step;
-  return { min, max, step };
+  const anchorLeft = readAnchor(node.anchorLeft);
+  const anchorCenter = readAnchor(node.anchorCenter);
+  const anchorRight = readAnchor(node.anchorRight);
+  return {
+    min,
+    max,
+    step,
+    ...(anchorLeft ? { anchorLeft } : {}),
+    ...(anchorCenter ? { anchorCenter } : {}),
+    ...(anchorRight ? { anchorRight } : {}),
+  };
 };

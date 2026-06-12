@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TextSwap } from "@/components/transitions/text-swap";
+import { useProPublishGate } from "@/components/form-builder/pro-publish-gate";
+import type { PublishOptions } from "@/components/form-builder/pro-publish-gate";
 import { toggleFavoriteLocal, updateFormStatus } from "@/collections";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import { discardChanges, publishForm, useHasUnpublishedChanges } from "@/hooks/use-form-versions";
@@ -128,6 +130,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     handleToggleFavorite,
     handleDeleteForm,
     handlePublish,
+    proPublishDialog,
     handleDiscardChanges,
     handleEditForm,
     handleDismissSidebars,
@@ -292,6 +295,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
         onDeleteForm={handleDeleteForm}
         onDiscardChanges={handleDiscardChanges}
       />
+      {proPublishDialog}
     </>
   );
 };
@@ -342,13 +346,16 @@ const useAppHeaderFormActions = ({
     }
   };
 
-  const handlePublish = async () => {
+  // Soft Pro gate: free drafts can hold Pro styles; publishing asks upgrade-or-strip first.
+  const { guardPublish, proPublishDialog } = useProPublishGate(formId);
+
+  const performPublish = async ({ stripProStyles }: PublishOptions) => {
     if (formId && workspaceId) {
       setWorkflowState("publishing");
       try {
-        const tx = publishForm(formId);
+        const tx = publishForm(formId, { stripProStyles });
         await tx.isPersisted.promise;
-        toast.success("Form published");
+        toast.success(stripProStyles ? "Form published without Pro styles" : "Form published");
         openShare();
         void navigate({
           to: "/workspace/$workspaceId/form-builder/$formId/submissions",
@@ -362,6 +369,8 @@ const useAppHeaderFormActions = ({
       }
     }
   };
+
+  const handlePublish = () => guardPublish((opts) => void performPublish(opts));
 
   const handleDiscardChanges = async () => {
     if (formId) {
@@ -406,6 +415,7 @@ const useAppHeaderFormActions = ({
     handleToggleFavorite,
     handleDeleteForm,
     handlePublish,
+    proPublishDialog,
     handleDiscardChanges,
     handleEditForm,
     handleDismissSidebars,

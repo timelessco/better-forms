@@ -59,10 +59,6 @@ describe("plan-write-gates", () => {
       expect(requiresProForFormSettings({})).toBeFalsy();
     });
 
-    it("false when customization is an empty object", () => {
-      expect(requiresProForFormSettings({ customization: {} })).toBeFalsy();
-    });
-
     it("true when branding is being removed", () => {
       expect(requiresProForFormSettings({ branding: false })).toBeTruthy();
     });
@@ -79,50 +75,23 @@ describe("plan-write-gates", () => {
       expect(requiresProForFormSettings({ analytics: true })).toBeTruthy();
     });
 
-    it("true when customization carries a Pro-tier key (light/dark token override)", () => {
-      expect(
-        requiresProForFormSettings({ customization: { "light:primary": "#abcdef" } }),
-      ).toBeTruthy();
-    });
-
-    it("true when customization carries a non-free key (e.g. customCss)", () => {
-      expect(
-        requiresProForFormSettings({ customization: { customCss: ".x { color: red }" } }),
-      ).toBeTruthy();
-    });
-
-    it("false when customization only contains basic Theme keys (preset / themeColor / baseColor / font / radius / defaultMode)", () => {
+    // Customization is NOT a draft-write gate: free drafts may hold Pro keys (soft Pro gate);
+    // publishFormVersion strips them from the published snapshot. Gating updateForm caused an
+    // optimistic-rollback loop on hover-driven customize controls.
+    it("false when customization carries Pro-tier keys (soft-gated at publish, not draft write)", () => {
       expect(
         requiresProForFormSettings({
-          customization: {
-            preset: "custom",
-            themeColor: "blue",
-            baseColor: "neutral",
-            font: "Inter",
-            radius: "medium",
-            defaultMode: "system",
-          },
-        }),
+          customization: { "light:primary": "#abcdef", customCss: ".x {}" },
+        } as Parameters<typeof requiresProForFormSettings>[0]),
       ).toBeFalsy();
     });
 
-    it("true when basic Theme keys are mixed with a Pro-tier key", () => {
-      expect(
-        requiresProForFormSettings({
-          customization: {
-            themeColor: "blue",
-            "light:primary": "#abcdef",
-          },
-        }),
-      ).toBeTruthy();
-    });
-
-    it("true when multiple Pro fields are combined", () => {
+    it("true when a live Pro setting is combined with customization", () => {
       expect(
         requiresProForFormSettings({
           branding: false,
           customization: { customCss: ".x {}" },
-        }),
+        } as Parameters<typeof requiresProForFormSettings>[0]),
       ).toBeTruthy();
     });
 

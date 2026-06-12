@@ -558,7 +558,8 @@ const AppSidebar = () => {
 
   return (
     <>
-      <Sidebar className="h-screen border-r-[0.5px] bg-background">
+      {/* [font-variation-settings:normal] un-pins the global opsz20/wght450 so font-weight utils apply */}
+      <Sidebar className="h-screen border-r-[0.5px] bg-background [font-variation-settings:normal]">
         {showMobileInbox ? (
           <InboxPanelBody
             onClose={closeInbox}
@@ -1287,7 +1288,8 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
   const hasPendingInvitations = pendingInvitations.length > 0;
 
   return (
-    <div className="flex size-full flex-col">
+    // [font-variation-settings:normal] un-pins the global opsz20/wght450 so font-weight utils apply
+    <div className="flex size-full flex-col [font-variation-settings:normal]">
       <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
         <div className="flex items-center justify-between gap-1">
           <div className="flex min-w-0 items-center gap-1">
