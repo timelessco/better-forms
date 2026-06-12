@@ -40,10 +40,6 @@ export const publishFormVersion = createServerFn({ method: "POST" })
     const orgId = getActiveOrgId(context.session);
     await authForm(data.formId, context.session.user.id, orgId);
 
-    // Pro enforcement: free plans publish with Pro customization keys stripped from the snapshot
-    // (draft keeps them — the customize sidebar lets free users experiment).
-    const plan = await getOrgPlanWithPolarSync(orgId, context.session.user.email ?? null);
-
     const result = await db.transaction(async (tx) => {
       const [form] = await tx.select().from(forms).where(eq(forms.id, data.formId));
 
@@ -67,11 +63,20 @@ export const publishFormVersion = createServerFn({ method: "POST" })
 
       const now = new Date();
 
-      // Hash over the snapshot actually published (stripped for free) so a later upgrade-to-pro
-      // republish reads as dirty and snapshots the full styles.
+      // Pro enforcement: free plans publish with Pro customization stripped (the draft keeps them
+      // — the customize sidebar lets free users experiment). Resolve the plan (DB read + possible
+      // Polar round-trip) ONLY when the draft actually holds Pro keys, so the common
+      // free-user / clean-draft publish skips it. Hash over the published snapshot so a later
+      // upgrade-to-pro republish reads as dirty and re-snapshots the full styles.
       const draftCustomization = (form.customization ?? {}) as Record<string, string>;
+      const strippedCustomization = stripProCustomization(draftCustomization);
+      const hasProCustomization =
+        Object.keys(strippedCustomization).length !== Object.keys(draftCustomization).length;
       const customizationSnapshot =
-        plan === "free" ? stripProCustomization(draftCustomization) : draftCustomization;
+        hasProCustomization &&
+        (await getOrgPlanWithPolarSync(orgId, context.session.user.email ?? null)) === "free"
+          ? strippedCustomization
+          : draftCustomization;
 
       const contentHash = computeContentHash({
         content: form.content,

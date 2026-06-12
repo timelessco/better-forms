@@ -31,9 +31,18 @@ describe("proSectionForKey", () => {
       "themeColor",
       "radius",
       "spacing",
+      // `font` (body font family) is a FREE_CUSTOMIZATION_KEYS basic Theme control — must NOT be
+      // classified Pro, else free users (incl. AI free-tier theming) lose their font on publish.
+      "font",
     ]) {
       expect(proSectionForKey(key)).toBeNull();
     }
+  });
+
+  it("keeps the title font and body sizing/spacing Pro (only body `font` is free)", () => {
+    expect(proSectionForKey("titleFont")).toBe("Typography");
+    expect(proSectionForKey("baseFontSize")).toBe("Typography");
+    expect(proSectionForKey("letterSpacing")).toBe("Typography");
   });
 });
 

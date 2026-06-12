@@ -1,7 +1,13 @@
+import { FREE_CUSTOMIZATION_KEYS } from "@/lib/server-fn/plan-helpers";
+
 /**
  * Pro-gated customization keys (the customize-sidebar Pro sections). Free users can tweak them
  * in the draft (sidebar no longer hard-blocks); publish strips them from the version snapshot —
  * server-enforced in publishFormVersion, surfaced client-side by the pro-publish-gate dialog.
+ *
+ * FREE_CUSTOMIZATION_KEYS (the basic Theme controls the AI free tier also writes) is the single
+ * source of truth for what is free — proSectionForKey short-circuits to null for those, so a
+ * key listed there (e.g. `font`) can never be stripped or flagged, even if it overlaps a section.
  */
 
 // Mode-scoped color token overrides (written as `light:<token>` / `dark:<token>`; legacy rows
@@ -18,9 +24,10 @@ const PRO_COLOR_TOKENS = new Set([
 
 const PRO_SECTIONS: { label: string; keys: readonly string[] }[] = [
   {
+    // `font` (body font family) is intentionally absent — it's a FREE_CUSTOMIZATION_KEYS basic
+    // Theme control. Only the title font + sizing/spacing/alignment are Pro.
     label: "Typography",
     keys: [
-      "font",
       "titleFont",
       "titleFontSize",
       "baseFontSize",
@@ -45,6 +52,8 @@ const PRO_PLAIN_KEY_SECTION = new Map<string, string>(
 
 /** Section label for a pro-gated key, or null if the key is free. */
 export const proSectionForKey = (key: string): string | null => {
+  // Basic Theme controls are free everywhere (single source of truth) — never strip/flag them.
+  if (FREE_CUSTOMIZATION_KEYS.has(key)) return null;
   const plain = PRO_PLAIN_KEY_SECTION.get(key);
   if (plain) return plain;
   // strip optional light:/dark: mode prefix for token + customCss matching
