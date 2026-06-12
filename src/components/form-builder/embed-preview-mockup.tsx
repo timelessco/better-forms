@@ -156,7 +156,8 @@ export const EmbedPreviewMockup = ({
     rawCustomization ? { customization: rawCustomization } : null,
     resolvedAppTheme,
   );
-  const [isPopupExpanded, setIsPopupExpanded] = useState(false);
+  // Popup preview opens expanded first, then auto-collapses to its bubble (see effect below).
+  const [isPopupExpanded, setIsPopupExpanded] = useState(true);
   const hasAnimated = useRef(false);
   const isResizing = useRef(false);
 
@@ -181,10 +182,11 @@ export const EmbedPreviewMockup = ({
     return () => ro.disconnect();
   }, [embedType]);
 
-  // Auto-expand popup after 2s when in popup mode
+  // Open expanded first, then auto-collapse to the bubble after 2s when in popup mode.
   useEffect(() => {
     if (embedType !== "popup") return;
-    const timer = setTimeout(() => setIsPopupExpanded(true), 2000);
+    setIsPopupExpanded(true);
+    const timer = setTimeout(() => setIsPopupExpanded(false), 2000);
     return () => clearTimeout(timer);
   }, [embedType]);
 

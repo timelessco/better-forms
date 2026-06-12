@@ -218,6 +218,38 @@
   }
 }
 
+/* Preview drawer: zoom from center instead of sliding up from the bottom. */
+.preview-zoom-drawer[data-vaul-drawer][data-vaul-snap-points="false"][data-vaul-drawer-direction="bottom"][data-open] {
+  animation-name: previewZoomIn;
+}
+.preview-zoom-drawer[data-vaul-drawer][data-vaul-snap-points="false"][data-vaul-drawer-direction="bottom"]:not(
+    [data-open]
+  ) {
+  animation-name: previewZoomOut;
+}
+
+@keyframes previewZoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes previewZoomOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
 @keyframes slideFromTop {
   from {
     transform: translate3d(0, calc(var(--initial-transform, 100%) * -1), 0);

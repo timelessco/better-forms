@@ -416,7 +416,7 @@ const Draggable = (props: PlateElementProps) => {
                       variant="ghost"
                       size="icon"
                       tabIndex={-1}
-                      className="size-auto rounded-lg border border-transparent has-[>svg]:px-1 has-[>svg]:py-1.5"
+                      className="flex size-auto items-center justify-center rounded-lg border-0 hover:bg-accent has-[>svg]:px-1 has-[>svg]:py-1.5"
                       onClick={handleDeleteBlock}
                       data-plate-prevent-deselect
                       aria-label="Delete block"
@@ -437,7 +437,7 @@ const Draggable = (props: PlateElementProps) => {
                       variant="ghost"
                       size="icon"
                       tabIndex={-1}
-                      className="size-auto rounded-lg border border-transparent has-[>svg]:px-1 has-[>svg]:py-1.5"
+                      className="flex size-auto items-center justify-center rounded-lg border-0 hover:bg-accent has-[>svg]:px-1 has-[>svg]:py-1.5"
                       onClick={handleAddBlock}
                       data-plate-prevent-deselect
                     />

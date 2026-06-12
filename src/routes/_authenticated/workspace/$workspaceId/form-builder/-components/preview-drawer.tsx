@@ -54,7 +54,7 @@ export const PreviewDrawer = ({ open, onClose, children }: PreviewDrawerProps) =
     >
       <DrawerPortal>
         <DrawerOverlay />
-        <DrawerPrimitive.Content className="fixed inset-2 z-50 flex flex-col overflow-hidden rounded-[10px] bg-background shadow-[0px_0px_4px_0px_rgba(0,0,0,0.08)] outline-none">
+        <DrawerPrimitive.Content className="preview-zoom-drawer fixed inset-2 z-50 flex flex-col overflow-hidden rounded-[10px] bg-background shadow-[0px_0px_4px_0px_rgba(0,0,0,0.08)] outline-none">
           <DrawerTitle className="sr-only">Form preview</DrawerTitle>
           <div className="pointer-events-none absolute inset-x-2 top-2 z-30 flex items-center justify-between">
             {/* Own view-transition groups: tab switches snapshot only "preview-content", keeping the chrome static (no cross-fade flash). */}

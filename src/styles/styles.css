@@ -931,11 +931,11 @@
 }
 
 /* Input fill metrics: unset fallbacks match the current literal classes
-   (h-7 = 1.75rem, rounded-[8px], pr-[8px] pl-[10px]) so unset = identical. */
+   (h-7 = 1.75rem, rounded-[8px], px-[10px]) so unset = identical. */
 .bf-themed [data-bf-input-fill] {
   height: var(--bf-input-height, 1.75rem);
   border-radius: var(--bf-input-radius, 8px);
-  padding: var(--bf-input-padding, 0 8px 0 10px);
+  padding: var(--bf-input-padding, 0 10px);
 }
 
 /* Submit button metrics: unset fallbacks match current submit button
