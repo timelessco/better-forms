@@ -10,11 +10,13 @@ export type FormProSettingsInput = {
   respondentEmailNotifications?: boolean;
   dataRetention?: boolean;
   analytics?: boolean;
-  customization?: Record<string, unknown> | null;
 };
 
-// Free-plan customization keys (basic Theme controls). Anything outside (per-mode colors,
-// layout, typography, custom CSS) is Pro-only and triggers the customization gate.
+// Free-plan customization keys (basic Theme controls) — consumed by the AI form-gen theming
+// path. NOT a draft-write gate: the soft Pro gate lets free users hold Pro customization in
+// drafts; publishFormVersion strips Pro keys from the published snapshot instead. Gating
+// updateForm here caused an optimistic-rollback loop (hover-applied controls re-fired on
+// every revert).
 export const FREE_CUSTOMIZATION_KEYS: ReadonlySet<string> = new Set([
   "preset",
   "themeColor",
@@ -24,15 +26,8 @@ export const FREE_CUSTOMIZATION_KEYS: ReadonlySet<string> = new Set([
   "defaultMode",
 ]);
 
-const customizationRequiresPro = (value: unknown): boolean => {
-  if (value == null || typeof value !== "object") return false;
-  for (const key of Object.keys(value as Record<string, unknown>)) {
-    if (!FREE_CUSTOMIZATION_KEYS.has(key)) return true;
-  }
-  return false;
-};
-
 // Maps each FormProSettingsInput field → FeatureGate + predicate for when it's gating-eligible.
+// These are LIVE settings (take effect without publish), so they stay hard-gated.
 const FORM_INPUT_GATES: ReadonlyArray<{
   field: keyof FormProSettingsInput;
   gate: FeatureGate;
@@ -46,11 +41,6 @@ const FORM_INPUT_GATES: ReadonlyArray<{
   },
   { field: "dataRetention", gate: "dataRetention", isActive: (v) => v === true },
   { field: "analytics", gate: "analytics", isActive: (v) => v === true },
-  {
-    field: "customization",
-    gate: "customization",
-    isActive: customizationRequiresPro,
-  },
 ];
 
 // FeatureGates this input activates; empty = no plan check needed.

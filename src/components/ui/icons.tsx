@@ -1133,6 +1133,23 @@ export const SelectChevronIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+/** Figma icon/line/menu (26153-13886) — "=" two-bar drag handle on ranking option rows. */
+export const RankDragHandleIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M12.5 10C12.7761 10 13 10.2239 13 10.5C13 10.7761 12.7761 11 12.5 11H2.5C2.22386 11 2 10.7761 2 10.5C2 10.2239 2.22386 10 2.5 10H12.5ZM12.5 6C12.7761 6 13 6.22386 13 6.5C13 6.77614 12.7761 7 12.5 7H2.5C2.22386 7 2 6.77614 2 6.5C2 6.22386 2.22386 6 2.5 6H12.5Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 /** Inline value-select caret — thin stroked chevron-down (Figma's filled caret reads too heavy). */
 export const CaretDownIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg

@@ -357,7 +357,8 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
   return (
     <Sidebar
       collapsible="none"
-      className="size-full animate-in border-none duration-200 ease-out slide-in-from-right-[40%]"
+      // [font-variation-settings:normal] un-pins the global opsz20/wght450 so font-weight utils + Figma optical size apply
+      className="size-full animate-in border-none duration-200 ease-out [font-variation-settings:normal] slide-in-from-right-[40%]"
     >
       <SidebarHeader className="h-11 shrink-0 flex-row items-center justify-between border-b border-border py-2 pr-2 pl-4">
         <h2 className="text-sm leading-[1.15] font-medium tracking-[0.14px] text-foreground">

@@ -11,10 +11,12 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { canonicalJSON, computeContentHash } from "@/lib/content-hash";
 import type { ErrorCode } from "@/lib/errors/codes";
 import { purgeFormCache } from "@/lib/server-fn/cdn-cache";
+import { stripProCustomization } from "@/lib/theme/pro-customization";
 import { defaultFormSettings } from "@/types/form-settings";
 import type { FormSettings } from "@/types/form-settings";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm } from "./auth-helpers.server";
+import { getOrgPlanWithPolarSync } from "./plan-helpers.server";
 
 // TODO: make plan-based
 const MAX_VERSIONS_PER_FORM = 20;
@@ -37,6 +39,10 @@ export const publishFormVersion = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
     await authForm(data.formId, context.session.user.id, orgId);
+
+    // Pro enforcement: free plans publish with Pro customization keys stripped from the snapshot
+    // (draft keeps them — the customize sidebar lets free users experiment).
+    const plan = await getOrgPlanWithPolarSync(orgId, context.session.user.email ?? null);
 
     const result = await db.transaction(async (tx) => {
       const [form] = await tx.select().from(forms).where(eq(forms.id, data.formId));
@@ -61,9 +67,15 @@ export const publishFormVersion = createServerFn({ method: "POST" })
 
       const now = new Date();
 
+      // Hash over the snapshot actually published (stripped for free) so a later upgrade-to-pro
+      // republish reads as dirty and snapshots the full styles.
+      const draftCustomization = (form.customization ?? {}) as Record<string, string>;
+      const customizationSnapshot =
+        plan === "free" ? stripProCustomization(draftCustomization) : draftCustomization;
+
       const contentHash = computeContentHash({
         content: form.content,
-        customization: form.customization ?? {},
+        customization: customizationSnapshot,
         title: form.title,
         icon: form.icon,
         cover: form.cover,
@@ -110,7 +122,7 @@ export const publishFormVersion = createServerFn({ method: "POST" })
             content: form.content,
             // Settings excluded from versions: null on new rows; legacy rows keep pre-split snapshot.
             settings: null,
-            customization: form.customization ?? {},
+            customization: customizationSnapshot,
             title: form.title,
             icon: form.icon,
             cover: form.cover,

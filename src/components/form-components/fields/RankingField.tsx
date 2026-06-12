@@ -18,29 +18,25 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { domMax, LazyMotion, m } from "motion/react";
 
-import { IconSwap } from "@/components/transitions/icon-swap";
-import { ChevronsUpDownIcon } from "@/components/ui/icons";
+import { RankDragHandleIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { shuffleOptions } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
-type RankingOption = { label: string; value: string };
+type RankingOption = { label: string; value: string; image?: string };
 
 const SortableRankRow = ({
   option,
-  rankIndex,
   hasErrors,
   onRankClick,
 }: {
   option: RankingOption;
-  rankIndex: number;
   hasErrors: boolean;
   onRankClick: (value: string) => void;
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: option.value,
   });
-  const isRanked = rankIndex !== -1;
 
   return (
     <button
@@ -48,33 +44,41 @@ const SortableRankRow = ({
       type="button"
       onClick={() => onRankClick(option.value)}
       // Inline sortable transition overrides the colors-only class while items animate.
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      // Translate-only (no CSS.Transform): with mixed-height rows (image options) the sortable
+      // scale stretches text rows into the image row's slot — giant distorted labels mid-drag.
+      style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
-        "flex cursor-pointer touch-manipulation items-center gap-2 py-1 text-left text-sm transition-colors",
+        "flex cursor-pointer touch-manipulation gap-2 py-1 text-left text-sm transition-colors",
+        // image rows top-align so the handle/badge stays on the label line
+        option.image ? "items-start" : "items-center",
         isDragging && "relative z-10 cursor-grabbing opacity-80",
         hasErrors && "text-destructive",
       )}
       {...attributes}
       {...listeners}
     >
+      {/* "=" drag glyph on every row (Figma 26153-13884) — no rank-number badge. */}
       <span
         className={cn(
-          "flex size-4 shrink-0 items-center justify-center rounded-[4px]",
-          isRanked
-            ? "bg-primary text-[9px] leading-none font-semibold text-primary-foreground"
-            : cn(
-                "border border-border text-muted-foreground",
-                hasErrors && "border-destructive ring-1 ring-destructive",
-              ),
+          "flex size-4 shrink-0 items-center justify-center text-muted-foreground",
+          option.image && "mt-0.5",
+          hasErrors && "text-destructive",
         )}
       >
-        <IconSwap
-          state={isRanked ? "b" : "a"}
-          iconA={<ChevronsUpDownIcon className="size-2.5" />}
-          iconB={<span>{isRanked ? rankIndex + 1 : ""}</span>}
-        />
+        <RankDragHandleIcon className="size-4" />
       </span>
-      <span>{option.label}</span>
+      <span className="flex min-w-0 flex-col">
+        <span>{option.label}</span>
+        {/* Per-option image — same 4:3 / 200px cover crop as the editor's OptionImageSlot. */}
+        {option.image && (
+          <img
+            src={option.image}
+            alt=""
+            draggable={false}
+            className="mt-1.5 aspect-[4/3] w-[200px] rounded-lg bg-gray-100 object-cover"
+          />
+        )}
+      </span>
     </button>
   );
 };
@@ -143,8 +147,10 @@ const RankingField = ({ element, form }: FieldRendererProps<"Ranking">) => {
             f.handleChange(rankedValues.filter((v) => v !== active.id));
             return;
           }
-          // Reordering within the unranked pool carries no meaning — let it snap back.
-          if (!wasRanked && to >= rankedCount) return;
+          // Dropping at the boundary slot (index === rankedCount) ranks the item as the next
+          // rank — with nothing ranked yet, dragging to the FIRST position ranks it #1, so
+          // drag alone can build the ranking. Only drops deeper in the pool stay meaningless.
+          if (!wasRanked && to > rankedCount) return;
           const next = arrayMove(displayed, from, to)
             .slice(0, wasRanked ? rankedCount : rankedCount + 1)
             .map((o) => o.value);
@@ -177,7 +183,6 @@ const RankingField = ({ element, form }: FieldRendererProps<"Ranking">) => {
                       >
                         <SortableRankRow
                           option={option}
-                          rankIndex={rankedValues.indexOf(option.value)}
                           hasErrors={hasErrors}
                           onRankClick={handleRankClick}
                         />
