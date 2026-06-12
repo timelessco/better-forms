@@ -45,9 +45,9 @@ Each op in the array is one of:
 
 5. { type: "set-theme", tokens?, font?, radius? }
    - Sets the form's visual theme. Use when user provides a reference image or asks for a specific style.
-   - tokens: object with ALL 30 keys filled. For each of these 15 token names, emit BOTH a "light:" and "dark:" prefixed key:
-     background, foreground, primary, primary-foreground, secondary, secondary-foreground, muted, muted-foreground, accent, accent-foreground, destructive, destructive-foreground, border, input, ring.
-     All values MUST be hex colors like "#2563eb". If you emit the tokens object, you MUST emit all 30 keys — partial is not allowed.
+   - tokens: object with ALL 10 keys filled. For each of these 5 token names, emit BOTH a "light:" and "dark:" prefixed key:
+     background, foreground, primary, destructive, input.
+     All values MUST be hex colors like "#2563eb". If you emit the tokens object, you MUST emit all 10 keys — partial is not allowed.
    - font: Google Font family name (e.g., "Inter", "Poppins", "Playfair Display").
    - radius: one of "none", "small", "medium", or "large". NOT a CSS value — use the named key.
    - Emit this LAST after fields, so theme applies after structure is built.
@@ -90,9 +90,9 @@ HARD CONSTRAINTS:
 - Do NOT emit set-header, add-field, add-section, add-page-break, or replace-field.
 - ALWAYS include all three fields: tokens, font, radius. Never omit.
 
-TOKENS — required keys (emit ALL of these for BOTH modes, total 30 keys):
+TOKENS — required keys (emit ALL of these for BOTH modes, total 10 keys):
 For light mode, prefix each with "light:". For dark mode, prefix with "dark:".
-Required token names: background, foreground, primary, primary-foreground, secondary, secondary-foreground, muted, muted-foreground, accent, accent-foreground, destructive, destructive-foreground, border, input, ring.
+Required token names: background, foreground, primary, destructive, input.
 
 Example skeleton (you fill in actual hex values from the image / prompt):
 {
@@ -102,33 +102,13 @@ Example skeleton (you fill in actual hex values from the image / prompt):
       "light:background": "#ffffff",
       "light:foreground": "#0a0a0a",
       "light:primary": "#2563eb",
-      "light:primary-foreground": "#ffffff",
-      "light:secondary": "#f1f5f9",
-      "light:secondary-foreground": "#0f172a",
-      "light:muted": "#f1f5f9",
-      "light:muted-foreground": "#64748b",
-      "light:accent": "#f1f5f9",
-      "light:accent-foreground": "#0f172a",
       "light:destructive": "#ef4444",
-      "light:destructive-foreground": "#ffffff",
-      "light:border": "#e2e8f0",
       "light:input": "#e2e8f0",
-      "light:ring": "#2563eb",
       "dark:background": "#0a0a0a",
       "dark:foreground": "#fafafa",
       "dark:primary": "#3b82f6",
-      "dark:primary-foreground": "#0a0a0a",
-      "dark:secondary": "#1e293b",
-      "dark:secondary-foreground": "#fafafa",
-      "dark:muted": "#1e293b",
-      "dark:muted-foreground": "#94a3b8",
-      "dark:accent": "#1e293b",
-      "dark:accent-foreground": "#fafafa",
       "dark:destructive": "#7f1d1d",
-      "dark:destructive-foreground": "#fafafa",
-      "dark:border": "#1e293b",
-      "dark:input": "#1e293b",
-      "dark:ring": "#3b82f6"
+      "dark:input": "#1e293b"
     },
     "font": "Inter",
     "radius": "medium"
@@ -138,7 +118,7 @@ Example skeleton (you fill in actual hex values from the image / prompt):
 IMAGE ANALYSIS:
 - If a reference image is attached, study its dominant colors, mood, contrast, and aesthetic.
 - Extract the primary brand color from the most prominent / saturated color in the image.
-- Pick complementary background, border, and muted tones that match the image's overall palette.
+- Pick complementary background and input (field surface) tones that match the image's overall palette.
 - Generate matching dark-mode values (typically inverted brightness, reduced saturation).
 
 FONT — pick a Google Font name that matches the style of the image or prompt. Examples: "Inter" (modern/clean), "Poppins" (friendly), "Playfair Display" (elegant), "JetBrains Mono" (technical), "Lora" (literary).

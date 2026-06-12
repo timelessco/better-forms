@@ -198,7 +198,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
   const [restoreConfirmVersionId, setRestoreConfirmVersionId] = useState<string | null>(null);
   const [filter, setFilter] = useState<VersionFilter>("all");
   const [groupByDate, setGroupByDate] = useState(false);
-  const [indicatorTop, setIndicatorTop] = useState<number | null>(null);
+  const [indicator, setIndicator] = useState<{ top: number; duration: number } | null>(null);
   const railRef = useRef<HTMLDivElement>(null);
 
   const handleRestore = useCallback(
@@ -254,7 +254,13 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
     const rowRect = node.getBoundingClientRect();
     const railRect = railRef.current.getBoundingClientRect();
     const next = rowRect.top - railRect.top + rowRect.height / 2;
-    setIndicatorTop((prev) => (prev !== null && Math.abs(prev - next) < 0.5 ? prev : next));
+    setIndicator((prev) => {
+      if (prev !== null && Math.abs(prev.top - next) < 0.5) return prev;
+      // Constant-velocity feel: scale duration to travel distance, clamped 200–500ms.
+      const distance = prev === null ? 0 : Math.abs(next - prev.top);
+      const duration = prev === null ? 0 : Math.min(500, Math.max(200, distance / 0.6));
+      return { top: next, duration };
+    });
   }, []);
 
   const renderRow = useCallback(
@@ -292,14 +298,20 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
           </div>
 
           {/* Selected row swaps the timestamp for the action menu (Figma: gray/300 button). */}
-          <div className="inline-flex shrink-0 items-center pt-[1px]">
+          {/* Button is vertically centered in the row; timestamp aligns with the title line. */}
+          <div
+            className={cn(
+              "inline-flex shrink-0 items-center",
+              isSelected ? "self-center" : "pt-[1px]",
+            )}
+          >
             {isSelected ? (
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
                     <button
                       type="button"
-                      className="inline-flex size-5 cursor-pointer items-center justify-center rounded-lg bg-accent text-muted-foreground hover:text-foreground"
+                      className="inline-flex size-7 cursor-pointer items-center justify-center rounded-lg bg-accent text-muted-foreground hover:text-foreground"
                       onClick={stopPropagation}
                       onKeyDown={(e) => e.stopPropagation()}
                       aria-label="Version actions"
@@ -425,11 +437,11 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
             </div>
 
             {/* Active-version pointer: slides to the selected row's vertical center. */}
-            {indicatorTop !== null && (
+            {indicator !== null && (
               <div
                 aria-hidden
-                className="pointer-events-none absolute left-1/2 z-10 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-gray-200 text-foreground transition-[top] duration-300 ease-out"
-                style={{ top: indicatorTop }}
+                className="pointer-events-none absolute left-1/2 z-10 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-gray-200 text-foreground transition-[top] ease-out"
+                style={{ top: indicator.top, transitionDuration: `${indicator.duration}ms` }}
               >
                 <FigChevronDownIcon className="size-4" />
               </div>

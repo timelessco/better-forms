@@ -26,6 +26,41 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
   const { data: savedDocs, isLoading } = useForm(formId);
   const doc = savedDocs?.[0];
 
+  if (!isLoading && savedDocs !== undefined && savedDocs.length === 0) {
+    return (
+      <div className="flex size-full items-center justify-center">
+        <div className="text-center">
+          <h2 className="mb-2 text-lg">Form Not Found</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            This form does not exist or has been deleted.
+          </p>
+          <Link to="/workspace/$workspaceId" params={{ workspaceId }}>
+            <Button>Back to Workspace</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading || !doc) {
+    return <div className="flex size-full items-center justify-center">Loading…</div>;
+  }
+
+  return <PreviewModeContent doc={doc} formId={formId} />;
+};
+
+// Structural doc shape so both the builder's server-backed form and the landing page's
+// localStorage draft can drive the same preview surfaces.
+export interface PreviewDoc {
+  title?: string | null;
+  icon?: string | null;
+  cover?: string | null;
+  content?: unknown;
+  draftSettings?: Parameters<typeof buildPublicFormSettings>[0];
+  customization?: unknown;
+}
+
+export const PreviewModeContent = ({ doc, formId }: { doc: PreviewDoc; formId: string }) => {
   const resolvedAppTheme = useResolvedTheme();
 
   const { customization, hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
@@ -66,28 +101,8 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
     if (embedType === "popup") setIsPopupOpen(true);
   }
 
-  // Portaled popovers lose CSS-var inheritance. Publish themeVars/hasCustomization via EditorThemeProvider so they re-anchor theme. Must run before early returns.
+  // Portaled popovers lose CSS-var inheritance. Publish themeVars/hasCustomization via EditorThemeProvider so they re-anchor theme.
   const themeCtxValue = useFormThemeContextValue({ themeVars, hasCustomization, customization });
-
-  if (!isLoading && savedDocs !== undefined && savedDocs.length === 0) {
-    return (
-      <div className="flex size-full items-center justify-center">
-        <div className="text-center">
-          <h2 className="mb-2 text-lg">Form Not Found</h2>
-          <p className="mb-4 text-sm text-muted-foreground">
-            This form does not exist or has been deleted.
-          </p>
-          <Link to="/workspace/$workspaceId" params={{ workspaceId }}>
-            <Button>Back to Workspace</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading || !doc) {
-    return <div className="flex size-full items-center justify-center">Loading…</div>;
-  }
 
   return (
     <EditorThemeProvider value={themeCtxValue}>
@@ -147,7 +162,7 @@ export const PreviewMode = ({ formId, workspaceId }: { formId: string; workspace
 
 type SharedPreviewProps = {
   hideTitle: boolean;
-  doc: NonNullable<ReturnType<typeof useForm>["data"]>[number];
+  doc: PreviewDoc;
   content: Value;
   customization: ReturnType<typeof useFormCustomization>["customization"];
   previewSettings: PublicFormSettings;
@@ -521,6 +536,7 @@ const FullpagePreviewSurface = ({
   }, [content, doc.cover]);
   return (
     <div
+      data-bf-cover-pane
       className={cn(
         "relative flex flex-1 flex-col overflow-hidden transition-colors duration-300",
         transparentBackground ? "bg-transparent" : "bg-background",

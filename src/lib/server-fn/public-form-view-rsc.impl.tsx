@@ -276,7 +276,7 @@ export const renderHeaderComponent = async ({
   const hasIcon = iconIsUrl || iconIsSprite;
 
   const coverClass =
-    "relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] h-[120px] sm:h-[200px]";
+    "relative w-[100cqw] left-[50%] right-[50%] -ml-[50cqw] -mr-[50cqw] h-[120px] sm:h-[200px]";
   const iconWrapClass = cn("relative z-10 mb-1", hasCover ? "-mt-[50px]" : "mt-4 sm:mt-6");
   const tinted = !!cover && cover.includes("tint=true");
 

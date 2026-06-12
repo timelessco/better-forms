@@ -58,10 +58,8 @@ const OPERATORS_BY_FIELD_TYPE: Record<string, OperatorId[]> = {
     "isEmpty",
     "isNotEmpty",
   ],
-  // single choice (radio) — one value
+  // single choice (radio or dropdown display) — one value
   MultiChoice: ["equals", "notEquals", "isEmpty", "isNotEmpty"],
-  // single-select dropdown — one value
-  Dropdown: ["equals", "notEquals", "isEmpty", "isNotEmpty"],
   // linear scale / rating — one numeric value; offer comparisons like Number
   LinearScale: [
     "equals",
@@ -86,7 +84,6 @@ const OPERATORS_BY_FIELD_TYPE: Record<string, OperatorId[]> = {
   // multi-value (arrays) — `contains` checks membership; `equals` would compare a
   // joined string, so it's omitted to avoid misleading authors.
   Checkbox: ["contains", "notContains", "isEmpty", "isNotEmpty"],
-  MultiSelect: ["contains", "notContains", "isEmpty", "isNotEmpty"],
   Ranking: ["contains", "notContains", "isEmpty", "isNotEmpty"],
   // file upload / signature — only presence checks are meaningful
   FileUpload: ["isEmpty", "isNotEmpty"],

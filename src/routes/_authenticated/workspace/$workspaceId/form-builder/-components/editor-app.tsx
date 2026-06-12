@@ -5,6 +5,7 @@ import { createFormButtonNode } from "@/components/ui/form-button-node";
 import type { FormHeaderElementData } from "@/components/ui/form-header-node";
 import { createFormHeaderNode } from "@/components/ui/form-header-node";
 import { migrateEditorContent } from "@/lib/editor/migrate-editor-content";
+import { registerHeaderMediaSetter } from "@/lib/editor/header-media-registry";
 import { useEditorHeaderVisibilitySafe } from "@/contexts/editor-header-visibility-context";
 import { EditorThemeProvider } from "@/contexts/editor-theme-context";
 import { getFormListings } from "@/collections";
@@ -266,7 +267,7 @@ const EditorAppInner = ({
 
   // Lets the (out-of-editor) Customize sidebar set the header cover/logo on the Plate formHeader node.
   const updateHeaderMedia = useCallback(
-    (field: "icon" | "cover", value: string | null) => {
+    (field: "icon" | "cover" | "iconColor", value: string | null) => {
       if (readOnly) return;
       const headerNode = editor.children[0];
       if (!headerNode || headerNode.type !== "formHeader") return;
@@ -275,6 +276,13 @@ const EditorAppInner = ({
     },
     [editor, readOnly],
   );
+
+  // Publish the live setter for the Customize sidebar (mounted above this provider). Only the
+  // editable editor registers, so the sidebar never reaches a read-only/preview instance.
+  useEffect(() => {
+    if (readOnly) return;
+    return registerHeaderMediaSetter(formId, updateHeaderMedia);
+  }, [formId, readOnly, updateHeaderMedia]);
 
   const themeCtx = useFormThemeContextValue({
     themeVars,

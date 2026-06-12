@@ -60,15 +60,15 @@ const Switch = ({
   VariantProps<typeof switchVariants> & {
     "data-invalid"?: string;
   }) => (
-    <SwitchPrimitive.Root
-      data-slot="switch"
-      data-size={size}
-      {...(dataInvalid !== undefined && { "data-invalid": dataInvalid })}
-      className={cn(switchVariants({ size, className }))}
-      {...props}
-    >
-      <SwitchPrimitive.Thumb data-slot="switch-thumb" className={switchThumbVariants({ size })} />
-    </SwitchPrimitive.Root>
-  );
+  <SwitchPrimitive.Root
+    data-slot="switch"
+    data-size={size}
+    {...(dataInvalid !== undefined && { "data-invalid": dataInvalid })}
+    className={cn(switchVariants({ size, className }))}
+    {...props}
+  >
+    <SwitchPrimitive.Thumb data-slot="switch-thumb" className={switchThumbVariants({ size })} />
+  </SwitchPrimitive.Root>
+);
 
 export { Switch, switchVariants };

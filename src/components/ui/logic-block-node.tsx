@@ -1,4 +1,4 @@
-import { ChevronsUpDown, HelpCircle, Layers, Zap } from "lucide-react";
+import { ChevronsUpDown, HelpCircle, Zap } from "lucide-react";
 import * as React from "react";
 import type { PlateElementProps } from "platejs/react";
 import {
@@ -130,7 +130,8 @@ const TokenSelect = ({
         {(selected: string) => options.find((o) => o.value === selected)?.label ?? ""}
       </SelectValue>
     </SelectTrigger>
-    <SelectContent>
+    {/* drop below the trigger (Figma) — default alignItemWithTrigger overlays/shoves the popup off-anchor */}
+    <SelectContent align="start" alignItemWithTrigger={false}>
       {options.map((o) => (
         <SelectItem key={o.value} value={o.value}>
           {o.label}
@@ -603,8 +604,15 @@ export const LogicBlockElement = (props: PlateElementProps) => {
   // Navigating into the block (keyboard selection from an adjacent block) lands focus on
   // the first control instead of leaving the whole block ring-selected. Layout effect so
   // the control focuses before paint, avoiding a one-frame flash of the selection ring.
+  // Guard on the false→true selection transition only: clicking away to another block
+  // transiently blurs+refocuses the editor while this void stays selected, and firing on
+  // that churn would snap focus back here (trapping the user and canceling the click's
+  // pending selection move). wasSelected resets when selection leaves the block.
+  const wasSelected = React.useRef(false);
   React.useLayoutEffect(() => {
-    if (!(selected && focused)) return;
+    const justEntered = selected && !wasSelected.current;
+    wasSelected.current = selected;
+    if (!(justEntered && focused)) return;
     const container = blockRef.current;
     if (!container || container.contains(document.activeElement)) return;
     getBlockControls(container)[0]?.focus();
@@ -709,27 +717,6 @@ export const LogicBlockElement = (props: PlateElementProps) => {
     editParent(parentPath, (kids) => kids.filter((_, i) => i !== index));
   const insertAfter = (parentPath: number[], index: number, node: CondNode) =>
     editParent(parentPath, (kids) => [...kids.slice(0, index + 1), node, ...kids.slice(index + 1)]);
-  // "Group fields": fold a condition together with its adjacent sibling condition (next,
-  // else previous) into a sub-group of two real fields. The new group takes the *opposite*
-  // combinator of its parent, so it's logically meaningful (e.g. an OR scope inside an AND)
-  // and survives normalization — a same-combinator group would just flatten back.
-  const groupWithSibling = (parentPath: number[], index: number) =>
-    setWhen(
-      mapGroupAt(when, parentPath, (g) => {
-        const kids = g.children;
-        const next = kids[index + 1];
-        const prev = kids[index - 1];
-        let lo: number;
-        if (next != null && !isGroup(next)) lo = index;
-        else if (prev != null && !isGroup(prev)) lo = index - 1;
-        else return g; // no adjacent condition to group with
-        const grouped: ConditionGroup = {
-          combinator: g.combinator === "all" ? "any" : "all",
-          children: [kids[lo], kids[lo + 1]],
-        };
-        return { ...g, children: [...kids.slice(0, lo), grouped, ...kids.slice(lo + 2)] };
-      }),
-    );
   const setCombinatorAt = (path: number[], combinator: string) =>
     setWhen(
       mapGroupAt(when, path, (g) => ({ ...g, combinator: combinator === "any" ? "any" : "all" })),
@@ -772,10 +759,6 @@ export const LogicBlockElement = (props: PlateElementProps) => {
             </div>
           );
         }
-        // "Group fields" needs an adjacent condition to pair with — hide it otherwise.
-        const next = group.children[i + 1];
-        const prev = group.children[i - 1];
-        const canGroup = (next != null && !isGroup(next)) || (prev != null && !isGroup(prev));
         // Hard cap: a section holds at most 2 rows, so adding/duplicating is gated.
         const canAdd = group.children.length < 2;
         return (
@@ -796,15 +779,6 @@ export const LogicBlockElement = (props: PlateElementProps) => {
                           icon: <ConditionalLogicIcon />,
                           label: "Add condition",
                           onSelect: () => insertAfter(path, i, freshCondition()),
-                        },
-                      ]
-                    : []),
-                  ...(canGroup
-                    ? [
-                        {
-                          icon: <Layers />,
-                          label: "Group fields",
-                          onSelect: () => groupWithSibling(path, i),
                         },
                       ]
                     : []),

@@ -8,6 +8,8 @@ import { SuccessCheck } from "@/components/transitions/success-check";
 import { Button } from "@/components/ui/button";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import { ProgressBar } from "@/routes/forms/-components/progress-bar";
+import { EmailVerificationContext } from "@/components/form-components/email-verification-context";
+import type { EmailVerificationStore } from "@/components/form-components/email-verification-context";
 import { StepFormProvider, useStepForm } from "@/contexts/step-form-context";
 import type { PublicFormTracking, TrackingBase } from "@/contexts/step-form-context";
 import { FormLogicProvider } from "@/contexts/form-logic-context";
@@ -57,6 +59,8 @@ interface FormPreviewRSCProps {
   initialCurrentStep?: number;
   /** Analytics base ({ visitId, visitorHash }). Public route only; undefined in builder previews disables tracking. */
   trackingBase?: TrackingBase;
+  /** "Verify email" runtime store (mode "live" on the public route → real OTP emails + tokens on submit). */
+  emailVerification?: EmailVerificationStore;
   /** Conditional-logic payload (plain JSON from the RSC server fn). null = no logic. */
   logic?: FormLogicValue | null;
   /** Field-by-field meta. Required when presentationMode="field-by-field" — client renders icon+title+cover-as-bg instead of pre-rendered card header. iconColor = picker bg (from server-side formHeader node). */
@@ -835,6 +839,7 @@ export const FormPreviewRSC = ({
   initialFormData,
   initialCurrentStep,
   trackingBase,
+  emailVerification,
   fieldByFieldMeta,
   logic,
 }: FormPreviewRSCProps) => {
@@ -865,31 +870,33 @@ export const FormPreviewRSC = ({
       : null;
 
   const content = (
-    <StepFormProvider
-      totalSteps={stepCount}
-      onSubmit={onSubmit}
-      formId={formId}
-      saveAnswersForLater={settings?.saveAnswersForLater}
-      initialFormData={initialFormData}
-      initialCurrentStep={initialCurrentStep}
-      tracking={tracking}
-    >
-      {isFieldByField && fieldByFieldMeta ? (
-        <FieldByFieldRSCContent
-          steps={steps}
-          thankYou={thankYou}
-          settings={settings}
-          meta={fieldByFieldMeta}
-        />
-      ) : (
-        <FormPreviewRSCContent
-          steps={steps}
-          thankYou={thankYou}
-          header={header}
-          settings={settings}
-        />
-      )}
-    </StepFormProvider>
+    <EmailVerificationContext.Provider value={emailVerification ?? null}>
+      <StepFormProvider
+        totalSteps={stepCount}
+        onSubmit={onSubmit}
+        formId={formId}
+        saveAnswersForLater={settings?.saveAnswersForLater}
+        initialFormData={initialFormData}
+        initialCurrentStep={initialCurrentStep}
+        tracking={tracking}
+      >
+        {isFieldByField && fieldByFieldMeta ? (
+          <FieldByFieldRSCContent
+            steps={steps}
+            thankYou={thankYou}
+            settings={settings}
+            meta={fieldByFieldMeta}
+          />
+        ) : (
+          <FormPreviewRSCContent
+            steps={steps}
+            thankYou={thankYou}
+            header={header}
+            settings={settings}
+          />
+        )}
+      </StepFormProvider>
+    </EmailVerificationContext.Provider>
   );
 
   // Provide the conditional-logic payload so the public form runs the same engine

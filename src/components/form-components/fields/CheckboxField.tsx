@@ -1,14 +1,48 @@
+import { useMemo } from "react";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { getOptionOrdinal } from "@/components/ui/form-option-item-constants";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { cn } from "@/lib/utils";
 import { useOptionHotkeys } from "./option-keyboard";
-import { OptionOrdinalBadge } from "./shared";
+import { getAriaLabelledBy, ImageOptionGrid, OptionOrdinalBadge, shuffleOptions } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
 const CheckboxField = ({ element, form }: FieldRendererProps<"Checkbox">) => {
   // Default preserves today's look — checkbox controls until a letter/number label is chosen.
   const labelStyle = element.optionLabel ?? "none";
   const { optionRefs, getKeyDownHandler } = useOptionHotkeys(labelStyle, element.options.length);
+
+  // Shuffle once per mount when enabled, so option order stays stable while answering.
+  const options = useMemo(
+    () => (element.shuffle ? shuffleOptions(element.options) : element.options),
+    [element.options, element.shuffle],
+  );
+
+  // "Show as dropdown" display mode — same multi answer, rendered as a multi-select dropdown.
+  if (element.showAsDropdown) {
+    return (
+      <form.AppField name={element.name}>
+        {(f) => {
+          const hasErrors = f.state.meta.errors.length > 0 && f.state.meta.isTouched;
+          return (
+            <>
+              <MultiSelect
+                id={element.name}
+                options={options}
+                value={(f.state.value as string[] | undefined) ?? []}
+                onChange={(val) => f.handleChange(val)}
+                aria-invalid={hasErrors}
+                aria-labelledby={getAriaLabelledBy(element)}
+                className={cn(hasErrors && "ring-1 ring-destructive")}
+              />
+              <f.FieldError />
+            </>
+          );
+        }}
+      </form.AppField>
+    );
+  }
 
   return (
     <form.AppField name={element.name}>
@@ -25,14 +59,33 @@ const CheckboxField = ({ element, form }: FieldRendererProps<"Checkbox">) => {
 
         // Letter/Number labels double as hotkeys: press an option's ordinal to toggle it.
         const handleKeyDown = getKeyDownHandler((idx) => {
-          const option = element.options[idx];
+          const option = options[idx];
           toggle(option.value, !selectedValues.includes(option.value));
         });
+
+        // Picture-choice grid of cover-cropped tiles when image mode is on.
+        if (element.showImage) {
+          return (
+            <>
+              <ImageOptionGrid
+                options={options}
+                multi
+                labelStyle={labelStyle}
+                hasErrors={hasErrors}
+                isSelected={(value) => selectedValues.includes(value)}
+                onToggle={(value) => toggle(value, !selectedValues.includes(value))}
+                optionRefs={optionRefs}
+                onKeyDown={handleKeyDown}
+              />
+              <f.FieldError />
+            </>
+          );
+        }
 
         return (
           <>
             <div className="flex flex-col gap-2">
-              {element.options.map((option, idx) => {
+              {options.map((option, idx) => {
                 const isSelected = selectedValues.includes(option.value);
                 if (labelStyle === "none") {
                   return (

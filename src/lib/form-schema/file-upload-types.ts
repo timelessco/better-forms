@@ -1,6 +1,6 @@
 // File-upload allow-list model. Selection is a flat set of extension strings (e.g. ".jpg")
-// spanning categories, persisted on the node as `allowedFileExtensions`. Empty/undefined ⇒ all
-// files allowed. Categories below drive the block-menu "Allowed files" picker (Figma 25633-11852).
+// spanning categories, persisted on the node as `allowedFileExtensions`. Empty/undefined ⇒ the
+// image-only default. Categories below drive the block-menu "Allowed files" picker (Figma 25633-11852).
 
 export interface FileExtensionDef {
   /** Dotted extension, lower-case, e.g. ".jpg" — also the selection key. */
@@ -97,6 +97,10 @@ const MIME_BY_EXT = new Map<string, string[]>(
 // Every extension token, used as the "all files allowed" accept/selection baseline.
 export const ALL_FILE_EXTENSIONS = [...MIME_BY_EXT.keys()];
 
+// New file-upload fields start image-only; users widen via the "Allowed files" menu.
+export const DEFAULT_FILE_UPLOAD_EXTENSIONS =
+  FILE_CATEGORIES.find((c) => c.id === "image")?.extensions.map((e) => e.ext) ?? [];
+
 // Legacy category ids (single-category model) → extensions, so forms saved before the flat
 // model still resolve. Old `allowedFileExtensions` held subtype ids ("jpeg") not "."-extensions.
 const LEGACY_CATEGORY_EXTENSIONS: Record<string, string[]> = {
@@ -105,8 +109,9 @@ const LEGACY_CATEGORY_EXTENSIONS: Record<string, string[]> = {
   spreadsheets: [".xlsx", ".xls", ".csv"],
 };
 
-/** Effective allowed extensions for a node. `[]` ⇒ every file is allowed. Accepts the new flat
- * list (entries start with ".") and degrades gracefully for legacy single-category data. */
+/** Effective allowed extensions for a node — nothing configured ⇒ the image-only default.
+ * Accepts the new flat list (entries start with ".") and degrades gracefully for legacy
+ * single-category data. */
 export const resolveAllowedExtensions = (
   allowedFileTypes: unknown,
   allowedFileExtensions: unknown,
@@ -120,7 +125,7 @@ export const resolveAllowedExtensions = (
   if (typeof allowedFileTypes === "string" && allowedFileTypes in LEGACY_CATEGORY_EXTENSIONS) {
     return LEGACY_CATEGORY_EXTENSIONS[allowedFileTypes];
   }
-  return [];
+  return DEFAULT_FILE_UPLOAD_EXTENSIONS;
 };
 
 /** HTML `accept` string (MIME + extension tokens) for the picker, `useFileUpload`, and server-side

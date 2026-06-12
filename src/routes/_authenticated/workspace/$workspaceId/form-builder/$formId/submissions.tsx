@@ -32,15 +32,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import type {
-  Cell,
-  ColumnDef,
-  ColumnPinningState,
-  ColumnVisibilityState as VisibilityState,
-  Row,
-  RowSelectionState,
-  SortingState,
-} from "@tanstack/table-core";
+import type { ColumnDef, Row, RowSelectionState } from "@tanstack/table-core";
 import { useTanStackTableDevtools } from "@tanstack/react-table-devtools";
 import { createAppColumnHelper, SelectionCheckbox, useAppTable } from "@/components/ui/data-grid";
 import type { DataGridApi, DataGridFeatures } from "@/components/ui/data-grid";
@@ -58,6 +50,13 @@ import { HOTKEYS, formatForDisplay } from "@/lib/hotkeys";
 
 type FieldStatus = "current" | "deleted";
 const EMPTY_LABELS: Record<string, string> = {};
+// Built-in column ids — payload keys colliding would construct duplicate columns silently.
+const RESERVED_COLUMN_IDS = new Set([
+  "select",
+  "submitted_at",
+  "last_step_reached",
+  "is_completed",
+]);
 
 const SUBMITTED_AT_FORMATTER = new Intl.DateTimeFormat(undefined, {
   month: "short",
@@ -178,11 +177,14 @@ const SubmissionCell = ({
   fieldType,
   onPreview,
   options,
+  colorTags,
 }: {
   value: unknown;
   fieldType: string;
   onPreview?: (file: UploadedFileValue) => void;
   options?: FieldOption[];
+  /** Checkbox shown as multi-select dropdown — render answers as its colored tags. */
+  colorTags?: boolean;
 }) => {
   const labelFor = (raw: unknown): string => {
     const s = String(raw);
@@ -265,14 +267,13 @@ const SubmissionCell = ({
       );
     case "Checkbox":
     case "MultiChoice":
-    case "MultiSelect":
     case "Ranking":
     default: {
       const items = Array.isArray(value) ? value : null;
       if (!items) {
         return <span className="block max-w-[300px] truncate text-[13px]">{labelFor(value)}</span>;
       }
-      const useColors = fieldType === "MultiSelect" && options;
+      const useColors = colorTags && options;
       return (
         <div className="flex max-w-[300px] flex-wrap gap-1">
           {items.map((item) => {
@@ -370,20 +371,25 @@ const buildSubmissionColumns = ({
   const baseColumns: ColumnDef<DataGridFeatures, SerializedSubmission>[] = [
     columnHelper.display({
       id: "select",
+      // all-rows APIs walk the filtered model — correct for infinite scroll, respects tab/search filters
       header: ({ table }) => (
         <Checkbox
-          checked={table.getIsAllPageRowsSelected()}
-          indeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          checked={table.getIsAllRowsSelected()}
+          indeterminate={table.getIsSomeRowsSelected() && !table.getIsAllRowsSelected()}
+          onCheckedChange={(value) => table.toggleAllRowsSelected(!!value)}
           aria-label="Select all"
           className="translate-y-[2px]"
         />
       ),
-      cell: ({ row }) => <SelectionCheckbox row={row} />,
+      cell: ({ row }) => (
+        <SelectionCheckbox
+          row={row}
+          ariaLabel={`Select submission from ${formatSubmittedAt(row.original.createdAt)}`}
+        />
+      ),
       size: 48,
       minSize: 48,
       maxSize: 48,
-      meta: {},
       enableSorting: false,
       enableHiding: false,
       enablePinning: false,
@@ -421,21 +427,36 @@ const buildSubmissionColumns = ({
           </div>
         ),
         id: "submitted_at",
+        // ISO strings compare correctly under datetime sortFn
+        sortFn: "datetime",
+        sortDescFirst: true,
         size: 200,
         minSize: 140,
+        meta: { headerTitle: "Submitted at" },
       }),
     ),
     toSubmissionColumn(
-      columnHelper.accessor("lastStepReached", {
+      // null coerced to undefined — sortUndefined only checks === undefined (createSortedRowModel)
+      columnHelper.accessor((row) => row.lastStepReached ?? undefined, {
         id: "last_step_reached",
         header: ({ column }) => <DataGridColumnHeader column={column} title="Last step" />,
         cell: (info) => {
           const step = info.getValue();
-          if (step == null) return <span className="text-muted-foreground">-</span>;
+          if (step === undefined) return <span className="text-muted-foreground">-</span>;
           return <span className="text-[13px]">Step {step + 1}</span>;
         },
+        sortUndefined: "last",
         size: 120,
         meta: { headerTitle: "Last step" },
+      }),
+    ),
+    toSubmissionColumn(
+      // hidden filter target for tabs; enableHiding:false keeps it out of the visibility dropdown
+      // while initialState columnVisibility still hides it (getIsVisible reads state, canHide only gates toggling)
+      columnHelper.accessor((row) => row.isCompleted, {
+        id: "is_completed",
+        enableHiding: false,
+        enableSorting: false,
       }),
     ),
   ];
@@ -451,7 +472,8 @@ const buildSubmissionColumns = ({
       if (fieldStatusFilter.has(status)) {
         baseColumns.push(
           toSubmissionColumn(
-            columnHelper.accessor((row) => row.data?.[field.name], {
+            // null → undefined so sortUndefined applies (sorter only special-cases === undefined)
+            columnHelper.accessor((row) => row.data?.[field.name] ?? undefined, {
               id: field.name,
               header: ({ column }) => (
                 <DataGridColumnHeader
@@ -468,8 +490,17 @@ const buildSubmissionColumns = ({
                   fieldType={field.fieldType}
                   onPreview={onPreview}
                   options={"options" in field ? (field.options as FieldOption[]) : undefined}
+                  colorTags={
+                    field.fieldType === "Checkbox" &&
+                    "showAsDropdown" in field &&
+                    field.showAsDropdown === true
+                  }
                 />
               ),
+              // sparse column — empties last (numeric default 1 flips with desc putting empties first)
+              sortUndefined: "last",
+              // object values produce inconsistent comparators
+              enableSorting: field.fieldType !== "FileUpload" && field.fieldType !== "Signature",
               size: 150,
               meta: {
                 headerTitle: ("label" in field ? field.label : "") || field.name,
@@ -507,6 +538,9 @@ const buildSubmissionColumns = ({
                 onPreview={onPreview}
               />
             ),
+            // deleted-field data has unknown shapes — object values produce inconsistent comparators
+            sortUndefined: "last",
+            enableSorting: false,
             size: 150,
             meta: {
               headerTitle: resolvedLabel,
@@ -545,21 +579,13 @@ const SubmissionsPage = () => {
   const queryClient = useQueryClient();
   Route.useLoaderData(); // ensure loader has primed the query cache
   const [activeTab, setActiveTab] = useState<"all" | "completed" | "partial">("all");
-  const [sorting, setSorting] = useState<SortingState>([]);
+  // sorting/visibility/pinning/order live table-internal; only shared slices stay controlled
   const [globalFilter, setGlobalFilter] = useState("");
   const [fieldStatusFilter] = useState<Set<FieldStatus>>(new Set(["current", "deleted"]));
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
-    last_step_reached: false,
-  });
-  const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({ left: [], right: [] });
-  const [columnOrder, setColumnOrder] = useState<string[]>([]);
   const [previewFile, setPreviewFile] = useState<UploadedFileValue | null>(null);
   const openPreview = useCallback((file: UploadedFileValue) => setPreviewFile(file), []);
   const closePreview = useCallback(() => setPreviewFile(null), []);
-  const handleSetActiveTabAll = useCallback(() => setActiveTab("all"), []);
-  const handleSetActiveTabCompleted = useCallback(() => setActiveTab("completed"), []);
-  const handleSetActiveTabPartial = useCallback(() => setActiveTab("partial"), []);
   const handleGlobalFilterChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => setGlobalFilter(e.target.value),
     [],
@@ -596,17 +622,26 @@ const SubmissionsPage = () => {
       partialCount: allSubmissions.length - completed,
     };
   }, [allSubmissions]);
-  const submissions = useMemo(() => {
-    if (activeTab === "completed")
-      return allSubmissions.filter((s: SerializedSubmission) => s.isCompleted);
-    if (activeTab === "partial")
-      return allSubmissions.filter((s: SerializedSubmission) => !s.isCompleted);
-    return allSubmissions;
-  }, [allSubmissions, activeTab]);
+
+  // Intersect with loaded ids — stale keys from refetch/delete never drive bulk actions/hotkeys.
+  const effectiveRowSelection = useMemo(() => {
+    const loadedIds = new Set(allSubmissions.map((s) => s.id));
+    const next: RowSelectionState = {};
+    for (const id of Object.keys(rowSelection)) {
+      if (loadedIds.has(id)) next[id] = true;
+    }
+    return next;
+  }, [allSubmissions, rowSelection]);
 
   const handleDelete = useCallback(
     async (submissionId: string) => {
       await deleteSubmission({ data: { id: submissionId, formId } });
+      // drop deleted id from selection so a stale key can't act
+      setRowSelection((prev) => {
+        if (!prev[submissionId]) return prev;
+        const { [submissionId]: _removed, ...rest } = prev;
+        return rest;
+      });
       void queryClient.invalidateQueries({ queryKey: ["submissions", formId] });
     },
     [formId, queryClient],
@@ -634,7 +669,8 @@ const SubmissionsPage = () => {
     allSubmissions.forEach((submission) => {
       if (submission.data && typeof submission.data === "object") {
         Object.keys(submission.data).forEach((key) => {
-          if (!currentFieldNames.has(key)) {
+          // payload key colliding w/ built-in column id would construct a duplicate id silently
+          if (!currentFieldNames.has(key) && !RESERVED_COLUMN_IDS.has(key)) {
             orphaned.add(key);
           }
         });
@@ -673,27 +709,50 @@ const SubmissionsPage = () => {
 
   const table = useAppTable({
     key: "submissions",
-    data: submissions,
+    data: allSubmissions,
     columns,
     state: {
-      sorting,
       globalFilter,
-      rowSelection,
-      columnVisibility,
-      columnPinning,
-      columnOrder,
+      rowSelection: effectiveRowSelection,
+    },
+    initialState: {
+      columnVisibility: { last_step_reached: false, is_completed: false },
     },
     enableRowSelection: true,
+    enableColumnPinning: false,
     onRowSelectionChange: setRowSelection,
-    onColumnVisibilityChange: setColumnVisibility,
-    onColumnPinningChange: setColumnPinning,
-    onColumnOrderChange: setColumnOrder,
-    onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
-    autoResetPageIndex: false,
+    // infinite scroll — server pages, table must not slice rows
+    manualPagination: true,
+    rowCount: totalCount,
+    getColumnCanGlobalFilter: (column) =>
+      !["submitted_at", "last_step_reached", "is_completed"].includes(column.id),
+    globalFilterFn: (row, columnId, value) => {
+      const raw = row.getValue(columnId);
+      // empty cells render "-"; without this, hyphen searches match every blank cell
+      if (raw == null || raw === "") return false;
+      return formatSubmissionValue(raw).toLowerCase().includes(String(value).toLowerCase());
+    },
     columnResizeMode: "onChange",
     getRowId: (row) => row.id,
   });
+
+  // tab = column filter on hidden is_completed; needs `table`, so defined after useAppTable
+  const setTab = useCallback(
+    (tab: "all" | "completed" | "partial") => {
+      // re-clicking the active tab must not wipe an in-progress selection
+      if (tab === activeTab) return;
+      setActiveTab(tab);
+      table.setColumnFilters(
+        tab === "all" ? [] : [{ id: "is_completed", value: tab === "completed" }],
+      );
+      setRowSelection({});
+    },
+    [table, activeTab],
+  );
+  const handleSetActiveTabAll = useCallback(() => setTab("all"), [setTab]);
+  const handleSetActiveTabCompleted = useCallback(() => setTab("completed"), [setTab]);
+  const handleSetActiveTabPartial = useCallback(() => setTab("partial"), [setTab]);
 
   // Registers the table with TanStack Devtools; no-op when no devtools listening.
   useTanStackTableDevtools(table);
@@ -702,15 +761,13 @@ const SubmissionsPage = () => {
     useSubmissionExportAndDelete({
       formId,
       queryClient,
-      columns,
       table,
-      rowSelection,
       setRowSelection,
     });
 
   useSubmissionsHotkeys({
     table,
-    rowSelection,
+    rowSelection: effectiveRowSelection,
     setRowSelection,
     onExport: handleExportSelected,
     onBulkDelete: handleBulkDelete,
@@ -737,9 +794,9 @@ const SubmissionsPage = () => {
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <AnimatePresence>
-            {Object.keys(rowSelection).length > 0 && (
+            {Object.keys(effectiveRowSelection).length > 0 && (
               <SubmissionBulkActionBar
-                count={Object.keys(rowSelection).length}
+                count={Object.keys(effectiveRowSelection).length}
                 onExport={handleExportSelected}
                 onDelete={handleBulkDelete}
                 onClear={handleClearSelection}
@@ -800,22 +857,19 @@ const SubmissionsPage = () => {
 interface UseSubmissionExportAndDeleteOptions {
   formId: string;
   queryClient: ReturnType<typeof useQueryClient>;
-  columns: ColumnDef<DataGridFeatures, SerializedSubmission>[];
   table: DataGridApi<SerializedSubmission>;
-  rowSelection: RowSelectionState;
   setRowSelection: (selection: RowSelectionState) => void;
 }
 
 const useSubmissionExportAndDelete = ({
   formId,
   queryClient,
-  columns,
   table,
-  rowSelection,
   setRowSelection,
 }: UseSubmissionExportAndDeleteOptions) => {
   const handleBulkDelete = useCallback(async () => {
-    const selectedIds = Object.keys(rowSelection);
+    // selected row model — same source export reads, never stale selection keys
+    const selectedIds = table.getSelectedRowModel().rows.map((r) => r.id);
     if (selectedIds.length === 0) return;
 
     const confirmed = window.confirm(
@@ -828,32 +882,27 @@ const useSubmissionExportAndDelete = ({
     });
     void queryClient.invalidateQueries({ queryKey: ["submissions", formId] });
     setRowSelection({});
-  }, [formId, queryClient, rowSelection, setRowSelection]);
+  }, [formId, queryClient, table, setRowSelection]);
 
   const downloadCSV = useCallback(
     (rows: Row<DataGridFeatures, SerializedSubmission>[], filename: string) => {
       if (rows.length === 0) return;
 
-      const headers = columns
-        .flatMap((col) => {
-          if (col.id === "select") return [];
-          if (typeof col.header === "string") return [col.header];
-          if (col.id === "submitted_at") return ["Submitted At"];
-          return [col.id || "Field"];
-        })
+      // headers AND cells from the same visible-column source — no drift
+      const exportColumns = table.getVisibleLeafColumns().filter((c) => c.id !== "select");
+      const escapeCSV = (s: string) => `"${s.replaceAll('"', '""')}"`;
+
+      const headers = exportColumns
+        .map((c) =>
+          escapeCSV(
+            c.columnDef.meta?.headerTitle ??
+              (typeof c.columnDef.header === "string" ? c.columnDef.header : c.id),
+          ),
+        )
         .join(",");
 
       const csvRows = rows
-        .map((row) =>
-          row
-            .getVisibleCells()
-            .flatMap((cell: Cell<DataGridFeatures, SerializedSubmission, unknown>) => {
-              if (cell.column.id === "select") return [];
-              const formatted = csvFormat(cell.getValue()).replaceAll('"', '""');
-              return [`"${formatted}"`];
-            })
-            .join(","),
-        )
+        .map((row) => exportColumns.map((c) => escapeCSV(csvFormat(row.getValue(c.id)))).join(","))
         .join("\n");
 
       const csv = `${headers}\n${csvRows}`;
@@ -868,7 +917,7 @@ const useSubmissionExportAndDelete = ({
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     },
-    [columns],
+    [table],
   );
 
   const handleExportSelected = useCallback(() => {
@@ -902,7 +951,8 @@ const useSubmissionsHotkeys = ({
   useHotkey(
     HOTKEYS.SUBMISSIONS_SELECT_ALL,
     () => {
-      table.toggleAllPageRowsSelected(!table.getIsAllPageRowsSelected());
+      // all-rows APIs walk the filtered model — correct for infinite scroll + tab/search filters
+      table.toggleAllRowsSelected(!table.getIsAllRowsSelected());
     },
     { conflictBehavior: "replace", ignoreInputs: true },
   );

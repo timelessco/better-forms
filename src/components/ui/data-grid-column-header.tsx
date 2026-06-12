@@ -52,30 +52,39 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
   const sortDirection = useColumnSorted(table, column.id);
   const pinDirection = useColumnPinned(table, column.id);
 
-  const getColumnPosition = () => {
+  const getFullOrder = () => {
     const stateOrder = table.state.columnOrder;
-    const order = stateOrder.length > 0 ? stateOrder : table.getAllLeafColumns().map((c) => c.id);
-    const index = order.indexOf(column.id);
-    return { order, index };
+    return stateOrder.length > 0 ? stateOrder : table.getAllLeafColumns().map((c) => c.id);
   };
 
-  const canMove = (direction: "left" | "right"): boolean => {
-    const { order, index } = getColumnPosition();
-    return direction === "left" ? index > 0 : index < order.length - 1;
+  // adjacent VISIBLE column; hidden cols would make index-splice a visual no-op
+  const getVisibleNeighbor = (direction: "left" | "right") => {
+    const visible = table.getVisibleLeafColumns();
+    const index = column.getIndex();
+    const neighbor = visible[direction === "left" ? index - 1 : index + 1];
+    // never swap with select checkbox column
+    if (!neighbor || neighbor.id === "select") return undefined;
+    // order splice can't cross a pin region — disable instead of silently no-oping
+    if (neighbor.getIsPinned() !== column.getIsPinned()) return undefined;
+    return neighbor;
   };
+
+  const canMove = (direction: "left" | "right"): boolean =>
+    getVisibleNeighbor(direction) !== undefined;
 
   const moveColumn = useCallback(
     (direction: "left" | "right") => {
-      if (!canMove(direction)) return;
-      const { order, index } = getColumnPosition();
-      const newOrder = [...order];
-      const [moved] = newOrder.splice(index, 1);
-      const targetIndex = direction === "left" ? index - 1 : index + 1;
-      newOrder.splice(targetIndex, 0, moved);
+      const neighbor = getVisibleNeighbor(direction);
+      if (!neighbor) return;
+      const newOrder = [...getFullOrder()];
+      const [moved] = newOrder.splice(newOrder.indexOf(column.id), 1);
+      // splice relative to neighbor's slot in FULL order so hidden cols are crossed in one move
+      const neighborIndex = newOrder.indexOf(neighbor.id);
+      newOrder.splice(direction === "left" ? neighborIndex : neighborIndex + 1, 0, moved);
       table.setColumnOrder(newOrder);
     },
-    // eslint-disable-next-line eslint-plugin-react-hooks/exhaustive-deps -- canMove and getColumnPosition read from table state
-    [table],
+    // eslint-disable-next-line eslint-plugin-react-hooks/exhaustive-deps -- getVisibleNeighbor and getFullOrder read from table state
+    [table, column],
   );
 
   const headerLabel = (
@@ -91,15 +100,8 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
     </div>
   );
 
-  const handleSort = useCallback(() => {
-    if (sortDirection === "asc") {
-      column.toggleSorting(true);
-    } else if (sortDirection === "desc") {
-      column.clearSorting();
-    } else {
-      column.toggleSorting(false);
-    }
-  }, [column, sortDirection]);
+  // built-in: gates getCanSort, shift-click multi-sort, honors getNextSortingOrder/sortDescFirst
+  const handleSort = column.getToggleSortingHandler();
 
   const handleUnpin = useCallback(() => column.pin(false), [column]);
 
@@ -142,6 +144,9 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
     onClick: handleSort,
   };
 
+  // Base UI merges render-element props; keep onClick off the trigger or one click sorts AND opens menu
+  const { onClick: _sortClick, ...triggerProps } = headerButtonProps;
+
   const headerButtonContent = (
     <>
       <span className="inline-flex min-w-0 items-center gap-1.5" title={title}>
@@ -150,9 +155,9 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
       </span>
       {column.getCanSort() &&
         (sortDirection === "desc" ? (
-          <ArrowDown className="mt-px size-[0.7rem]!" />
+          <ArrowDown className="mt-px size-[0.7rem]!" aria-hidden="true" />
         ) : sortDirection === "asc" ? (
-          <ArrowUp className="mt-px size-[0.7rem]!" />
+          <ArrowUp className="mt-px size-[0.7rem]!" aria-hidden="true" />
         ) : null)}
     </>
   );
@@ -175,7 +180,7 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
   const headerControls = (
     <div className="flex h-full items-center justify-between gap-1.5">
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button {...headerButtonProps} />}>
+        <DropdownMenuTrigger render={<Button {...triggerProps} />}>
           {headerButtonContent}
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-40" align="start">

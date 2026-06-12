@@ -40,23 +40,15 @@ export const addSectionOp = v.object({
   level: v.optional(v.picklist(["1", "2", "3"])),
 });
 
-// TOKEN_NAMES subset the AI emits. Card/popover excluded — derived from base/accent.
+// Overridable (semantic) tokens the AI emits. Everything else (primary-foreground, secondary,
+// muted, accent, border, ring, *-foreground, card/popover) is structural — derived from the
+// base/accent palette and no longer overridable, so the AI must not emit them.
 export const AI_THEME_TOKEN_KEYS = [
   "background",
   "foreground",
   "primary",
-  "primary-foreground",
-  "secondary",
-  "secondary-foreground",
-  "muted",
-  "muted-foreground",
-  "accent",
-  "accent-foreground",
   "destructive",
-  "destructive-foreground",
-  "border",
   "input",
-  "ring",
 ] as const;
 
 const themeTokensShape: Record<string, v.StringSchema<undefined>> = {};

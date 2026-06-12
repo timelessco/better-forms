@@ -1,3 +1,6 @@
+import { getOptionOrdinal } from "@/components/ui/form-option-item-constants";
+import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
+import { CheckIcon, ImageIcon } from "@/components/ui/icons";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { AppForm } from "@/hooks/use-form-builder";
@@ -101,6 +104,16 @@ const RequiredBadge = () => (
 // Stable id for label-less variants (h1/h2/h3/blockquote, group fields) to wire aria-labelledby.
 export const fieldLabelId = (fieldName: string): string => `${fieldName}-label`;
 
+/** Fisher-Yates copy — memoize at the call site so order stays stable while answering. */
+export const shuffleOptions = <T,>(items: T[]): T[] => {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+};
+
 // Leading marker for option groups when "Labels" = Letters/Numbers (Figma 25578:9710 / 25578:9688).
 export const OptionOrdinalBadge = ({
   text,
@@ -142,6 +155,104 @@ export const OptionRadioMark = ({
   >
     {selected && <span className="size-2 rounded-full bg-primary" />}
   </span>
+);
+
+// Square checkbox marker for multi-choice when "Labels" = None — presentational twin of the
+// interactive <Checkbox> (image-grid tiles are buttons, so a real checkbox would nest interactives).
+export const OptionCheckMark = ({
+  selected,
+  hasErrors,
+}: {
+  selected: boolean;
+  hasErrors?: boolean;
+}) => (
+  <span
+    className={cn(
+      "flex size-4 shrink-0 items-center justify-center rounded-[4px] border bg-card",
+      selected ? "border-primary bg-primary text-primary-foreground" : "border-input",
+      hasErrors && !selected && "border-destructive",
+    )}
+  >
+    {selected && <CheckIcon className="size-3" />}
+  </span>
+);
+
+// Picture-choice grid (Typeform/Tally-style): options as a responsive grid of fixed-aspect,
+// cover-cropped image tiles so portrait, landscape, and square uploads all read uniformly. Shared
+// by Checkbox (multi) and MultiChoice (single); each field owns its selection + hotkey wiring.
+export const ImageOptionGrid = ({
+  options,
+  multi,
+  labelStyle,
+  hasErrors,
+  isSelected,
+  onToggle,
+  optionRefs,
+  onKeyDown,
+}: {
+  options: { value: string; label: string; image?: string }[];
+  multi: boolean;
+  labelStyle: OptionLabelStyle;
+  hasErrors: boolean;
+  isSelected: (value: string) => boolean;
+  onToggle: (value: string) => void;
+  optionRefs?: React.RefObject<(HTMLButtonElement | null)[]>;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
+}) => (
+  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    {options.map((option, idx) => {
+      const selected = isSelected(option.value);
+      return (
+        <button
+          key={option.value}
+          ref={
+            optionRefs
+              ? (el) => {
+                  optionRefs.current[idx] = el;
+                }
+              : undefined
+          }
+          type="button"
+          onKeyDown={onKeyDown}
+          onClick={() => onToggle(option.value)}
+          aria-pressed={selected}
+          aria-invalid={hasErrors}
+          className={cn(
+            // Tile pill: 2px border doubles as the selected ring (no layout shift on select).
+            "flex cursor-pointer flex-col gap-1.5 rounded-xl border-2 p-1.5 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+            selected ? "border-primary bg-gray-100" : "border-transparent hover:bg-gray-50",
+            hasErrors && "text-destructive",
+          )}
+        >
+          <span className="relative block aspect-[4/3] w-full overflow-hidden rounded-lg bg-gray-100">
+            {option.image ? (
+              <img src={option.image} alt="" className="absolute inset-0 size-full object-cover" />
+            ) : (
+              <span className="flex size-full items-center justify-center text-muted-foreground">
+                <ImageIcon className="size-6" />
+              </span>
+            )}
+          </span>
+          <span className="flex items-center gap-1.5 px-0.5">
+            {labelStyle === "none" ? (
+              multi ? (
+                <OptionCheckMark selected={selected} hasErrors={hasErrors} />
+              ) : (
+                <OptionRadioMark selected={selected} hasErrors={hasErrors} />
+              )
+            ) : (
+              <OptionOrdinalBadge
+                text={getOptionOrdinal(labelStyle, idx)}
+                selected={selected}
+                hasErrors={hasErrors}
+              />
+            )}
+            <span className="min-w-0 flex-1 truncate text-sm">{option.label}</span>
+          </span>
+        </button>
+      );
+    })}
+  </div>
 );
 
 export const FieldLabelText = ({
@@ -226,13 +337,14 @@ export const FieldLabelText = ({
   );
 };
 
-// Field types whose control isn't a labelable element (checkbox/single-pick/ranking lists; MultiSelect trigger is <div role="button"> due to nested remove-tag buttons — see multi-select.tsx). Render as groups: role="group" aria-labelledby, not <label htmlFor>.
+// Field types whose control isn't a labelable element (checkbox/single-pick/ranking lists; the
+// dropdown display modes keep group semantics — MultiSelect trigger is <div role="button"> due to
+// nested remove-tag buttons, see multi-select.tsx). Render as groups: role="group"
+// aria-labelledby, not <label htmlFor>.
 export const GROUP_FIELD_TYPES = new Set<PlateFormField["fieldType"]>([
   "Checkbox",
   "MultiChoice",
   "Ranking",
-  "MultiSelect",
-  "Dropdown",
   "LinearScale",
   "Matrix",
 ]);

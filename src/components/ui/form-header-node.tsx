@@ -566,6 +566,8 @@ export const FormHeaderElement = (props: PlateElementProps) => {
             onCoverPopoverOpenChange={setCoverPopoverOpen}
             onCoverChange={handleCoverChange}
             onCoverPositionChange={handleCoverPositionChange}
+            // Right-aligned form → logo sits bottom-right, so flip the pill to the left.
+            pillSide={editorCustomization?.textAlign === "right" ? "left" : "right"}
           />
         )}
         <div className={cn("relative flex w-full flex-col")}>
@@ -573,7 +575,14 @@ export const FormHeaderElement = (props: PlateElementProps) => {
             <Popover open={iconPopoverOpen} onOpenChange={setIconPopoverOpen}>
               {hasLogo && (
                 <div
-                  className={cn("relative z-10 mb-1", hasCover ? "-mt-[50px]" : "mt-4 sm:mt-6")}
+                  // pointer-events-none: this block is full content-width but the circle is
+                  // only ~100px (centered via text-align). Left auto, its transparent flanks
+                  // overlap the cover's bottom strip (-mt-[50px], z-10) and would swallow the
+                  // cover-hover/Change·Reposition pill region. The button below re-enables events.
+                  className={cn(
+                    "pointer-events-none relative z-10 mb-1",
+                    hasCover ? "-mt-[50px]" : "mt-4 sm:mt-6",
+                  )}
                   data-bf-logo-emoji-container={
                     hasCover && icon && !isValidUrl(icon) ? "true" : undefined
                   }
@@ -583,7 +592,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
                     render={
                       <button
                         type="button"
-                        className="cursor-pointer transition-colors"
+                        className="pointer-events-auto cursor-pointer transition-colors"
                         onMouseDown={(e) => e.preventDefault()}
                         aria-label="Change icon"
                       />
@@ -696,6 +705,153 @@ export const FormHeaderElement = (props: PlateElementProps) => {
   );
 };
 
+/**
+ * Cover gallery + upload popover body. Shared by the editor's in-cover "Change" button and
+ * the Customize sidebar's Cover row so both open the identical picker. Render inside a
+ * <Popover>; pass onClose to dismiss after a pick/remove.
+ */
+export const CoverPickerContent = ({
+  cover,
+  onCoverChange,
+  onClose,
+}: {
+  cover: string | null;
+  onCoverChange: (cover: string | null) => void;
+  onClose: () => void;
+}) => (
+  <PopoverContent align="end" side="bottom" className="w-[310px] p-0" sideOffset={8}>
+    <Tabs defaultValue="gallery" className="w-full">
+      <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+        <TabsList className="w-full">
+          <TabsTrigger value="gallery">Gallery</TabsTrigger>
+          <TabsTrigger value="upload">Upload</TabsTrigger>
+          <TabsIndicator />
+        </TabsList>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          onClick={() => {
+            onCoverChange(null);
+            onClose();
+          }}
+          onMouseDown={(e) => e.preventDefault()}
+          aria-label="Remove cover"
+        >
+          <Trash2Icon />
+        </Button>
+      </div>
+
+      <TabsContent value="gallery" className="mt-0 px-3 pb-3">
+        <p className="mt-1 mb-2 text-xs text-muted-foreground">Abstract</p>
+        <div className="grid grid-cols-3 gap-2">
+          {COVER_GALLERY.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => {
+                onCoverChange(item.src);
+                onClose();
+              }}
+              className="relative h-16 cursor-pointer overflow-hidden rounded-lg bg-muted ring-primary ring-offset-1 ring-offset-background transition-all hover:scale-[1.02] hover:ring-2"
+              aria-label={item.label}
+            >
+              <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
+              <img
+                src={item.src}
+                alt={item.label}
+                width={200}
+                height={64}
+                className="relative z-0 size-full object-cover brightness-60 grayscale"
+              />
+            </button>
+          ))}
+        </div>
+      </TabsContent>
+
+      <TabsContent value="upload" className="mt-0 px-3 pb-3">
+        <CoverUpload
+          currentCover={cover}
+          onUpload={(url) => {
+            onCoverChange(url);
+            onClose();
+          }}
+          onCancel={onClose}
+        />
+      </TabsContent>
+    </Tabs>
+  </PopoverContent>
+);
+
+/**
+ * Logo (icon + upload) picker popover body, self-contained for the Customize sidebar — mirrors the
+ * editor's in-header icon popover but without the theme-color coupling (the sidebar mounts above
+ * the editor theme provider). Render inside a <Popover>; pass onClose to dismiss after a pick.
+ */
+export const LogoPickerContent = ({
+  icon,
+  iconColor,
+  onIconChange,
+  onIconColorChange,
+  onClose,
+}: {
+  icon: string | null;
+  iconColor: string | null;
+  onIconChange: (icon: string | null) => void;
+  onIconColorChange: (color: string) => void;
+  onClose: () => void;
+}) => {
+  const [tab, setTab] = useState("icon");
+  // Lazy-mount Upload tab, then keep alive via <Activity> so in-flight uploads survive tab switches.
+  const [openedUpload, setOpenedUpload] = useState(false);
+  if (tab === "upload" && !openedUpload) setOpenedUpload(true);
+  return (
+    <PopoverContent align="end" side="bottom" keepMounted className="w-[310px] p-0" sideOffset={8}>
+      <div className="w-full">
+        <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+          <IconTabBar value={tab} onChange={setTab} />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => {
+              onIconChange(null);
+              onClose();
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+            aria-label="Remove logo"
+          >
+            <Trash2Icon />
+          </Button>
+        </div>
+        <Activity mode={tab === "icon" ? "visible" : "hidden"}>
+          <IconPickerContent
+            iconValue={icon && icon !== DEFAULT_ICON && !isValidUrl(icon) ? icon : null}
+            iconColor={iconColor || "#000000"}
+            onIconChange={(newIcon) => {
+              onIconChange(newIcon);
+              onClose();
+            }}
+            onColorChange={onIconColorChange}
+          />
+        </Activity>
+        {openedUpload && (
+          <Activity mode={tab === "upload" ? "visible" : "hidden"}>
+            <IconUploadTab
+              currentIcon={icon && isValidUrl(icon) ? icon : null}
+              onUpload={(url) => {
+                onIconChange(url);
+                onClose();
+              }}
+              onCancel={onClose}
+            />
+          </Activity>
+        )}
+      </div>
+    </PopoverContent>
+  );
+};
+
 interface HeaderCoverSectionProps {
   cover: string;
   coverPosition: number;
@@ -703,6 +859,8 @@ interface HeaderCoverSectionProps {
   onCoverPopoverOpenChange: (open: boolean) => void;
   onCoverChange: (cover: string | null) => void;
   onCoverPositionChange: (pos: number) => void;
+  /** Which cover corner the Change·Reposition pill anchors to (opposite the logo). */
+  pillSide: "left" | "right";
 }
 
 const HeaderCoverSection = ({
@@ -712,6 +870,7 @@ const HeaderCoverSection = ({
   onCoverPopoverOpenChange,
   onCoverChange,
   onCoverPositionChange,
+  pillSide,
 }: HeaderCoverSectionProps) => {
   const coverRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startY: number; startPos: number } | null>(null);
@@ -727,15 +886,19 @@ const HeaderCoverSection = ({
   const [coverHovered, setCoverHovered] = useState(false);
   const [pillTop, setPillTop] = useState(0);
   const [pillRight, setPillRight] = useState(16);
+  const [pillLeft, setPillLeft] = useState(16);
   const showPill = coverHovered || repositioning || coverPopoverOpen;
   const measurePill = useCallback(() => {
     const el = coverRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
     setPillTop(rect.bottom);
-    const editorRight = el.closest(".slate-editor")?.getBoundingClientRect().right;
-    const visibleRight = Math.min(rect.right, editorRight ?? rect.right);
+    const editorRect = el.closest(".slate-editor")?.getBoundingClientRect();
+    const visibleRight = Math.min(rect.right, editorRect?.right ?? rect.right);
     setPillRight(Math.max(16, window.innerWidth - visibleRight + 12));
+    // Left anchor (right-aligned forms): ride 12px inside the cover's visible left edge.
+    const visibleLeft = Math.max(rect.left, editorRect?.left ?? rect.left);
+    setPillLeft(Math.max(16, visibleLeft + 12));
   }, []);
   useEffect(() => {
     if (!showPill) return;
@@ -777,7 +940,7 @@ const HeaderCoverSection = ({
       <div
         ref={coverRef}
         className={cn(
-          "group/cover relative right-[50%] left-[50%] -mr-[50vw] -ml-[50vw] h-[120px] w-screen bg-muted/20 sm:h-[200px]",
+          "group/cover relative right-[50%] left-[50%] -mr-[50cqw] -ml-[50cqw] h-[120px] w-[100cqw] bg-muted/20 sm:h-[200px]",
           repositioning && "cursor-grab touch-none active:cursor-grabbing",
         )}
         data-bf-cover
@@ -830,7 +993,7 @@ const HeaderCoverSection = ({
             style={{
               position: "fixed",
               top: pillTop - 12,
-              right: pillRight,
+              ...(pillSide === "left" ? { left: pillLeft } : { right: pillRight }),
               transform: "translateY(-100%)",
               zIndex: 50,
             }}
@@ -879,68 +1042,11 @@ const HeaderCoverSection = ({
           document.body,
         )}
 
-      <PopoverContent align="end" side="bottom" className="w-[310px] p-0" sideOffset={8}>
-        <Tabs defaultValue="gallery" className="w-full">
-          <div className="flex items-center gap-2 px-3 pt-2 pb-1">
-            <TabsList className="w-full">
-              <TabsTrigger value="gallery">Gallery</TabsTrigger>
-              <TabsTrigger value="upload">Upload</TabsTrigger>
-              <TabsIndicator />
-            </TabsList>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => {
-                onCoverChange(null);
-                onCoverPopoverOpenChange(false);
-              }}
-              onMouseDown={(e) => e.preventDefault()}
-              aria-label="Remove cover"
-            >
-              <Trash2Icon />
-            </Button>
-          </div>
-
-          <TabsContent value="gallery" className="mt-0 px-3 pb-3">
-            <p className="mt-1 mb-2 text-xs text-muted-foreground">Abstract</p>
-            <div className="grid grid-cols-3 gap-2">
-              {COVER_GALLERY.map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => {
-                    onCoverChange(item.src);
-                    onCoverPopoverOpenChange(false);
-                  }}
-                  className="relative h-16 cursor-pointer overflow-hidden rounded-lg bg-muted ring-primary ring-offset-1 ring-offset-background transition-all hover:scale-[1.02] hover:ring-2"
-                  aria-label={item.label}
-                >
-                  <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
-                  <img
-                    src={item.src}
-                    alt={item.label}
-                    width={200}
-                    height={64}
-                    className="relative z-0 size-full object-cover brightness-60 grayscale"
-                  />
-                </button>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="upload" className="mt-0 px-3 pb-3">
-            <CoverUpload
-              currentCover={cover}
-              onUpload={(url) => {
-                onCoverChange(url);
-                onCoverPopoverOpenChange(false);
-              }}
-              onCancel={() => onCoverPopoverOpenChange(false)}
-            />
-          </TabsContent>
-        </Tabs>
-      </PopoverContent>
+      <CoverPickerContent
+        cover={cover}
+        onCoverChange={onCoverChange}
+        onClose={() => onCoverPopoverOpenChange(false)}
+      />
     </Popover>
   );
 };

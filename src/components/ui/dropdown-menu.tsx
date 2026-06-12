@@ -22,13 +22,14 @@ export const DropdownMenuContent = ({
   side = "bottom",
   sideOffset = 4,
   anchor,
+  collisionAvoidance,
   className,
   positionerClassName,
   ...props
 }: MenuPrimitive.Popup.Props &
   Pick<
     MenuPrimitive.Positioner.Props,
-    "align" | "alignOffset" | "anchor" | "side" | "sideOffset"
+    "align" | "alignOffset" | "anchor" | "collisionAvoidance" | "side" | "sideOffset"
   > & {
     positionerClassName?: string;
   }) => (
@@ -38,6 +39,7 @@ export const DropdownMenuContent = ({
       align={align}
       alignOffset={alignOffset}
       anchor={anchor}
+      collisionAvoidance={collisionAvoidance}
       side={side}
       sideOffset={sideOffset}
     >

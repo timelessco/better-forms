@@ -1,6 +1,7 @@
 import type { Value } from "platejs";
 import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
 import { extractFileUploadFields } from "@/lib/form-schema/file-upload-types";
+import { normalizeOptionNodes } from "@/lib/editor/normalize-option-nodes";
 import {
   ALLOWED_LABEL_TYPES,
   INPUT_TYPE_TO_FIELD_TYPE,
@@ -31,7 +32,10 @@ export type PreviewStepResult = {
 /** Plate Value → chunked preview segments. Static content (headings/paragraphs/etc.)
  * → StaticSegments (PlateStatic); form fields → FieldSegments. Splits on pageBreak
  * (multi-step) and extracts isThankYouPage pageBreak. */
-export const transformPlateForPreview = (value: Value): PreviewStepResult => {
+export const transformPlateForPreview = (rawValue: Value): PreviewStepResult => {
+  // Published forms read stored content directly (no editor migration pass) — normalize legacy
+  // dropdown/multi-select shapes here too.
+  const value = normalizeOptionNodes(rawValue);
   // formHeader handled separately by extractFormHeader.
   let startIdx = 0;
   if (value.length > 0 && value[0].type === "formHeader") {
@@ -189,9 +193,9 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
         nodeType === "formLinearScale" ? extractLinearScaleFields(node) : {};
       const ratingFields = nodeType === "formRating" ? extractRatingFields(node) : {};
       const verifyEmail = nodeType === "formEmail" && node.verifyEmail === true ? true : undefined;
-      const defaultCountryCode =
-        nodeType === "formPhone" && typeof node.defaultCountryCode === "string"
-          ? node.defaultCountryCode || undefined
+      const allowedCountries =
+        nodeType === "formPhone" && Array.isArray(node.allowedCountries)
+          ? (node.allowedCountries.filter((c) => typeof c === "string") as string[])
           : undefined;
       const use24Hour = nodeType === "formTime" && node.use24Hour === true ? true : undefined;
 
@@ -215,43 +219,8 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
           ...linearScaleFields,
           ...ratingFields,
           ...(verifyEmail ? { verifyEmail } : {}),
-          ...(defaultCountryCode ? { defaultCountryCode } : {}),
+          ...(allowedCountries?.length ? { allowedCountries } : {}),
           ...(use24Hour ? { use24Hour } : {}),
-        } as PlateFormField,
-      });
-      fieldIndex++;
-      i++;
-      continue;
-    }
-
-    if (nodeType === "formMultiSelectInput") {
-      const label = lookBackForLabel(i);
-      flushStatic();
-      const labelText = label?.labelText ?? "";
-      const labelNode = label?.labelNode ?? null;
-      const isRequired = resolveRequired(node as Record<string, unknown>, labelNode);
-
-      const rawOptions = (node.options as string[]) ?? [];
-      const options = rawOptions.map((opt, idx) => ({
-        value: slugify(opt) || `option_${idx + 1}`,
-        label: opt || `Option ${idx + 1}`,
-      }));
-
-      const stableId =
-        (label?.labelNode as { id?: string } | undefined)?.id ?? (node as { id?: string }).id;
-      const baseName = slugify(labelText);
-      const name = stableId || `${baseName}_${fieldIndex}`;
-
-      segments.push({
-        type: "field",
-        field: {
-          id: name,
-          name,
-          fieldType: "MultiSelect",
-          label: labelText || undefined,
-          labelType: label?.labelNode.type as string | undefined,
-          required: isRequired,
-          options,
         } as PlateFormField,
       });
       fieldIndex++;
@@ -324,13 +293,16 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
       const fieldLabel = labelText || options[0]?.label;
 
       const fieldType = VARIANT_TO_FIELD_TYPE[variant] || "Checkbox";
-      // `shuffle` lives on the group's first option node; only Dropdown reads it today.
-      const shuffle = fieldType === "Dropdown" ? Boolean(node.shuffle) : undefined;
-      // `optionLabel` (Labels submenu) also lives on the first option node; Checkbox/MultiChoice render it.
-      const optionLabel =
-        fieldType === "Checkbox" || fieldType === "MultiChoice"
-          ? (node.optionLabel as OptionLabelStyle | undefined)
-          : undefined;
+      // Group flags live on the first option node: showAsDropdown (display mode), randomizeOrder
+      // (Shuffle toggle), optionLabel (Labels submenu); Checkbox/MultiChoice read them.
+      const isChoiceGroup = fieldType === "Checkbox" || fieldType === "MultiChoice";
+      const showAsDropdown = isChoiceGroup && node.showAsDropdown === true;
+      const showImage = isChoiceGroup && node.showImage === true;
+      // Shuffle applies to every option-group kind, Ranking included.
+      const shuffle = node.randomizeOrder === true;
+      const optionLabel = isChoiceGroup
+        ? (node.optionLabel as OptionLabelStyle | undefined)
+        : undefined;
 
       segments.push({
         type: "field",
@@ -342,7 +314,9 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
           labelType: label?.labelNode.type as string | undefined,
           required: isRequired,
           options,
-          ...(shuffle !== undefined ? { shuffle } : {}),
+          ...(shuffle ? { shuffle } : {}),
+          ...(showAsDropdown ? { showAsDropdown } : {}),
+          ...(showImage ? { showImage } : {}),
           ...(optionLabel ? { optionLabel } : {}),
         } as PlateFormField,
       });
@@ -423,7 +397,5 @@ export const EDITABLE_FIELD_TYPES = new Set([
   "FileUpload",
   "Checkbox",
   "MultiChoice",
-  "MultiSelect",
   "Ranking",
-  "Dropdown",
 ]);

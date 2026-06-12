@@ -15,7 +15,6 @@ export const FORM_INPUT_NODE_TYPES = new Set([
   "formDate",
   "formTime",
   "formFileUpload",
-  "formMultiSelectInput",
   "formOptionItem",
   "formLinearScale",
   "formRating",
@@ -73,13 +72,12 @@ export const resolveRequired = (
   _labelNode: Record<string, unknown> | null,
 ): boolean => Boolean(inputNode.required);
 
-/** Map from formOptionItem variant to PlateFormField fieldType string */
+/** Map from formOptionItem variant to PlateFormField fieldType string. Dropdown / Multi-select
+ * are display modes now (`showAsDropdown` on the group's first node), not variants. */
 export const VARIANT_TO_FIELD_TYPE: Record<string, string> = {
   checkbox: "Checkbox",
   multiChoice: "MultiChoice",
-  multiSelect: "MultiSelect",
   ranking: "Ranking",
-  dropdown: "Dropdown",
 };
 
 /** `formNumber` bounds: `minValue`/`maxValue` (not text's `minLength`/`maxLength`

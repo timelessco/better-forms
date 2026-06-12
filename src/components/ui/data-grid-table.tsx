@@ -286,11 +286,20 @@ const DataGridTableHeadRowCell = <TData extends RowData>({
   const headerCellSpacing = headerCellSpacingVariants({
     size: props.tableLayout?.dense ? "dense" : "default",
   });
+  // optional chaining: sorting feature is tree-shaken when unused in v9
+  const isSorted = column.getCanSort?.() ? column.getIsSorted?.() : undefined;
+  const ariaSort =
+    isSorted === "asc"
+      ? ("ascending" as const)
+      : isSorted === "desc"
+        ? ("descending" as const)
+        : undefined;
 
   return (
     <th
       key={header.id}
       ref={dndRef}
+      aria-sort={ariaSort}
       style={{
         ...(props.tableLayout?.width === "fixed" &&
           !props.tableLayout?.columnsResizable && {
@@ -588,7 +597,6 @@ const DataGridTableBodyRowCell = <TData extends RowData>({
     <td
       key={cell.id}
       ref={dndRef}
-      {...(props.tableLayout?.columnsDraggable && !isPinned ? { cell } : {})}
       style={{
         ...(props.tableLayout?.columnsPinnable && column.getCanPin() && getPinningStyles(column)),
         ...(props.tableLayout?.columnsResizable && {
@@ -644,7 +652,8 @@ const DataGridTableRenderedRow = <TData extends RowData>({
 
 const DataGridTableEmpty = () => {
   const { table, props } = useDataGrid();
-  const totalColumns = table.getAllColumns().length;
+  // visible leafs only: getAllColumns counts hidden cols, over-spans the row
+  const totalColumns = table.getVisibleLeafColumns().length;
 
   return (
     <tr>

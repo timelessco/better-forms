@@ -3,6 +3,8 @@ import { StepForm } from "@/components/form-components/step-form";
 import { ProgressBar } from "@/routes/forms/-components/progress-bar";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
+import { EmailVerificationContext } from "@/components/form-components/email-verification-context";
+import type { EmailVerificationStore } from "@/components/form-components/email-verification-context";
 import { StepFormProvider, useStepForm } from "@/contexts/step-form-context";
 import type { PublicFormTracking, TrackingBase } from "@/contexts/step-form-context";
 import { useTranslation } from "@/contexts/translation-context";
@@ -79,6 +81,9 @@ interface FormPreviewFromPlateProps {
   boundToParent?: boolean;
   /** Analytics base ({ visitId, visitorHash }). Public route only; undefined in builder previews disables tracking. */
   trackingBase?: TrackingBase;
+  /** "Verify email" runtime store. Live public route passes mode:"live" (real OTP emails +
+   * tokens sent on submit); undefined ⇒ mock (toast shows the code, nothing emailed). */
+  emailVerification?: EmailVerificationStore;
 }
 
 const PAGE_MAX_WIDTH = {
@@ -130,9 +135,9 @@ const PreviewFormHeader = ({
     return null;
   }
 
-  // Full-bleed cover using viewport-width trick (matches editor's form-header-node.tsx)
+  // Full-bleed cover using container-width breakout (matches editor; cqw → nearest data-bf-cover-pane, viewport fallback)
   const coverClass =
-    "relative w-screen left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] h-[120px] sm:h-[200px]";
+    "relative w-[100cqw] left-[50%] right-[50%] -ml-[50cqw] -mr-[50cqw] h-[120px] sm:h-[200px]";
 
   const renderCover = () => {
     if (!cover) return null;
@@ -384,6 +389,7 @@ export const FormPreviewFromPlate = ({
   isPopup = false,
   boundToParent = false,
   trackingBase,
+  emailVerification,
 }: FormPreviewFromPlateProps) => {
   const headerFromContent = useMemo(() => extractFormHeader(content), [content]);
   const hasHeaderNode = headerFromContent !== null;
@@ -447,34 +453,36 @@ export const FormPreviewFromPlate = ({
       : null;
 
   return (
-    <StepFormProvider
-      totalSteps={steps.length}
-      onSubmit={onSubmit}
-      formId={formId}
-      saveAnswersForLater={settings?.saveAnswersForLater}
-      initialFormData={initialFormData}
-      initialCurrentStep={initialCurrentStep}
-      tracking={tracking}
-    >
-      <FormLogicProvider value={formLogic}>
-        <FormPreviewContent
-          shortId={shortId}
-          steps={steps}
-          stepQuestions={stepQuestions}
-          thankYouNodes={thankYouNodes}
-          title={title}
-          icon={icon}
-          iconColor={iconColor}
-          cover={cover}
-          hideTitle={hideTitle}
-          layout={layout}
-          settings={settings}
-          customization={customization}
-          isPopup={isPopup}
-          boundToParent={boundToParent}
-        />
-      </FormLogicProvider>
-    </StepFormProvider>
+    <EmailVerificationContext.Provider value={emailVerification ?? null}>
+      <StepFormProvider
+        totalSteps={steps.length}
+        onSubmit={onSubmit}
+        formId={formId}
+        saveAnswersForLater={settings?.saveAnswersForLater}
+        initialFormData={initialFormData}
+        initialCurrentStep={initialCurrentStep}
+        tracking={tracking}
+      >
+        <FormLogicProvider value={formLogic}>
+          <FormPreviewContent
+            shortId={shortId}
+            steps={steps}
+            stepQuestions={stepQuestions}
+            thankYouNodes={thankYouNodes}
+            title={title}
+            icon={icon}
+            iconColor={iconColor}
+            cover={cover}
+            hideTitle={hideTitle}
+            layout={layout}
+            settings={settings}
+            customization={customization}
+            isPopup={isPopup}
+            boundToParent={boundToParent}
+          />
+        </FormLogicProvider>
+      </StepFormProvider>
+    </EmailVerificationContext.Provider>
   );
 };
 

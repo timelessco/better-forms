@@ -1,5 +1,13 @@
 import { animate, useMotionValue, useTransform } from "motion/react";
-import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 
 import { useControllableState } from "@/hooks/use-controllable-state/use-controllable-state";
 
@@ -9,9 +17,8 @@ const DEAD_ZONE = 32;
 const MAX_CURSOR_RANGE = 200;
 const MAX_STRETCH = 8;
 
-// Layout offsets used by the "handle dodges label/value" calculation.
+// Layout offsets used by the "handle dodges value text" calculation.
 const HANDLE_BUFFER = 8;
-const LABEL_OFFSET = 12 + 4;
 const VALUE_OFFSET = 12 - 8;
 
 // Width of the hidden "auto" zone reserved at the left edge when allowAuto.
@@ -101,6 +108,8 @@ export interface UseElasticSliderOptions {
   isAuto: boolean;
   onAutoChange?: () => void;
   shouldReduceMotion: boolean | null;
+  /** "dot" turns the hash marks into discrete snap stops the handle locks onto. */
+  markStyle: "line" | "dot";
 }
 
 export const useElasticSlider = ({
@@ -116,6 +125,7 @@ export const useElasticSlider = ({
   isAuto,
   onAutoChange,
   shouldReduceMotion,
+  markStyle,
 }: UseElasticSliderOptions) => {
   const hasAutoSlot = allowAuto && typeof onAutoChange === "function";
   const slotOffset = hasAutoSlot ? AUTO_SLOT_PERCENT : 0;
@@ -151,8 +161,17 @@ export const useElasticSlider = ({
 
   // Fill + handle driven by a single motion value for imperative updates.
   const fillPercent = useMotionValue(percentage);
-  const fillWidth = useTransform(fillPercent, (pct) => `${pct}%`);
-  const handleLeft = useTransform(fillPercent, (pct) => `max(4px, calc(${pct}% - 8px))`);
+  // Figma: the fill tile never collapses behind the label — min width = label end + handle
+  // clearance (measured below). Auto (pct 0) still collapses to nothing; handle parks at 2px.
+  const minFillPx = useMotionValue(0);
+  const fillWidth = useTransform(() =>
+    fillPercent.get() <= 0.01 ? "0%" : `max(${fillPercent.get()}%, ${minFillPx.get()}px)`,
+  );
+  const handleLeft = useTransform(() =>
+    fillPercent.get() <= 0.01
+      ? "2px"
+      : `calc(max(${fillPercent.get()}%, ${minFillPx.get()}px) - 10px)`,
+  );
 
   // Rubber band: widens the track and pulls it left when dragged past bounds.
   const rubberStretch = useMotionValue(0);
@@ -194,6 +213,30 @@ export const useElasticSlider = ({
   const percentFromValue = useCallback(
     (v: number) => slotOffset + ((v - min) / (max - min)) * numericTrackPercent,
     [min, max, slotOffset, numericTrackPercent],
+  );
+
+  // Dot variant: the marks ARE the snap stops. Place ~7 interior stops (Figma Radius) at a whole
+  // number of steps (clean increments) and snap the value to the nearest of {min, …stops, max}.
+  // Rendering reads the same list, so a dot always sits exactly where the handle can land.
+  const markStops = useMemo(() => {
+    if (markStyle !== "dot") return null;
+    const range = max - min;
+    if (range <= 0) return [];
+    const interval = Math.max(step, Math.round(range / 8 / step) * step);
+    const interior: number[] = [];
+    for (let v = min + interval; v < max - 1e-9; v += interval) {
+      interior.push(roundValue(v, step));
+    }
+    return interior;
+  }, [markStyle, min, max, step]);
+
+  const snapToMark = useCallback(
+    (v: number): number => {
+      if (!markStops) return v;
+      const stops = [min, ...markStops, max];
+      return stops.reduce((best, s) => (Math.abs(s - v) < Math.abs(best - v) ? s : best), stops[0]);
+    },
+    [markStops, min, max],
   );
 
   // Animate fill to target percent; jump instantly under reduced motion (position still updates, only spring skipped).
@@ -312,22 +355,27 @@ export const useElasticSlider = ({
     (e: React.PointerEvent) => {
       if (!isInteracting) return;
 
-      if (isClickRef.current) {
-        const next = positionToState(e.clientX);
-        if (next.kind === "auto") {
+      const next = positionToState(e.clientX);
+      if (next.kind === "auto") {
+        if (isClickRef.current) {
           animateFillTo(0);
           onAutoChange?.();
-        } else {
-          // Coarse sliders (≤10 positions) snap to nearest step; continuous ones keep decile-magnetic.
-          const discreteSteps = (max - min) / step;
-          const snapped =
-            discreteSteps <= 10
-              ? clamp(min + Math.round((next.value - min) / step) * step, min, max)
-              : snapToDecile(next.value, min, max);
-
-          animateFillTo(percentFromValue(snapped));
-          setValue(roundValue(snapped, step));
         }
+      } else if (markStops) {
+        // Dot variant: land on the nearest snap stop whether the gesture was a click or a drag.
+        const snapped = snapToMark(next.value);
+        animateFillTo(percentFromValue(snapped));
+        setValue(roundValue(snapped, step));
+      } else if (isClickRef.current) {
+        // Coarse sliders (≤10 positions) snap to nearest step; continuous ones keep decile-magnetic.
+        const discreteSteps = (max - min) / step;
+        const snapped =
+          discreteSteps <= 10
+            ? clamp(min + Math.round((next.value - min) / step) * step, min, max)
+            : snapToDecile(next.value, min, max);
+
+        animateFillTo(percentFromValue(snapped));
+        setValue(roundValue(snapped, step));
       }
 
       if (!shouldReduceMotion && rubberStretch.get() !== 0) {
@@ -353,6 +401,8 @@ export const useElasticSlider = ({
       rubberStretch,
       shouldReduceMotion,
       onAutoChange,
+      markStops,
+      snapToMark,
     ],
   );
 
@@ -418,8 +468,9 @@ export const useElasticSlider = ({
     dispatchInteraction({ type: "hover-leave" });
   }, []);
 
-  // Measure label + value to derive "dodge" thresholds so handle fades when it would overlap either text.
-  const [dodge, setDodge] = useState({ left: 38, right: 72 });
+  // Measure label + value: min fill clamp (tile ≥ label + clearance, Figma) and the right-side
+  // dodge threshold so the handle fades when it would sit under the value text.
+  const [dodge, setDodge] = useState({ right: 72 });
 
   useLayoutEffect(() => {
     const wrapper = wrapperRef.current;
@@ -432,15 +483,14 @@ export const useElasticSlider = ({
       const labelEl = labelRef.current;
       const valueEl = valueRef.current;
 
-      const left = labelEl
-        ? ((LABEL_OFFSET + labelEl.offsetWidth + HANDLE_BUFFER) / trackWidth) * 100
-        : 38;
+      // Figma 25441:4643 — label ends, 14px gap, 2px handle, 8px tile padding ⇒ +24.
+      if (labelEl) minFillPx.set(labelEl.offsetLeft + labelEl.offsetWidth + 24);
 
       const right = valueEl
         ? ((trackWidth - VALUE_OFFSET - valueEl.offsetWidth - HANDLE_BUFFER) / trackWidth) * 100
         : 72;
 
-      setDodge((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
+      setDodge((prev) => (prev.right === right ? prev : { right }));
     };
 
     measure();
@@ -452,10 +502,12 @@ export const useElasticSlider = ({
     if (valueRef.current) observer.observe(valueRef.current);
 
     return () => observer.disconnect();
-  }, [label, displayValue]);
+  }, [label, displayValue, minFillPx]);
 
-  const valueDodge = percentage < dodge.left || percentage > dodge.right;
-  const handleOpacity = isAuto || !isActive ? 0 : valueDodge ? 0.1 : isDragging ? 0.8 : 0.5;
+  const valueDodge = percentage > dodge.right;
+  // Figma rest states: handle always visible inside the tile; faint 2px sliver at the left edge
+  // in Auto; fades only when it would collide with the value text.
+  const handleOpacity = isAuto ? 0.35 : valueDodge ? 0.15 : 1;
 
   const discreteSteps = (max - min) / step;
   const hashMarkCount = discreteSteps <= 10 ? discreteSteps - 1 : 9;
@@ -467,6 +519,17 @@ export const useElasticSlider = ({
     },
     [discreteSteps, max, min, step, slotOffset, numericTrackPercent],
   );
+
+  // Dot variant: render a dot per snap stop, hiding the one the handle is currently on/nearest so the
+  // handle never collides with a dot (matches the Figma filled states).
+  const dotMarks = useMemo(() => {
+    if (!markStops) return null;
+    const hideWithin = markStops.length > 0 ? 100 / (markStops.length + 1) / 2 : 5;
+    return markStops.map((v) => {
+      const pct = percentFromValue(v);
+      return { pct, hidden: Math.abs(pct - percentage) < hideWithin };
+    });
+  }, [markStops, percentFromValue, percentage]);
 
   return {
     wrapperRef,
@@ -482,6 +545,7 @@ export const useElasticSlider = ({
     handleOpacity,
     hashMarkCount,
     hashMarkPct,
+    dotMarks,
     fillWidth,
     handleLeft,
     rubberWidth,

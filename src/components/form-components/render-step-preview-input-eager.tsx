@@ -3,7 +3,6 @@ import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 
 import CheckboxField from "./fields/CheckboxField";
 import DateField from "./fields/DateField";
-import DropdownField from "./fields/DropdownField";
 import EmailField from "./fields/EmailField";
 import FileUploadField from "./fields/FileUploadField";
 import InputField from "./fields/InputField";
@@ -11,7 +10,6 @@ import LinearScaleField from "./fields/LinearScaleField";
 import LinkField from "./fields/LinkField";
 import MatrixField from "./fields/MatrixField";
 import MultiChoiceField from "./fields/MultiChoiceField";
-import MultiSelectField from "./fields/MultiSelectField";
 import NumberField from "./fields/NumberField";
 import PhoneField from "./fields/PhoneField";
 import RankingField from "./fields/RankingField";
@@ -39,9 +37,7 @@ const FIELD_RENDERERS: Record<FieldType, React.ComponentType<{ element: never; f
   FileUpload: FileUploadField,
   Checkbox: CheckboxField,
   MultiChoice: MultiChoiceField,
-  MultiSelect: MultiSelectField,
   Ranking: RankingField,
-  Dropdown: DropdownField,
   LinearScale: LinearScaleField,
   Rating: RatingField,
   Matrix: MatrixField,

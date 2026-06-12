@@ -2,11 +2,12 @@ import { normalizeNodeId } from "platejs";
 import type { TElement, Value } from "platejs";
 import { Plate, usePlateEditor } from "platejs/react";
 import type { KeyboardEvent } from "react";
-import { Suspense, useCallback, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EditorThemeProvider } from "@/contexts/editor-theme-context";
 import { useEditorHeaderVisibilitySafe } from "@/contexts/editor-header-visibility-context";
-import { FormPreviewFromPlate } from "@/components/form-components/form-preview-from-plate";
+import { PreviewDrawer } from "@/routes/_authenticated/workspace/$workspaceId/form-builder/-components/preview-drawer";
+import { PreviewModeContent } from "@/routes/_authenticated/workspace/$workspaceId/form-builder/-components/preview-mode";
 import { useFormCustomization } from "@/hooks/use-form-customization";
 import { useResolvedTheme } from "@/components/theme-provider";
 import { EditorKit } from "@/components/editor/editor-kit";
@@ -21,6 +22,7 @@ import { createFormButtonNode } from "@/components/ui/form-button-node";
 import { createFormHeaderNode } from "@/components/ui/form-header-node";
 import type { FormHeaderElementData } from "@/components/ui/form-header-node";
 import { migrateEditorContent } from "@/lib/editor/migrate-editor-content";
+import { registerHeaderMediaSetter } from "@/lib/editor/header-media-registry";
 import Loader from "@/components/ui/loader";
 import {
   RIGHT_SIDEBAR_WIDTH_DEFAULT,
@@ -52,8 +54,6 @@ const landingValue = normalizeNodeId([
   createFormButtonNode("submit") as unknown as TElement,
 ]);
 
-const noop = async () => {};
-
 const LandingEditor = () => (
   <ClientOnly
     fallback={
@@ -67,7 +67,7 @@ const LandingEditor = () => (
 );
 
 const LandingLayout = () => {
-  const { activeSidebar, previewMode } = useEditorSidebar();
+  const { activeSidebar, previewMode, exitPreview } = useEditorSidebar();
   const showSidebar = !!activeSidebar;
 
   const [rightSidebarWidth, _setRightSidebarWidth] = useState(() => {
@@ -106,16 +106,22 @@ const LandingLayout = () => {
             <AppHeader />
           </div>
           <div
+            data-bf-cover-pane
             className={cn(
               "min-h-0 flex-1 overflow-x-hidden overflow-y-auto",
               !isRightResizing && "transition-[padding] duration-200 ease-linear",
             )}
             style={{ paddingRight: showSidebar ? rightSidebarWidth : 0 }}
           >
-            {previewMode ? <LocalPreviewMode /> : <LocalEditorApp />}
+            <LocalEditorApp />
           </div>
         </div>
       </div>
+
+      {/* Play button opens the full-page preview drawer over the editor (same as the form builder). */}
+      <PreviewDrawer open={previewMode} onClose={exitPreview}>
+        <LocalPreviewMode />
+      </PreviewDrawer>
 
       {showSidebar && (
         <RightSidebarResizeHandle
@@ -229,6 +235,21 @@ const LocalEditorApp = () => {
     value: initialContent,
   });
 
+  // Live header cover/logo setter for the Customize sidebar (mounted above this provider).
+  const updateHeaderMedia = useCallback(
+    (field: "icon" | "cover" | "iconColor", value: string | null) => {
+      const headerNode = editor.children[0];
+      if (!headerNode || headerNode.type !== "formHeader") return;
+      const path = editor.api.findPath(headerNode);
+      if (path) editor.tf.setNodes({ [field]: value }, { at: path });
+    },
+    [editor],
+  );
+  useEffect(
+    () => registerHeaderMediaSetter(localFormId, updateHeaderMedia),
+    [localFormId, updateHeaderMedia],
+  );
+
   const persistLocalForm = useCallback(
     ({ value }: { value: Value }) => {
       if (skipSaveRef.current) {
@@ -301,40 +322,12 @@ const LocalEditorApp = () => {
 const LocalPreviewMode = () => {
   const localFormId = getLocalFormId();
   const { data: savedDocs } = useLocalForm(localFormId);
-  const resolvedAppTheme = useResolvedTheme();
-
   const doc = savedDocs?.[0];
-  const { customization, hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
-    doc,
-    resolvedAppTheme,
-  );
-  const content = (doc?.content as Value) || [];
 
-  if (savedDocs === undefined) return <Loader />;
+  if (!doc) return <Loader />;
 
-  return (
-    <div
-      className={cn(
-        "flex size-full flex-col overflow-x-hidden overflow-y-auto bg-background transition-colors duration-300",
-        hasCustomization && "bf-themed",
-        effectiveTheme === "dark" ? "dark" : "bf-light",
-      )}
-      style={hasCustomization ? themeVars : undefined}
-    >
-      <div className="w-full flex-1">
-        <FormPreviewFromPlate
-          content={content}
-          title={doc?.title ?? ""}
-          icon={doc?.icon ?? undefined}
-          cover={doc?.cover ?? undefined}
-          onSubmit={noop}
-          layout="editor"
-          formId={localFormId}
-          customization={customization}
-        />
-      </div>
-    </div>
-  );
+  // Same surfaces as the builder preview so the drawer's Embed/Popup/Full Page tabs work.
+  return <PreviewModeContent doc={doc} formId={localFormId} />;
 };
 
 export default LandingEditor;

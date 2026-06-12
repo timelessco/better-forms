@@ -124,6 +124,33 @@ export const sendRespondentConfirmation = async (to: string, subject: string, bo
   }
 };
 
+/** OTP for the public-form "Verify email" field. Throws on send failure so the
+ * caller can surface it (unlike fire-and-forget notification mails). */
+export const sendEmailVerificationCode = async (to: string, code: string, formTitle: string) => {
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `${code} is your verification code`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Verify your email</h2>
+        <p style="font-size: 16px; color: #555;">
+          Use this code to verify your email for <strong>${escapeHtml(formTitle)}</strong>:
+        </p>
+        <p style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #111; margin: 24px 0;">${code}</p>
+        <p style="font-size: 14px; color: #888;">This code expires in 10 minutes.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #999;">If you didn't request this code, you can safely ignore this email.</p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    logger("[Email] Failed to send verification code:", error);
+    throw new Error("Failed to send verification email");
+  }
+};
+
 export const sendChangeEmailConfirmationEmail = async (
   email: string,
   newEmail: string,

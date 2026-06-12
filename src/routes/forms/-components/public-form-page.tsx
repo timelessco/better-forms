@@ -14,6 +14,7 @@ import { BrandingFooter } from "./branding-footer";
 import { AlreadySubmitted, FormClosed } from "@/routes/forms/-components/form-closed";
 import { PasswordGate } from "@/routes/forms/-components/password-gate";
 import { TranslationProvider, useTranslation } from "@/contexts/translation-context";
+import type { EmailVerificationStore } from "@/components/form-components/email-verification-context";
 import { createPublicSubmission } from "@/lib/server-fn/public-submissions";
 import { clearDraftId, readDraftId, readLocalDraft } from "@/hooks/use-draft-autosave";
 import { usePublicFormTracking } from "@/lib/analytics/use-public-form-tracking";
@@ -300,6 +301,13 @@ export const PublicFormPage = ({
 
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Live "Verify email" store: EmailField writes verified tokens here; submit sends them along.
+  const [emailVerification] = useState<EmailVerificationStore>(() => ({
+    mode: "live",
+    formId,
+    tokens: new Map(),
+  }));
+
   const { draftState, handleResumeDraft, handleStartOver } = usePublicDraftState(formId);
 
   const resumed = draftState.status === "resumed";
@@ -335,6 +343,12 @@ export const PublicFormPage = ({
             isCompleted: true,
             draftId,
             visitId: trackingBase.visitId ?? undefined,
+            emailVerification:
+              emailVerification.tokens.size > 0
+                ? Object.fromEntries(
+                    [...emailVerification.tokens].map(([field, entry]) => [field, entry.token]),
+                  )
+                : undefined,
           },
         });
 
@@ -373,6 +387,7 @@ export const PublicFormPage = ({
       form?.settings?.preventDuplicateSubmissions,
       resolvedLanguage,
       trackingBase.visitId,
+      emailVerification,
     ],
   );
 
@@ -441,6 +456,7 @@ export const PublicFormPage = ({
       handleSubmit={handleSubmit}
       formId={formId}
       trackingBase={trackingBase}
+      emailVerification={emailVerification}
       resumeProps={resumeProps}
       submitError={submitError}
     />
@@ -547,6 +563,7 @@ interface PublicFormMainProps {
   handleSubmit: (values: Record<string, unknown>) => Promise<void>;
   formId: string;
   trackingBase: ReturnType<typeof usePublicFormTracking>;
+  emailVerification: EmailVerificationStore;
   resumeProps: { initialFormData?: Record<string, unknown>; initialCurrentStep?: number };
   submitError: string | null;
 }
@@ -570,6 +587,7 @@ const PublicFormMain = ({
   handleSubmit,
   formId,
   trackingBase,
+  emailVerification,
   resumeProps,
   submitError,
 }: PublicFormMainProps) => (
@@ -614,6 +632,7 @@ const PublicFormMain = ({
       settings={settings}
       formId={formId}
       trackingBase={trackingBase}
+      emailVerification={emailVerification}
       fieldByFieldMeta={
         settings.presentationMode === "field-by-field"
           ? {

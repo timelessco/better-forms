@@ -229,6 +229,9 @@ const DataGridApiVirtualBody = <TData extends RowData>({
   return <>{renderedRows}</>;
 };
 
+// dev warn-once flag: infinite mode w/o manualPagination clips rows
+let warnedInfinitePagination = false;
+
 /** Memoized virtual body: skip re-renders during column resize — widths update via CSS vars on <table>. */
 const MemoizedVirtualBody = memo(
   DataGridApiVirtualBody,
@@ -254,6 +257,21 @@ const DataGridApiVirtual = <TData extends RowData>({
   );
   const columnCount = table.getVisibleFlatColumns().length;
   const isInfiniteMode = typeof onFetchMore === "function";
+
+  // dev guard: infinite mode needs manualPagination, else paginated row model clips rows silently
+  if (
+    import.meta.env.DEV &&
+    !warnedInfinitePagination &&
+    isInfiniteMode &&
+    !table.options.manualPagination &&
+    table.getRowModel().rows.length !== table.getPrePaginatedRowModel().rows.length
+  ) {
+    warnedInfinitePagination = true;
+    console.warn(
+      "DataGridApiVirtual: infinite mode without manualPagination — rows are silently clipped to the page size; set manualPagination: true",
+    );
+  }
+
   const [viewportElements, setViewportElements] = useState<DataGridApiVirtualScrollElements>({
     containerElement: null,
     scrollElement: null,

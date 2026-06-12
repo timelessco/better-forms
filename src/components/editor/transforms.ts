@@ -345,46 +345,6 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
     );
     editor.tf.select({ path: [...labelPath, 0], offset: 0 });
   },
-  formDropdown: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formOptionItem", variant: "dropdown", children: [{ text: "" }] },
-        { type: "p", children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formMultiSelect: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formMultiSelectInput", options: [], children: [{ text: "" }] },
-        { type: "p", children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
   formRanking: (editor) => {
     const block = editor.api.block();
     if (!block) return;
