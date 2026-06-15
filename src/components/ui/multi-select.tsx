@@ -99,24 +99,24 @@ export const MultiSelect = ({
             <div className="flex flex-1 flex-wrap gap-1">
               {selectedOptions.length > 0 ? (
                 selectedOptions.map((opt) => (
-                    <span
-                      key={opt.value}
-                      className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-900"
+                  <span
+                    key={opt.value}
+                    className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-900"
+                  >
+                    {opt.label}
+                    <button
+                      type="button"
+                      className="ml-1 inline-flex size-3 items-center justify-center rounded-full hover:bg-black/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleOption(opt.value);
+                      }}
+                      aria-label={`Remove ${opt.label}`}
                     >
-                      {opt.label}
-                      <button
-                        type="button"
-                        className="ml-1 inline-flex size-3 items-center justify-center rounded-full hover:bg-black/10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleOption(opt.value);
-                        }}
-                        aria-label={`Remove ${opt.label}`}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))
+                      ×
+                    </button>
+                  </span>
+                ))
               ) : (
                 <span className="text-foreground/70">{placeholder}</span>
               )}

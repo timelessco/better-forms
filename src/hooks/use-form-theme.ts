@@ -1,21 +1,8 @@
 import { useMemo } from "react";
 import type { CSSProperties } from "react";
-import { useResolvedTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { useEditorTheme } from "@/contexts/editor-theme-context";
 import type { EditorThemeValue } from "@/contexts/editor-theme-context";
-
-/**
- * True when the FORM's resolved mode is dark (`customization.mode`), falling back to the app
- * theme only when the form has no customization. Use on form-preview surfaces that must follow
- * the form theme rather than the app's global `.dark` (e.g. chips/badges that would otherwise
- * pick up `dark:` variants from the app's <html.dark>).
- */
-export const useFormIsDark = (): boolean => {
-  const appTheme = useResolvedTheme();
-  const formMode = useEditorTheme().customization?.mode;
-  return (formMode ?? appTheme) === "dark";
-};
 
 type UseFormThemeContextValueArgs = {
   themeVars: CSSProperties;
