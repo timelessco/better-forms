@@ -207,7 +207,7 @@ const LocalEditorApp = () => {
     savedDocs?.[0],
     resolvedAppTheme,
   );
-  // Include `customization` so useFormIsDark() can read the form's mode (matches editor-app/preview-mode).
+  // Include `customization` so theme consumers can read the form's mode (matches editor-app/preview-mode).
   const themeCtx = useMemo(
     () => ({ themeVars, hasCustomization, customization }),
     [themeVars, hasCustomization, customization],

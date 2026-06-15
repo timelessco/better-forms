@@ -491,12 +491,38 @@ const Gutter = ({
   const isSelectionAreaVisible = usePluginOption(BlockSelectionPlugin, "isSelectionAreaVisible");
   const selected = useSelected();
 
+  // Center the controls on the block's FIRST line, not its full height. A single-line label is
+  // shorter than the 28px control group, so centering in h-full lands the controls on the line —
+  // but a label/heading that WRAPS to multiple lines would float the controls at the block's
+  // vertical middle (between lines). Measure the first line-box so items-center stays on line 1.
+  // (Single-line: first-line height == full height, so this is a no-op.) "top" gutters keep h-full.
+  const gutterRef = React.useRef<HTMLDivElement>(null);
+  const [firstLineH, setFirstLineH] = React.useState<number | null>(null);
+  React.useLayoutEffect(() => {
+    if (gutterPosition !== "center") {
+      setFirstLineH(null);
+      return;
+    }
+    const content = gutterRef.current?.parentElement?.querySelector(
+      ":scope > .slate-blockWrapper",
+    )?.firstElementChild;
+    if (!content) return;
+    const range = document.createRange();
+    range.selectNodeContents(content);
+    const rect = range.getClientRects()[0];
+    setFirstLineH(rect ? rect.height : null);
+  }, [element, gutterPosition]);
+
+  const useFullHeight = gutterPosition === "top" || firstLineH == null;
+
   return (
     <div
+      ref={gutterRef}
       {...props}
       className={cn(
         "slate-gutterLeft",
-        "absolute z-50 flex h-full -translate-x-full cursor-text hover:opacity-100",
+        "absolute z-50 flex -translate-x-full cursor-text hover:opacity-100",
+        useFullHeight && "h-full",
         gutterPosition === "top" ? "top-0 items-start" : "top-0 items-center",
         !selected && "sm:opacity-0",
         getPluginByType(editor, element.type)?.node.isContainer
@@ -506,6 +532,7 @@ const Gutter = ({
         selected && "opacity-100",
         className,
       )}
+      style={useFullHeight ? props.style : { ...props.style, height: `${firstLineH}px` }}
       contentEditable={false}
     >
       {children}

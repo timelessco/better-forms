@@ -68,30 +68,33 @@ describe("evaluate — visibility", () => {
     expect(evaluate(ruleset([hide, show]), { country: "DE" }, fields).visibility.vat).toBe(false);
   });
 
-  it("applies elseActions (Else Do) when the condition fails", () => {
+  it("a hidden field's value no longer satisfies another rule's condition (no ghost conditions)", () => {
+    // Rule A hides `extra` when country=US. Rule B shows `vat` when extra is not empty.
+    // With extra filled but hidden, vat must NOT be revealed — the hidden value is masked.
     const rs = ruleset([
       {
-        id: "r",
+        id: "hideExtra",
         stepId: "s1",
         when: {
           combinator: "all",
-          children: [{ source: "country", operator: "equals", value: "DE" }],
+          children: [{ source: "country", operator: "equals", value: "US" }],
         },
+        actions: [{ kind: "hide", target: "extra" }],
+      },
+      {
+        id: "showVat",
+        stepId: "s1",
+        when: { combinator: "all", children: [{ source: "extra", operator: "isNotEmpty" }] },
         actions: [{ kind: "show", target: "vat" }],
-        elseActions: [{ kind: "show", target: "extra" }],
       },
     ]);
-    // country=DE → Do branch: vat shown, extra (else-show-target) stays hidden-by-default
-    const pass = evaluate(rs, { country: "DE" }, fields);
-    expect(pass.visibility.vat).toBe(true);
-    expect(pass.visibility.extra).toBe(false);
-    // country=FR → Else Do branch: extra shown, vat stays hidden-by-default
-    const fail = evaluate(rs, { country: "FR" }, fields);
-    expect(fail.visibility.vat).toBe(false);
-    expect(fail.visibility.extra).toBe(true);
+    // extra filled + visible (country DE) → vat shown.
+    expect(evaluate(rs, { country: "DE", extra: "x" }, fields).visibility.vat).toBe(true);
+    // extra filled but hidden (country US) → masked → vat stays hidden.
+    expect(evaluate(rs, { country: "US", extra: "x" }, fields).visibility.vat).toBe(false);
   });
 
-  it("setValue auto-fills a target only on the active branch", () => {
+  it("setValue auto-fills a target when its condition passes, and is absent otherwise", () => {
     const rs = ruleset([
       {
         id: "r",
@@ -101,11 +104,79 @@ describe("evaluate — visibility", () => {
           children: [{ source: "country", operator: "equals", value: "DE" }],
         },
         actions: [{ kind: "setValue", target: "vat", value: "36" }],
-        elseActions: [{ kind: "setValue", target: "vat", value: "0" }],
       },
     ]);
     expect(evaluate(rs, { country: "DE" }, fields).setValues.vat).toBe("36");
-    expect(evaluate(rs, { country: "FR" }, fields).setValues.vat).toBe("0");
+    expect(evaluate(rs, { country: "FR" }, fields).setValues.vat).toBeUndefined();
+  });
+
+  it("setValue can write an array (multi-choice target), and an empty array is a no-op", () => {
+    const arr = ruleset([
+      {
+        id: "r",
+        stepId: "s1",
+        when: {
+          combinator: "all",
+          children: [{ source: "country", operator: "equals", value: "DE" }],
+        },
+        actions: [{ kind: "setValue", target: "extra", value: ["a", "b"] }],
+      },
+    ]);
+    expect(evaluate(arr, { country: "DE" }, fields).setValues.extra).toEqual(["a", "b"]);
+
+    const empty = ruleset([
+      {
+        id: "r",
+        stepId: "s1",
+        when: {
+          combinator: "all",
+          children: [{ source: "country", operator: "equals", value: "DE" }],
+        },
+        actions: [{ kind: "setValue", target: "extra", value: [] }],
+      },
+    ]);
+    expect(evaluate(empty, { country: "DE" }, fields).setValues.extra).toBeUndefined();
+  });
+
+  it("clearValue resets a target to empty when its condition passes", () => {
+    const rs = ruleset([
+      {
+        id: "r",
+        stepId: "s1",
+        when: {
+          combinator: "all",
+          children: [{ source: "country", operator: "equals", value: "DE" }],
+        },
+        actions: [{ kind: "clearValue", target: "vat" }],
+      },
+    ]);
+    expect(evaluate(rs, { country: "DE" }, fields).setValues.vat).toBe("");
+    expect(evaluate(rs, { country: "FR" }, fields).setValues.vat).toBeUndefined();
+  });
+
+  it("setValue with a blank value is a no-op (use clearValue to reset)", () => {
+    const rs = ruleset([
+      {
+        id: "r",
+        stepId: "s1",
+        when: { combinator: "all", children: [{ source: "country", operator: "isNotEmpty" }] },
+        actions: [{ kind: "setValue", target: "vat", value: "" }],
+      },
+    ]);
+    expect(evaluate(rs, { country: "DE" }, fields).setValues.vat).toBeUndefined();
+  });
+
+  it("an empty / incomplete condition group makes the rule a no-op (does not fire)", () => {
+    const rs = ruleset([
+      {
+        id: "r",
+        stepId: "s1",
+        when: { combinator: "all", children: [] },
+        actions: [{ kind: "hide", target: "vat" }],
+      },
+    ]);
+    // Empty group must NOT vacuously pass — vat stays visible.
+    expect(evaluate(rs, { country: "DE" }, fields).visibility.vat).toBe(true);
   });
 
   it("ignores action targets that are not known fields (no stray visibility keys)", () => {
@@ -209,6 +280,43 @@ describe("evaluate — required, hideSubmit, redirect", () => {
     expect(evaluate(rs, { country: "DE" }, fields).effectiveRequired.extra).toBe(true);
   });
 
+  it("optional action relaxes a base-required field when its condition passes", () => {
+    const rs = ruleset([
+      {
+        id: "r",
+        stepId: "s1",
+        when: {
+          combinator: "all",
+          children: [{ source: "country", operator: "equals", value: "DE" }],
+        },
+        actions: [{ kind: "optional", target: "vat" }], // vat is base-required
+      },
+    ]);
+    expect(evaluate(rs, { country: "FR" }, fields).effectiveRequired.vat).toBe(true);
+    expect(evaluate(rs, { country: "DE" }, fields).effectiveRequired.vat).toBe(false);
+  });
+
+  it("optional wins over require deterministically, regardless of rule order", () => {
+    const require: Rule = {
+      id: "req",
+      stepId: "s1",
+      when: { combinator: "all", children: [{ source: "country", operator: "isNotEmpty" }] },
+      actions: [{ kind: "require", target: "extra" }],
+    };
+    const optional: Rule = {
+      id: "opt",
+      stepId: "s1",
+      when: { combinator: "all", children: [{ source: "country", operator: "isNotEmpty" }] },
+      actions: [{ kind: "optional", target: "extra" }],
+    };
+    expect(
+      evaluate(ruleset([require, optional]), { country: "DE" }, fields).effectiveRequired.extra,
+    ).toBe(false);
+    expect(
+      evaluate(ruleset([optional, require]), { country: "DE" }, fields).effectiveRequired.extra,
+    ).toBe(false);
+  });
+
   it("hideSubmit and redirect react to conditions", () => {
     const rs = ruleset([
       {
@@ -277,64 +385,6 @@ describe("evaluate — fail-closed orphans", () => {
   });
 });
 
-describe("evaluate — moveToNext (focusField)", () => {
-  it("focusField is the target of a passing Move-to-next-field action, else null", () => {
-    const rs = ruleset([
-      {
-        id: "r",
-        stepId: "s1",
-        when: {
-          combinator: "all",
-          children: [{ source: "country", operator: "equals", value: "DE" }],
-        },
-        actions: [{ kind: "moveToNext", target: "vat" }],
-      },
-    ]);
-    expect(evaluate(rs, { country: "DE" }, fields).focusField).toBe("vat");
-    expect(evaluate(rs, { country: "FR" }, fields).focusField).toBeNull();
-  });
-
-  it("ignores Move-to-next-field targets that are not known fields", () => {
-    const rs = ruleset([
-      {
-        id: "r",
-        stepId: "s1",
-        when: { combinator: "all", children: [{ source: "country", operator: "isNotEmpty" }] },
-        actions: [{ kind: "moveToNext", target: "ghost" }],
-      },
-    ]);
-    expect(evaluate(rs, { country: "DE" }, fields).focusField).toBeNull();
-  });
-
-  it("last passing Move-to-next-field wins (document order)", () => {
-    const move = (id: string, target: string): Rule => ({
-      id,
-      stepId: "s1",
-      when: { combinator: "all", children: [{ source: "country", operator: "isNotEmpty" }] },
-      actions: [{ kind: "moveToNext", target }],
-    });
-    const rs = ruleset([move("r1", "vat"), move("r2", "extra")]);
-    expect(evaluate(rs, { country: "DE" }, fields).focusField).toBe("extra");
-  });
-
-  it("uses the Else branch's Move-to-next-field when the condition fails", () => {
-    const rs = ruleset([
-      {
-        id: "r",
-        stepId: "s1",
-        when: {
-          combinator: "all",
-          children: [{ source: "country", operator: "equals", value: "DE" }],
-        },
-        actions: [{ kind: "moveToNext", target: "vat" }],
-        elseActions: [{ kind: "moveToNext", target: "extra" }],
-      },
-    ]);
-    expect(evaluate(rs, { country: "DE" }, fields).focusField).toBe("vat");
-    expect(evaluate(rs, { country: "FR" }, fields).focusField).toBe("extra");
-  });
-});
-
 describe("evaluate — setValue is never spontaneous (the prefill footgun)", () => {
   // Mirrors the reported confusion: "When Short Answer contains 'baskar' → Set it to 'vijayabaskar'".
   const rs = ruleset([
@@ -367,6 +417,50 @@ describe("evaluate — setValue is never spontaneous (the prefill footgun)", () 
     // applied. The engine is correct — the rule is self-referential, which is what causes the
     // value to look 'stuck/prefilled' once a persisted draft seeds it.
     expect(evaluate(rs, { extra: "vijayabaskar" }, fields).setValues.extra).toBe("vijayabaskar");
+  });
+
+  // Self-CANCELLING guard ("set X while X is empty"): applying the value falsifies the guard, so a
+  // pure engine would drop it, the client would clear it, and the rule would re-fire — flicker.
+  // The engine latches the value: keep reporting it while the rest of the guard holds and the
+  // target still carries exactly that value.
+  describe("self-cancelling prefill latches (no set→clear→set flicker)", () => {
+    const selfRs = ruleset([
+      {
+        id: "r",
+        stepId: "s1",
+        when: {
+          combinator: "all",
+          children: [
+            { source: "short", operator: "isNotEmpty" },
+            { source: "long", operator: "isEmpty" },
+          ],
+        },
+        actions: [{ kind: "setValue", target: "long", value: "Hello world this" }],
+      },
+    ]);
+    const f: EngineField[] = [{ name: "short" }, { name: "long" }];
+
+    it("fills on the first pass while the target is still empty", () => {
+      expect(evaluate(selfRs, { short: "x", long: "" }, f).setValues.long).toBe("Hello world this");
+    });
+
+    it("stays latched once filled (guard now fails, but the value holds)", () => {
+      expect(evaluate(selfRs, { short: "x", long: "Hello world this" }, f).setValues.long).toBe(
+        "Hello world this",
+      );
+    });
+
+    it("releases when the rest of the guard stops holding", () => {
+      expect(
+        evaluate(selfRs, { short: "", long: "Hello world this" }, f).setValues.long,
+      ).toBeUndefined();
+    });
+
+    it("does not latch a respondent's own edit (only the exact set value)", () => {
+      expect(
+        evaluate(selfRs, { short: "x", long: "my own answer" }, f).setValues.long,
+      ).toBeUndefined();
+    });
   });
 });
 
@@ -416,10 +510,16 @@ describe("evaluate — full operator × action matrix (text field)", () => {
       absent: (r) => r.setValues.tgt === undefined,
     },
     {
-      name: "move to next field",
-      action: { kind: "moveToNext", target: "tgt" },
-      present: (r) => r.focusField === "tgt",
-      absent: (r) => r.focusField === null,
+      name: "make optional",
+      action: { kind: "optional", target: "tgt" },
+      present: (r) => r.effectiveRequired.tgt === false,
+      absent: (r) => r.effectiveRequired.tgt === false, // tgt has no base-required, so optional is a no-op either way
+    },
+    {
+      name: "clear value",
+      action: { kind: "clearValue", target: "tgt" },
+      present: (r) => r.setValues.tgt === "",
+      absent: (r) => r.setValues.tgt === undefined,
     },
     {
       name: "jump to step",
@@ -541,25 +641,5 @@ describe("evaluate — full operator × action matrix (text field)", () => {
         fieldsX,
       ).visibility.tgt,
     ).toBe(false);
-  });
-
-  // Else branch: the action fires when the condition FAILS instead of passes.
-  it("Else action fires on the failing branch for every operator", () => {
-    for (const o of OPERATORS) {
-      const rs = ruleset([
-        {
-          id: "r",
-          stepId: "s1",
-          when: {
-            combinator: "all",
-            children: [{ source: "x", operator: o.op, value: o.operand }],
-          },
-          actions: [],
-          elseActions: [{ kind: "setValue", target: "tgt", value: "ELSE" }],
-        },
-      ]);
-      expect(evaluate(rs, { x: o.fail }, matrixFields).setValues.tgt).toBe("ELSE"); // fails → Else
-      expect(evaluate(rs, { x: o.pass }, matrixFields).setValues.tgt).toBeUndefined(); // passes → no Else
-    }
   });
 });

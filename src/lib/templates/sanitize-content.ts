@@ -45,13 +45,11 @@ const processNode = async (
   assetUrls: string[],
 ): Promise<Record<string, unknown> | null> => {
   // Strip logic redirect actions (author-environment-specific).
-  for (const key of ["actions", "elseActions"]) {
-    const actions = node[key];
-    if (Array.isArray(actions)) {
-      node[key] = actions.filter(
-        (a) => !(a && typeof a === "object" && (a as { kind?: string }).kind === "redirect"),
-      );
-    }
+  const actions = node.actions;
+  if (Array.isArray(actions)) {
+    node.actions = actions.filter(
+      (a) => !(a && typeof a === "object" && (a as { kind?: string }).kind === "redirect"),
+    );
   }
 
   for (const field of ASSET_FIELDS) {

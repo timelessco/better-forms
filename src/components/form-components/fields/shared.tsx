@@ -1,9 +1,14 @@
+import { useStore } from "@tanstack/react-form";
+import { Fragment } from "react";
+
 import { getOptionOrdinal } from "@/components/ui/form-option-item-constants";
 import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
 import { CheckIcon, ImageIcon } from "@/components/ui/icons";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { AppForm } from "@/hooks/use-form-builder";
+import { resolveMentions } from "@/lib/editor/resolve-mentions";
+import type { LabelTokenNode } from "@/lib/editor/resolve-mentions";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +28,7 @@ export const getFieldLabelProps = (element: PlateFormField) => ({
   label: "label" in element ? (element.label ?? "") : "",
   required: "required" in element ? !!element.required : false,
   labelType: "labelType" in element ? element.labelType : undefined,
+  labelNodes: "labelNodes" in element ? element.labelNodes : undefined,
 });
 
 export const getAriaLabelFallback = (element: PlateFormField): string | undefined => {
@@ -255,12 +261,61 @@ export const ImageOptionGrid = ({
   </div>
 );
 
+/** Label/description body. With `@`-mention tokens (labelNodes) it subscribes to the live
+ * form values and swaps each token for its answer — a faint placeholder until answered. */
+const LabelBody = ({
+  text,
+  labelNodes,
+  form,
+}: {
+  text: string;
+  labelNodes?: LabelTokenNode[];
+  form?: AppForm;
+}) => {
+  // Gate the hook in a child so its order stays stable — removing a label's last mention flips
+  // labelNodes to undefined, and a conditional useStore here would change the hook count → crash.
+  if (!labelNodes || !form) return <>{text}</>;
+  return <LabelBodyWithMentions labelNodes={labelNodes} form={form} />;
+};
+
+const LabelBodyWithMentions = ({
+  labelNodes,
+  form,
+}: {
+  labelNodes: LabelTokenNode[];
+  form: AppForm;
+}) => {
+  // Subscribe to all values so a token re-renders the moment its source field changes.
+  const values = useStore(form.store, (s) => s.values) as Record<string, unknown>;
+  const runs = resolveMentions(labelNodes, {
+    getValue: (name) => values[name],
+    getLabel: () => undefined,
+  });
+  return (
+    <>
+      {runs.map((run, i) => (
+        <Fragment key={i}>
+          {run.kind === "placeholder" ? (
+            <span className="text-muted-foreground" data-bf-mention-placeholder>
+              {run.text}
+            </span>
+          ) : (
+            run.text
+          )}
+        </Fragment>
+      ))}
+    </>
+  );
+};
+
 export const FieldLabelText = ({
   text,
   labelType,
   htmlFor,
   required,
   asGroupLabel = false,
+  labelNodes,
+  form,
 }: {
   text: string;
   labelType?: string;
@@ -268,17 +323,23 @@ export const FieldLabelText = ({
   required?: boolean;
   /** Render label as non-<label> w/ stable id. Group fields (Checkbox/MultiChoice/Ranking) have no single <input id>; role="group" wrapper uses aria-labelledby. */
   asGroupLabel?: boolean;
+  /** Raw label children when the label carries `@`-mention tokens (see transform). */
+  labelNodes?: LabelTokenNode[];
+  /** Live form instance — required to resolve mention tokens to answers. */
+  form?: AppForm;
 }) => {
-  if (!text) return null;
+  // A mention-only label flattens to "" but still has content to render.
+  if (!text && !labelNodes) return null;
   const badge = required ? <RequiredBadge /> : null;
   const labelId = fieldLabelId(htmlFor);
+  const body = <LabelBody text={text} labelNodes={labelNodes} form={form} />;
 
   // Heading/blockquote labels are non-<label>, can't use htmlFor. Stable id; input wires aria-labelledby (see RenderStepPreviewInput).
   if (labelType === "h1") {
     return (
       <div className="flex w-full items-center py-2.5">
         <h1 id={labelId} className="font-heading flex-1 text-4xl font-semibold">
-          {text}
+          {body}
         </h1>
         {badge}
       </div>
@@ -288,7 +349,7 @@ export const FieldLabelText = ({
     return (
       <div className="flex w-full items-center py-2.5">
         <h2 id={labelId} className="font-heading flex-1 text-2xl font-semibold">
-          {text}
+          {body}
         </h2>
         {badge}
       </div>
@@ -298,7 +359,7 @@ export const FieldLabelText = ({
     return (
       <div className="flex w-full items-center py-2.5">
         <h3 id={labelId} className="font-heading flex-1 text-xl font-semibold">
-          {text}
+          {body}
         </h3>
         {badge}
       </div>
@@ -308,7 +369,7 @@ export const FieldLabelText = ({
     return (
       <div className="flex w-full items-center py-2.5">
         <blockquote id={labelId} className="flex-1 border-l-2 pl-6 italic">
-          {text}
+          {body}
         </blockquote>
         {badge}
       </div>
@@ -323,7 +384,7 @@ export const FieldLabelText = ({
         className="flex w-full items-center gap-1 py-2.5 text-sm select-none"
         data-bf-field-label
       >
-        <span>{text}</span>
+        <span>{body}</span>
         {badge}
       </span>
     );
@@ -331,7 +392,7 @@ export const FieldLabelText = ({
 
   return (
     <Label htmlFor={htmlFor} id={labelId} className="w-full gap-1" data-bf-field-label>
-      <span>{text}</span>
+      <span>{body}</span>
       {badge}
     </Label>
   );

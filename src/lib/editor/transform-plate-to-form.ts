@@ -1,5 +1,6 @@
 import type { Value } from "platejs";
 import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
+import type { LabelTokenNode } from "@/lib/editor/resolve-mentions";
 import type {
   DecimalSeparator,
   NumberFormatType,
@@ -53,6 +54,9 @@ export type PlateFormField =
       fieldType: "Input";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       placeholder?: string;
       required?: boolean;
       minLength?: number;
@@ -69,6 +73,9 @@ export type PlateFormField =
       fieldType: "Textarea";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       placeholder?: string;
       required?: boolean;
       minLength?: number;
@@ -85,6 +92,9 @@ export type PlateFormField =
       fieldType: "Email";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       placeholder?: string;
       required?: boolean;
       isFieldArray?: boolean;
@@ -100,6 +110,9 @@ export type PlateFormField =
       fieldType: "Phone";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       placeholder?: string;
       required?: boolean;
       isFieldArray?: boolean;
@@ -115,6 +128,9 @@ export type PlateFormField =
       fieldType: "Number";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       placeholder?: string;
       required?: boolean;
       min?: number;
@@ -137,6 +153,9 @@ export type PlateFormField =
       fieldType: "Link";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       placeholder?: string;
       required?: boolean;
       isFieldArray?: boolean;
@@ -150,6 +169,9 @@ export type PlateFormField =
       fieldType: "Date";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       placeholder?: string;
       required?: boolean;
       isFieldArray?: boolean;
@@ -163,6 +185,9 @@ export type PlateFormField =
       fieldType: "Time";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       placeholder?: string;
       required?: boolean;
       /** Railway/24-hour time entry (default 12-hour AM/PM). */
@@ -178,6 +203,9 @@ export type PlateFormField =
       fieldType: "FileUpload";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       required?: boolean;
       accept?: string;
       maxFileSize?: number;
@@ -191,6 +219,9 @@ export type PlateFormField =
       fieldType: "Checkbox";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       required?: boolean;
       options: { value: string; label: string; image?: string }[];
       /** Leading marker style for the option group (Labels submenu). Default: native control. */
@@ -208,6 +239,9 @@ export type PlateFormField =
       fieldType: "MultiChoice";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       required?: boolean;
       options: { value: string; label: string; image?: string }[];
       /** Leading marker style for the option group (Labels submenu). Default: letters. */
@@ -225,6 +259,9 @@ export type PlateFormField =
       fieldType: "Ranking";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       required?: boolean;
       options: { value: string; label: string; image?: string }[];
       /** Randomize initial option order in the live form. */
@@ -236,6 +273,9 @@ export type PlateFormField =
       fieldType: "LinearScale";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       required?: boolean;
       /** Scale start, end, and increment — the live form renders a button per step. */
       min: number;
@@ -252,6 +292,9 @@ export type PlateFormField =
       fieldType: "Rating";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       required?: boolean;
       /** Number of stars shown (default 5, configurable via the block menu). */
       starCount?: number;
@@ -262,6 +305,9 @@ export type PlateFormField =
       fieldType: "Signature";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       required?: boolean;
     }
   | {
@@ -270,6 +316,9 @@ export type PlateFormField =
       fieldType: "Matrix";
       label?: string;
       labelType?: string;
+      /** Raw label children — present only when the label contains `@`-mention tokens, so
+       * the renderer can resolve them against live answers (see resolve-mentions). */
+      labelNodes?: LabelTokenNode[];
       required?: boolean;
       /** Grid rows (the sub-questions) and columns (the answer scale). The
        * answer is a record keyed by row `value` → column `value` (single) or

@@ -31,7 +31,7 @@ export const AnimatedSize = ({ children }: { children: React.ReactNode }) => {
         style={{ overflow: "clip" }}
         // bounce 0: a bouncy spring's settle tail reads as lag on a popup this small.
         transition={
-          shouldReduceMotion ? { duration: 0 } : { bounce: 0, duration: 0.3, type: "spring" }
+          shouldReduceMotion ? { duration: 0 } : { bounce: 0, duration: 0.2, type: "spring" }
         }
       >
         <div className="w-fit" ref={ref}>

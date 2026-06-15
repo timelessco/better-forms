@@ -80,9 +80,9 @@ it("strips logic redirect actions", async () => {
   expect(block.actions).toEqual([{ kind: "show", target: "a" }]);
 });
 
-// Real LogicBlockNode shape (src/lib/logic/types.ts): actions/elseActions live directly
-// on the node, items are flat { kind, ... }. Strip redirects from both keys.
-it("strips redirect actions from a real-shaped logicBlock node (incl. elseActions)", async () => {
+// Real LogicBlockNode shape (src/lib/logic/types.ts): actions live directly on the node,
+// items are flat { kind, ... }. Strip redirect actions.
+it("strips redirect actions from a real-shaped logicBlock node", async () => {
   const node: LogicBlockNode = {
     type: "logicBlock",
     id: "lb-1",
@@ -91,14 +91,9 @@ it("strips redirect actions from a real-shaped logicBlock node (incl. elseAction
       { kind: "show", target: "newsletter" },
       { kind: "redirect", url: "https://author.example/thanks" },
     ],
-    elseActions: [
-      { kind: "redirect", url: "https://author.example/bye" },
-      { kind: "hide", target: "newsletter" },
-    ],
     children: [{ text: "" }],
   };
   const result = await sanitizeTemplateContent([node], { copyAsset: async () => "unused" });
   const block = result.content[0] as any;
   expect(block.actions).toEqual([{ kind: "show", target: "newsletter" }]);
-  expect(block.elseActions).toEqual([{ kind: "hide", target: "newsletter" }]);
 });

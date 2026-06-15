@@ -201,6 +201,11 @@ export const renderStepComponent = async (segments: PreviewSegment[]) => {
             if (field.fieldType === "Button") {
               return <Field key={item.key} fieldId={field.id} field={field} />;
             }
+            // Labels with `@`-mention tokens must resolve against live answers, so the whole
+            // field (label + input) renders client-side via the Field slot — see FieldSlot.
+            if ("labelNodes" in field && field.labelNodes) {
+              return <Field key={item.key} fieldId={field.id} field={field} />;
+            }
             const { label, required, labelType } = getFieldLabelProps(field);
             // Group fields lack a single labelable control; role=group + aria-labelledby so AT
             // announces the group label. Mirrors PreviewInputShell.
