@@ -34,7 +34,7 @@ import {
   BlockSelectionPlugin,
 } from "@platejs/selection/react";
 import type { TElement } from "platejs";
-import { KEYS, PathApi } from "platejs";
+import { KEYS } from "platejs";
 import { useEditorPlugin, useEditorSelector, useHotkeys, usePluginOption } from "platejs/react";
 import * as React from "react";
 
@@ -226,13 +226,19 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
 
   const handleAddLogic = React.useCallback(() => {
     if (!firstPath) return;
-    // Insert the logic block as the next sibling of the selected block.
+    // Insert after the whole field, not the selected node. For a choice field the selection may
+    // land on a label or a middle option; walk past the trailing option run so the logic block
+    // lands below the last option instead of splitting the group.
+    const inputPath = getInputPath() ?? firstPath;
+    const nodes = editor.children as TElement[];
+    let last = inputPath[0];
+    while (last < nodes.length - 1 && nodes[last + 1]?.type === "formOptionItem") last++;
     editor.tf.insertNodes(createLogicBlockNode() as unknown as TElement, {
-      at: PathApi.next(firstPath),
+      at: [last + 1],
       select: false,
     });
     api.blockMenu.hide();
-  }, [editor, firstPath, api.blockMenu]);
+  }, [editor, firstPath, getInputPath, api.blockMenu]);
 
   const handleTurnInto = React.useCallback(
     (type: string) => {
@@ -501,7 +507,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
                       initial="initial"
                       animate="animate"
                       exit="exit"
-                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      transition={{ duration: 0.15, ease: "easeOut" }}
                     >
                       <FieldMenu />
                     </m.div>
@@ -514,7 +520,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
                       initial="initial"
                       animate="animate"
                       exit="exit"
-                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      transition={{ duration: 0.15, ease: "easeOut" }}
                     >
                       <PanelHeader label={activePanel.label} />
                       <activePanel.Panel />
@@ -1808,6 +1814,8 @@ const BulkInsertOptions = () => {
       <BulkInsertIcon />
       <span className="flex-1 text-left">Bulk insert options</span>
       <DropdownMenuShortcut>⌘O</DropdownMenuShortcut>
+      {/* Chevron marks the morph into the inline bulk-insert panel, matching the other submenu rows. */}
+      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
     </DropdownMenuItem>
   );
 };

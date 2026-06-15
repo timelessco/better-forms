@@ -24,6 +24,7 @@ import { LinkKit } from "@/components/editor/plugins/link-kit";
 import { ListKit } from "@/components/editor/plugins/list-kit";
 import { MarkdownKit } from "@/components/editor/plugins/markdown-kit";
 import { MediaKit } from "@/components/editor/plugins/media-kit";
+import { MentionKit } from "@/components/editor/plugins/mention-kit";
 import { SlashKit } from "@/components/editor/plugins/slash-kit";
 import { TocKit } from "@/components/editor/plugins/toc-kit";
 import { ToggleKit } from "@/components/editor/plugins/toggle-kit";
@@ -53,6 +54,7 @@ export const EditorKit = [
   TabGuardPlugin,
 
   ...SlashKit,
+  ...MentionKit,
   ...AutoformatKit,
   ...CursorOverlayKit,
   ...BlockMenuKit,

@@ -310,46 +310,34 @@ export const useStepPreviewForm = ({
 
   // Auto-fill fields targeted by a "Set value" action. Apply only when the *computed*
   // value changes (not every render) so the respondent can still edit in between.
-  const appliedSetValuesRef = useRef<Record<string, string>>({});
+  // Values may be a string (scalar / single-choice) or string[] (multi-choice) — compared
+  // order-sensitively via a null-joined key, and cleared to the field's native empty shape.
+  const appliedSetValuesRef = useRef<Record<string, string | string[]>>({});
   useEffect(() => {
     if (!evaluation) return;
     const prev = appliedSetValuesRef.current;
     const next = evaluation.setValues;
     const onThisStep = (name: string) => fields.some((f) => f.name === name);
+    const isArrayField = (name: string) => Array.isArray(defaultValues[name]);
+    const key = (v: unknown) => (Array.isArray(v) ? v.join(" ") : v == null ? "" : String(v));
+    const emptyFor = (name: string): string | string[] => (isArrayField(name) ? [] : "");
     // Apply changed set-values (only this step's fields live in this form instance;
-    // cross-step targets are applied by their own step when it mounts).
+    // cross-step targets are applied by their own step when it mounts). A clearValue ("")
+    // onto a multi-choice field becomes [] so the array shape is preserved.
     for (const [name, val] of Object.entries(next)) {
-      if (prev[name] !== val && onThisStep(name)) form.setFieldValue(name, val);
+      if (!onThisStep(name) || key(prev[name]) === key(val)) continue;
+      form.setFieldValue(name, val === "" && isArrayField(name) ? [] : val);
     }
     // Clear an auto-fill when its condition stops matching — but only if the field still holds
     // the value we forced. If the respondent has since edited it, keep their correction.
     for (const name of Object.keys(prev)) {
-      // normalize current value to a string, mirroring the engine's asString (arrays join, nullish → "")
-      const cur = form.getFieldValue(name);
-      const curStr = Array.isArray(cur) ? cur.join(", ") : cur == null ? "" : String(cur);
-      if (!(name in next) && onThisStep(name) && curStr === prev[name]) {
-        form.setFieldValue(name, "");
+      if (name in next || !onThisStep(name)) continue;
+      if (key(form.getFieldValue(name)) === key(prev[name])) {
+        form.setFieldValue(name, emptyFor(name));
       }
     }
     appliedSetValuesRef.current = { ...next };
-  }, [evaluation, fields, form]);
-
-  // "Move to next field": when a passing rule targets a field rendered on this step, scroll it
-  // into view and focus it. Tracked by ref so it fires only when the target changes, never
-  // stealing focus on every keystroke while the same rule keeps passing.
-  const focusedFieldRef = useRef<string | null>(null);
-  useEffect(() => {
-    const target = evaluation?.focusField ?? null;
-    if (target === focusedFieldRef.current) return;
-    focusedFieldRef.current = target;
-    if (!target || !fields.some((f) => f.name === target)) return; // not on this step
-    // escape interpolated values — names with quotes/special chars would otherwise throw SyntaxError
-    const el = document.querySelector<HTMLElement>(
-      `#${CSS.escape(formName)} [name="${CSS.escape(target)}"]`,
-    );
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    el?.focus();
-  }, [evaluation, fields, formName]);
+  }, [evaluation, fields, form, defaultValues]);
 
   return {
     form: form as unknown as AppForm,

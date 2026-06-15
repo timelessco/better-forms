@@ -111,13 +111,37 @@ export const PreviewModeContent = ({ doc, formId }: { doc: PreviewDoc; formId: s
           className={cn(
             hasCustomization && "bf-themed",
             effectiveTheme === "dark" ? "dark" : "bf-light",
-            "flex size-full flex-col overflow-hidden bg-background text-foreground transition-colors duration-300",
+            "relative flex size-full flex-col overflow-hidden bg-background text-foreground transition-colors duration-300",
           )}
           style={{
             ...(hasCustomization ? themeVars : undefined),
             viewTransitionName: "preview-content",
           }}
         >
+          {/* Scroll-fade overlays at the top/bottom edges of the preview (Figma light 26075-12467/12473, dark 26178-7606/7610).
+              Skip fullpage — it already has the cover gradient fade, so two would look odd. */}
+          {embedType !== "fullpage" &&
+            (() => {
+              const rgb = effectiveTheme === "dark" ? "19,19,19" : "255,255,255";
+              return (
+                <>
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[150px]"
+                    style={{
+                      backgroundImage: `linear-gradient(180deg, rgba(${rgb},0.9) 0%, rgba(${rgb},0.62) 32.04%, rgba(${rgb},0.4) 68.23%, rgba(${rgb},0.08) 100%)`,
+                    }}
+                  />
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[221px]"
+                    style={{
+                      backgroundImage: `linear-gradient(180deg, rgba(${rgb},0.08) 0%, rgba(${rgb},0.4) 14.68%, rgba(${rgb},0.62) 37.29%, rgba(${rgb},0.9) 51.38%)`,
+                    }}
+                  />
+                </>
+              );
+            })()}
           {embedType !== "fullpage" && (
             <EmbedPreviewSurface
               embedType={embedType}
@@ -221,14 +245,14 @@ const EmbedPreviewSurface = ({
               {/* Host-page content above the embed */}
               <div className="space-y-6">
                 <div className="flex items-center gap-4">
-                  <div className="size-14 shrink-0 rounded-full bg-muted" />
+                  <div className="size-14 shrink-0 rounded-full bg-[var(--color-gray-100)]" />
                   <div className="flex-1 space-y-2.5">
-                    <div className="h-3 w-2/5 rounded-full bg-muted" />
-                    <div className="h-3 w-1/3 rounded-full bg-muted" />
+                    <div className="h-3 w-2/5 rounded-full bg-[var(--color-gray-100)]" />
+                    <div className="h-3 w-1/3 rounded-full bg-[var(--color-gray-100)]" />
                   </div>
                 </div>
-                <div className="h-3 w-full rounded-full bg-muted" />
-                <div className="h-20 w-full rounded-2xl bg-muted" />
+                <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
+                <div className="h-20 w-full rounded-2xl bg-[var(--color-gray-100)]" />
               </div>
 
               <div className="flex w-full justify-start">
@@ -277,8 +301,8 @@ const EmbedPreviewSurface = ({
 
               {/* Host-page content below the embed */}
               <div className="space-y-3">
-                <div className="h-3 w-3/5 rounded-full bg-muted" />
-                <div className="h-3 w-1/5 rounded-full bg-muted" />
+                <div className="h-3 w-3/5 rounded-full bg-[var(--color-gray-100)]" />
+                <div className="h-3 w-1/5 rounded-full bg-[var(--color-gray-100)]" />
               </div>
 
               {branding && <BrandingBadge />}
@@ -310,46 +334,47 @@ const EmbedPreviewSurface = ({
 };
 
 // Rich fake-webpage behind the popup, mirroring the Figma popup host mock.
+// Bars pin to neutral gray-100 (Figma skeleton); .bf-themed remaps --muted to the form tint, host chrome must stay neutral.
 const PopupHostSkeleton = () => {
   const authorRow = (
     <div className="flex items-center gap-3">
-      <div className="size-14 shrink-0 rounded-full bg-muted" />
+      <div className="size-14 shrink-0 rounded-full bg-[var(--color-gray-100)]" />
       <div className="flex-1 space-y-2">
-        <div className="h-3 w-3/4 rounded-full bg-muted" />
-        <div className="h-3 w-3/5 rounded-full bg-muted" />
+        <div className="h-3 w-3/4 rounded-full bg-[var(--color-gray-100)]" />
+        <div className="h-3 w-3/5 rounded-full bg-[var(--color-gray-100)]" />
       </div>
     </div>
   );
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-4">
-        <div className="size-14 shrink-0 rounded-full bg-muted" />
+        <div className="size-14 shrink-0 rounded-full bg-[var(--color-gray-100)]" />
         <div className="flex-1 space-y-2.5">
-          <div className="h-3 w-2/5 rounded-full bg-muted" />
-          <div className="h-3 w-1/3 rounded-full bg-muted" />
+          <div className="h-3 w-2/5 rounded-full bg-[var(--color-gray-100)]" />
+          <div className="h-3 w-1/3 rounded-full bg-[var(--color-gray-100)]" />
         </div>
       </div>
 
       <div className="space-y-4">
-        <div className="h-3 w-full rounded-full bg-muted" />
-        <div className="h-3 w-full rounded-full bg-muted" />
-        <div className="h-20 w-full rounded-2xl bg-muted" />
+        <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
+        <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
+        <div className="h-20 w-full rounded-2xl bg-[var(--color-gray-100)]" />
       </div>
 
       <div className="space-y-3">
-        <div className="h-3 w-full rounded-full bg-muted" />
-        <div className="h-3 w-4/5 rounded-full bg-muted" />
-        <div className="h-3 w-full rounded-full bg-muted" />
+        <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
+        <div className="h-3 w-4/5 rounded-full bg-[var(--color-gray-100)]" />
+        <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
       </div>
 
       <div className="grid grid-cols-2 gap-6">
-        <div className="h-32 rounded-2xl bg-muted" />
-        <div className="h-32 rounded-2xl bg-muted" />
+        <div className="h-32 rounded-2xl bg-[var(--color-gray-100)]" />
+        <div className="h-32 rounded-2xl bg-[var(--color-gray-100)]" />
       </div>
 
       <div className="space-y-3">
-        <div className="h-3 w-4/5 rounded-full bg-muted" />
-        <div className="h-3 w-full rounded-full bg-muted" />
+        <div className="h-3 w-4/5 rounded-full bg-[var(--color-gray-100)]" />
+        <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
       </div>
 
       <div className="grid grid-cols-2 gap-6">
@@ -358,9 +383,9 @@ const PopupHostSkeleton = () => {
       </div>
 
       <div className="space-y-3">
-        <div className="h-3 w-full rounded-full bg-muted" />
-        <div className="h-3 w-3/5 rounded-full bg-muted" />
-        <div className="h-3 w-[15%] rounded-full bg-muted" />
+        <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
+        <div className="h-3 w-3/5 rounded-full bg-[var(--color-gray-100)]" />
+        <div className="h-3 w-[15%] rounded-full bg-[var(--color-gray-100)]" />
       </div>
     </div>
   );

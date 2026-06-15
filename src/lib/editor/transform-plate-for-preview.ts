@@ -1,6 +1,8 @@
 import type { Value } from "platejs";
 import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
 import { extractFileUploadFields } from "@/lib/form-schema/file-upload-types";
+import { hasMention } from "@/lib/editor/resolve-mentions";
+import type { LabelTokenNode } from "@/lib/editor/resolve-mentions";
 import { normalizeOptionNodes } from "@/lib/editor/normalize-option-nodes";
 import {
   ALLOWED_LABEL_TYPES,
@@ -134,13 +136,18 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
    * mark consumed, pop from static buffer if present. Returns {labelText,labelNode} or null. */
   const lookBackForLabel = (
     i: number,
-  ): { labelText: string; labelNode: Record<string, unknown> } | null => {
+  ): {
+    labelText: string;
+    labelNode: Record<string, unknown>;
+    labelNodes?: LabelTokenNode[];
+  } | null => {
     if (i <= 0) return null;
     const prev = nodes[i - 1];
     const prevType = prev.type;
     if (!ALLOWED_LABEL_TYPES.has(prevType)) return null;
 
-    const labelText = extractTextContent(prev.children as Array<{ text?: string }>);
+    const children = prev.children as Array<{ text?: string }>;
+    const labelText = extractTextContent(children);
     consumedIndices.add(i - 1);
 
     // Pop label from static buffer if it was the most-recently pushed item.
@@ -148,7 +155,15 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
       staticBuffer.pop();
     }
 
-    return { labelText, labelNode: prev as Record<string, unknown> };
+    // Carry raw children only when a mention token is present — keeps the plain-text fast
+    // path for every ordinary label.
+    const labelNodes = hasMention(children) ? (children as unknown as LabelTokenNode[]) : undefined;
+
+    return {
+      labelText,
+      labelNode: prev as Record<string, unknown>,
+      ...(labelNodes ? { labelNodes } : {}),
+    };
   };
 
   let i = 0;
@@ -207,6 +222,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
           fieldType: INPUT_TYPE_TO_FIELD_TYPE[nodeType] as PlateFormField["fieldType"],
           label: labelText || undefined,
           labelType: label?.labelNode.type as string | undefined,
+          ...(label?.labelNodes ? { labelNodes: label.labelNodes } : {}),
           placeholder: placeholder || undefined,
           required: isRequired,
           minLength,
@@ -252,6 +268,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
           fieldType: "Matrix",
           label: labelText || undefined,
           labelType: label?.labelNode.type as string | undefined,
+          ...(label?.labelNodes ? { labelNodes: label.labelNodes } : {}),
           required: isRequired,
           rows,
           columns,
@@ -312,6 +329,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
           fieldType,
           label: fieldLabel || undefined,
           labelType: label?.labelNode.type as string | undefined,
+          ...(label?.labelNodes ? { labelNodes: label.labelNodes } : {}),
           required: isRequired,
           options,
           ...(shuffle ? { shuffle } : {}),

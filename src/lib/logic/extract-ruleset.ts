@@ -1,7 +1,8 @@
 import type { Value } from "platejs";
+import * as v from "valibot";
 import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
 import { THANK_YOU_STEP } from "./types";
-import type { ConditionGroup, LogicBlockNode, Rule, Ruleset } from "./types";
+import type { Action, ConditionGroup, Rule, Ruleset } from "./types";
 
 const FIRST_STEP_ID = "step-0";
 
@@ -9,6 +10,52 @@ interface FieldMeta {
   name: string;
   isFieldArray: boolean;
 }
+
+// --- Schema: validate persisted logicBlock nodes instead of trusting raw casts. ---
+const OperatorSchema = v.picklist([
+  "equals",
+  "notEquals",
+  "contains",
+  "notContains",
+  "greaterThan",
+  "lessThan",
+  "greaterThanOrEqual",
+  "lessThanOrEqual",
+  "isEmpty",
+  "isNotEmpty",
+]);
+
+const ConditionSchema = v.object({
+  source: v.string(),
+  operator: OperatorSchema,
+  value: v.optional(v.string()),
+});
+
+const GroupSchema: v.GenericSchema<ConditionGroup> = v.object({
+  combinator: v.picklist(["all", "any"]),
+  children: v.array(v.lazy(() => v.union([ConditionSchema, GroupSchema]))),
+});
+
+const ActionSchema = v.variant("kind", [
+  v.object({ kind: v.literal("show"), target: v.string() }),
+  v.object({ kind: v.literal("hide"), target: v.string() }),
+  v.object({ kind: v.literal("require"), target: v.string() }),
+  v.object({ kind: v.literal("optional"), target: v.string() }),
+  v.object({
+    kind: v.literal("setValue"),
+    target: v.string(),
+    value: v.union([v.string(), v.array(v.string())]), // string → scalar/single-choice; array → multi-choice
+  }),
+  v.object({ kind: v.literal("clearValue"), target: v.string() }),
+  v.object({ kind: v.literal("jump"), toStep: v.string() }),
+  v.object({ kind: v.literal("hideSubmit") }),
+  v.object({ kind: v.literal("redirect"), url: v.string() }),
+]);
+
+/** Value/required actions corrupt or misbehave on repeatable (array) fields, so they're dropped. */
+const ARRAY_INCOMPATIBLE = new Set(["setValue", "clearValue", "require", "optional"]);
+
+const EMPTY_GROUP: ConditionGroup = { combinator: "all", children: [] };
 
 /** Build name → isFieldArray map + step-id set via the canonical preview transform. */
 const collectFields = (content: Value): Map<string, FieldMeta> => {
@@ -52,6 +99,40 @@ const sanitizeGroup = (
   return { combinator: group.combinator, children };
 };
 
+/** Validate + sanitize a block's action list: drop malformed/legacy actions and field-target
+ * actions that don't resolve (unknown field, or array-incompatible on a repeatable). */
+const sanitizeActions = (
+  rawActions: unknown,
+  blockId: string,
+  fields: Map<string, FieldMeta>,
+  orphans: Set<string>,
+): Action[] => {
+  const actions: Action[] = [];
+  for (const raw of Array.isArray(rawActions) ? rawActions : []) {
+    const parsed = v.safeParse(ActionSchema, raw);
+    if (!parsed.success) {
+      orphans.add(blockId); // malformed or unsupported (e.g. legacy moveToNext)
+      continue;
+    }
+    const action = parsed.output;
+    if (action.kind === "jump" || action.kind === "hideSubmit" || action.kind === "redirect") {
+      actions.push(action);
+      continue;
+    }
+    const meta = fields.get(action.target);
+    if (!meta) {
+      orphans.add(action.target);
+      continue;
+    }
+    if (meta.isFieldArray && ARRAY_INCOMPATIBLE.has(action.kind)) {
+      orphans.add(action.target);
+      continue;
+    }
+    actions.push(action);
+  }
+  return actions;
+};
+
 export const extractRuleset = (content: Value): Ruleset => {
   const fields = collectFields(content);
   const stepIds = new Set<string>([FIRST_STEP_ID]);
@@ -67,25 +148,28 @@ export const extractRuleset = (content: Value): Ruleset => {
       continue;
     }
     if (type !== "logicBlock") continue;
-    const lb = node as unknown as LogicBlockNode;
+    const lb = node as { id?: unknown; when?: unknown; actions?: unknown };
+    const id = typeof lb.id === "string" ? lb.id : "";
+
+    const whenParsed = v.safeParse(GroupSchema, lb.when);
+    if (!whenParsed.success && lb.when !== undefined) orphans.add(id || "logicBlock");
+    const when = whenParsed.success ? whenParsed.output : EMPTY_GROUP;
+
     rules.push({
-      id: lb.id,
+      id,
       stepId: currentStep,
-      when: sanitizeGroup(lb.when ?? { combinator: "all", children: [] }, fields, orphans),
-      actions: lb.actions ?? [],
-      elseActions: lb.elseActions,
+      when: sanitizeGroup(when, fields, orphans),
+      actions: sanitizeActions(lb.actions, id || "logicBlock", fields, orphans),
     });
   }
 
-  // Flag orphaned action targets / jump targets (both Do and Else Do branches).
+  // Flag orphaned jump targets (need the full step-id set, so this runs after the pass).
   for (const rule of rules) {
-    for (const action of [...rule.actions, ...(rule.elseActions ?? [])]) {
+    for (const action of rule.actions) {
       if (action.kind === "jump") {
         if (action.toStep !== THANK_YOU_STEP && !stepIds.has(action.toStep)) {
           orphans.add(action.toStep);
         }
-      } else if (action.kind !== "hideSubmit" && action.kind !== "redirect") {
-        if (!fields.has(action.target)) orphans.add(action.target);
       }
     }
   }
