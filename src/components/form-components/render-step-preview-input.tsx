@@ -52,11 +52,14 @@ interface RenderStepPreviewInputProps {
 export const PreviewInputShell = ({
   element,
   children,
+  form,
 }: {
   element: PlateFormField;
   children: React.ReactNode;
+  /** Passed through to the label so `@`-mention tokens resolve to live answers. */
+  form?: AppForm;
 }) => {
-  const { label, required, labelType } = getFieldLabelProps(element);
+  const { label, required, labelType, labelNodes } = getFieldLabelProps(element);
   // Group fields (Checkbox/MultiChoice/Ranking) render N controls, no single labelable input — wrap in role=group + aria-labelledby. Others: <label htmlFor>/heading wiring (field reads via element.name). Repeatable scalars also group-label.
   const isGroup =
     ("fieldType" in element && GROUP_FIELD_TYPES.has(element.fieldType)) ||
@@ -73,6 +76,8 @@ export const PreviewInputShell = ({
         htmlFor={element.name}
         required={required}
         asGroupLabel={isGroup}
+        labelNodes={labelNodes}
+        form={form}
       />
       {children}
     </div>
@@ -100,7 +105,7 @@ export const RenderStepPreviewInput = ({ element, form }: RenderStepPreviewInput
   if (!Component) return null;
   const isFieldArray = isFieldArrayElement(element);
   return (
-    <PreviewInputShell element={element}>
+    <PreviewInputShell element={element} form={form}>
       {isFieldArray ? (
         <RepeatableField element={element} form={form} ItemComponent={Component as never} />
       ) : (

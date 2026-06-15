@@ -1,4 +1,4 @@
-import { ChevronsUpDown, HelpCircle, Zap } from "lucide-react";
+import { ChevronsUpDown, Zap } from "lucide-react";
 import * as React from "react";
 import type { PlateElementProps } from "platejs/react";
 import {
@@ -10,6 +10,7 @@ import {
 } from "platejs/react";
 
 import {
+  ChevronDownIcon,
   ConditionalLogicIcon,
   DeleteIcon,
   DuplicateIcon,
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/icons";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -53,7 +55,6 @@ export const createLogicBlockNode = (): LogicBlockNode => ({
   id: crypto.randomUUID(),
   when: { combinator: "all", children: [] },
   actions: [],
-  elseActions: [],
   children: [{ text: "" }],
 });
 
@@ -219,7 +220,7 @@ const TokenStepper = ({
   );
 };
 
-/** Scalar field types — the only ones a "Set value" action can sensibly target. */
+/** Scalar field types — single string answer. */
 const SCALAR_FIELD_TYPES = new Set([
   "Input",
   "Textarea",
@@ -231,27 +232,97 @@ const SCALAR_FIELD_TYPES = new Set([
   "Time",
 ]);
 
-/** Operand/value control matched to the field type: stepper for numbers, native
- * date/time pickers for Date/Time, plain text otherwise. */
+/** Single-choice (radio / single-select): answer is one option `value` string. */
+const SINGLE_CHOICE_TYPES = new Set(["MultiChoice"]);
+/** Multi-choice (checkbox / multi-select): answer is a `string[]` of option `value`s. */
+const MULTI_CHOICE_TYPES = new Set(["Checkbox"]);
+
+/** Field types a "Set value" action can target (Ranking excluded — setting an order has no clear UX). */
+const SET_TARGET_TYPES = new Set([
+  ...SCALAR_FIELD_TYPES,
+  ...SINGLE_CHOICE_TYPES,
+  ...MULTI_CHOICE_TYPES,
+]);
+
+/** A field is a valid Set-value target if its type is settable and it isn't repeatable (array rows). */
+const isSetTarget = (f: FieldInfo): boolean => SET_TARGET_TYPES.has(f.fieldType) && !f.isFieldArray;
+
+/** The empty value for a target's shape: [] for multi-choice, "" otherwise. */
+const blankValueForType = (fieldType: string | undefined): string | string[] =>
+  fieldType && MULTI_CHOICE_TYPES.has(fieldType) ? [] : "";
+
+/** Pill multi-select for Checkbox targets — base-ui checkbox items keep the menu open per toggle.
+ * Selection is stored option-order so the persisted array reads predictably. */
+const MultiTokenSelect = ({
+  value,
+  onChange,
+  ariaLabel,
+  options,
+}: {
+  value: string[];
+  onChange: (value: string[]) => void;
+  ariaLabel: string;
+  options: Option[];
+}) => {
+  const selected = new Set(value);
+  const labels = options.filter((o) => selected.has(o.value)).map((o) => o.label);
+  const toggle = (v: string) => {
+    const next = new Set(selected);
+    if (next.has(v)) next.delete(v);
+    else next.add(v);
+    onChange(options.filter((o) => next.has(o.value)).map((o) => o.value));
+  };
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={ariaLabel}
+        className="flex h-7 max-w-48 items-center gap-1 rounded-lg bg-[var(--form-input-bg,var(--color-gray-50))] ps-2.5 pe-2 text-[13px] text-foreground elevation-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className={cn("truncate", labels.length === 0 && "text-muted-foreground")}>
+          {labels.length > 0 ? labels.join(", ") : "Select options"}
+        </span>
+        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {options.map((o) => (
+          <DropdownMenuCheckboxItem
+            key={o.value}
+            checked={selected.has(o.value)}
+            onCheckedChange={() => toggle(o.value)}
+          >
+            {o.label}
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+/** Operand/value control matched to the field type: stepper for numbers, native date/time pickers,
+ * an option dropdown for single-choice, a multi-select for multi-choice, plain text otherwise. */
 const ValueControl = ({
   fieldType,
+  options,
   value,
   onChange,
   ariaLabel,
 }: {
   fieldType: string | undefined;
-  value: string;
-  onChange: (value: string) => void;
+  /** Selectable options when the target is a choice field. */
+  options: Option[];
+  value: string | string[];
+  onChange: (value: string | string[]) => void;
   ariaLabel: string;
 }) => {
+  const str = typeof value === "string" ? value : "";
   if (fieldType === "Number")
-    return <TokenStepper value={value} onChange={onChange} ariaLabel={ariaLabel} />;
+    return <TokenStepper value={str} onChange={onChange} ariaLabel={ariaLabel} />;
   if (fieldType === "Date")
     return (
       <TokenInput
         type="date"
         widthClass="w-36"
-        value={value}
+        value={str}
         onChange={onChange}
         ariaLabel={ariaLabel}
       />
@@ -261,12 +332,23 @@ const ValueControl = ({
       <TokenInput
         type="time"
         widthClass="w-28"
-        value={value}
+        value={str}
         onChange={onChange}
         ariaLabel={ariaLabel}
       />
     );
-  return <TokenInput placeholder="value" value={value} onChange={onChange} ariaLabel={ariaLabel} />;
+  if (fieldType && SINGLE_CHOICE_TYPES.has(fieldType))
+    return <TokenSelect ariaLabel={ariaLabel} value={str} options={options} onChange={onChange} />;
+  if (fieldType && MULTI_CHOICE_TYPES.has(fieldType))
+    return (
+      <MultiTokenSelect
+        ariaLabel={ariaLabel}
+        value={Array.isArray(value) ? value : []}
+        options={options}
+        onChange={onChange}
+      />
+    );
+  return <TokenInput placeholder="value" value={str} onChange={onChange} ariaLabel={ariaLabel} />;
 };
 
 const AddToken = ({ onClick, label }: { onClick: () => void; label: string }) => (
@@ -367,21 +449,42 @@ const CombinatorLead = ({
 type CondNode = Condition | ConditionGroup;
 const isGroup = (node: CondNode): node is ConditionGroup => "combinator" in node;
 
-// "Learn" menu item — opens conditional-logic docs.
-const learnAboutLogic = () => {
-  // TODO: point at the real docs URL once published.
-};
+/** Flatten a condition tree to its leaf conditions (for validation / warnings). */
+const flattenConditions = (group: ConditionGroup): Condition[] =>
+  group.children.flatMap((c) => (isGroup(c) ? flattenConditions(c) : [c]));
 
+// Opposite pairs (show/hide, require/optional, set/clear) so the inverse condition drives the
+// inverse action — no Else branch needed.
 const ACTION_KIND_OPTIONS: Option[] = [
   { value: "show", label: "Show field" },
   { value: "hide", label: "Hide field" },
   { value: "require", label: "Require field" },
+  { value: "optional", label: "Make optional" },
   { value: "setValue", label: "Set value" },
-  { value: "moveToNext", label: "Move to next field" },
+  { value: "clearValue", label: "Clear value" },
   { value: "jump", label: "Jump to step" },
   { value: "hideSubmit", label: "Hide submit" },
   { value: "redirect", label: "Redirect to URL" },
 ];
+
+/** Field-target actions whose target picker is the full field list. */
+const FIELD_TARGET_KINDS = new Set<Action["kind"]>([
+  "show",
+  "hide",
+  "require",
+  "optional",
+  "clearValue",
+]);
+
+/** Readable verb per field-target action kind, for the self-referential warning. */
+const SELF_REF_VERB: Partial<Record<Action["kind"], string>> = {
+  show: "shows",
+  hide: "hides",
+  require: "requires",
+  optional: "makes optional",
+  setValue: "sets the value of",
+  clearValue: "clears",
+};
 
 const defaultActionForKind = (
   kind: Action["kind"],
@@ -392,8 +495,8 @@ const defaultActionForKind = (
   if (kind === "jump") return { kind, toStep: stepOptions[0]?.value ?? THANK_YOU_STEP };
   if (kind === "redirect") return { kind, url: "" };
   if (kind === "setValue") {
-    const scalar = fields.find((f) => SCALAR_FIELD_TYPES.has(f.fieldType) && !f.isFieldArray);
-    return { kind, target: scalar?.name ?? "", value: "" };
+    const target = fields.find(isSetTarget);
+    return { kind, target: target?.name ?? "", value: blankValueForType(target?.fieldType) };
   }
   return { kind, target: fields[0]?.name ?? "" };
 };
@@ -444,6 +547,7 @@ const normalizeGroup = (group: ConditionGroup): ConditionGroup => {
 /** One condition: field · operator · value (stepper for numbers) · `•••` menu. */
 const ConditionRow = ({
   condition,
+  rowIndex,
   sourceOptions,
   fieldTypeByName,
   fieldChoicesByName,
@@ -451,6 +555,8 @@ const ConditionRow = ({
   menuItems,
 }: {
   condition: Condition;
+  /** 1-based row position, woven into aria-labels so each control is distinguishable. */
+  rowIndex: number;
   sourceOptions: Option[];
   fieldTypeByName: Map<string, string>;
   fieldChoicesByName: Map<string, Option[]>;
@@ -464,10 +570,11 @@ const ConditionRow = ({
     }),
   );
   const choices = fieldChoicesByName.get(condition.source);
+  const prefix = `Condition ${rowIndex}`;
   return (
-    <TokenRow menu={<RowMenu ariaLabel="Condition options" items={menuItems} />}>
+    <TokenRow menu={<RowMenu ariaLabel={`${prefix} options`} items={menuItems} />}>
       <TokenSelect
-        ariaLabel="Field"
+        ariaLabel={`${prefix} field`}
         value={condition.source}
         options={sourceOptions}
         onChange={(source) => {
@@ -480,7 +587,7 @@ const ConditionRow = ({
         }}
       />
       <TokenSelect
-        ariaLabel="Operator"
+        ariaLabel={`${prefix} operator`}
         value={condition.operator}
         options={operatorOptions}
         onChange={(op) => onChange({ ...condition, operator: op as OperatorId })}
@@ -488,17 +595,20 @@ const ConditionRow = ({
       {operatorNeedsOperand(condition.operator) &&
         (choices && choices.length > 0 ? (
           <TokenSelect
-            ariaLabel="Value"
+            ariaLabel={`${prefix} value`}
             value={condition.value ?? ""}
             options={choices}
             onChange={(value) => onChange({ ...condition, value })}
           />
         ) : (
           <ValueControl
-            ariaLabel="Value"
+            ariaLabel={`${prefix} value`}
             fieldType={fieldTypeByName.get(condition.source)}
+            options={[]}
             value={condition.value ?? ""}
-            onChange={(value) => onChange({ ...condition, value })}
+            onChange={(value) =>
+              onChange({ ...condition, value: typeof value === "string" ? value : "" })
+            }
           />
         ))}
     </TokenRow>
@@ -508,6 +618,7 @@ const ConditionRow = ({
 /** One action: kind · target/step/url · `•••` menu. */
 const ActionRow = ({
   action,
+  rowIndex,
   fields,
   fieldOptions,
   setTargetOptions,
@@ -517,6 +628,8 @@ const ActionRow = ({
   menuItems,
 }: {
   action: Action;
+  /** 1-based row position, woven into aria-labels so each control is distinguishable. */
+  rowIndex: number;
   fields: FieldInfo[];
   fieldOptions: Option[];
   /** Scalar-only targets for "Set value" (multi/file/repeatable can't be set). */
@@ -525,62 +638,65 @@ const ActionRow = ({
   stepOptions: Option[];
   onChange: (next: Action) => void;
   menuItems: RowMenuItem[];
-}) => (
-  <TokenRow menu={<RowMenu ariaLabel="Action options" items={menuItems} />}>
-    <TokenSelect
-      ariaLabel="Action"
-      value={action.kind}
-      options={ACTION_KIND_OPTIONS}
-      onChange={(kind) =>
-        onChange(defaultActionForKind(kind as Action["kind"], fields, stepOptions))
-      }
-    />
-    {(action.kind === "show" ||
-      action.kind === "hide" ||
-      action.kind === "require" ||
-      action.kind === "moveToNext") && (
+}) => {
+  const prefix = `Then action ${rowIndex}`;
+  return (
+    <TokenRow menu={<RowMenu ariaLabel={`${prefix} options`} items={menuItems} />}>
       <TokenSelect
-        ariaLabel="Target field"
-        value={action.target}
-        options={fieldOptions}
-        onChange={(target) => onChange({ ...action, target })}
+        ariaLabel={`${prefix} type`}
+        value={action.kind}
+        options={ACTION_KIND_OPTIONS}
+        onChange={(kind) =>
+          onChange(defaultActionForKind(kind as Action["kind"], fields, stepOptions))
+        }
       />
-    )}
-    {action.kind === "setValue" && (
-      <>
+      {FIELD_TARGET_KINDS.has(action.kind) && "target" in action && (
         <TokenSelect
-          ariaLabel="Target field"
+          ariaLabel={`${prefix} target field`}
           value={action.target}
-          options={setTargetOptions}
+          options={fieldOptions}
           onChange={(target) => onChange({ ...action, target })}
         />
-        <ValueControl
-          ariaLabel="Set value"
-          fieldType={fieldTypeByName.get(action.target)}
-          value={action.value}
-          onChange={(value) => onChange({ ...action, value })}
+      )}
+      {action.kind === "setValue" && (
+        <>
+          <TokenSelect
+            ariaLabel={`${prefix} target field`}
+            value={action.target}
+            options={setTargetOptions}
+            onChange={(target) =>
+              onChange({ ...action, target, value: blankValueForType(fieldTypeByName.get(target)) })
+            }
+          />
+          <ValueControl
+            ariaLabel={`${prefix} value`}
+            fieldType={fieldTypeByName.get(action.target)}
+            options={fields.find((f) => f.name === action.target)?.options ?? []}
+            value={action.value}
+            onChange={(value) => onChange({ ...action, value })}
+          />
+        </>
+      )}
+      {action.kind === "jump" && (
+        <TokenSelect
+          ariaLabel={`${prefix} target step`}
+          value={action.toStep}
+          options={stepOptions}
+          onChange={(toStep) => onChange({ ...action, toStep })}
         />
-      </>
-    )}
-    {action.kind === "jump" && (
-      <TokenSelect
-        ariaLabel="Target step"
-        value={action.toStep}
-        options={stepOptions}
-        onChange={(toStep) => onChange({ ...action, toStep })}
-      />
-    )}
-    {action.kind === "redirect" && (
-      <TokenInput
-        ariaLabel="Redirect URL"
-        placeholder="https://…"
-        widthClass="w-48"
-        value={action.url}
-        onChange={(url) => onChange({ ...action, url })}
-      />
-    )}
-  </TokenRow>
-);
+      )}
+      {action.kind === "redirect" && (
+        <TokenInput
+          ariaLabel={`${prefix} redirect URL`}
+          placeholder="https://…"
+          widthClass="w-48"
+          value={action.url}
+          onChange={(url) => onChange({ ...action, url })}
+        />
+      )}
+    </TokenRow>
+  );
+};
 
 // Interactive controls inside the block, in DOM (tab) order. Drives Tab cycling within
 // the block and lands focus on the first control when the block is navigated into.
@@ -620,21 +736,48 @@ export const LogicBlockElement = (props: PlateElementProps) => {
 
   const when = (element.when as ConditionGroup | undefined) ?? { combinator: "all", children: [] };
   const actions = (element.actions as Action[] | undefined) ?? [];
-  const elseActions = (element.elseActions as Action[] | undefined) ?? [];
 
   const fields = collectFields(editor);
   const sources = fields.filter((f) => !f.isFieldArray); // Wave 1: repeatable can't be a source
   const sourceOptions = sources.map((f) => ({ value: f.name, label: f.label }));
   const fieldOptions = fields.map((f) => ({ value: f.name, label: f.label }));
   const setTargetOptions = fields
-    .filter((f) => SCALAR_FIELD_TYPES.has(f.fieldType) && !f.isFieldArray)
+    .filter(isSetTarget)
     .map((f) => ({ value: f.name, label: f.label }));
   const stepOptions = collectStepOptions(editor);
   const fieldTypeByName = new Map(fields.map((f) => [f.name, f.fieldType]));
   const fieldChoicesByName = new Map(fields.map((f) => [f.name, f.options ?? []]));
 
+  // Author-time validation: surface dangling references and self-fighting rules instead of
+  // letting them silently no-op (or fight themselves) at runtime.
+  const knownNames = new Set(fields.map((f) => f.name));
+  const conditions = flattenConditions(when);
+  const conditionSources = new Set(conditions.map((c) => c.source));
+  const warnings: string[] = [];
+  for (const c of conditions) {
+    if (c.source && !knownNames.has(c.source)) {
+      warnings.push("A condition refers to a field that was deleted.");
+    } else {
+      const choices = fieldChoicesByName.get(c.source);
+      if (choices && choices.length > 0 && c.value && !choices.some((o) => o.value === c.value)) {
+        warnings.push("A condition uses an option that no longer exists.");
+      }
+    }
+  }
+  for (const a of actions) {
+    if ("target" in a && a.target && !knownNames.has(a.target)) {
+      warnings.push("An action targets a field that was deleted.");
+    }
+    if ("target" in a && conditionSources.has(a.target) && SELF_REF_VERB[a.kind]) {
+      warnings.push(
+        `This rule ${SELF_REF_VERB[a.kind]} the same field it checks — it may fight itself.`,
+      );
+    }
+  }
+  const uniqueWarnings = [...new Set(warnings)];
+
   const patch = React.useCallback(
-    (updates: Partial<Pick<LogicBlockNode, "when" | "actions" | "elseActions">>) => {
+    (updates: Partial<Pick<LogicBlockNode, "when" | "actions">>) => {
       const path = editor.api.findPath(element);
       if (path) editor.tf.setNodes(updates, { at: path });
     },
@@ -768,6 +911,7 @@ export const LogicBlockElement = (props: PlateElementProps) => {
             <div className="min-w-0 flex-1">
               <ConditionRow
                 condition={child}
+                rowIndex={i + 1}
                 sourceOptions={sourceOptions}
                 fieldTypeByName={fieldTypeByName}
                 fieldChoicesByName={fieldChoicesByName}
@@ -791,7 +935,6 @@ export const LogicBlockElement = (props: PlateElementProps) => {
                         },
                       ]
                     : []),
-                  { icon: <HelpCircle />, label: "Learn", onSelect: learnAboutLogic },
                   {
                     icon: <DeleteIcon />,
                     label: "Remove",
@@ -807,11 +950,7 @@ export const LogicBlockElement = (props: PlateElementProps) => {
   );
 
   // ── Action lists (Then / Else) — flat, no grouping ──
-  const makeActionMenu = (
-    list: Action[],
-    key: "actions" | "elseActions",
-    index: number,
-  ): RowMenuItem[] => {
+  const makeActionMenu = (list: Action[], key: "actions", index: number): RowMenuItem[] => {
     const setList = (next: Action[]) => patch({ [key]: next });
     // Hard cap: at most 2 actions per Then/Else, so adding/duplicating is gated.
     const canAdd = list.length < 2;
@@ -840,7 +979,6 @@ export const LogicBlockElement = (props: PlateElementProps) => {
             },
           ]
         : []),
-      { icon: <HelpCircle />, label: "Learn", onSelect: learnAboutLogic },
       {
         icon: <DeleteIcon />,
         label: "Remove",
@@ -849,7 +987,7 @@ export const LogicBlockElement = (props: PlateElementProps) => {
     ];
   };
 
-  const renderActionRows = (list: Action[], key: "actions" | "elseActions") => {
+  const renderActionRows = (list: Action[], key: "actions") => {
     const setList = (next: Action[]) => patch({ [key]: next });
     if (list.length === 0)
       return (
@@ -858,20 +996,32 @@ export const LogicBlockElement = (props: PlateElementProps) => {
           label="Add action"
         />
       );
-    return list.map((action, i) => (
-      <ActionRow
-        // eslint-disable-next-line @eslint-react/no-array-index-key
-        key={i}
-        action={action}
-        fields={fields}
-        fieldOptions={fieldOptions}
-        setTargetOptions={setTargetOptions}
-        fieldTypeByName={fieldTypeByName}
-        stepOptions={stepOptions}
-        onChange={(next) => setList(list.map((a, j) => (j === i ? next : a)))}
-        menuItems={makeActionMenu(list, key, i)}
-      />
-    ));
+    return (
+      <>
+        {list.map((action, i) => (
+          <ActionRow
+            // eslint-disable-next-line @eslint-react/no-array-index-key
+            key={i}
+            action={action}
+            rowIndex={i + 1}
+            fields={fields}
+            fieldOptions={fieldOptions}
+            setTargetOptions={setTargetOptions}
+            fieldTypeByName={fieldTypeByName}
+            stepOptions={stepOptions}
+            onChange={(next) => setList(list.map((a, j) => (j === i ? next : a)))}
+            menuItems={makeActionMenu(list, key, i)}
+          />
+        ))}
+        {/* Hard cap: 2 actions max — mirror the When section's inline add affordance. */}
+        {list.length < 2 && (
+          <AddToken
+            onClick={() => setList([...list, defaultActionForKind("show", fields, stepOptions)])}
+            label="Add action"
+          />
+        )}
+      </>
+    );
   };
 
   // "When" rail lead (icon + label) — row 0 of the condition list, and the empty/seed states.
@@ -901,6 +1051,17 @@ export const LogicBlockElement = (props: PlateElementProps) => {
           selected && focused && "ring-[3px] ring-ring/50",
         )}
       >
+        {uniqueWarnings.length > 0 && (
+          <div
+            role="alert"
+            className="mx-2 mt-1 mb-0.5 flex flex-col gap-0.5 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-[12px] text-amber-700 dark:text-amber-400"
+          >
+            {uniqueWarnings.map((w) => (
+              <span key={w}>{w}</span>
+            ))}
+          </div>
+        )}
+
         {/* WHEN — conditions. Custom rail layout so the And/Or toggle aligns under "When". */}
         <div className="flex flex-col gap-2 px-2 py-1.5">
           {sources.length === 0 ? (
@@ -930,14 +1091,10 @@ export const LogicBlockElement = (props: PlateElementProps) => {
           )}
         </div>
 
-        {/* THEN — actions when conditions pass */}
+        {/* THEN — actions when conditions pass. No Else: use the inverse action (Hide/Make
+            optional/Clear value) with the inverse condition instead. */}
         <RowShell icon={<Zap className="size-4 text-amber-500" />} label="Then">
           {renderActionRows(actions, "actions")}
-        </RowShell>
-
-        {/* ELSE — actions when conditions fail */}
-        <RowShell icon={<Zap className="size-4 text-muted-foreground" />} label="Else">
-          {renderActionRows(elseActions, "elseActions")}
         </RowShell>
       </div>
       {children}

@@ -56,7 +56,7 @@ export const RenderStepPreviewInputEager = ({
   if (!Component) return null;
   const isFieldArray = isFieldArrayElement(element);
   return (
-    <PreviewInputShell element={element}>
+    <PreviewInputShell element={element} form={form}>
       {isFieldArray ? (
         <RepeatableField element={element} form={form} ItemComponent={Component as never} />
       ) : (

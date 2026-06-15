@@ -2,7 +2,10 @@
 import { CompositeComponent } from "@tanstack/react-start/rsc";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { RenderFieldComponent } from "@/components/form-components/render-step-preview-input";
+import {
+  RenderFieldComponent,
+  RenderStepPreviewInput,
+} from "@/components/form-components/render-step-preview-input";
 import { ServerFormIcon } from "@/components/form-components/server-form-icon";
 import { SuccessCheck } from "@/components/transitions/success-check";
 import { Button } from "@/components/ui/button";
@@ -335,9 +338,16 @@ const StepFormRSC = ({
       const rendered = requiredFieldNames
         ? { ...field, required: requiredFieldNames.has(field.name) }
         : field;
+      // Mention labels render label+input client-side (reactive resolution); the server omitted
+      // ServerFieldLabel for these (see public-form-view-rsc.impl). RenderStepPreviewInput owns the wrapper.
+      const hasMentionLabel = "labelNodes" in rendered && rendered.labelNodes;
       return (
         <div data-bf-question-id={field.id} className={`w-full${autoFilled ? " opacity-75" : ""}`}>
-          <RenderFieldComponent key={fieldId} element={rendered} form={form} />
+          {hasMentionLabel ? (
+            <RenderStepPreviewInput key={fieldId} element={rendered} form={form} />
+          ) : (
+            <RenderFieldComponent key={fieldId} element={rendered} form={form} />
+          )}
         </div>
       );
     },

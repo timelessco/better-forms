@@ -89,6 +89,85 @@ describe("extractRuleset", () => {
     expect(rules[0].when.children).toHaveLength(0);
   });
 
+  it("drops a malformed / unsupported legacy action and flags the block", () => {
+    const value = [
+      { type: "formLabel", id: "q", children: [{ text: "Q" }] },
+      { type: "formInput", children: [{ text: "" }] },
+      {
+        type: "logicBlock",
+        id: "lbLegacy",
+        when: { combinator: "all", children: [{ source: "q", operator: "isNotEmpty" }] },
+        // moveToNext was removed from the action model; setValue/show are kept.
+        actions: [
+          { kind: "moveToNext", target: "q" },
+          { kind: "show", target: "q" },
+        ],
+        children: [{ text: "" }],
+      },
+    ] as unknown as Value;
+    const { rules, orphanedRefs } = extractRuleset(value);
+    expect(rules[0].actions).toEqual([{ kind: "show", target: "q" }]);
+    expect(orphanedRefs).toContain("lbLegacy");
+  });
+
+  it("drops a setValue/require action that targets a repeatable field and flags it", () => {
+    const value = [
+      { type: "formLabel", id: "emails", children: [{ text: "Emails" }] },
+      { type: "formEmail", isFieldArray: true, children: [{ text: "" }] },
+      { type: "formLabel", id: "q", children: [{ text: "Q" }] },
+      { type: "formInput", children: [{ text: "" }] },
+      {
+        type: "logicBlock",
+        id: "lbArr",
+        when: { combinator: "all", children: [{ source: "q", operator: "isNotEmpty" }] },
+        actions: [{ kind: "setValue", target: "emails", value: "x" }],
+        children: [{ text: "" }],
+      },
+    ] as unknown as Value;
+    const { rules, orphanedRefs } = extractRuleset(value);
+    expect(rules[0].actions).toHaveLength(0); // string-into-array write dropped
+    expect(orphanedRefs).toContain("emails");
+  });
+
+  it("keeps a setValue whose value is an array targeting a multi-choice field", () => {
+    const value = [
+      { type: "formLabel", id: "q", children: [{ text: "Q" }] },
+      { type: "formInput", children: [{ text: "" }] },
+      { type: "formLabel", id: "tools", children: [{ text: "Tools" }] },
+      { type: "formOptionItem", variant: "checkbox", children: [{ text: "Figma" }] },
+      { type: "formOptionItem", variant: "checkbox", children: [{ text: "Sketch" }] },
+      {
+        type: "logicBlock",
+        id: "lbArr",
+        when: { combinator: "all", children: [{ source: "q", operator: "isNotEmpty" }] },
+        actions: [{ kind: "setValue", target: "tools", value: ["figma", "sketch"] }],
+        children: [{ text: "" }],
+      },
+    ] as unknown as Value;
+    const { rules, orphanedRefs } = extractRuleset(value);
+    expect(rules[0].actions).toEqual([
+      { kind: "setValue", target: "tools", value: ["figma", "sketch"] },
+    ]);
+    expect(orphanedRefs).not.toContain("tools");
+  });
+
+  it("treats a malformed `when` group as empty (rule no-ops) and flags the block", () => {
+    const value = [
+      { type: "formLabel", id: "q", children: [{ text: "Q" }] },
+      { type: "formInput", children: [{ text: "" }] },
+      {
+        type: "logicBlock",
+        id: "lbBad",
+        when: { combinator: "sometimes", children: "nope" },
+        actions: [{ kind: "hide", target: "q" }],
+        children: [{ text: "" }],
+      },
+    ] as unknown as Value;
+    const { rules, orphanedRefs } = extractRuleset(value);
+    expect(rules[0].when).toEqual({ combinator: "all", children: [] });
+    expect(orphanedRefs).toContain("lbBad");
+  });
+
   it("returns an empty ruleset for content with no logic blocks", () => {
     const value = [
       { type: "formLabel", id: "q", children: [{ text: "Q" }] },

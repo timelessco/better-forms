@@ -1109,6 +1109,15 @@
   margin-bottom: var(--bf-field-gap) !important;
 }
 
+/* A block immediately preceding a logic block must contribute the full block-margin (28px) so the
+   logic block's -16px tuck (mt-[calc(12px - block-margin)]) nets the intended 12px gap. Paragraphs
+   and labels otherwise contribute only --bf-field-gap (10px), letting the tuck overlap the block
+   above. Specificity (0,6,0) > the paragraph/label rules above so it wins for those predecessors. */
+:not([data-bf-chrome]):not([data-bf-input]):has(> .slate-blockWrapper):has(+ * .slate-logicBlock)
+  > .slate-blockWrapper.flow-root {
+  margin-bottom: var(--bf-block-margin) !important;
+}
+
 /* Headings: block-margin above (section break) + tight below
    (binds to what they introduce). Notion-style asymmetry.
    Preview-side uses DESCENDANT not direct-child: in the editor-internal

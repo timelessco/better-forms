@@ -20,22 +20,21 @@ import {
 import { BlockSelection } from "@/components/ui/block-selection";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  CheckCheckIcon,
   ChevronDownIcon,
   Loader2Icon,
   PhotoIcon,
   RankDragHandleIcon,
-  TagIcon,
   XIcon,
 } from "@/components/ui/icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUploadFile } from "@/hooks/use-upload-file";
 import { RequiredBadgeButton } from "@/components/ui/required-badge-button";
-import { useFormIsDark } from "@/hooks/use-form-theme";
 import { cn } from "@/lib/utils";
 
 type OptionVariant = "checkbox" | "multiChoice" | "ranking";
 
-import { getMultiSelectColor, getOptionOrdinal } from "@/components/ui/form-option-item-constants";
+import { getOptionOrdinal } from "@/components/ui/form-option-item-constants";
 import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
 
 // Letters/Numbers labels: an ordinal badge in a gray box (Figma nodes 25578:9710 / 25578:9688) —
@@ -165,13 +164,12 @@ const nodeText = (n: TElement | undefined): string =>
  * the old formMultiSelectInput node). Chips mirror the sibling option nodes: × or Backspace
  * removes a node, Enter in the inline input appends one. Group flags (showAsDropdown, required,
  * selection limits…) live on the FIRST option node, so removing chip 0 pulls the next text up and
- * drops the next node instead of removing the flag-holder. Checkbox groups (multi answer) get the
- * multi-select colored chips; multiChoice groups (single answer) get neutral gray chips + a
- * chevron badge so the two dropdown kinds read apart at a glance. */
+ * drops the next node instead of removing the flag-holder. Both dropdown kinds get neutral gray
+ * chips; the trailing badge tells them apart — a double-tick for checkbox groups (multi answer),
+ * a chevron for multiChoice groups (single answer). */
 const OptionChipsRow = ({ children, ...props }: PlateElementProps) => {
   const { attributes, element, ...rest } = props;
   const editor = useEditorRef();
-  const isDark = useFormIsDark();
   // element is the group's first node — its variant decides the chip treatment.
   const variant = (element.variant as string) || "checkbox";
   const colored = variant === "checkbox";
@@ -418,10 +416,9 @@ const OptionChipsRow = ({ children, ...props }: PlateElementProps) => {
         onMouseDown={(e) => e.stopPropagation()}
       >
         {chips.map((chip, chipIdx) => {
-          // Single-select chips stay neutral — the multi-select colors are its visual signature.
-          const color = colored
-            ? getMultiSelectColor(chipIdx, isDark)
-            : { bg: "bg-gray-100", text: "text-gray-900" };
+          // Neutral chips for both dropdown kinds; the trailing icon (double-tick vs chevron)
+          // is what tells multi-select apart from single-select now.
+          const color = { bg: "bg-gray-100", text: "text-gray-900" };
           const isChipFocused = focusedChipIndex === chipIdx;
           return (
             <span
@@ -479,7 +476,11 @@ const OptionChipsRow = ({ children, ...props }: PlateElementProps) => {
             />
           }
         >
-          {colored ? <TagIcon className="size-3.5" /> : <ChevronDownIcon className="size-3.5" />}
+          {colored ? (
+            <CheckCheckIcon className="size-3.5" />
+          ) : (
+            <ChevronDownIcon className="size-3.5" />
+          )}
         </TooltipTrigger>
         <TooltipContent side="left">
           {colored ? "Multi-select dropdown" : "Dropdown"}
@@ -576,8 +577,12 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
   const isAnyDragging = Array.isArray(draggingId) ? draggingId.length > 0 : Boolean(draggingId);
   const showGhost = isLastInGroup && isGroupFocused && !isAnyDragging && !chipsMode;
 
-  // When ghost is visible, push the next block down so it doesn't overlap. Add margin-top to the
+  // When ghost is visible, push the next block down so it doesn't overlap. Reserve space on the
   // block-draggable wrapper's next sibling, not this element — expanding here displaces the gutter.
+  // Use padding-top, not margin-top: margins collapse (max with the option's own block-margin) so a
+  // small needed gap gets swallowed, and a fixed constant can't know the next block's margin (e.g.
+  // the logic block tucks up via a -16px margin-top). Measure the ghost's real bottom against the
+  // next block's real content top and reserve exactly the overflow + a 4px gap.
   useLayoutEffect(() => {
     let domNode: HTMLElement | null = null;
     try {
@@ -586,21 +591,31 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
     } catch {
       domNode = null;
     }
-    if (!domNode) return;
-    const blockWrapper = domNode.closest(".slate-blockWrapper");
-    const draggableWrapper = blockWrapper?.parentElement;
-    const nextSibling = draggableWrapper?.nextElementSibling as HTMLElement | null;
-    if (!nextSibling) return;
-    if (showGhost) {
-      // Ghost is 30px tall, offset 4px below option (top-[calc(100%+4px)]),
-      // plus another 4px gap after the ghost → total 38px margin.
-      nextSibling.style.marginTop = "38px";
-    } else {
-      nextSibling.style.marginTop = "";
-    }
-    return () => {
-      nextSibling.style.marginTop = "";
+    const blockWrapper = domNode?.closest(".slate-blockWrapper");
+    const nextSibling = blockWrapper?.parentElement?.nextElementSibling as HTMLElement | null;
+    const clear = () => {
+      if (nextSibling) nextSibling.style.paddingTop = "";
     };
+    if (!domNode || !nextSibling) return;
+    if (!showGhost) {
+      clear();
+      return;
+    }
+    const ghost = domNode.querySelector<HTMLElement>("[data-bf-ghost-row]");
+    if (!ghost) {
+      clear();
+      return clear;
+    }
+    // Reset to the natural layout, then reserve exactly the overflow. Measure the next block's first
+    // rendered element (not its wrapper) — wrappers whose inner node uses a negative margin-top
+    // report a misleading box.
+    nextSibling.style.paddingTop = "";
+    const nextContent =
+      nextSibling.querySelector<HTMLElement>('[data-slate-node="element"]') ?? nextSibling;
+    const overflow =
+      ghost.getBoundingClientRect().bottom + 4 - nextContent.getBoundingClientRect().top;
+    nextSibling.style.paddingTop = overflow > 0 ? `${Math.ceil(overflow)}px` : "";
+    return clear;
   }, [editor, element, showGhost]);
 
   // Per-option image (group "Image" toggle sets showImage on every sibling). Upload via the shared
@@ -641,7 +656,7 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
   return (
     <PlateElement
       attributes={{ ...attributes, "data-bf-input": "true" }}
-      className="relative w-full max-w-116 cursor-text rounded-md caret-current before:top-3.5 before:left-7.5 before:-translate-y-1/2 before:text-sm"
+      className="relative w-full max-w-116 cursor-text rounded-md caret-current before:top-3.5 before:left-6.5 before:-translate-y-1/2 before:text-sm"
       element={element}
       {...rest}
     >
@@ -665,6 +680,7 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
         <div
           contentEditable={false}
           data-bf-drag-ignore="true"
+          data-bf-ghost-row="true"
           className="pointer-events-none absolute top-[calc(100%+4px)] right-0 left-0 flex h-[30px] items-center gap-2 pl-0.5 opacity-40 select-none"
         >
           <OptionIcon variant={variant} index={optionIndex + 1} optionLabel={optionLabel} />

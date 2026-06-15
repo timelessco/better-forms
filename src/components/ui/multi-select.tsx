@@ -3,10 +3,9 @@
    producing invalid HTML and React hydration errors. */
 import { useState } from "react";
 
-import { getMultiSelectColor } from "@/components/ui/form-option-item-constants";
-import { CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
+import { CheckCheckIcon, CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useFormIsDark, useReanchorThemeProps } from "@/hooks/use-form-theme";
+import { useReanchorThemeProps } from "@/hooks/use-form-theme";
 import { cn } from "@/lib/utils";
 
 interface MultiSelectOption {
@@ -50,9 +49,6 @@ export const MultiSelect = ({
 
   // PopoverContent portals to body, losing .bf-themed CSS vars — re-anchor theme on the popup.
   const themeReanchor = useReanchorThemeProps();
-  // Chip colors follow the form's mode, not the app's global `.dark` (the trigger lives in the
-  // editor canvas; the dropdown re-anchors via themeReanchor but neither strips the app `.dark`).
-  const isDark = useFormIsDark();
 
   // Roving focus across options: adds listbox-style ArrowUp/Down + Home/End; Tab still works natively.
   const handleOptionsKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -102,37 +98,31 @@ export const MultiSelect = ({
           >
             <div className="flex flex-1 flex-wrap gap-1">
               {selectedOptions.length > 0 ? (
-                selectedOptions.map((opt) => {
-                  const colorIndex = options.findIndex((o) => o.value === opt.value);
-                  const color = getMultiSelectColor(colorIndex, isDark);
-                  return (
-                    <span
-                      key={opt.value}
-                      className={cn(
-                        "inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium",
-                        color.bg,
-                        color.text,
-                      )}
+                selectedOptions.map((opt) => (
+                  <span
+                    key={opt.value}
+                    className="inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-900"
+                  >
+                    {opt.label}
+                    <button
+                      type="button"
+                      className="ml-1 inline-flex size-3 items-center justify-center rounded-full hover:bg-black/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleOption(opt.value);
+                      }}
+                      aria-label={`Remove ${opt.label}`}
                     >
-                      {opt.label}
-                      <button
-                        type="button"
-                        className="ml-1 inline-flex size-3 items-center justify-center rounded-full hover:bg-black/10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleOption(opt.value);
-                        }}
-                        aria-label={`Remove ${opt.label}`}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  );
-                })
+                      ×
+                    </button>
+                  </span>
+                ))
               ) : (
                 <span className="text-foreground/70">{placeholder}</span>
               )}
             </div>
+            {/* Double-tick marks this as a multi-select (vs a single-pick dropdown). */}
+            <CheckCheckIcon className="size-4 shrink-0 text-muted-foreground" />
             <ChevronDownIcon
               className={cn(
                 "size-4 shrink-0 text-muted-foreground transition-transform",
@@ -145,30 +135,27 @@ export const MultiSelect = ({
       <PopoverContent
         align="start"
         sideOffset={4}
-        // Figma dropdown (25632:9452): 8px row gap, elevation-xl, every option as its colored chip.
-        className={cn("w-(--anchor-width) gap-2 p-1 elevation-xl", themeReanchor.className)}
+        // Neutral full-width option rows (normal multi-select), elevation-xl popup.
+        className={cn("w-(--anchor-width) gap-0.5 p-1 elevation-xl", themeReanchor.className)}
         style={themeReanchor.style}
         onKeyDown={handleOptionsKeyDown}
       >
-        {options.map((opt, idx) => {
+        {options.map((opt) => {
           const isSelected = value.includes(opt.value);
-          const color = getMultiSelectColor(idx, isDark);
           return (
             <button
               key={opt.value}
               type="button"
               data-mselect-option
               className={cn(
-                // Content-hugging colored chip (cell-primitive); checkmark marks selection. No focus
-                // ring — a subtle outline-offset highlight marks keyboard focus instead.
-                "flex h-7 cursor-pointer items-center gap-1.5 self-start rounded-[8px] px-1.5 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                color.bg,
-                color.text,
+                // Normal-select rows: neutral, checkmark marks selection, hover/selected tint.
+                "flex h-8 w-full cursor-pointer items-center justify-between rounded-[8px] px-2 text-sm outline-none hover:bg-accent focus-visible:bg-accent",
+                isSelected && "bg-accent font-medium",
               )}
               onClick={() => toggleOption(opt.value)}
             >
               <span>{opt.label}</span>
-              {isSelected && <CheckIcon className="size-3.5 shrink-0" />}
+              {isSelected && <CheckIcon className="size-4 shrink-0" />}
             </button>
           );
         })}

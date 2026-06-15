@@ -29,12 +29,15 @@ export interface ConditionGroup {
   children: Array<Condition | ConditionGroup>;
 }
 
+/** Actions come in opposite pairs (show/hide, require/optional, setValue/clearValue) so the
+ * Else branch is unnecessary — the inverse condition drives the opposite action. */
 export type Action =
   | { kind: "show"; target: string } // field name
   | { kind: "hide"; target: string }
   | { kind: "require"; target: string }
-  | { kind: "setValue"; target: string; value: string } // auto-fill a field
-  | { kind: "moveToNext"; target: string } // focus/scroll to a field
+  | { kind: "optional"; target: string } // force not-required (wins over require + base-required)
+  | { kind: "setValue"; target: string; value: string | string[] } // auto-fill a field (array → multi-choice)
+  | { kind: "clearValue"; target: string } // reset a field to empty
   | { kind: "jump"; toStep: string } // step id, or the sentinel THANK_YOU_STEP
   | { kind: "hideSubmit" }
   | { kind: "redirect"; url: string };
@@ -45,10 +48,8 @@ export interface Rule {
   /** id of the step that physically contains this logic block — drives jump timing */
   stepId: string;
   when: ConditionGroup;
-  /** actions applied when `when` passes ("Do") */
+  /** actions applied when `when` passes */
   actions: Action[];
-  /** actions applied when `when` does NOT pass ("Else Do") */
-  elseActions?: Action[];
 }
 
 export interface Ruleset {
@@ -73,10 +74,8 @@ export interface EvaluationResult {
   effectiveRequired: Record<string, boolean>;
   /** Wave 2 — always {} in Wave 1 */
   computedValues: Record<string, never>;
-  /** fieldName → value to auto-fill (from a passing "Set value" action) */
-  setValues: Record<string, string>;
-  /** field to focus/scroll to from a passing "Move to next field" action (last wins), else null */
-  focusField: string | null;
+  /** fieldName → value to write (Set value); "" / [] reset (Clear value). Arrays target multi-choice. */
+  setValues: Record<string, string | string[]>;
   hideSubmit: boolean;
   redirectUrl: string | null;
   /** first matching jump rule tied to `fromStep`, else null (caller falls through) */
@@ -89,6 +88,5 @@ export interface LogicBlockNode {
   id: string;
   when: ConditionGroup;
   actions: Action[];
-  elseActions?: Action[];
   children: [{ text: "" }];
 }
