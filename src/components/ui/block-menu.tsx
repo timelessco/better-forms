@@ -22,6 +22,7 @@ import {
   PhotoIcon,
   RepeatIcon,
   RequiredFieldIcon,
+  ScaleAnchorIcon,
   SearchLineIcon,
   SelectionLimitIcon,
   ShuffleOptionsIcon,
@@ -171,11 +172,14 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
   const [view, setView] = React.useState<string | null>(null);
   // Slide axis: panels enter from the trigger's chevron side (+1); back reverses (-1).
   const [direction, setDirection] = React.useState(1);
-  // Side the popup actually rendered on, frozen right after open. View morphs resize the popup
-  // and Base UI re-runs collision logic on every resize — without the lock a menu flipped above
-  // the anchor snaps below it when a shorter panel opens. Locking the side keeps the popup
-  // hugging the anchor (same gap), growing away from it.
+  // Side + align the popup actually rendered on, frozen right after open. View morphs resize the
+  // popup and Base UI re-runs collision logic on every resize — without the lock a menu flipped
+  // above the anchor snaps below it when a shorter panel opens. Locking BOTH axes keeps the popup
+  // hugging the anchor (same gap), growing away from it. Align must lock too: the drag handle sits
+  // in the left gutter, so collision flips align end→start to fit; without locking that flip the
+  // lock reverts align to the prop ("end") and the popup clips off the left edge.
   const [lockedSide, setLockedSide] = React.useState<"top" | "bottom" | null>(null);
+  const [lockedAlign, setLockedAlign] = React.useState<"start" | "center" | "end" | null>(null);
   const [bulkInsert, setBulkInsert] = React.useState<{ at: number; variant: string } | null>(null);
   const blockMenuTriggerRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -202,6 +206,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     setView(null);
     setBulkInsert(null);
     setLockedSide(null);
+    setLockedAlign(null);
   }
 
   const handlers = useBlockMenuFieldHandlers({
@@ -380,14 +385,16 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     [view, changeView],
   );
 
-  // Read which side Base UI settled on one frame after open, then lock it for the session.
+  // Read which side + align Base UI settled on one frame after open (after collision flips), then
+  // lock both for the session so view-morph resizes can't re-flip the popup around the anchor.
   React.useEffect(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => {
-      const side = document
-        .querySelector('[data-slot="dropdown-menu-content"]')
-        ?.getAttribute("data-side");
+      const el = document.querySelector('[data-slot="dropdown-menu-content"]');
+      const side = el?.getAttribute("data-side");
+      const align = el?.getAttribute("data-align");
       if (side === "top" || side === "bottom") setLockedSide(side);
+      if (align === "start" || align === "center" || align === "end") setLockedAlign(align);
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
@@ -484,10 +491,10 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
             anchor={virtualAnchor}
             className={themeReanchor.className}
             style={themeReanchor.style}
-            // Pre-lock: collision-aware placement off the click point. Locked: keep the settled
-            // side with avoidance off, so view morphs grow away from the anchor instead of
-            // flipping the popup around it.
-            align="end"
+            // Pre-lock: collision-aware placement off the click point (flips side AND align to fit).
+            // Locked: keep the settled side + align with avoidance off, so view morphs grow away
+            // from the anchor instead of flipping the popup around it.
+            align={lockedAlign ?? "end"}
             side={lockedSide ?? "bottom"}
             sideOffset={8}
             collisionAvoidance={
@@ -2018,7 +2025,7 @@ const NumberFieldMenu = () => (
 );
 
 // Linear scale "Scale" panel (Figma 25634-17867): dual-handle slider sets the scale's
-// Start/End within the allowed bounds; the values below echo the current selection.
+// Start/End within the allowed bounds; the end labels show those bounds (-10 … 10).
 const ScaleRange = () => (
   <SubmenuRow
     icon={<IconLinearScale className="text-foreground/80" />}
@@ -2040,7 +2047,7 @@ const ScaleRangePanel = () => {
   }, [nodeMin, nodeMax]);
   return (
     <PanelBody>
-      <div className="flex items-center justify-between text-[14px] font-medium text-foreground">
+      <div className="flex items-center justify-between text-[14px] font-medium tracking-[0.21px] text-foreground">
         <span>Start</span>
         <span>End</span>
       </div>
@@ -2062,9 +2069,10 @@ const ScaleRangePanel = () => {
           if (b > a) actions.setScaleRange(a, b);
         }}
       />
-      <div className="flex items-center justify-between text-[12px] text-muted-foreground tabular-nums">
-        <span>{range[0]}</span>
-        <span>{range[1]}</span>
+      {/* Figma (25634-17867): the end labels show the slider bounds (-10 … 10), not the selection. */}
+      <div className="flex items-center justify-between text-[12px] tracking-[0.24px] text-gray-700 tabular-nums">
+        <span>{LINEAR_SCALE_BOUNDS.min}</span>
+        <span>{LINEAR_SCALE_BOUNDS.max}</span>
       </div>
     </PanelBody>
   );
@@ -2093,9 +2101,23 @@ const ScaleStepPanel = () => {
     typeof rawStep === "number" && rawStep > 0 ? rawStep : LINEAR_SCALE_DEFAULTS.step;
   // Local state for smooth dragging (see ScaleRange); persist on release.
   const [step, setStep] = React.useState(nodeStep);
+  // Draft holds in-progress typing (incl. empty / below-min) so we don't fight the user mid-edit.
+  const [draft, setDraft] = React.useState<string | null>(null);
   React.useEffect(() => {
     setStep(nodeStep);
   }, [nodeStep]);
+
+  // Clamp to [stepMin, stepMax] and persist. Typed values hard-cap to stepMax (never > 10); min is
+  // enforced here so an interim empty/0 can be typed and settles up on blur.
+  const commitStep = (n: number) => {
+    const clamped = Math.max(LINEAR_SCALE_BOUNDS.stepMin, Math.min(LINEAR_SCALE_BOUNDS.stepMax, n));
+    setStep(clamped);
+    actions.setScaleStep(clamped);
+    setDraft(null);
+  };
+
+  const display = draft ?? String(step);
+
   return (
     <PanelBody>
       <div className="flex items-center gap-2.5">
@@ -2110,12 +2132,42 @@ const ScaleStepPanel = () => {
           onPointerDown={stopMouseEventPropagation}
           // base-ui hands back a bare number for a single-thumb slider (collision resolver treats
           // length-1 as non-range) but an array elsewhere — normalize both.
-          onValueChange={(value) => setStep(readSliderValue(value))}
+          onValueChange={(value) => {
+            setDraft(null);
+            setStep(readSliderValue(value));
+          }}
           onValueCommitted={(value) => actions.setScaleStep(readSliderValue(value))}
         />
-        <div className="flex w-12 items-center justify-center rounded-lg bg-(--color-gray-alpha-100) px-2 py-1.5 text-[14px] font-medium text-foreground tabular-nums">
-          {step}
-        </div>
+        <input
+          type="number"
+          aria-label="Scale step value"
+          min={LINEAR_SCALE_BOUNDS.stepMin}
+          max={LINEAR_SCALE_BOUNDS.stepMax}
+          value={display}
+          onClick={stopMouseEventPropagation}
+          onPointerDown={stopMouseEventPropagation}
+          onChange={(e) => {
+            const raw = e.target.value.replace(/[^0-9]/g, "");
+            if (raw === "") {
+              setDraft("");
+              return;
+            }
+            // Hard cap to stepMax so the box can never show a number greater than 10.
+            const n = Math.min(LINEAR_SCALE_BOUNDS.stepMax, Number.parseInt(raw, 10));
+            if (n >= LINEAR_SCALE_BOUNDS.stepMin) commitStep(n);
+            else setDraft(String(n));
+          }}
+          onBlur={() => {
+            const n = Number.parseInt(draft ?? String(step), 10);
+            commitStep(Number.isNaN(n) ? LINEAR_SCALE_BOUNDS.stepMin : n);
+          }}
+          onKeyDown={(e) => {
+            // Stop the menu from swallowing keystrokes (typeahead nav) so the box is typeable.
+            stopKeyEventPropagation(e);
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          className="w-12 [appearance:textfield] rounded-lg bg-(--color-gray-alpha-100) px-2 py-1.5 text-center text-[14px] font-medium text-foreground tabular-nums outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
       </div>
     </PanelBody>
   );
@@ -2124,7 +2176,7 @@ const ScaleStepPanel = () => {
 // Linear scale "Add Anchor" (Figma 25634-16937 / 26153-13445): Left/Center/Right labels
 // rendered under the scale tiles (e.g. Bad … Good).
 const AddAnchor = () => (
-  <SubmenuRow icon={<ConditionalLogicIcon />} label="Add Anchor" view="scale-anchor" />
+  <SubmenuRow icon={<ScaleAnchorIcon />} label="Scale Anchor" view="scale-anchor" />
 );
 
 const ANCHOR_ROWS = [

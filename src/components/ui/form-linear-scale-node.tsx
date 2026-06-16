@@ -42,7 +42,7 @@ export const FormLinearScaleElement = ({ children, ...props }: PlateElementProps
             {values.map((value) => (
               <span
                 key={String(value)}
-                className="flex h-8 min-w-8 items-center justify-center rounded-[8px] bg-[var(--form-input-bg,var(--color-gray-50))] px-2 text-sm text-foreground tabular-nums elevation-sm"
+                className="flex h-8 min-w-8 items-center justify-center rounded-[8px] bg-[var(--form-input-bg,var(--color-gray-50))] px-2 text-[14px] text-foreground tabular-nums elevation-sm"
               >
                 {String(value)}
               </span>

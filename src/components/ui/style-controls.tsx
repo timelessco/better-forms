@@ -84,17 +84,20 @@ export const StyleNumberInput = ({
       onAutoChange={onAutoChange}
       markStyle={markStyle}
       endIcon={endIcon}
+      // bare = flush Figma customize rows: flat at rest, gray track revealed on hover/focus.
+      revealOnHover={bare}
       aria-label={isAuto ? `${label}: Auto` : `${label}: ${numValue}${shownUnit}`}
       className={cn(
         bare ? "h-7 [--elastic-slider-height:1.75rem]" : "h-[34px] [--elastic-slider-height:34px]",
-        "[--elastic-slider-bg:var(--background)]",
+        // Revealed track = Figma gray/100 (solid --muted) for bare rows; white for bordered scrubber.
+        bare ? "[--elastic-slider-bg:var(--muted)]" : "[--elastic-slider-bg:var(--background)]",
         // 6px inner padding (Figma): pairs with the -mx-1.5 bleed on sidebar rows so the label
         // column stays flush-aligned with non-slider rows while the track extends past it.
         bare
           ? "[&_[data-slot=elastic-slider-label]]:inset-s-1.5 [&_[data-slot=elastic-slider-label]]:text-[14px] [&_[data-slot=elastic-slider-label]]:font-normal [&_[data-slot=elastic-slider-label]]:text-muted-foreground"
           : "[&_[data-slot=elastic-slider-label]]:inset-s-2 [&_[data-slot=elastic-slider-label]]:text-base [&_[data-slot=elastic-slider-label]]:font-normal",
         bare
-          ? "[&_[data-slot=elastic-slider-value]]:inset-e-1.5 [&_[data-slot=elastic-slider-value]]:text-[14px] [&_[data-slot=elastic-slider-value]]:font-medium [&_[data-slot=elastic-slider-value]]:text-foreground [&_[data-slot=elastic-slider-value]]:tabular-nums"
+          ? "[&_[data-slot=elastic-slider-value]]:inset-e-1.5 [&_[data-slot=elastic-slider-value]]:text-[14px] [&_[data-slot=elastic-slider-value]]:font-medium [&_[data-slot=elastic-slider-value]]:text-gray-700 [&_[data-slot=elastic-slider-value]]:tabular-nums"
           : "[&_[data-slot=elastic-slider-value]]:inset-e-[11px] [&_[data-slot=elastic-slider-value]]:text-[13px] [&_[data-slot=elastic-slider-value]]:tabular-nums",
         className,
       )}

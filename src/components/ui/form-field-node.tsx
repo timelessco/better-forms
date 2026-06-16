@@ -85,7 +85,7 @@ export const FormFieldElement = (allProps: PlateElementProps) => {
           "data-bf-input-fill": "true",
         }}
         className={cn(
-          "relative flex h-7 w-full cursor-text items-center gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-[10px] text-sm caret-current elevation-sm",
+          "relative flex h-[30px] w-full cursor-text items-center gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-[10px] text-sm caret-current elevation-sm",
           isSelected && focused && "ring-[3px] ring-ring/50",
         )}
         element={element}
@@ -121,7 +121,7 @@ export const FormFieldElement = (allProps: PlateElementProps) => {
               className="mt-2 flex items-center gap-2 select-none"
             >
               <div
-                className="relative flex h-7 flex-1 items-center gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-[10px] text-sm elevation-sm"
+                className="relative flex h-[30px] flex-1 items-center gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-[10px] text-sm elevation-sm"
                 aria-hidden="true"
               >
                 <span className="line-clamp-1 min-w-0 flex-1 break-all text-muted-foreground/50">

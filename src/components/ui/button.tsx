@@ -30,6 +30,9 @@ const buttonVariants = cva(buttonBaseClasses.join(" "), {
         "border-none bg-secondary text-secondary-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] hover:bg-secondary/80 aria-expanded:bg-secondary",
       ghost:
         "hover:bg-secondary hover:text-secondary-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+      // ghost, minus the base 1px transparent border (no layout-shift concern — never gets a real border)
+      "ghost-flat":
+        "border-none hover:bg-secondary hover:text-secondary-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
       destructive:
         "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
       link: "text-primary underline-offset-4 hover:underline",

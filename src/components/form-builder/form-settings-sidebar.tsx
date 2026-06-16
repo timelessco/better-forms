@@ -19,17 +19,19 @@ export const FormSettingsSidebar = ({ formId, isLocal }: FormSettingsSidebarProp
       // [font-variation-settings:normal] un-pins the global opsz20/wght450 so font-weight utils + Figma optical size apply
       className="size-full animate-in border-none duration-200 ease-out [font-variation-settings:normal] slide-in-from-right-[40%]"
     >
-      <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
+      <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pr-2 pb-2 pl-4">
         <div className="flex items-center justify-between">
-          <h2 className="pl-2.5 text-base font-normal text-foreground">Settings</h2>
+          <h2 className="text-sm leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
+            Settings
+          </h2>
           <Button
-            variant="ghost"
+            variant="ghost-flat"
             size="icon-xs"
-            className="size-7 text-muted-foreground hover:text-foreground"
+            className="size-7 rounded-lg p-1.25 text-gray-800 hover:text-foreground"
             onClick={closeSidebar}
             aria-label="Close"
           >
-            <XIcon className="size-4" />
+            <XIcon className="size-4.5" />
           </Button>
         </div>
       </SidebarHeader>

@@ -37,7 +37,7 @@ const LinearScaleField = ({ element, form }: FieldRendererProps<"LinearScale">) 
                       aria-label={stringValue}
                       onClick={() => f.handleChange(isSelected ? "" : stringValue)}
                       className={cn(
-                        "flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-[8px] px-2 text-sm tabular-nums elevation-sm transition-colors",
+                        "flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-[8px] px-2 text-[14px] tabular-nums elevation-sm transition-colors",
                         isSelected
                           ? "bg-primary text-primary-foreground"
                           : "bg-[var(--form-input-bg,var(--color-gray-50))] text-foreground hover:bg-secondary",

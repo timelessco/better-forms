@@ -40,7 +40,7 @@ const EmailField = ({ element, form, name }: FieldRendererProps<"Email">) => {
       <form.AppField name={fieldName}>
         {(f) => (
           <>
-            <f.Input {...inputProps} className="h-7 form-input pr-[8px] pl-[10px]" />
+            <f.Input {...inputProps} className="h-[30px] form-input pr-[8px] pl-[10px]" />
             <f.FieldError />
           </>
         )}
@@ -68,7 +68,7 @@ const EmailField = ({ element, form, name }: FieldRendererProps<"Email">) => {
             value={(f.state.value as string | undefined) ?? ""}
             fieldName={fieldName}
             store={store}
-            input={<f.Input {...inputProps} className="h-7 form-input pr-7 pl-[10px]" />}
+            input={<f.Input {...inputProps} className="h-[30px] form-input pr-7 pl-[10px]" />}
           />
           <f.FieldError />
         </>

@@ -339,7 +339,7 @@ const AuthLayout = () => {
   // lands in the authenticated chunk — public-form routes ($shortId, $slug, f/$formId) skip it.
   return (
     <HotkeysProvider defaultOptions={{ hotkey: { preventDefault: true } }}>
-      <SidebarProvider style={{ "--app-header-height": "40px" } as React.CSSProperties}>
+      <SidebarProvider style={{ "--app-header-height": "44px" } as React.CSSProperties}>
         <EditorHeaderVisibilityProvider enabled={isEditRoute}>
           <MinimalSidebarProvider>
             <AuthLayoutContent />
@@ -565,13 +565,13 @@ const AppSidebar = () => {
             onClose={closeInbox}
             headerLeft={
               <Button
-                variant="ghost"
+                variant="ghost-flat"
                 size="icon"
-                className="size-7 text-muted-foreground hover:text-foreground"
+                className="size-7 rounded-lg p-1.25 text-gray-800 hover:text-foreground"
                 onClick={closeInbox}
                 aria-label="Back"
               >
-                <ArrowLeftIcon className="size-4" />
+                <ArrowLeftIcon className="size-4.5" />
               </Button>
             }
           />
@@ -1297,13 +1297,13 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
             <h2 className="truncate pl-2.5 text-base text-foreground">Inbox</h2>
           </div>
           <Button
-            variant="ghost"
+            variant="ghost-flat"
             size="icon"
-            className="shrink-0 text-muted-foreground hover:text-foreground"
+            className="shrink-0 rounded-lg p-1.25 text-gray-800 hover:text-foreground"
             onClick={onClose}
             aria-label="Close"
           >
-            <XIcon className="size-4" />
+            <XIcon className="size-4.5" />
           </Button>
         </div>
       </SidebarHeader>

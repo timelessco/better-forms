@@ -1,13 +1,13 @@
-import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, SettingsIcon } from "@/components/ui/icons";
+import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import type { PlateElementProps } from "platejs/react";
 import { PlateElement, useEditorRef, useEditorSelector } from "platejs/react";
 import * as React from "react";
-import { Button } from "@/components/ui/button";
+import {
+  findNextFocusTarget,
+  findPrevFocusTarget,
+  goToFocusTarget,
+} from "@/components/editor/plugins/form-blocks-utils";
 import { cn } from "@/lib/utils";
-
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export type ButtonRole = "next" | "previous" | "submit";
 
@@ -57,125 +57,75 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
     (ed) => ed.children.some((node) => (node as { type?: string }).type === "pageBreak"),
     [],
   );
-  const [isOpen, setIsOpen] = React.useState(false);
 
   // Get label from element property (fallback to children for backwards compat)
   const label =
     (element.label as string) ??
     extractTextFromChildren(element.children as Array<{ text?: string }>);
 
-  // Local state for input - prevents re-render on every keystroke
+  // Inline-editable label: a native input (Slate ignores it — parent is contentEditable=false)
+  // edits element.label directly, the same property the transform reads first. Local state controls
+  // the input so it keeps the caret; synced back from the node on external changes (undo, etc.)
+  // while the input isn't focused.
+  const inputRef = React.useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = React.useState(label);
+  React.useEffect(() => {
+    if (document.activeElement !== inputRef.current) setInputValue(label);
+  }, [label]);
 
-  const displayText = label.trim() || placeholder;
-
-  const handleLabelChange = React.useCallback(
-    (newLabel: string) => {
+  const writeLabel = React.useCallback(
+    (next: string) => {
       const path = editor.api.findPath(element);
-      if (path) {
-        editor.tf.setNodes({ label: newLabel }, { at: path });
+      if (path) editor.tf.setNodes({ label: next }, { at: path });
+    },
+    [editor, element],
+  );
+
+  const handleChange = React.useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setInputValue(e.target.value);
+      writeLabel(e.target.value);
+    },
+    [writeLabel],
+  );
+
+  const handleKeyDown = React.useCallback(
+    (e: React.KeyboardEvent) => {
+      // Keep Plate's editor handlers off keys typed in the void node (incl. Backspace deleting it).
+      e.stopPropagation();
+      if (e.key === "Enter") {
+        e.preventDefault();
+        inputRef.current?.blur();
+        return;
+      }
+      // Tab joins the button into the editor tab order: Previous → action button → next page.
+      if (e.key === "Tab") {
+        const path = editor.api.findPath(element);
+        if (!path) return;
+        const target = e.shiftKey
+          ? findPrevFocusTarget(editor, path[0])
+          : findNextFocusTarget(editor, path[0]);
+        if (target) {
+          e.preventDefault();
+          goToFocusTarget(editor, target, e.shiftKey);
+        }
+        // No internal target (Tab forward off the final Submit, or a button with nothing focusable
+        // before it): leave preventDefault off so native Tab carries focus out to the surrounding
+        // UI instead of trapping it on the input (WCAG 2.1.2 — no keyboard trap).
       }
     },
     [editor, element],
   );
 
-  const saveAndClose = React.useCallback(() => {
-    handleLabelChange(inputValue);
-    setIsOpen(false);
-  }, [handleLabelChange, inputValue]);
+  // Stop pointer events from reaching Slate (cursor placement / block selection) so the input
+  // focuses normally. Don't preventDefault — that would block focus.
+  const stopPointer = React.useCallback((e: React.SyntheticEvent) => e.stopPropagation(), []);
 
-  const buttonLabelId = React.useId();
-
-  const handlePopoverOpenChange = React.useCallback(
-    (open: boolean) => {
-      if (open) setInputValue(label);
-      setIsOpen(open);
-    },
-    [label],
-  );
-
-  const handleGearMouseDown = React.useCallback((e: React.MouseEvent) => {
+  // Chrome (the py-2.5 gutter around the pill) shouldn't place a Slate caret on mousedown.
+  const handleChromeMouseDown = React.useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
   }, []);
-
-  const handleGearClick = React.useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsOpen(true);
-  }, []);
-
-  const handlePopoverMouseDown = React.useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-  }, []);
-
-  const handleInputChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
-  }, []);
-
-  const handleInputBlur = React.useCallback(() => {
-    handleLabelChange(inputValue);
-  }, [handleLabelChange, inputValue]);
-
-  const handleInputKeyDown = React.useCallback(
-    (e: React.KeyboardEvent) => {
-      e.stopPropagation();
-      if (e.key === "Enter") {
-        e.preventDefault();
-        saveAndClose();
-      }
-    },
-    [saveAndClose],
-  );
-
-  const handleInputMouseDown = React.useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-  }, []);
-
-  const handleInputClick = React.useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-  }, []);
-
-  const GearIcon = (
-    <Popover open={isOpen} onOpenChange={handlePopoverOpenChange}>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="size-7 opacity-0 group-hover:opacity-100"
-            aria-label="Button settings"
-            onMouseDown={handleGearMouseDown}
-            onClick={handleGearClick}
-          />
-        }
-      >
-        <SettingsIcon className="size-4 text-muted-foreground" />
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-64 border p-4"
-        side={isPrevious ? "right" : "left"}
-        align="start"
-        onMouseDown={handlePopoverMouseDown}
-      >
-        <div className="space-y-2">
-          <Label htmlFor={buttonLabelId} className="text-sm">
-            Button label
-          </Label>
-          <Input
-            id={buttonLabelId}
-            value={inputValue}
-            placeholder={placeholder}
-            onChange={handleInputChange}
-            onBlur={handleInputBlur}
-            onKeyDown={handleInputKeyDown}
-            onMouseDown={handleInputMouseDown}
-            onClick={handleInputClick}
-          />
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
 
   return (
     <PlateElement
@@ -185,35 +135,44 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
     >
       {/* Hidden children to maintain Slate structure */}
       <span className="hidden">{children}</span>
-      {/* Non-editable button visual - onMouseDown prevents cursor placement */}
       <div
         className={cn(
           "group inline-flex items-center gap-1 py-2.5",
           !isPrevious && isMultiStep && "ml-auto",
         )}
         contentEditable={false}
+        // presentation (not aria-hidden) keeps the inner input accessible while neutralizing the div.
         role="presentation"
-        aria-hidden="true"
-        onMouseDown={handleGearMouseDown}
+        onMouseDown={handleChromeMouseDown}
       >
-        {/* Gear icon on left when button is right-aligned (so button touches right edge) */}
-        {!isPrevious && isMultiStep && GearIcon}
-        <span
+        {/* <label> so a click anywhere on the pill (icons/padding) natively focuses the input;
+            stopPropagation (no preventDefault) lets that native focus through past the chrome guard. */}
+        <label
           data-bf-button={isPrevious ? undefined : ""}
+          onMouseDown={stopPointer}
           className={cn(
-            "inline-flex h-8 cursor-default items-center justify-center gap-1.5 rounded-lg px-2.5 text-sm transition-colors select-none",
+            "inline-flex h-8 cursor-text items-center justify-center gap-1.5 rounded-lg px-2.5 text-sm transition-colors select-none",
             isPrevious
               ? "border border-input bg-background text-foreground shadow-xs"
               : "bg-primary text-primary-foreground",
           )}
         >
           {isPrevious && <ChevronLeftIcon className="size-4" />}
-          <span>{displayText}</span>
+          <input
+            ref={inputRef}
+            value={inputValue}
+            placeholder={placeholder}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onMouseDown={stopPointer}
+            onPointerDown={stopPointer}
+            onClick={stopPointer}
+            aria-label="Button label"
+            className="field-sizing-content min-w-[2ch] cursor-text bg-transparent text-center text-inherit outline-none placeholder:text-current/60"
+          />
           {buttonRole === "submit" && <CheckIcon className="size-4" />}
           {buttonRole === "next" && <ChevronRightIcon className="size-4" />}
-        </span>
-        {/* Gear icon on right when button is left-aligned (so button touches left edge) */}
-        {(isPrevious || !isMultiStep) && GearIcon}
+        </label>
       </div>
     </PlateElement>
   );

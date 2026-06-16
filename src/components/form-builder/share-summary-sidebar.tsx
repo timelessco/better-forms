@@ -1,14 +1,7 @@
 import type { AnyFieldApi } from "@tanstack/react-form";
 import { useForm as useTanstackForm } from "@tanstack/react-form";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import {
-  CodeXmlIcon,
-  InfoIcon,
-  LinkIcon,
-  PlusIcon,
-  RocketIcon,
-  XIcon,
-} from "@/components/ui/icons";
+import { CodeXmlIcon, LinkIcon, PlusIcon, RocketIcon, XIcon } from "@/components/ui/icons";
 import { memo, useCallback, useMemo, useState } from "react";
 // eslint-disable-next-line react-doctor/no-flush-sync -- flushSync is required so the synchronous router navigation captures the field state update inside the same View Transition snapshot
 import { flushSync } from "react-dom";
@@ -45,7 +38,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { isValidUrl } from "@/lib/utils";
 import { startScopedViewTransition } from "@/lib/view-transition";
 import { EmbedCodeDialog, searchToFormValues, formValuesToSearch, tabs } from "./embed-section";
-import { EmbedPreviewMockup } from "./embed-preview-mockup";
+import {
+  EmbedFullPagePreview,
+  EmbedPreviewMockup,
+  EmbedStandardPreview,
+} from "./embed-preview-mockup";
 import type { FormSettings as FormSettingsType, PresentationMode } from "@/types/form-settings";
 
 // Memo'd at module scope so parent re-renders don't tear down subtrees. EmbedPreviewMockup takes only
@@ -414,17 +411,17 @@ interface ShareSidebarHeaderProps {
 }
 
 const ShareSidebarHeader = ({ isDraft, form, navigate, closeSidebar }: ShareSidebarHeaderProps) => (
-  <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
+  <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pr-2 pb-2 pl-4">
     <div className="flex items-center justify-between">
-      <h2 className="pl-2.5 text-base text-foreground">Share</h2>
+      <h2 className="text-sm leading-[1.15] font-medium tracking-[0.14px] text-gray-800">Share</h2>
       <Button
-        variant="ghost"
+        variant="ghost-flat"
         size="icon-xs"
-        className="size-7 text-muted-foreground hover:text-foreground"
+        className="size-7 rounded-lg p-1.25 text-gray-800 hover:text-foreground"
         onClick={closeSidebar}
         aria-label="Close"
       >
-        <XIcon className="size-4" />
+        <XIcon className="size-4.5" />
       </Button>
     </div>
 
@@ -451,7 +448,6 @@ const ShareSidebarHeader = ({ isDraft, form, navigate, closeSidebar }: ShareSide
               // Scoped: only "preview-content" cross-fades; the app sidebar/header stay static.
               startScopedViewTransition(update);
             }}
-            className="pl-1"
           >
             <TabsList className="w-full">
               {tabs.map((tab) => (
@@ -565,6 +561,13 @@ const PRESENTATION_LABELS: Record<PresentationMode, string> = {
   "field-by-field": "One at a time",
 };
 
+// Popup bubble corner — drives the preview mockup's getCornerPos/getBubblePos.
+const POSITION_LABELS: Record<string, string> = {
+  "bottom-right": "Bottom right",
+  "bottom-left": "Bottom left",
+  center: "Center",
+};
+
 // Shared across all tabs: Question layout (presentation mode) + Show progress bar.
 const PresentationRows = ({
   docPresentationMode,
@@ -606,13 +609,24 @@ const PresentationRows = ({
   </>
 );
 
+// Figma alert-circle (node 26068-6857): 14px glyph centered in a 16px frame, currentColor (gray-600).
+const FigInfoIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path
+      transform="translate(0.9668 0.9668)"
+      d="M7.0332 0C10.9175 7.03683e-05 14.0663 3.1489 14.0664 7.0332C14.0663 10.9175 10.9175 14.0663 7.0332 14.0664C3.1489 14.0663 7.03703e-05 10.9175 0 7.0332C7.03529e-05 3.1489 3.1489 7.03509e-05 7.0332 0ZM7.0332 1C3.70119 1.00007 1.00007 3.70119 1 7.0332C1.00007 10.3652 3.70119 13.0663 7.0332 13.0664C10.3652 13.0663 13.0663 10.3652 13.0664 7.0332C13.0663 3.70119 10.3652 1.00007 7.0332 1ZM7.0332 6.02441C7.30928 6.02441 7.5331 6.24836 7.5332 6.52441V9.86523C7.5332 10.1414 7.30935 10.3652 7.0332 10.3652C6.75706 10.3652 6.5332 10.1414 6.5332 9.86523V6.52441C6.53331 6.24836 6.75713 6.02441 7.0332 6.02441ZM7.0332 3.42871C7.46865 3.42871 7.82221 3.78136 7.82227 4.2168C7.82227 4.65228 7.46868 5.00586 7.0332 5.00586C6.59777 5.00581 6.24512 4.65225 6.24512 4.2168C6.24517 3.78139 6.5978 3.42876 7.0332 3.42871Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 // Muted info icon with a tooltip — used by the preference rows for inline help.
 const HintTooltip = ({ children }: { children: React.ReactNode }) => (
   <Tooltip>
     <TooltipTrigger
       render={
         <span className="inline-flex text-muted-foreground">
-          <InfoIcon className="size-4" />
+          <FigInfoIcon className="size-4" />
         </span>
       }
     />
@@ -658,12 +672,8 @@ const ProRows = ({
       </FeatureGate>
     </PreferenceRow>
 
-    <PreferenceRow
-      label="Track analytics"
-      hint={
-        <HintTooltip>Track form views, submissions, completion rates, and drop-offs.</HintTooltip>
-      }
-    >
+    {/* Figma hides the Track-analytics info icon on every share tab — no hint here. */}
+    <PreferenceRow label="Track analytics">
       <FeatureGate requiredPlan="pro">
         <Switch
           aria-label="Track analytics"
@@ -720,18 +730,28 @@ const FullPagePreferences = ({
   activeSlug,
   handleDomainAssigned,
   selectedDomainName,
-  customization,
 }: FullPagePreferencesProps) => (
   <div className="flex flex-col gap-4 px-4 pt-3">
-    <MemoEmbedPreviewMockup key="fullpage" embedType="fullpage" customization={customization} />
+    <EmbedFullPagePreview />
 
-    <SidebarSection label="Preferences" collapsible={false} divider={false}>
-      <PresentationRows
-        docPresentationMode={docPresentationMode}
-        docProgressBar={docProgressBar}
-        onModeChange={handlePresentationModeChange}
-        onProgressBarChange={handleProgressBarChange}
-      />
+    {/* Figma full-page Appearance: Question layout, Transparent background, Show progress bar. */}
+    <SidebarSection label="Appearance" collapsible={false}>
+      <PreferenceRow label="Question layout">
+        <Select
+          value={docPresentationMode}
+          onValueChange={(v) => {
+            if (v) handlePresentationModeChange(v as PresentationMode);
+          }}
+        >
+          <SelectTrigger className={selectTriggerFigmaCls}>
+            {PRESENTATION_LABELS[docPresentationMode]}
+          </SelectTrigger>
+          <SelectContent align="end">
+            <SelectItem value="card">All at once</SelectItem>
+            <SelectItem value="field-by-field">One at a time</SelectItem>
+          </SelectContent>
+        </Select>
+      </PreferenceRow>
 
       <form.Field name="transparentBackground">
         {(field: AnyFieldApi) => (
@@ -746,6 +766,17 @@ const FullPagePreferences = ({
         )}
       </form.Field>
 
+      <PreferenceRow label="Show progress bar">
+        <Switch
+          aria-label="Show progress bar"
+          checked={docProgressBar}
+          onCheckedChange={handleProgressBarChange}
+          size="default"
+        />
+      </PreferenceRow>
+    </SidebarSection>
+
+    <SidebarSection label="Preferences" collapsible={false} divider={false}>
       <ProRows
         docBranding={docBranding}
         onBrandingChange={handleBrandingChange}
@@ -800,7 +831,7 @@ const PopupTab = ({
       }}
     </form.Subscribe>
 
-    <SidebarSection label="Preferences" collapsible={false}>
+    <SidebarSection label="Flow" collapsible={false}>
       <PresentationRows
         docPresentationMode={docPresentationMode}
         docProgressBar={docProgressBar}
@@ -883,6 +914,30 @@ const PopupTab = ({
         )}
       </form.Field>
 
+      <form.Field name="popupPosition">
+        {(field: AnyFieldApi) => (
+          <PreferenceRow label="Position">
+            <Select
+              value={field.state.value}
+              onValueChange={(v) => {
+                if (v) field.handleChange(v);
+              }}
+            >
+              <SelectTrigger className={selectTriggerFigmaCls}>
+                {POSITION_LABELS[field.state.value] ?? field.state.value}
+              </SelectTrigger>
+              <SelectContent align="end">
+                {Object.entries(POSITION_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </PreferenceRow>
+        )}
+      </form.Field>
+
       <form.Field name="hideOnSubmit">
         {(field: AnyFieldApi) => (
           <PreferenceRow label="Hide on submit">
@@ -917,9 +972,7 @@ const PopupTab = ({
 // Embed (standard iframe) tab — inline preview + Appearance + Preferences flat sections.
 const EmbedTab = ({
   form,
-  docPresentationMode,
   docProgressBar,
-  handlePresentationModeChange,
   handleProgressBarChange,
   docBranding,
   handleBrandingChange,
@@ -931,31 +984,30 @@ const EmbedTab = ({
   activeSlug,
   handleDomainAssigned,
   selectedDomainName,
-  customization,
 }: FullPagePreferencesProps) => (
   <div className="flex flex-col gap-4 px-4 pt-3">
-    <form.Subscribe selector={selectValues}>
-      {(values: ReturnType<typeof searchToFormValues>) => (
-        <MemoEmbedPreviewMockup
-          key="standard"
-          embedType="standard"
-          alignLeft={formFieldsToEmbedOptions(values).display.alignment === "left"}
-          customization={customization}
-        />
-      )}
-    </form.Subscribe>
-
-    <SidebarSection label="Preferences" collapsible={false}>
-      <PresentationRows
-        docPresentationMode={docPresentationMode}
-        docProgressBar={docProgressBar}
-        onModeChange={handlePresentationModeChange}
-        onProgressBarChange={handleProgressBarChange}
-      />
-    </SidebarSection>
+    <EmbedStandardPreview />
 
     <SidebarSection label="Appearance" collapsible={false}>
-      {/* Manual height collapses while Dynamic height is on, matching the Figma hidden-row state. */}
+      <form.Field name="dynamicHeight">
+        {(field: AnyFieldApi) => (
+          <PreferenceRow
+            label="Dynamic height"
+            hint={
+              <HintTooltip>Resize the embed automatically to fit the form's height.</HintTooltip>
+            }
+          >
+            <Switch
+              aria-label="Dynamic height"
+              checked={field.state.value}
+              onCheckedChange={field.handleChange}
+              size="default"
+            />
+          </PreferenceRow>
+        )}
+      </form.Field>
+
+      {/* Manual Height shows directly below Dynamic height while it's off (Figma order). */}
       <form.Subscribe selector={selectDynamicHeight}>
         {(dynamicHeight: boolean) =>
           dynamicHeight ? null : (
@@ -974,24 +1026,6 @@ const EmbedTab = ({
           )
         }
       </form.Subscribe>
-
-      <form.Field name="dynamicHeight">
-        {(field: AnyFieldApi) => (
-          <PreferenceRow
-            label="Dynamic height"
-            hint={
-              <HintTooltip>Resize the embed automatically to fit the form's height.</HintTooltip>
-            }
-          >
-            <Switch
-              aria-label="Dynamic height"
-              checked={field.state.value}
-              onCheckedChange={field.handleChange}
-              size="default"
-            />
-          </PreferenceRow>
-        )}
-      </form.Field>
 
       <form.Field name="hideTitle">
         {(field: AnyFieldApi) => (
@@ -1018,6 +1052,15 @@ const EmbedTab = ({
           </PreferenceRow>
         )}
       </form.Field>
+
+      <PreferenceRow label="Show progress bar">
+        <Switch
+          aria-label="Show progress bar"
+          checked={docProgressBar}
+          onCheckedChange={handleProgressBarChange}
+          size="default"
+        />
+      </PreferenceRow>
     </SidebarSection>
 
     <SidebarSection label="Preferences" collapsible={false} divider={false}>
@@ -1054,7 +1097,6 @@ const CustomDomainRow = ({
   orgId,
   formId,
   customDomainId,
-  formSlug,
   onDomainAssigned,
   selectedDomainName,
 }: CustomDomainRowProps) => {
@@ -1093,11 +1135,6 @@ const CustomDomainRow = ({
     [assignDomain],
   );
 
-  const displayUrl =
-    selectedDomainName && formSlug
-      ? `https://${selectedDomainName}/${formSlug}`
-      : (selectedDomainName ?? null);
-
   return (
     <div className="flex h-7 items-center gap-3">
       <span className="shrink-0 font-case text-[14px] font-normal text-muted-foreground">
@@ -1106,8 +1143,18 @@ const CustomDomainRow = ({
       <div className="flex min-w-0 flex-1 justify-end">
         <FeatureGate requiredPlan="pro">
           <Select value={customDomainId ?? ""} onValueChange={handleValueChange} disabled={!orgId}>
-            <SelectTrigger className="h-7 max-w-full gap-1.5 border-none bg-transparent px-0 py-0 text-[14px] font-medium text-foreground shadow-none">
-              <span className="truncate">{displayUrl ?? "Add domain"}</span>
+            <SelectTrigger
+              className="h-7 max-w-full gap-1.5 border-none bg-transparent px-0 py-0 text-[14px] font-medium shadow-none"
+              icon={selectedDomainName ? undefined : <span className="hidden" />}
+            >
+              {selectedDomainName ? (
+                <span className="truncate text-foreground">{selectedDomainName}</span>
+              ) : (
+                <span className="flex items-center gap-1.5 font-[450] text-gray-700">
+                  <PlusIcon className="size-4" />
+                  Add Domain
+                </span>
+              )}
             </SelectTrigger>
             <SelectContent align="end" alignItemWithTrigger={false}>
               <SelectItem value={ADD_DOMAIN_VALUE} className="text-primary">
@@ -1138,9 +1185,10 @@ const ShareSidebarFooter = ({
   <SidebarFooter className="flex-row gap-2 px-4 pt-0 pb-3.5">
     <CopyButton
       text={shareUrl}
-      variant="ghost"
+      variant="ghost-flat"
       size="sm"
       prefix={<LinkIcon className="size-4" />}
+      // ghost-flat = ghost minus the 1px border, so the box matches the border-none primary Get Code.
       className="w-30 justify-center text-[14px] font-medium text-foreground"
     >
       Copy Link

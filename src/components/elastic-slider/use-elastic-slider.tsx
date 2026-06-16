@@ -503,9 +503,10 @@ export const useElasticSlider = ({
   }, [label, displayValue]);
 
   const valueDodge = percentage < dodge.left || percentage > dodge.right;
-  // Figma rest states: a faint 2px sliver at the left edge in Auto; fades when it would
-  // collide with the label or value text, fully visible in between.
-  const handleOpacity = isAuto ? 0.35 : valueDodge ? 0.15 : 1;
+  // Figma: in Auto the handle is a solid gray/300 sliver at the left edge (light color carries the
+  // "faint" look, not opacity); once a value is set it's gray/500 and fades only when it would
+  // collide with the label/value text (see `dimmed` in SliderHandle for the color switch).
+  const handleOpacity = isAuto ? 1 : valueDodge ? 0.15 : 1;
 
   const discreteSteps = (max - min) / step;
   const hashMarkCount = discreteSteps <= 10 ? discreteSteps - 1 : 9;

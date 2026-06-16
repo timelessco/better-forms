@@ -14,13 +14,13 @@ export const AboutSidebar = ({ onClose }: AboutSidebarProps) => (
     <div className="flex h-10 shrink-0 items-center justify-between border-b border-border/40 px-3">
       <span className="text-[13px]">About</span>
       <Button
-        variant="ghost"
+        variant="ghost-flat"
         size="icon"
-        className="size-7 text-muted-foreground hover:text-foreground"
+        className="size-7 rounded-lg p-1.25 text-gray-800 hover:text-foreground"
         onClick={onClose}
         aria-label="Close"
       >
-        <XIcon className="size-4" />
+        <XIcon className="size-4.5" />
       </Button>
     </div>
     <ScrollArea className="flex-1">

@@ -101,7 +101,7 @@ const MatrixField = ({ element, form }: FieldRendererProps<"Matrix">) => {
                     )}
                     style={{ gridTemplateColumns }}
                   >
-                    <span role="rowheader" className="px-3 py-2 text-sm text-foreground">
+                    <span role="rowheader" className="px-3 py-2 text-[14px] text-foreground">
                       {row.label}
                     </span>
                     {columns.map((col) => {

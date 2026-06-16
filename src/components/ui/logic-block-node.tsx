@@ -33,10 +33,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  findNextNonButtonPath,
-  findPrevNonButtonPath,
+  findNextFocusTarget,
+  findPrevFocusTarget,
+  goToFocusTarget,
   insertParagraphAfterPath,
-  moveToPath,
 } from "@/components/editor/plugins/form-blocks-utils";
 import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
 import { operatorNeedsOperand, operatorsForFieldType, OPERATOR_LABELS } from "@/lib/logic/labels";
@@ -376,7 +376,7 @@ const RowMenu = ({ items, ariaLabel }: { items: RowMenuItem[]; ariaLabel: string
       aria-label={ariaLabel}
       className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <MoreHorizontalIcon className="size-4" />
+      <MoreHorizontalIcon className="size-[18px]" />
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="w-[246px]">
       {items.map((item) => (
@@ -820,12 +820,12 @@ export const LogicBlockElement = (props: PlateElementProps) => {
       event.preventDefault();
       event.stopPropagation();
       const goPrev = event.key === "ArrowUp" || (isTab && event.shiftKey);
+      // Focus targets include the page's buttons (editable label) now.
       const target = goPrev
-        ? findPrevNonButtonPath(editor, path)
-        : findNextNonButtonPath(editor, path);
+        ? findPrevFocusTarget(editor, path[0])
+        : findNextFocusTarget(editor, path[0]);
       if (target) {
-        moveToPath(editor, target);
-        editor.tf.focus();
+        goToFocusTarget(editor, target, goPrev);
         return;
       }
       // No block below (logic block is last before the submit button) - create an
