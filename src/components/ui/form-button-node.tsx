@@ -99,15 +99,19 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
         return;
       }
       // Tab joins the button into the editor tab order: Previous → action button → next page.
-      // preventDefault always — the final Submit (no page after) has no target, so Tab just stays.
       if (e.key === "Tab") {
-        e.preventDefault();
         const path = editor.api.findPath(element);
         if (!path) return;
         const target = e.shiftKey
           ? findPrevFocusTarget(editor, path[0])
           : findNextFocusTarget(editor, path[0]);
-        if (target) goToFocusTarget(editor, target, e.shiftKey);
+        if (target) {
+          e.preventDefault();
+          goToFocusTarget(editor, target, e.shiftKey);
+        }
+        // No internal target (Tab forward off the final Submit, or a button with nothing focusable
+        // before it): leave preventDefault off so native Tab carries focus out to the surrounding
+        // UI instead of trapping it on the input (WCAG 2.1.2 — no keyboard trap).
       }
     },
     [editor, element],
