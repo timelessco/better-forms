@@ -76,10 +76,13 @@ function PhoneInput({
         // both inner pieces stay transparent. Surface uses --form-input-bg (same as form-input util)
         // for theme consistency. [&]: bumps specificity past react-phone-number-input's defaults.
         className={cn(
+          // min-h (not fixed h): the inner pieces carry the themed --bf-input-height (via
+          // [data-bf-input-fill]); the wrapper hugs them so a customized input height grows the
+          // surface instead of overflowing it (overflow-hidden was clipping the text — #broken).
           "flex flex-row items-stretch overflow-hidden rounded-lg text-foreground elevation-sm dark:shadow-none [&]:bg-[var(--form-input-bg,var(--color-gray-50))]",
-          phoneInputSize === "sm" && "[&]:h-7",
-          phoneInputSize === "lg" && "[&]:h-9",
-          phoneInputSize === "default" && "[&]:h-8",
+          phoneInputSize === "sm" && "[&]:min-h-7",
+          phoneInputSize === "lg" && "[&]:min-h-9",
+          phoneInputSize === "default" && "[&]:min-h-8",
           props["aria-invalid"] &&
             "**:data-[slot=input-group]:ring-1 **:data-[slot=input-group]:ring-destructive",
           className,
