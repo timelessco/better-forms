@@ -171,11 +171,14 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
   const [view, setView] = React.useState<string | null>(null);
   // Slide axis: panels enter from the trigger's chevron side (+1); back reverses (-1).
   const [direction, setDirection] = React.useState(1);
-  // Side the popup actually rendered on, frozen right after open. View morphs resize the popup
-  // and Base UI re-runs collision logic on every resize — without the lock a menu flipped above
-  // the anchor snaps below it when a shorter panel opens. Locking the side keeps the popup
-  // hugging the anchor (same gap), growing away from it.
+  // Side + align the popup actually rendered on, frozen right after open. View morphs resize the
+  // popup and Base UI re-runs collision logic on every resize — without the lock a menu flipped
+  // above the anchor snaps below it when a shorter panel opens. Locking BOTH axes keeps the popup
+  // hugging the anchor (same gap), growing away from it. Align must lock too: the drag handle sits
+  // in the left gutter, so collision flips align end→start to fit; without locking that flip the
+  // lock reverts align to the prop ("end") and the popup clips off the left edge.
   const [lockedSide, setLockedSide] = React.useState<"top" | "bottom" | null>(null);
+  const [lockedAlign, setLockedAlign] = React.useState<"start" | "center" | "end" | null>(null);
   const [bulkInsert, setBulkInsert] = React.useState<{ at: number; variant: string } | null>(null);
   const blockMenuTriggerRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -202,6 +205,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     setView(null);
     setBulkInsert(null);
     setLockedSide(null);
+    setLockedAlign(null);
   }
 
   const handlers = useBlockMenuFieldHandlers({
@@ -380,14 +384,16 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
     [view, changeView],
   );
 
-  // Read which side Base UI settled on one frame after open, then lock it for the session.
+  // Read which side + align Base UI settled on one frame after open (after collision flips), then
+  // lock both for the session so view-morph resizes can't re-flip the popup around the anchor.
   React.useEffect(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => {
-      const side = document
-        .querySelector('[data-slot="dropdown-menu-content"]')
-        ?.getAttribute("data-side");
+      const el = document.querySelector('[data-slot="dropdown-menu-content"]');
+      const side = el?.getAttribute("data-side");
+      const align = el?.getAttribute("data-align");
       if (side === "top" || side === "bottom") setLockedSide(side);
+      if (align === "start" || align === "center" || align === "end") setLockedAlign(align);
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
@@ -484,10 +490,10 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
             anchor={virtualAnchor}
             className={themeReanchor.className}
             style={themeReanchor.style}
-            // Pre-lock: collision-aware placement off the click point. Locked: keep the settled
-            // side with avoidance off, so view morphs grow away from the anchor instead of
-            // flipping the popup around it.
-            align="end"
+            // Pre-lock: collision-aware placement off the click point (flips side AND align to fit).
+            // Locked: keep the settled side + align with avoidance off, so view morphs grow away
+            // from the anchor instead of flipping the popup around it.
+            align={lockedAlign ?? "end"}
             side={lockedSide ?? "bottom"}
             sideOffset={8}
             collisionAvoidance={
@@ -2018,7 +2024,7 @@ const NumberFieldMenu = () => (
 );
 
 // Linear scale "Scale" panel (Figma 25634-17867): dual-handle slider sets the scale's
-// Start/End within the allowed bounds; the values below echo the current selection.
+// Start/End within the allowed bounds; the end labels show those bounds (-10 … 10).
 const ScaleRange = () => (
   <SubmenuRow
     icon={<IconLinearScale className="text-foreground/80" />}
@@ -2062,9 +2068,10 @@ const ScaleRangePanel = () => {
           if (b > a) actions.setScaleRange(a, b);
         }}
       />
+      {/* Figma (25634-17867): the end labels show the slider bounds (-10 … 10), not the selection. */}
       <div className="flex items-center justify-between text-[12px] text-muted-foreground tabular-nums">
-        <span>{range[0]}</span>
-        <span>{range[1]}</span>
+        <span>{LINEAR_SCALE_BOUNDS.min}</span>
+        <span>{LINEAR_SCALE_BOUNDS.max}</span>
       </div>
     </PanelBody>
   );
