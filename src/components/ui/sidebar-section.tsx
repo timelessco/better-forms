@@ -128,8 +128,10 @@ const FlatCollapsibleSection = ({
   "label" | "children" | "action" | "headerRight" | "divider" | "initialOpen" | "className"
 >) => {
   const [open, setOpen] = useState(initialOpen);
+  // Figma divider frame (node 25424-12791) = 8px tall, hairline centered → 4px above/below the line.
+  // Paired with the parent's 16px section gap, the line lands 20px from content and 20px from the next header.
   return (
-    <div className={cn("flex flex-col gap-4 pb-4", divider && "border-b border-border")}>
+    <div className={cn("flex flex-col gap-4 pb-5", divider && "border-b border-border")}>
       <div className="flex min-h-[15px] items-center gap-3">
         <button
           type="button"

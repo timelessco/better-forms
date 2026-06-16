@@ -368,7 +368,7 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
       <CustomizeSidebarHeader closeSidebar={closeSidebar} />
 
       <SidebarContent>
-        <div className="flex flex-col gap-4 px-4 pt-3 pb-3.5">
+        <div className="flex flex-col gap-5 px-4 pt-3 pb-3.5">
           <AppearanceSection
             customization={customization}
             coverImage={coverImage}
