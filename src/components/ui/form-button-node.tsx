@@ -2,6 +2,11 @@ import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/ic
 import type { PlateElementProps } from "platejs/react";
 import { PlateElement, useEditorRef, useEditorSelector } from "platejs/react";
 import * as React from "react";
+import {
+  findNextFocusTarget,
+  findPrevFocusTarget,
+  goToFocusTarget,
+} from "@/components/editor/plugins/form-blocks-utils";
 import { cn } from "@/lib/utils";
 
 export type ButtonRole = "next" | "previous" | "submit";
@@ -84,14 +89,29 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
     [writeLabel],
   );
 
-  const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
-    // Keep Plate's editor handlers off keys typed in the void node (incl. Backspace deleting it).
-    e.stopPropagation();
-    if (e.key === "Enter") {
-      e.preventDefault();
-      inputRef.current?.blur();
-    }
-  }, []);
+  const handleKeyDown = React.useCallback(
+    (e: React.KeyboardEvent) => {
+      // Keep Plate's editor handlers off keys typed in the void node (incl. Backspace deleting it).
+      e.stopPropagation();
+      if (e.key === "Enter") {
+        e.preventDefault();
+        inputRef.current?.blur();
+        return;
+      }
+      // Tab joins the button into the editor tab order: Previous → action button → next page.
+      // preventDefault always — the final Submit (no page after) has no target, so Tab just stays.
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const path = editor.api.findPath(element);
+        if (!path) return;
+        const target = e.shiftKey
+          ? findPrevFocusTarget(editor, path[0])
+          : findNextFocusTarget(editor, path[0]);
+        if (target) goToFocusTarget(editor, target, e.shiftKey);
+      }
+    },
+    [editor, element],
+  );
 
   // Stop pointer events from reaching Slate (cursor placement / block selection) so the input
   // focuses normally. Don't preventDefault — that would block focus.

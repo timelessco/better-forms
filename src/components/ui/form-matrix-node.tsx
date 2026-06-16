@@ -5,10 +5,10 @@ import { PlateElement, useEditorRef } from "platejs/react";
 import * as React from "react";
 
 import {
-  findNextNonButtonPath,
-  findPrevNonButtonPath,
+  findNextFocusTarget,
+  findPrevFocusTarget,
+  goToFocusTarget,
   insertParagraphAfterPath,
-  moveToPath,
 } from "@/components/editor/plugins/form-blocks-utils";
 import { BlockSelection } from "@/components/ui/block-selection";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -130,24 +130,16 @@ export const FormMatrixElement = ({ children, ...props }: PlateElementProps) => 
     const path = editor.api.findPath(element);
     if (!path) return;
     const goPrev = delta === -1;
+    // Focus targets include the page's buttons now; goToFocusTarget handles button inputs, the
+    // Slate caret, and landing inside a neighbouring matrix's own inputs.
     const target = goPrev
-      ? findPrevNonButtonPath(editor, path)
-      : findNextNonButtonPath(editor, path);
+      ? findPrevFocusTarget(editor, path[0])
+      : findNextFocusTarget(editor, path[0]);
     if (target) {
-      moveToPath(editor, target);
-      editor.tf.focus();
-      // If the neighbour is another matrix, land inside its inputs (mirrors NavigationPlugin).
-      const targetNode = editor.api.node(target)?.[0] as TElement | undefined;
-      if (targetNode?.type === "formMatrix") {
-        const fieldInputs = editor.api.toDOMNode(targetNode)?.querySelectorAll("input");
-        if (fieldInputs && fieldInputs.length > 0) {
-          const input = goPrev ? fieldInputs[fieldInputs.length - 1] : fieldInputs[0];
-          setTimeout(() => input.focus(), 0);
-        }
-      }
+      goToFocusTarget(editor, target, goPrev);
       return;
     }
-    // No next field (matrix is the last block before Submit) → create a new block after it.
+    // Nothing focusable after (shouldn't happen — pages always end in a button) → add a block.
     if (!goPrev) {
       const at = insertParagraphAfterPath(editor, path);
       setTimeout(() => {

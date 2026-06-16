@@ -15,8 +15,11 @@ import { FormRatingElement } from "@/components/ui/form-rating-node";
 import { FormSignatureElement } from "@/components/ui/form-signature-node";
 import { FormOptionItemElement } from "@/components/ui/form-option-item-node";
 import {
+  findNextFocusTarget,
   findNextNonButtonPath,
+  findPrevFocusTarget,
   findPrevNonButtonPath,
+  goToFocusTarget,
   insertParagraphAfterPath,
   moveToPath,
 } from "@/components/editor/plugins/form-blocks-utils";
@@ -971,24 +974,15 @@ const NavigationPlugin = createPlatePlugin({
       event.nativeEvent.stopImmediatePropagation();
 
       const goPrev = event.key === "ArrowUp" || (event.key === "Tab" && event.shiftKey);
+      // Focus targets INCLUDE form buttons now (editable label) — Tab from the last field lands on
+      // the page's button(s) before crossing to the next page; goToFocusTarget focuses a button's
+      // native input or a field's Slate caret (matrix void → first/last input).
       const target = goPrev
-        ? findPrevNonButtonPath(editor, path)
-        : findNextNonButtonPath(editor, path);
+        ? findPrevFocusTarget(editor, path[0])
+        : findNextFocusTarget(editor, path[0]);
 
       if (target) {
-        moveToPath(editor, target);
-        editor.tf.focus();
-        // Matrix is a void node authored via native label inputs — land focus inside it
-        // (first input forward, last input on Shift+Tab) so Tab traverses the whole field.
-        const targetNode = editor.api.node(target)?.[0] as TElement | undefined;
-        if (targetNode?.type === "formMatrix") {
-          const dom = editor.api.toDOMNode(targetNode);
-          const fieldInputs = dom?.querySelectorAll("input");
-          if (fieldInputs && fieldInputs.length > 0) {
-            const input = goPrev ? fieldInputs[fieldInputs.length - 1] : fieldInputs[0];
-            setTimeout(() => input.focus(), 0);
-          }
-        }
+        goToFocusTarget(editor, target, goPrev);
         return;
       }
 

@@ -13,8 +13,10 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
-  findNextNonButtonPath,
+  findNextFocusTarget,
+  findPrevFocusTarget,
   findPrevNonButtonPath,
+  goToFocusTarget,
   moveToPath,
 } from "@/components/editor/plugins/form-blocks-utils";
 import { BlockSelection } from "@/components/ui/block-selection";
@@ -298,13 +300,9 @@ const OptionChipsRow = ({ children, ...props }: PlateElementProps) => {
     const { start, end } = collect();
     if (start < 0) return;
     inputRef.current?.blur();
-    const target = goPrev
-      ? findPrevNonButtonPath(editor, [start])
-      : findNextNonButtonPath(editor, [end]);
-    if (target) {
-      moveToPath(editor, target);
-      editor.tf.focus();
-    }
+    // Focus targets include the page's buttons (editable label) now.
+    const target = goPrev ? findPrevFocusTarget(editor, start) : findNextFocusTarget(editor, end);
+    if (target) goToFocusTarget(editor, target, goPrev);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

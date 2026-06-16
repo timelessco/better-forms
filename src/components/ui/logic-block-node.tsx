@@ -33,10 +33,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  findNextNonButtonPath,
-  findPrevNonButtonPath,
+  findNextFocusTarget,
+  findPrevFocusTarget,
+  goToFocusTarget,
   insertParagraphAfterPath,
-  moveToPath,
 } from "@/components/editor/plugins/form-blocks-utils";
 import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
 import { operatorNeedsOperand, operatorsForFieldType, OPERATOR_LABELS } from "@/lib/logic/labels";
@@ -820,12 +820,12 @@ export const LogicBlockElement = (props: PlateElementProps) => {
       event.preventDefault();
       event.stopPropagation();
       const goPrev = event.key === "ArrowUp" || (isTab && event.shiftKey);
+      // Focus targets include the page's buttons (editable label) now.
       const target = goPrev
-        ? findPrevNonButtonPath(editor, path)
-        : findNextNonButtonPath(editor, path);
+        ? findPrevFocusTarget(editor, path[0])
+        : findNextFocusTarget(editor, path[0]);
       if (target) {
-        moveToPath(editor, target);
-        editor.tf.focus();
+        goToFocusTarget(editor, target, goPrev);
         return;
       }
       // No block below (logic block is last before the submit button) - create an
