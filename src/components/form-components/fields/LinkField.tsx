@@ -16,7 +16,7 @@ const LinkField = ({ element, form, name }: FieldRendererProps<"Link">) => {
             inputMode="url"
             aria-label={getAriaLabelFallback(element)}
             aria-labelledby={isArrayItem ? fieldLabelId(element.name) : getAriaLabelledBy(element)}
-            className="h-7 form-input pr-[8px] pl-[10px]"
+            className="h-[30px] form-input pr-[8px] pl-[10px]"
           />
           <f.FieldError />
         </>

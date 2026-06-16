@@ -22,6 +22,7 @@ import {
   PhotoIcon,
   RepeatIcon,
   RequiredFieldIcon,
+  ScaleAnchorIcon,
   SearchLineIcon,
   SelectionLimitIcon,
   ShuffleOptionsIcon,
@@ -2046,7 +2047,7 @@ const ScaleRangePanel = () => {
   }, [nodeMin, nodeMax]);
   return (
     <PanelBody>
-      <div className="flex items-center justify-between text-[14px] font-medium text-foreground">
+      <div className="flex items-center justify-between text-[14px] font-medium tracking-[0.21px] text-foreground">
         <span>Start</span>
         <span>End</span>
       </div>
@@ -2069,7 +2070,7 @@ const ScaleRangePanel = () => {
         }}
       />
       {/* Figma (25634-17867): the end labels show the slider bounds (-10 … 10), not the selection. */}
-      <div className="flex items-center justify-between text-[12px] text-muted-foreground tabular-nums">
+      <div className="flex items-center justify-between text-[12px] tracking-[0.24px] text-gray-700 tabular-nums">
         <span>{LINEAR_SCALE_BOUNDS.min}</span>
         <span>{LINEAR_SCALE_BOUNDS.max}</span>
       </div>
@@ -2100,9 +2101,23 @@ const ScaleStepPanel = () => {
     typeof rawStep === "number" && rawStep > 0 ? rawStep : LINEAR_SCALE_DEFAULTS.step;
   // Local state for smooth dragging (see ScaleRange); persist on release.
   const [step, setStep] = React.useState(nodeStep);
+  // Draft holds in-progress typing (incl. empty / below-min) so we don't fight the user mid-edit.
+  const [draft, setDraft] = React.useState<string | null>(null);
   React.useEffect(() => {
     setStep(nodeStep);
   }, [nodeStep]);
+
+  // Clamp to [stepMin, stepMax] and persist. Typed values hard-cap to stepMax (never > 10); min is
+  // enforced here so an interim empty/0 can be typed and settles up on blur.
+  const commitStep = (n: number) => {
+    const clamped = Math.max(LINEAR_SCALE_BOUNDS.stepMin, Math.min(LINEAR_SCALE_BOUNDS.stepMax, n));
+    setStep(clamped);
+    actions.setScaleStep(clamped);
+    setDraft(null);
+  };
+
+  const display = draft ?? String(step);
+
   return (
     <PanelBody>
       <div className="flex items-center gap-2.5">
@@ -2117,12 +2132,42 @@ const ScaleStepPanel = () => {
           onPointerDown={stopMouseEventPropagation}
           // base-ui hands back a bare number for a single-thumb slider (collision resolver treats
           // length-1 as non-range) but an array elsewhere — normalize both.
-          onValueChange={(value) => setStep(readSliderValue(value))}
+          onValueChange={(value) => {
+            setDraft(null);
+            setStep(readSliderValue(value));
+          }}
           onValueCommitted={(value) => actions.setScaleStep(readSliderValue(value))}
         />
-        <div className="flex w-12 items-center justify-center rounded-lg bg-(--color-gray-alpha-100) px-2 py-1.5 text-[14px] font-medium text-foreground tabular-nums">
-          {step}
-        </div>
+        <input
+          type="number"
+          aria-label="Scale step value"
+          min={LINEAR_SCALE_BOUNDS.stepMin}
+          max={LINEAR_SCALE_BOUNDS.stepMax}
+          value={display}
+          onClick={stopMouseEventPropagation}
+          onPointerDown={stopMouseEventPropagation}
+          onChange={(e) => {
+            const raw = e.target.value.replace(/[^0-9]/g, "");
+            if (raw === "") {
+              setDraft("");
+              return;
+            }
+            // Hard cap to stepMax so the box can never show a number greater than 10.
+            const n = Math.min(LINEAR_SCALE_BOUNDS.stepMax, Number.parseInt(raw, 10));
+            if (n >= LINEAR_SCALE_BOUNDS.stepMin) commitStep(n);
+            else setDraft(String(n));
+          }}
+          onBlur={() => {
+            const n = Number.parseInt(draft ?? String(step), 10);
+            commitStep(Number.isNaN(n) ? LINEAR_SCALE_BOUNDS.stepMin : n);
+          }}
+          onKeyDown={(e) => {
+            // Stop the menu from swallowing keystrokes (typeahead nav) so the box is typeable.
+            stopKeyEventPropagation(e);
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          className="w-12 [appearance:textfield] rounded-lg bg-(--color-gray-alpha-100) px-2 py-1.5 text-center text-[14px] font-medium text-foreground tabular-nums outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
       </div>
     </PanelBody>
   );
@@ -2131,7 +2176,7 @@ const ScaleStepPanel = () => {
 // Linear scale "Add Anchor" (Figma 25634-16937 / 26153-13445): Left/Center/Right labels
 // rendered under the scale tiles (e.g. Bad … Good).
 const AddAnchor = () => (
-  <SubmenuRow icon={<ConditionalLogicIcon />} label="Add Anchor" view="scale-anchor" />
+  <SubmenuRow icon={<ScaleAnchorIcon />} label="Scale Anchor" view="scale-anchor" />
 );
 
 const ANCHOR_ROWS = [

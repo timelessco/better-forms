@@ -17,7 +17,7 @@ const InputField = ({ element, form, name }: FieldRendererProps<"Input">) => {
             autoComplete={guessAutocomplete(element)}
             aria-label={getAriaLabelFallback(element)}
             aria-labelledby={isArrayItem ? fieldLabelId(element.name) : getAriaLabelledBy(element)}
-            className="h-7 form-input pr-[8px] pl-[10px]"
+            className="h-[30px] form-input pr-[8px] pl-[10px]"
           />
           <f.FieldError />
         </>

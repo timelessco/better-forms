@@ -1,7 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import type { FieldType } from "./fields/shared";
 
-const InputSkeleton = () => <Skeleton className="h-7 w-full rounded-[8px]" />;
+const InputSkeleton = () => <Skeleton className="h-[30px] w-full rounded-[8px]" />;
 
 const TextareaSkeleton = () => <Skeleton className="h-24 w-full rounded-[8px]" />;
 

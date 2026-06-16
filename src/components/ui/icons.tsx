@@ -531,6 +531,26 @@ export const CharacterLimitIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 /** Add conditional logic — branching connector with two nodes. */
+// Figma system-flat "Scale Anchor" glyph (node 26153-13541): anchor — dot, stem, arc.
+export const ScaleAnchorIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M8 5.5C9.01253 5.5 9.83333 4.67919 9.83333 3.66667C9.83333 2.65415 9.01253 1.83333 8 1.83333C6.98747 1.83333 6.16667 2.65415 6.16667 3.66667C6.16667 4.67919 6.98747 5.5 8 5.5ZM8 5.5V14M12 8H14.1667C14.1667 11.4057 11.4057 14.1667 8 14.1667C4.59425 14.1667 1.83333 11.4057 1.83333 8H4"
+      stroke="currentColor"
+      strokeWidth="var(--stroke-width)"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 export const ConditionalLogicIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
     width="16"

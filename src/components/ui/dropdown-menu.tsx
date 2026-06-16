@@ -88,7 +88,7 @@ export const DropdownMenuItem = ({
     data-inset={inset}
     data-variant={variant}
     className={cn(
-      "group/dropdown-menu-item relative flex h-[26px] cursor-default items-center gap-1.5 rounded-lg px-2 py-[5.5px] text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-inset:ps-7 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-[variant=destructive]:*:[svg]:text-destructive",
+      "group/dropdown-menu-item relative flex h-[26px] cursor-default items-center gap-1.5 rounded-lg px-2 py-[5.5px] text-sm outline-hidden select-none focus:bg-secondary focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-inset:ps-7 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-[variant=destructive]:*:[svg]:text-destructive",
       className,
     )}
     {...props}
@@ -111,7 +111,7 @@ export const DropdownMenuSubTrigger = ({
     data-slot="dropdown-menu-sub-trigger"
     data-inset={inset}
     className={cn(
-      "flex h-[26px] cursor-default items-center gap-1.5 rounded-lg px-2 py-[5.5px] text-base outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-popup-open:bg-accent data-popup-open:text-accent-foreground data-open:bg-accent data-open:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+      "flex h-[26px] cursor-default items-center gap-1.5 rounded-lg px-2 py-[5.5px] text-base outline-hidden select-none focus:bg-secondary focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-popup-open:bg-secondary data-popup-open:text-accent-foreground data-open:bg-secondary data-open:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
       className,
     )}
     {...props}
@@ -156,7 +156,7 @@ export const DropdownMenuCheckboxItem = ({
     data-slot="dropdown-menu-checkbox-item"
     data-inset={inset}
     className={cn(
-      "relative flex h-[26px] cursor-default items-center gap-1.5 rounded-lg py-[5.5px] ps-2 pe-8 text-base outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:ps-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+      "relative flex h-[26px] cursor-default items-center gap-1.5 rounded-lg py-[5.5px] ps-2 pe-8 text-base outline-hidden select-none focus:bg-secondary focus:text-accent-foreground focus:**:text-accent-foreground data-inset:ps-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
       className,
     )}
     checked={checked}
@@ -190,7 +190,7 @@ export const DropdownMenuRadioItem = ({
     data-slot="dropdown-menu-radio-item"
     data-inset={inset}
     className={cn(
-      "relative flex h-[26px] cursor-default items-center gap-1.5 rounded-lg py-[5.5px] ps-2 pe-8 text-base outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:ps-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+      "relative flex h-[26px] cursor-default items-center gap-1.5 rounded-lg py-[5.5px] ps-2 pe-8 text-base outline-hidden select-none focus:bg-secondary focus:text-accent-foreground focus:**:text-accent-foreground data-inset:ps-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
       className,
     )}
     {...props}

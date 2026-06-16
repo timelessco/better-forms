@@ -28,7 +28,7 @@ const NumberField = ({ element, form, name }: FieldRendererProps<"Number">) => {
               autoComplete="off"
               aria-label={getAriaLabelFallback(element)}
               aria-labelledby={ariaLabelledBy}
-              className="h-7 form-input pr-[8px] pl-[10px]"
+              className="h-[30px] form-input pr-[8px] pl-[10px]"
             />
             <f.FieldError />
           </>
@@ -48,7 +48,7 @@ const NumberField = ({ element, form, name }: FieldRendererProps<"Number">) => {
               inputMode="numeric"
               aria-label={getAriaLabelFallback(element)}
               aria-labelledby={ariaLabelledBy}
-              className="h-7 form-input pr-[8px] pl-[10px]"
+              className="h-[30px] form-input pr-[8px] pl-[10px]"
             />
             <f.FieldError />
           </>
