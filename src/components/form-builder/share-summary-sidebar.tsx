@@ -1149,11 +1149,11 @@ const ShareSidebarFooter = ({
   <SidebarFooter className="flex-row gap-2 px-4 pt-0 pb-3.5">
     <CopyButton
       text={shareUrl}
-      variant="secondary"
+      variant="ghost-flat"
       size="sm"
       prefix={<LinkIcon className="size-4" />}
-      // Solid gray pill = equal visual weight to the dark primary Get Code (matched pair, both h-7/14px).
-      className="w-30 justify-center text-[14px] font-medium"
+      // ghost-flat = ghost minus the 1px border, so the box matches the border-none primary Get Code.
+      className="w-30 justify-center text-[14px] font-medium text-foreground"
     >
       Copy Link
     </CopyButton>
