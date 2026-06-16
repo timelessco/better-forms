@@ -24,7 +24,6 @@ import {
   findPrevNonButtonPath,
   moveToPath,
 } from "@/components/editor/plugins/form-blocks-utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { FORM_INPUT_NODE_TYPES } from "@/lib/form-schema/form-field-constants";
 import { cn } from "@/lib/utils";
 
@@ -409,47 +408,34 @@ const Draggable = (props: PlateElementProps) => {
             }}
           >
             {!isFormButton && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost-flat"
-                      size="icon"
-                      tabIndex={-1}
-                      className="flex h-7 w-6 items-center justify-center rounded-lg p-0 hover:bg-secondary"
-                      onClick={handleDeleteBlock}
-                      data-plate-prevent-deselect
-                      aria-label="Delete block"
-                    />
-                  }
-                >
-                  <BlockDeleteIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent>Delete block</TooltipContent>
-              </Tooltip>
+              <Button
+                variant="ghost-flat"
+                size="icon"
+                tabIndex={-1}
+                className="flex h-7 w-6 items-center justify-center rounded-lg p-0 hover:bg-secondary"
+                onClick={handleDeleteBlock}
+                data-plate-prevent-deselect
+                aria-label="Delete block"
+              >
+                <BlockDeleteIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
+              </Button>
             )}
 
             {!isFormButton && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost-flat"
-                      size="icon"
-                      tabIndex={-1}
-                      className="flex h-7 w-6 items-center justify-center rounded-lg p-0 hover:bg-secondary"
-                      onClick={handleAddBlock}
-                      data-plate-prevent-deselect
-                    />
-                  }
-                >
-                  <BlockAddIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent>Add block below</TooltipContent>
-              </Tooltip>
+              <Button
+                variant="ghost-flat"
+                size="icon"
+                tabIndex={-1}
+                className="flex h-7 w-6 items-center justify-center rounded-lg p-0 hover:bg-secondary"
+                onClick={handleAddBlock}
+                data-plate-prevent-deselect
+                aria-label="Add block below"
+              >
+                <BlockAddIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
+              </Button>
             )}
 
-            {/* Drag Handle or Settings Gear - div to avoid nested button (Tooltip+Button inside) */}
+            {/* Drag Handle or Settings Gear — wrapper div carries the drag handleRef; DragHandle is its own button */}
             <div
               ref={isFormButton ? undefined : handleRef}
               className="size-auto cursor-grab"
@@ -662,31 +648,23 @@ const DragHandle = React.memo(function DragHandle({
   }, [resetPreview]);
 
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <button
-            type="button"
-            tabIndex={-1}
-            className="flex h-7 w-6 items-center justify-center overflow-hidden rounded-lg p-0 hover:bg-secondary"
-            onClick={openBlockMenu}
-            onMouseDown={handleMouseDown}
-            onMouseEnter={handleMouseEnter}
-            onMouseUp={handleMouseUp}
-            data-plate-prevent-deselect
-          />
-        }
-      >
-        {isFormButton ? (
-          <SettingsIcon className="text-muted-foreground" />
-        ) : (
-          <BlockDragIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
-        )}
-      </TooltipTrigger>
-      <TooltipContent>
-        {isFormButton ? "Click for settings" : "Drag to move, Click to open menu"}
-      </TooltipContent>
-    </Tooltip>
+    <button
+      type="button"
+      tabIndex={-1}
+      className="flex h-7 w-6 items-center justify-center overflow-hidden rounded-lg p-0 hover:bg-secondary"
+      onClick={openBlockMenu}
+      onMouseDown={handleMouseDown}
+      onMouseEnter={handleMouseEnter}
+      onMouseUp={handleMouseUp}
+      data-plate-prevent-deselect
+      aria-label={isFormButton ? "Button settings" : "Drag to move or open block menu"}
+    >
+      {isFormButton ? (
+        <SettingsIcon className="text-muted-foreground" />
+      ) : (
+        <BlockDragIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
+      )}
+    </button>
   );
 });
 
