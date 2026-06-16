@@ -395,6 +395,63 @@ export const PlusIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+/* ── Figma "system-flat" block-gutter controls (node 25578:9121), 16px verbatim ── */
+
+/** Block gutter: delete (outline bin). */
+export const BlockDeleteIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <g stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.16699 4.33301L3.77041 12.9264C3.81945 13.6248 4.40033 14.1663 5.10046 14.1663H10.9002C11.6003 14.1663 12.1812 13.6248 12.2303 12.9264L12.8337 4.33301" />
+      <path d="M6.66699 7V10.8333" />
+      <path d="M9.33301 7V10.8333" />
+      <path d="M2.16699 3.83301H13.8337" />
+      <path d="M5.68262 3.72225C5.82008 2.56467 6.80495 1.66699 7.99955 1.66699C9.19415 1.66699 10.179 2.56467 10.3165 3.72225" />
+    </g>
+  </svg>
+);
+
+/** Block gutter: add (filled plus). */
+export const BlockAddIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      d="M8 2.34977C8.35898 2.34977 8.65039 2.64118 8.65039 3.00016V7.34977H13C13.359 7.34977 13.6504 7.64118 13.6504 8.00016C13.6504 8.35915 13.359 8.65055 13 8.65055H8.65039V13.0002C8.65039 13.3591 8.35898 13.6506 8 13.6506C7.64101 13.6506 7.34961 13.3591 7.34961 13.0002V8.65055H3C2.64101 8.65055 2.34961 8.35915 2.34961 8.00016C2.34961 7.64118 2.64101 7.34977 3 7.34977H7.34961V3.00016C7.34961 2.64118 7.64101 2.34977 8 2.34977Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
+/** Block gutter: drag handle (filled 2×3 dot grid). */
+export const BlockDragIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      transform="translate(4.25 1.75)"
+      d="M1.25 10C1.94036 10 2.5 10.5596 2.5 11.25C2.5 11.9404 1.94036 12.5 1.25 12.5C0.559644 12.5 4.49885e-08 11.9404 0 11.25C3.01764e-08 10.5596 0.559644 10 1.25 10ZM6.25 10C6.94036 10 7.5 10.5596 7.5 11.25C7.5 11.9404 6.94036 12.5 6.25 12.5C5.55964 12.5 5 11.9404 5 11.25C5 10.5596 5.55964 10 6.25 10ZM1.25 5C1.94036 5 2.5 5.55964 2.5 6.25C2.5 6.94036 1.94036 7.5 1.25 7.5C0.559644 7.5 4.49885e-08 6.94036 0 6.25C3.01764e-08 5.55964 0.559644 5 1.25 5ZM6.25 5C6.94036 5 7.5 5.55964 7.5 6.25C7.5 6.94036 6.94036 7.5 6.25 7.5C5.55964 7.5 5 6.94036 5 6.25C5 5.55964 5.55964 5 6.25 5ZM1.25 0C1.94036 3.01764e-08 2.5 0.559644 2.5 1.25C2.5 1.94036 1.94036 2.5 1.25 2.5C0.559644 2.5 1.27757e-08 1.94036 0 1.25C3.01764e-08 0.559644 0.559644 -1.407e-08 1.25 0ZM6.25 0C6.94036 3.01764e-08 7.5 0.559644 7.5 1.25C7.5 1.94036 6.94036 2.5 6.25 2.5C5.55964 2.5 5 1.94036 5 1.25C5 0.559644 5.55964 -1.407e-08 6.25 0Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
 /* ── Figma "system-flat" block-menu icons (node 25458:16258), pulled verbatim ── */
 
 /** Required field marker — six-point asterisk. */
@@ -1386,6 +1443,24 @@ export const ImageIcon = (props: React.SVGProps<SVGSVGElement>) => (
       strokeLinecap="round"
       strokeWidth="var(--stroke-width)"
       strokeLinejoin="round"
+    />
+  </svg>
+);
+// Figma icon/line/image (node I25424:12047): filled "Union" photo-frame glyph (rounded rect + sun +
+// mountain), 14×13 path inset in a 16px box. Used for the Cover upload row. currentColor = gray/700.
+export const ImageLineIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
+    <path
+      transform="translate(1 1.5)"
+      d="M11.5 0C12.8807 0 14 1.11929 14 2.5V10.5C14 11.8807 12.8807 13 11.5 13H2.5L2.24414 12.9873C0.983608 12.8592 0 11.7943 0 10.5V2.5C1.28853e-07 1.11929 1.11929 0 2.5 0H11.5ZM3.48828 12H11.5C12.3284 12 13 11.3284 13 10.5V8.93066C12.9948 8.92762 12.9886 8.9261 12.9834 8.92285L9.21582 6.55273L3.48828 12ZM2.5 1C1.67157 1 1 1.67157 1 2.5V10.5C1 11.1914 1.46822 11.7716 2.10449 11.9453C2.1199 11.9254 2.13646 11.9056 2.15527 11.8877L8.58398 5.77441L8.70215 5.67969C8.95196 5.51181 9.27083 5.4803 9.54883 5.5957L9.68359 5.66504L13 7.75098V2.5C13 1.67157 12.3284 1 11.5 1H2.5ZM4.25 2.5C5.2165 2.5 6 3.2835 6 4.25C6 5.2165 5.2165 6 4.25 6C3.2835 6 2.5 5.2165 2.5 4.25C2.5 3.2835 3.2835 2.5 4.25 2.5ZM4.25 3.5C3.83579 3.5 3.5 3.83579 3.5 4.25C3.5 4.66421 3.83579 5 4.25 5C4.66421 5 5 4.66421 5 4.25C5 3.83579 4.66421 3.5 4.25 3.5Z"
+      fill="currentColor"
     />
   </svg>
 );

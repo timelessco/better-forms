@@ -23,13 +23,13 @@ export const FormSettingsSidebar = ({ formId, isLocal }: FormSettingsSidebarProp
         <div className="flex items-center justify-between">
           <h2 className="pl-2.5 text-base font-normal text-foreground">Settings</h2>
           <Button
-            variant="ghost"
+            variant="ghost-flat"
             size="icon-xs"
-            className="size-7 text-muted-foreground hover:text-foreground"
+            className="size-7 rounded-lg p-1.25 text-gray-800 hover:text-foreground"
             onClick={closeSidebar}
             aria-label="Close"
           >
-            <XIcon className="size-4" />
+            <XIcon className="size-4.5" />
           </Button>
         </div>
       </SidebarHeader>

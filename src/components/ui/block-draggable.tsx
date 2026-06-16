@@ -5,7 +5,7 @@ import {
   BlockMenuPlugin,
   BlockSelectionPlugin,
 } from "@platejs/selection/react";
-import { GripVerticalIcon, PlusIcon, SettingsIcon, TrashIcon } from "@/components/ui/icons";
+import { BlockAddIcon, BlockDeleteIcon, BlockDragIcon, SettingsIcon } from "@/components/ui/icons";
 import { getPluginByType, isType, KEYS } from "platejs";
 import type { TElement, TIdElement } from "platejs";
 import {
@@ -413,17 +413,17 @@ const Draggable = (props: PlateElementProps) => {
                 <TooltipTrigger
                   render={
                     <Button
-                      variant="ghost"
+                      variant="ghost-flat"
                       size="icon"
                       tabIndex={-1}
-                      className="flex size-auto items-center justify-center rounded-lg border-0 hover:bg-accent has-[>svg]:px-1 has-[>svg]:py-1.5"
+                      className="flex h-7 w-6 items-center justify-center rounded-lg p-0 hover:bg-secondary"
                       onClick={handleDeleteBlock}
                       data-plate-prevent-deselect
                       aria-label="Delete block"
                     />
                   }
                 >
-                  <TrashIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
+                  <BlockDeleteIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
                 </TooltipTrigger>
                 <TooltipContent>Delete block</TooltipContent>
               </Tooltip>
@@ -434,16 +434,16 @@ const Draggable = (props: PlateElementProps) => {
                 <TooltipTrigger
                   render={
                     <Button
-                      variant="ghost"
+                      variant="ghost-flat"
                       size="icon"
                       tabIndex={-1}
-                      className="flex size-auto items-center justify-center rounded-lg border-0 hover:bg-accent has-[>svg]:px-1 has-[>svg]:py-1.5"
+                      className="flex h-7 w-6 items-center justify-center rounded-lg p-0 hover:bg-secondary"
                       onClick={handleAddBlock}
                       data-plate-prevent-deselect
                     />
                   }
                 >
-                  <PlusIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
+                  <BlockAddIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
                 </TooltipTrigger>
                 <TooltipContent>Add block below</TooltipContent>
               </Tooltip>
@@ -668,7 +668,7 @@ const DragHandle = React.memo(function DragHandle({
           <button
             type="button"
             tabIndex={-1}
-            className="flex size-auto items-center justify-center overflow-hidden rounded-lg hover:bg-accent has-[>svg]:px-1 has-[>svg]:py-1.5"
+            className="flex h-7 w-6 items-center justify-center overflow-hidden rounded-lg p-0 hover:bg-secondary"
             onClick={openBlockMenu}
             onMouseDown={handleMouseDown}
             onMouseEnter={handleMouseEnter}
@@ -680,7 +680,7 @@ const DragHandle = React.memo(function DragHandle({
         {isFormButton ? (
           <SettingsIcon className="text-muted-foreground" />
         ) : (
-          <GripVerticalIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
+          <BlockDragIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
         )}
       </TooltipTrigger>
       <TooltipContent>

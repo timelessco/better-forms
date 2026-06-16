@@ -5,7 +5,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { createContext, use } from "react";
+import { CaretDownIcon } from "@/components/ui/icons";
+import { createContext, use, useState } from "react";
 
 const SECTION_VALUE = "section";
 
@@ -18,14 +19,19 @@ const SidebarSectionResetContext = createContext(0);
 export const SidebarSectionResetProvider = SidebarSectionResetContext.Provider;
 
 // Figma system-flat header label scale; shared by both variants.
-const HEADER_LABEL_CLS = "truncate text-[13px] font-medium tracking-[0.13px] text-muted-foreground";
+// Figma section header (node 25424-12009): Inter Medium 13px, 0.13px tracking, gray/500 (#999).
+const HEADER_LABEL_CLS = "truncate text-[13px] font-medium tracking-[0.13px] text-gray-500";
 
 interface SidebarSectionProps {
   label: string;
   children: React.ReactNode;
   action?: React.ReactNode;
-  /** Collapsible Accordion (chevron caret, reset-key) vs flat header + divider. Default collapsible (back-compat). */
-  collapsible?: boolean;
+  /**
+   * `true` (default): collapsible Accordion, always-visible caret (back-compat).
+   * `false`: flat static header + divider.
+   * `"flat"`: flat header + divider, collapsible with a hover-only caret (Figma system-flat).
+   */
+  collapsible?: boolean | "flat";
   /** Right-aligned header slot (e.g. Typography "Title"/Colors "Light" scope selects). */
   headerRight?: React.ReactNode;
   /** Bottom border divider in the flat variant. Default true. */
@@ -52,7 +58,7 @@ export const SidebarSection = ({
   const resetKey = use(SidebarSectionResetContext);
 
   if (!collapsible) {
-    // Figma rhythm: 16px header→rows, 6px between rows, 16px pad + divider below.
+    // Figma rhythm: 16px header→rows, 8px between rows, 16px pad + divider below.
     return (
       <div className={cn("flex flex-col gap-4 pb-4", divider && "border-b border-border")}>
         <div className="flex min-h-[15px] items-center gap-3">
@@ -60,8 +66,25 @@ export const SidebarSection = ({
           {headerRight}
           {action}
         </div>
-        <div className={cn("flex flex-col gap-1.5", className)}>{children}</div>
+        <div className={cn("flex flex-col gap-2", className)}>{children}</div>
       </div>
+    );
+  }
+
+  if (collapsible === "flat") {
+    // key={resetKey} remounts on sidebar reopen → sections reset to initialOpen (all open).
+    return (
+      <FlatCollapsibleSection
+        key={resetKey}
+        label={label}
+        action={action}
+        headerRight={headerRight}
+        divider={divider}
+        initialOpen={initialOpen}
+        className={className}
+      >
+        {children}
+      </FlatCollapsibleSection>
     );
   }
 
@@ -87,5 +110,46 @@ export const SidebarSection = ({
         </AccordionContent>
       </AccordionItem>
     </Accordion>
+  );
+};
+
+// Flat header (Figma system-flat) that collapses on click; the 10px caret reveals on hover only
+// and points right when collapsed (node 25424-12987). Open by default.
+const FlatCollapsibleSection = ({
+  label,
+  children,
+  action,
+  headerRight,
+  divider = true,
+  initialOpen = true,
+  className,
+}: Pick<
+  SidebarSectionProps,
+  "label" | "children" | "action" | "headerRight" | "divider" | "initialOpen" | "className"
+>) => {
+  const [open, setOpen] = useState(initialOpen);
+  return (
+    <div className={cn("flex flex-col gap-4 pb-4", divider && "border-b border-border")}>
+      <div className="flex min-h-[15px] items-center gap-3">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          className="group/sec flex flex-1 cursor-pointer items-center gap-0.5 text-left"
+        >
+          <span className={HEADER_LABEL_CLS}>{label}</span>
+          <CaretDownIcon
+            aria-hidden
+            className={cn(
+              "size-2.5 shrink-0 text-gray-500 opacity-0 transition-[opacity,transform] group-hover/sec:opacity-100",
+              !open && "-rotate-90",
+            )}
+          />
+        </button>
+        {headerRight}
+        {action}
+      </div>
+      {open && <div className={cn("flex flex-col gap-2", className)}>{children}</div>}
+    </div>
   );
 };

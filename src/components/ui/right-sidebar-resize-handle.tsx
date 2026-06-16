@@ -2,7 +2,7 @@ import type * as React from "react";
 import { useCallback, useRef } from "react";
 
 export const RIGHT_SIDEBAR_WIDTH_MIN = 280;
-export const RIGHT_SIDEBAR_WIDTH_DEFAULT = 340;
+export const RIGHT_SIDEBAR_WIDTH_DEFAULT = 304;
 export const RIGHT_SIDEBAR_WIDTH_MAX = 420;
 export const RIGHT_SIDEBAR_WIDTH_KEY = "right_sidebar_width";
 

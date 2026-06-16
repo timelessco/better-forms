@@ -311,7 +311,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                   render={
                     <button
                       type="button"
-                      className="inline-flex size-7 cursor-pointer items-center justify-center rounded-lg bg-accent text-muted-foreground hover:text-foreground"
+                      className="inline-flex size-7 cursor-pointer items-center justify-center rounded-lg bg-secondary text-muted-foreground hover:text-foreground"
                       onClick={stopPropagation}
                       onKeyDown={(e) => e.stopPropagation()}
                       aria-label="Version actions"
@@ -397,9 +397,9 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button
-            variant="ghost"
+            variant="ghost-flat"
             size="icon-xs"
-            className="size-7 rounded-lg text-muted-foreground hover:text-foreground"
+            className="size-7 rounded-lg p-1.25 text-gray-800 hover:text-foreground"
             onClick={closeSidebar}
             aria-label="Close"
           >

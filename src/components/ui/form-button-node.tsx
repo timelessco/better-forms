@@ -141,16 +141,16 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
       <PopoverTrigger
         render={
           <Button
-            variant="ghost"
+            variant="ghost-flat"
             size="icon-sm"
-            className="size-7 opacity-0 group-hover:opacity-100"
+            className="size-7 rounded-lg p-1.25 opacity-0 group-hover:opacity-100"
             aria-label="Button settings"
             onMouseDown={handleGearMouseDown}
             onClick={handleGearClick}
           />
         }
       >
-        <SettingsIcon className="size-4 text-muted-foreground" />
+        <SettingsIcon className="size-4.5 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent
         className="w-64 border p-4"

@@ -6,7 +6,7 @@ import { ColorPicker } from "@/components/ui/color-picker";
 import {
   CaretDownIcon,
   DarkModeIcon,
-  ImageIcon,
+  ImageLineIcon,
   LightModeIcon,
   SelectChevronIcon,
   SystemModeIcon,
@@ -71,10 +71,11 @@ const SEMANTIC_COLOR_TOKENS = [
 const scopeTriggerCls =
   "h-auto gap-1 border-none bg-transparent p-0 text-[13px] font-normal text-foreground shadow-none data-[size=default]:h-auto [&>svg]:size-3.5";
 
-// Figma slider rows are rounded with a gray-100 track (the design's square rows are a designer
-// inconsistency — Size was the intended treatment). 6px label/value padding lives in the bare
-// styles; NumberRow's -mx-1.5 bleed cancels it so text stays flush with non-slider rows.
-const CONFIG_INPUT_CLS = "!border-0 bg-muted/60 !h-7";
+// Figma slider rows read like plain label rows at rest (flat, no box); the gray-100 rounded track +
+// hash marks reveal only on hover/drag/keyboard-focus (revealOnHover, set via `bare`). 6px label/value
+// padding lives in the bare styles; NumberRow's -mx-1.5 bleed cancels it so text stays flush with
+// non-slider rows. Track bg comes from --elastic-slider-bg (var(--muted)) — no always-on fill here.
+const CONFIG_INPUT_CLS = "!border-0 !h-7";
 
 // Numeric row (bare scrubber): track bleeds 6px past the text column (Figma row = column + 6px
 // each side) so labels/values align with ConfigRow rows while the rounded track extends beyond.
@@ -91,10 +92,10 @@ const RadiusEndIcon = ({ value, max }: { value?: string; max: number }) => {
   const n = Number.parseFloat(value ?? "") || 0;
   const r = (Math.min(Math.max(n, 0), max) / max) * 7;
   return (
-    <span aria-hidden className="flex size-4 items-center justify-center text-muted-foreground">
+    <span aria-hidden className="flex size-4 items-center justify-center text-gray-700">
       <span
-        className="block size-[9px] border-t-[1.5px] border-r-[1.5px] border-current transition-[border-radius] duration-200 ease-out"
-        style={{ borderTopRightRadius: `${r}px` }}
+        className="block size-[11px] border-t border-l border-current transition-[border-radius] duration-200 ease-out"
+        style={{ borderTopLeftRadius: `${r}px` }}
       />
     </span>
   );
@@ -422,18 +423,18 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
 };
 
 const CustomizeSidebarHeader = ({ closeSidebar }: { closeSidebar: () => void }) => (
-  <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pb-3 pl-1">
+  <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pr-2 pb-2 pl-4">
     <div className="flex items-center justify-between">
       {/* drop font-sans so the root's variation reset isn't re-pinned */}
-      <h2 className="pl-2.5 text-base font-normal text-foreground">Customize</h2>
+      <h2 className="text-base font-normal text-foreground">Customize</h2>
       <Button
-        variant="ghost"
+        variant="ghost-flat"
         size="icon-xs"
-        className="size-7 text-muted-foreground hover:text-foreground"
+        className="size-7 rounded-lg p-1.25 text-gray-800 hover:text-foreground"
         onClick={closeSidebar}
         aria-label="Close"
       >
-        <XIcon className="size-4" />
+        <XIcon className="size-4.5" />
       </Button>
     </div>
   </SidebarHeader>
@@ -461,7 +462,7 @@ const AppearanceSection = ({
   updateFields: (fields: Record<string, string | null>) => void;
   updateHeaderMedia?: (field: "icon" | "cover" | "iconColor", value: string | null) => void;
 }) => (
-  <SidebarSection label="Appearance" collapsible={false}>
+  <SidebarSection label="Appearance" collapsible="flat">
     <NumberRow
       label="Form width"
       value={customization.pageWidth}
@@ -573,7 +574,7 @@ const CoverPickerButton = ({
       type="button"
       disabled={!onCoverChange}
       title={cover ? "Edit cover" : "Add cover"}
-      className="flex items-center gap-1.5 text-[14px] font-medium text-foreground enabled:cursor-pointer disabled:cursor-default"
+      className="flex items-center gap-1.5 text-[14px] font-medium text-gray-700 enabled:cursor-pointer disabled:cursor-default"
     >
       {cover ? (
         <>
@@ -586,7 +587,7 @@ const CoverPickerButton = ({
         </>
       ) : (
         <>
-          <ImageIcon className="size-4" />
+          <ImageLineIcon className="size-4" />
           Upload
         </>
       )}
@@ -626,7 +627,7 @@ const LogoPickerButton = ({
       type="button"
       disabled={!onIconChange}
       title={logo ? "Edit logo" : "Add logo"}
-      className="flex items-center gap-1.5 text-[14px] font-medium text-foreground enabled:cursor-pointer disabled:cursor-default"
+      className="flex items-center gap-1.5 text-[14px] font-medium text-gray-700 enabled:cursor-pointer disabled:cursor-default"
     >
       {logo ? (
         <>
@@ -648,7 +649,7 @@ const LogoPickerButton = ({
         </>
       ) : (
         <>
-          <ImageIcon className="size-4" />
+          <ImageLineIcon className="size-4" />
           Upload
         </>
       )}
@@ -699,7 +700,7 @@ const TypographySection = ({
   return (
     <SidebarSection
       label="Typography"
-      collapsible={false}
+      collapsible="flat"
       headerRight={
         <div className="flex items-center gap-2">
           <ProBadge />
@@ -712,7 +713,7 @@ const TypographySection = ({
       }
     >
       {/* No hard Pro gate — free users can experiment; publish strips Pro keys (pro-publish-gate) */}
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <ConfigRow label="Font" surface="flat">
           <Select value={fontValue} onValueChange={(v) => v && onFontChange(v)}>
             <SelectTrigger
@@ -814,7 +815,7 @@ const ColorsSection = ({
 }: ColorsSectionProps) => (
   <SidebarSection
     label="Colors"
-    collapsible={false}
+    collapsible="flat"
     className="!overflow-visible"
     headerRight={
       <div className="flex items-center gap-2">
@@ -823,7 +824,7 @@ const ColorsSection = ({
       </div>
     }
   >
-    <div className="relative isolate z-50 flex flex-col gap-1.5 overflow-visible">
+    <div className="relative isolate z-50 flex flex-col gap-2 overflow-visible">
       <DeferredColorPickers
         tokens={SEMANTIC_COLOR_TOKENS}
         customization={customization}
@@ -839,8 +840,8 @@ const InputsSection = ({
   updateScrubberField,
   resetScrubberField,
 }: ScrubberProps) => (
-  <SidebarSection label="Inputs" collapsible={false} headerRight={<ProBadge />}>
-    <div className="flex flex-col gap-1.5">
+  <SidebarSection label="Inputs" collapsible="flat" headerRight={<ProBadge />}>
+    <div className="flex flex-col gap-2">
       <NumberRow
         label="Input width"
         value={customization.inputWidth}
@@ -921,8 +922,8 @@ const ButtonsSection = ({
   updateScrubberField,
   resetScrubberField,
 }: ScrubberProps) => (
-  <SidebarSection label="Buttons" collapsible={false} headerRight={<ProBadge />}>
-    <div className="flex flex-col gap-1.5">
+  <SidebarSection label="Buttons" collapsible="flat" headerRight={<ProBadge />}>
+    <div className="flex flex-col gap-2">
       <NumberRow
         label="Width"
         value={customization.buttonWidth}
@@ -976,7 +977,7 @@ interface CustomCssSectionProps {
 }
 
 const CustomCssSection = ({ cssValue, handleCssChange, activeMode }: CustomCssSectionProps) => (
-  <SidebarSection label="Custom CSS" collapsible={false} divider={false} headerRight={<ProBadge />}>
+  <SidebarSection label="Custom CSS" collapsible="flat" divider={false} headerRight={<ProBadge />}>
     <div className="overflow-hidden rounded-lg bg-muted">
       <Textarea
         value={cssValue}

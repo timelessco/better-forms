@@ -728,9 +728,9 @@ export const CoverPickerContent = ({
           <TabsIndicator />
         </TabsList>
         <Button
-          variant="ghost"
+          variant="ghost-flat"
           size="icon"
-          className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          className="shrink-0 rounded-lg p-1.25 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           onClick={() => {
             onCoverChange(null);
             onClose();
@@ -811,9 +811,9 @@ export const LogoPickerContent = ({
         <div className="flex items-center gap-2 px-3 pt-2 pb-1">
           <IconTabBar value={tab} onChange={setTab} />
           <Button
-            variant="ghost"
+            variant="ghost-flat"
             size="icon"
-            className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            className="shrink-0 rounded-lg p-1.25 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             onClick={() => {
               onIconChange(null);
               onClose();
@@ -1169,9 +1169,9 @@ const HeaderIconPopoverContent = ({
       <div className="flex items-center gap-2 px-3 pt-2 pb-1">
         <IconTabBar value={iconTab} onChange={onIconTabChange} />
         <Button
-          variant="ghost"
+          variant="ghost-flat"
           size="icon"
-          className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          className="shrink-0 rounded-lg p-1.25 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           onClick={() => {
             onIconChange(null);
             onClose();

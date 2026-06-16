@@ -376,7 +376,7 @@ const RowMenu = ({ items, ariaLabel }: { items: RowMenuItem[]; ariaLabel: string
       aria-label={ariaLabel}
       className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <MoreHorizontalIcon className="size-4" />
+      <MoreHorizontalIcon className="size-[18px]" />
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="w-[246px]">
       {items.map((item) => (

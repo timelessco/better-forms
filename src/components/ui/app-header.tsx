@@ -40,6 +40,10 @@ interface AppHeaderProps {
   isDistractionHidden?: boolean;
 }
 
+// Header icon buttons (⋯, preview, edit): 28×28, 5px padding, 8px radius, gray-800 icon (Figma system-flat).
+// Color lives here so hover:text-foreground reaches the icon via currentColor — icons must NOT pin their own color.
+const HEADER_ICON_BUTTON_CLS = "size-7 rounded-lg p-1.25 text-gray-800 hover:text-foreground";
+
 export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   const { formId, workspaceId } = useParams({ strict: false });
   const {
@@ -194,7 +198,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     <>
       <header
         className={cn(
-          "group/header -z-10 flex h-10 w-full shrink-0 items-center justify-between bg-background px-2 text-[13px] transition-opacity duration-150 select-none",
+          "group/header -z-10 flex h-11 w-full shrink-0 items-center justify-between bg-background px-2 text-[13px] transition-opacity duration-150 select-none",
           isDistractionHidden && "pointer-events-none opacity-0",
         )}
       >
@@ -238,7 +242,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
 
         {/* Header stays constant — preview now lives in its own full-page drawer, so the
             Share sidebar no longer collapses it to a "Preview" label or hides actions. */}
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-2">
           {isDashboard && (
             <Button
               variant="ghost"
@@ -599,14 +603,14 @@ const LandingPageActions = ({
       <DropdownMenuTrigger
         render={
           <Button
-            variant="ghost"
+            variant="ghost-flat"
             size="sm"
-            className="h-7 w-[30px] rounded-lg px-1.5 text-gray-700 hover:text-foreground"
+            className={HEADER_ICON_BUTTON_CLS}
             aria-label="More options"
           />
         }
       >
-        <MoreHorizontalIcon className="size-[18px] text-gray-700" strokeWidth={1.5} />
+        <MoreHorizontalIcon className="size-[18px]" strokeWidth={1.5} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
         <DropdownMenuItem onClick={() => onToggleEditorSidebar("about")}>
@@ -635,18 +639,15 @@ const LandingPageActions = ({
       <TooltipTrigger
         render={
           <Button
-            variant="ghost"
+            variant="ghost-flat"
             size="sm"
-            className={cn(
-              "h-7 w-[30px] rounded-lg px-1.5 text-gray-700 hover:text-foreground",
-              previewMode && "bg-accent/50 text-foreground",
-            )}
+            className={cn(HEADER_ICON_BUTTON_CLS, previewMode && "bg-secondary text-foreground")}
             onClick={onTogglePreview}
             aria-label={previewMode ? "Back to Editor" : "Preview Form"}
           />
         }
       >
-        <PlayIcon className="size-[18px] text-gray-700" />
+        <PlayIcon className="size-[18px]" />
       </TooltipTrigger>
       <TooltipContent side="bottom" align="end">
         <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
@@ -721,7 +722,7 @@ const FormBuilderHeaderActions = ({
   // Figma logged-in header: ⋯ · ▷ (preview) · Share · Publish. Customize/Settings/
   // Version history/Discard live in the ⋯ menu.
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-2">
       <DropdownMenu
         open={activeMenu === "main"}
         onOpenChange={(open) => onSetActiveMenu(open ? "main" : null)}
@@ -729,14 +730,14 @@ const FormBuilderHeaderActions = ({
         <DropdownMenuTrigger
           render={
             <Button
-              variant="ghost"
+              variant="ghost-flat"
               size="sm"
-              className="h-7 w-[30px] rounded-lg px-1.5 text-gray-700 hover:text-foreground aria-expanded:bg-secondary"
+              className={cn(HEADER_ICON_BUTTON_CLS, "aria-expanded:bg-secondary")}
               aria-label="More options"
             />
           }
         >
-          <MoreHorizontalIcon className="size-[18px] text-gray-700" strokeWidth={1.5} />
+          <MoreHorizontalIcon className="size-[18px]" strokeWidth={1.5} />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48" sideOffset={4}>
           {menuItems.map((item) => (
@@ -753,18 +754,18 @@ const FormBuilderHeaderActions = ({
           <TooltipTrigger
             render={
               <Button
-                variant="ghost"
+                variant="ghost-flat"
                 size="sm"
                 className={cn(
-                  "h-7 w-[30px] rounded-lg px-1.5 text-gray-700 hover:text-foreground",
-                  previewMode && "bg-accent/50 text-foreground",
+                  HEADER_ICON_BUTTON_CLS,
+                  previewMode && "bg-secondary text-foreground",
                 )}
                 onClick={onTogglePreview}
                 aria-label={previewMode ? "Back to Editor" : "Preview Form"}
               />
             }
           >
-            <PlayIcon className="size-[18px] text-gray-700" />
+            <PlayIcon className="size-[18px]" />
           </TooltipTrigger>
           <TooltipContent side="bottom" align="end">
             <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
@@ -786,13 +787,13 @@ const FormBuilderHeaderActions = ({
                   preload="intent"
                   aria-label="Edit form"
                   className={cn(
-                    buttonVariants({ variant: "ghost", size: "sm" }),
-                    "h-7 w-[30px] rounded-lg px-1.5 text-gray-700 hover:text-foreground",
+                    buttonVariants({ variant: "ghost-flat", size: "sm" }),
+                    HEADER_ICON_BUTTON_CLS,
                   )}
                 />
               }
             >
-              <PencilIcon className="size-[18px] text-gray-700" />
+              <PencilIcon className="size-[18px]" />
             </TooltipTrigger>
             <TooltipContent side="bottom" align="end">
               <p>Edit Form</p>
@@ -803,26 +804,14 @@ const FormBuilderHeaderActions = ({
       )}
 
       {canShare && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hidden rounded-lg px-2 text-[13px] font-medium tracking-[0.13px] text-gray-800 hover:text-foreground md:inline-flex"
-                onClick={onToggleShareSidebar}
-              />
-            }
-          >
-            Share
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            <p>Share Form</p>
-            <p className="text-xs text-muted-foreground">
-              {formatForDisplay(HOTKEYS.TOGGLE_SHARE_SIDEBAR)}
-            </p>
-          </TooltipContent>
-        </Tooltip>
+        <Button
+          variant="ghost-flat"
+          size="sm"
+          className="hidden rounded-lg px-2 py-1.5 text-[14px] font-medium tracking-[0.14px] text-foreground hover:text-foreground md:inline-flex"
+          onClick={onToggleShareSidebar}
+        >
+          Share
+        </Button>
       )}
 
       {showPublish && (
