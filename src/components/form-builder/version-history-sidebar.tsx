@@ -177,8 +177,8 @@ const RailNode = ({
     aria-pressed={active}
     onClick={onClick}
     className={cn(
-      "relative z-10 flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gray-200 text-muted-foreground transition-colors hover:text-foreground",
-      active && "text-foreground",
+      "relative z-10 flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gray-200 text-gray-800 transition-colors",
+      active && "bg-gray-300",
     )}
   >
     {icon}
@@ -281,7 +281,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
         >
           {/* Figma cell: 14px medium count title, 13px name w/ 16px avatar, leading-[1.15]. */}
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <p className="truncate text-sm leading-[1.15] font-medium text-foreground">
+            <p className="truncate text-sm leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
               {version.version} Change{version.version === 1 ? "" : "s"}
             </p>
             <div className="flex min-w-0 items-center gap-1.5">
@@ -291,7 +291,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                   {publisher.initial}
                 </AvatarFallback>
               </Avatar>
-              <span className="truncate text-[13px] leading-[1.15] font-normal tracking-[0.13px] text-muted-foreground">
+              <span className="truncate text-[13px] leading-[1.15] font-[420] tracking-[0.13px] text-gray-600">
                 {publisher.name}
               </span>
             </div>
@@ -311,7 +311,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                   render={
                     <button
                       type="button"
-                      className="inline-flex size-7 cursor-pointer items-center justify-center rounded-lg bg-secondary text-muted-foreground hover:text-foreground"
+                      className="inline-flex size-7 cursor-pointer items-center justify-center rounded-lg bg-gray-300 p-1.25 text-muted-foreground"
                       onClick={stopPropagation}
                       onKeyDown={(e) => e.stopPropagation()}
                       aria-label="Version actions"
@@ -343,7 +343,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <span className="text-[13px] leading-[1.15] font-medium tracking-[0.13px] text-muted-foreground">
+              <span className="text-[13px] leading-[1.15] font-medium tracking-[0.13px] text-gray-500">
                 {formatVersionTime(version.publishedAt)}
               </span>
             )}
@@ -360,8 +360,8 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
       // [font-variation-settings:normal] un-pins the global opsz20/wght450 so font-weight utils + Figma optical size apply
       className="size-full animate-in border-none duration-200 ease-out [font-variation-settings:normal] slide-in-from-right-[40%]"
     >
-      <SidebarHeader className="h-11 shrink-0 flex-row items-center justify-between border-b border-border py-2 pr-2 pl-4">
-        <h2 className="text-sm leading-[1.15] font-medium tracking-[0.14px] text-foreground">
+      <SidebarHeader className="h-11 shrink-0 flex-row items-center justify-between py-2 pr-2 pl-4">
+        <h2 className="text-sm leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
           Version history
         </h2>
         <div className="flex items-center gap-1">
@@ -370,7 +370,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
               render={
                 <button
                   type="button"
-                  className="flex size-7 cursor-pointer items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground data-popup-open:bg-accent data-popup-open:text-foreground"
+                  className="flex size-7 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary data-popup-open:bg-secondary"
                   aria-label="Filter versions"
                 />
               }
@@ -408,8 +408,8 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="relative px-2 pt-2.5">
-        <div className="flex gap-1">
+      <SidebarContent className="relative pt-3 pr-2 pl-4">
+        <div className="flex">
           {/* Left timeline rail: live (current) at top, calendar (group by date) at bottom, chevron slides to the active row. */}
           <div
             ref={railRef}
@@ -418,7 +418,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
             {filteredList.length > 1 && (
               <div
                 aria-hidden
-                className="pointer-events-none absolute top-3 bottom-3 w-px bg-border/60"
+                className="pointer-events-none absolute top-3 bottom-3 w-px bg-gray-200"
               />
             )}
             <div className="flex h-8 items-center">
@@ -441,7 +441,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
             {indicator !== null && (
               <div
                 aria-hidden
-                className="pointer-events-none absolute left-1/2 z-10 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-gray-200 text-foreground transition-[top] ease-out"
+                className="pointer-events-none absolute left-1/2 z-10 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-gray-200 text-gray-800 transition-[top] ease-out"
                 style={{ top: indicator.top, transitionDuration: `${indicator.duration}ms` }}
               >
                 <FigChevronDownIcon className="size-4" />
@@ -454,7 +454,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
             {groupByDate ? (
               groups.map((group) => (
                 <div key={group.label} className="flex flex-col gap-2">
-                  <p className="px-2.5 py-2 text-sm leading-[1.15] font-medium tracking-[0.14px] text-foreground">
+                  <p className="px-2.5 py-2 text-sm leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
                     {group.label}
                   </p>
                   {group.items.map((version) => renderRow(version))}
@@ -462,7 +462,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
               ))
             ) : (
               <>
-                <p className="px-2.5 py-2 text-sm leading-[1.15] font-medium tracking-[0.14px] text-foreground">
+                <p className="px-2.5 py-2 text-sm leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
                   Current Version
                 </p>
                 {filteredList.map((version) => renderRow(version))}

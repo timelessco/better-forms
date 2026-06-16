@@ -426,7 +426,9 @@ const CustomizeSidebarHeader = ({ closeSidebar }: { closeSidebar: () => void }) 
   <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pr-2 pb-2 pl-4">
     <div className="flex items-center justify-between">
       {/* drop font-sans so the root's variation reset isn't re-pinned */}
-      <h2 className="text-base font-normal text-foreground">Customize</h2>
+      <h2 className="text-sm leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
+        Customize
+      </h2>
       <Button
         variant="ghost-flat"
         size="icon-xs"

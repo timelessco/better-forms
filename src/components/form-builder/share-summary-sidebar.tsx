@@ -38,7 +38,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { isValidUrl } from "@/lib/utils";
 import { startScopedViewTransition } from "@/lib/view-transition";
 import { EmbedCodeDialog, searchToFormValues, formValuesToSearch, tabs } from "./embed-section";
-import { EmbedPreviewMockup } from "./embed-preview-mockup";
+import {
+  EmbedFullPagePreview,
+  EmbedPreviewMockup,
+  EmbedStandardPreview,
+} from "./embed-preview-mockup";
 import type { FormSettings as FormSettingsType, PresentationMode } from "@/types/form-settings";
 
 // Memo'd at module scope so parent re-renders don't tear down subtrees. EmbedPreviewMockup takes only
@@ -557,6 +561,13 @@ const PRESENTATION_LABELS: Record<PresentationMode, string> = {
   "field-by-field": "One at a time",
 };
 
+// Popup bubble corner — drives the preview mockup's getCornerPos/getBubblePos.
+const POSITION_LABELS: Record<string, string> = {
+  "bottom-right": "Bottom right",
+  "bottom-left": "Bottom left",
+  center: "Center",
+};
+
 // Shared across all tabs: Question layout (presentation mode) + Show progress bar.
 const PresentationRows = ({
   docPresentationMode,
@@ -637,7 +648,6 @@ const ProRows = ({
   formSlug,
   onDomainAssigned,
   selectedDomainName,
-  analyticsHint = true,
 }: {
   docBranding: boolean;
   onBrandingChange: (value: boolean) => void;
@@ -649,8 +659,6 @@ const ProRows = ({
   formSlug: string | null | undefined;
   onDomainAssigned: (domainId: string | null, slug: string | null) => void;
   selectedDomainName: string | undefined;
-  /** Figma embed tab hides the Track-analytics info icon; Full Page shows it. */
-  analyticsHint?: boolean;
 }) => (
   <>
     <PreferenceRow label="Show branding">
@@ -664,14 +672,8 @@ const ProRows = ({
       </FeatureGate>
     </PreferenceRow>
 
-    <PreferenceRow
-      label="Track analytics"
-      hint={
-        analyticsHint ? (
-          <HintTooltip>Track form views, submissions, completion rates, and drop-offs.</HintTooltip>
-        ) : undefined
-      }
-    >
+    {/* Figma hides the Track-analytics info icon on every share tab — no hint here. */}
+    <PreferenceRow label="Track analytics">
       <FeatureGate requiredPlan="pro">
         <Switch
           aria-label="Track analytics"
@@ -728,18 +730,28 @@ const FullPagePreferences = ({
   activeSlug,
   handleDomainAssigned,
   selectedDomainName,
-  customization,
 }: FullPagePreferencesProps) => (
   <div className="flex flex-col gap-4 px-4 pt-3">
-    <MemoEmbedPreviewMockup key="fullpage" embedType="fullpage" customization={customization} />
+    <EmbedFullPagePreview />
 
-    <SidebarSection label="Preferences" collapsible={false} divider={false}>
-      <PresentationRows
-        docPresentationMode={docPresentationMode}
-        docProgressBar={docProgressBar}
-        onModeChange={handlePresentationModeChange}
-        onProgressBarChange={handleProgressBarChange}
-      />
+    {/* Figma full-page Appearance: Question layout, Transparent background, Show progress bar. */}
+    <SidebarSection label="Appearance" collapsible={false}>
+      <PreferenceRow label="Question layout">
+        <Select
+          value={docPresentationMode}
+          onValueChange={(v) => {
+            if (v) handlePresentationModeChange(v as PresentationMode);
+          }}
+        >
+          <SelectTrigger className={selectTriggerFigmaCls}>
+            {PRESENTATION_LABELS[docPresentationMode]}
+          </SelectTrigger>
+          <SelectContent align="end">
+            <SelectItem value="card">All at once</SelectItem>
+            <SelectItem value="field-by-field">One at a time</SelectItem>
+          </SelectContent>
+        </Select>
+      </PreferenceRow>
 
       <form.Field name="transparentBackground">
         {(field: AnyFieldApi) => (
@@ -754,6 +766,17 @@ const FullPagePreferences = ({
         )}
       </form.Field>
 
+      <PreferenceRow label="Show progress bar">
+        <Switch
+          aria-label="Show progress bar"
+          checked={docProgressBar}
+          onCheckedChange={handleProgressBarChange}
+          size="default"
+        />
+      </PreferenceRow>
+    </SidebarSection>
+
+    <SidebarSection label="Preferences" collapsible={false} divider={false}>
       <ProRows
         docBranding={docBranding}
         onBrandingChange={handleBrandingChange}
@@ -808,7 +831,7 @@ const PopupTab = ({
       }}
     </form.Subscribe>
 
-    <SidebarSection label="Preferences" collapsible={false}>
+    <SidebarSection label="Flow" collapsible={false}>
       <PresentationRows
         docPresentationMode={docPresentationMode}
         docProgressBar={docProgressBar}
@@ -891,6 +914,30 @@ const PopupTab = ({
         )}
       </form.Field>
 
+      <form.Field name="popupPosition">
+        {(field: AnyFieldApi) => (
+          <PreferenceRow label="Position">
+            <Select
+              value={field.state.value}
+              onValueChange={(v) => {
+                if (v) field.handleChange(v);
+              }}
+            >
+              <SelectTrigger className={selectTriggerFigmaCls}>
+                {POSITION_LABELS[field.state.value] ?? field.state.value}
+              </SelectTrigger>
+              <SelectContent align="end">
+                {Object.entries(POSITION_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </PreferenceRow>
+        )}
+      </form.Field>
+
       <form.Field name="hideOnSubmit">
         {(field: AnyFieldApi) => (
           <PreferenceRow label="Hide on submit">
@@ -937,19 +984,9 @@ const EmbedTab = ({
   activeSlug,
   handleDomainAssigned,
   selectedDomainName,
-  customization,
 }: FullPagePreferencesProps) => (
   <div className="flex flex-col gap-4 px-4 pt-3">
-    <form.Subscribe selector={selectValues}>
-      {(values: ReturnType<typeof searchToFormValues>) => (
-        <MemoEmbedPreviewMockup
-          key="standard"
-          embedType="standard"
-          alignLeft={formFieldsToEmbedOptions(values).display.alignment === "left"}
-          customization={customization}
-        />
-      )}
-    </form.Subscribe>
+    <EmbedStandardPreview />
 
     <SidebarSection label="Appearance" collapsible={false}>
       <form.Field name="dynamicHeight">
@@ -1038,7 +1075,6 @@ const EmbedTab = ({
         formSlug={activeSlug}
         onDomainAssigned={handleDomainAssigned}
         selectedDomainName={selectedDomainName}
-        analyticsHint={false}
       />
     </SidebarSection>
   </div>

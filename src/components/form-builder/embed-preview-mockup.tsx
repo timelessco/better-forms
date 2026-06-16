@@ -141,6 +141,45 @@ const getBubblePos = (position: string, cw: number, ch: number) => {
   }
 };
 
+// Static embed (standard) preview — faithful to Figma node 26075-12773 (browser-frame skeleton).
+// The standard case is a flat skeleton (no morph), so exact px spacing beats the ratio-positioned
+// mockup: 10px frame padding, 8px dots (4px gap), 10px below dots, 7px between bar-groups + the block.
+// Tokens map 1:1 to Figma — bg-secondary=gray/100, bg-input=gray/300 (dots+block), bg-gray-200=gray/200 (bars).
+export const EmbedStandardPreview = () => (
+  <div className="overflow-hidden rounded-[12px] bg-secondary p-2.5">
+    <div className="flex gap-1">
+      <div className="size-2 rounded-full bg-input" />
+      <div className="size-2 rounded-full bg-input" />
+      <div className="size-2 rounded-full bg-input" />
+    </div>
+    <div className="mt-2.5 flex flex-col gap-[7px]">
+      <div className="flex flex-col gap-1.5">
+        <div className="h-1.5 w-[60px] max-w-full rounded-lg bg-gray-200" />
+        <div className="h-1.5 w-[224px] max-w-full rounded-lg bg-gray-200" />
+      </div>
+      <div className="h-20 w-[70px] rounded-lg bg-input" />
+      <div className="flex flex-col gap-1.5">
+        <div className="h-1.5 w-[185px] max-w-full rounded-lg bg-gray-200" />
+        <div className="h-1.5 w-[138px] max-w-full rounded-lg bg-gray-200" />
+      </div>
+    </div>
+  </div>
+);
+
+// Static full-page preview — faithful to Figma node 26068-6990. The page form is one block filling
+// the frame: 10px frame padding, 8px dots, 10px below dots, then a 244×128 gray-300 block (12px L/R/B
+// margins via mx/mb-0.5, radius 8). bg-input=gray/300 (dots+block), bg-secondary=gray/100 (frame).
+export const EmbedFullPagePreview = () => (
+  <div className="overflow-hidden rounded-[12px] bg-secondary p-2.5">
+    <div className="flex gap-1">
+      <div className="size-2 rounded-full bg-input" />
+      <div className="size-2 rounded-full bg-input" />
+      <div className="size-2 rounded-full bg-input" />
+    </div>
+    <div className="mx-0.5 mt-2.5 mb-0.5 h-32 rounded-lg bg-input" />
+  </div>
+);
+
 export const EmbedPreviewMockup = ({
   embedType = "fullpage",
   popupPosition = "bottom-right",
@@ -243,10 +282,10 @@ export const EmbedPreviewMockup = ({
   return (
     <div className="overflow-hidden rounded-[12px] bg-secondary">
       <div className="flex items-center gap-1 px-2.25 pt-2.5 pb-2">
-        <div className="flex gap-1.5">
-          <div className="size-1.5 rounded-full bg-input" />
-          <div className="size-1.5 rounded-full bg-input" />
-          <div className="size-1.5 rounded-full bg-input" />
+        <div className="flex gap-1">
+          <div className="size-2 rounded-full bg-input" />
+          <div className="size-2 rounded-full bg-input" />
+          <div className="size-2 rounded-full bg-input" />
         </div>
       </div>
 
@@ -255,41 +294,26 @@ export const EmbedPreviewMockup = ({
           {embedType === "standard" && (
             <motion.div
               key="standard-bg"
-              className="absolute inset-4 flex flex-col justify-between"
+              // top-0.5 (not inset-4 top): host copy sits ~28px below the container top, matching Figma's tight gap under the dots.
+              className="absolute inset-x-4 top-0.5 bottom-4 flex flex-col justify-between"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={FADE_TRANSITION}
             >
-              {/* Host-page copy above the embed. */}
+              {/* Host-page copy above the embed. Figma skeleton bars = solid gray-200 (#ededed). */}
               <div className="space-y-1.5">
-                <div className="h-1.5 w-1/4 rounded-full bg-input/70" />
-                <div className="h-1.5 w-[92%] rounded-full bg-input/50" />
+                <div className="h-1.5 w-1/4 rounded-full bg-gray-200" />
+                <div className="h-1.5 w-[92%] rounded-full bg-gray-200" />
               </div>
               {/* Host-page copy below the embed. */}
               <div className="space-y-1.5">
-                <div className="h-1.5 w-3/4 rounded-full bg-input/50" />
-                <div className="h-1.5 w-[56%] rounded-full bg-input/50" />
+                <div className="h-1.5 w-3/4 rounded-full bg-gray-200" />
+                <div className="h-1.5 w-[56%] rounded-full bg-gray-200" />
               </div>
             </motion.div>
           )}
-          {embedType === "popup" && (
-            <motion.div
-              key="popup-bg"
-              className="absolute inset-4 space-y-3 pt-2"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.2 }}
-              exit={{ opacity: 0 }}
-              transition={FADE_TRANSITION}
-            >
-              <div className="h-2.5 w-1/5 rounded-full bg-input" />
-              <div className="space-y-2">
-                <div className="h-2 w-full rounded-full bg-input" />
-                <div className="h-2 w-full rounded-full bg-input" />
-                <div className="h-2 w-3/4 rounded-full bg-input" />
-              </div>
-            </motion.div>
-          )}
+          {/* Figma popup mockup (node 25363-20471) is just the dots + the popup card — no host skeleton lines. */}
         </AnimatePresence>
 
         <AnimatePresence>
