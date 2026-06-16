@@ -259,7 +259,7 @@ export const FormMatrixElement = ({ children, ...props }: PlateElementProps) => 
                   onPointerDown={(e) => e.stopPropagation()}
                   aria-label="Row label"
                   placeholder="Row"
-                  className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
+                  className="w-full bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground/60"
                 />
               </div>
               {columns.map((col) => (
