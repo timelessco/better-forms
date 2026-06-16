@@ -792,6 +792,7 @@ const FieldByFieldLayout = ({
                     questions={currentStepQuestions}
                     isLastStep={isLastStep}
                     autoActionButton
+                    branding={Boolean(settings?.branding)}
                   />
                 </m.div>
               </AnimatePresence>
@@ -880,6 +881,7 @@ const LinearLayout = ({
                 segments={currentStepSegments}
                 questions={currentStepQuestions}
                 isLastStep={isLastStep}
+                branding={Boolean(settings?.branding)}
               />
             </m.div>
           </AnimatePresence>

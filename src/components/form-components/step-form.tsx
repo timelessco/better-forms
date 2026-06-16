@@ -1,4 +1,5 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
+import { APP_NAME } from "@/lib/config/app-config";
 import { TextSwap } from "@/components/transitions/text-swap";
 import { use, useMemo, useRef, useState } from "react";
 import { useFocusFirstField } from "@/hooks/use-focus-first-field";
@@ -21,6 +22,8 @@ interface StepFormProps {
   questions?: QuestionRef[];
   isLastStep: boolean;
   autoActionButton?: boolean;
+  /** Show the "Made with Reform." footer badge beside the final Submit (settings.branding). */
+  branding?: boolean;
 }
 
 // One step's form instance. Nav + data accumulation via StepFormContext.
@@ -30,6 +33,7 @@ export const StepForm = ({
   questions,
   isLastStep,
   autoActionButton = false,
+  branding = false,
 }: StepFormProps) => {
   const { totalSteps, goToPrevStep, canGoBack, isSubmitting, tracking } = useStepForm();
   const { t } = useTranslation();
@@ -59,6 +63,8 @@ export const StepForm = ({
   });
 
   const groupedItems = useMemo(() => groupSegmentsForRendering(segments), [segments]);
+  // Branding only rides the final Submit row (last step).
+  const showBranding = branding && isLastStep;
 
   const formRef = useRef<HTMLFormElement>(null);
   const [isTextareaFocused, setIsTextareaFocused] = useState(false);
@@ -146,7 +152,8 @@ export const StepForm = ({
         onKeyDownCapture={autoActionButton ? handleFieldByFieldKeyDown : undefined}
         onFocus={handleFormFocus}
         onBlur={autoActionButton ? handleTextareaFocusChange(false) : undefined}
-        className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        // pb-7: 28px breathing room so the final Submit/branding row doesn't sit flush at the form's bottom edge.
+        className="pb-7 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         {groupedItems.map((item) => {
           if (item.type === "buttonGroup") {
@@ -160,27 +167,35 @@ export const StepForm = ({
             return (
               <div
                 key={groupKey}
-                className="flex w-full flex-row-reverse items-center justify-between"
+                className="flex w-full flex-col gap-2"
                 style={{ maxWidth: "var(--bf-input-width)" }}
               >
-                {actionButton && (
-                  <RenderStepButton
-                    field={actionButton}
-                    isSubmitting={isSubmitting}
-                    onPrevious={canGoBack ? goToPrevStep : undefined}
-                    hideSubmit={hideSubmit}
-                    grouped
-                  />
-                )}
-                {prevButton ? (
-                  <RenderStepButton
-                    field={prevButton}
-                    isSubmitting={isSubmitting}
-                    onPrevious={canGoBack ? goToPrevStep : undefined}
-                    grouped
-                  />
-                ) : (
-                  <div /> // Spacer for justify-between
+                <div className="flex w-full flex-row-reverse items-center justify-between">
+                  {actionButton && (
+                    <RenderStepButton
+                      field={actionButton}
+                      isSubmitting={isSubmitting}
+                      onPrevious={canGoBack ? goToPrevStep : undefined}
+                      hideSubmit={hideSubmit}
+                      grouped
+                    />
+                  )}
+                  {prevButton ? (
+                    <RenderStepButton
+                      field={prevButton}
+                      isSubmitting={isSubmitting}
+                      onPrevious={canGoBack ? goToPrevStep : undefined}
+                      grouped
+                    />
+                  ) : (
+                    <div /> // Spacer for justify-between
+                  )}
+                </div>
+                {/* Multi-step submit row is full (Prev + Submit) — branding sits right-aligned below. */}
+                {showBranding && (
+                  <div className="flex justify-end">
+                    <FormBrandingBadge />
+                  </div>
                 )}
               </div>
             );
@@ -216,6 +231,7 @@ export const StepForm = ({
                   onPrevious={canGoBack ? goToPrevStep : undefined}
                   hideSubmit={hideSubmit}
                   totalSteps={totalSteps}
+                  showBranding={showBranding}
                 />
               );
             }
@@ -282,6 +298,7 @@ export const StepForm = ({
                 to go back
               </span>
             )}
+            {showBranding && <FormBrandingBadge className="ms-auto" />}
           </div>
         )}
       </form.Form>
@@ -321,6 +338,22 @@ const groupSegmentsForRendering = (segments: PreviewSegment[]): GroupedSegment[]
   return result;
 };
 
+// Inline form-footer branding (Figma 25778-10461): "Made with Reform." — Inter gray/500 + the
+// Timeless Serif "Reform." wordmark. Renders beside the final Submit when settings.branding is on.
+const FormBrandingBadge = ({ className }: { className?: string }) => (
+  <span
+    // Inline fontSize: the form applies a base size via a non-layered rule that out-races Tailwind
+    // utilities (same reason the submit button pins fontSize inline). Figma = 14px.
+    style={{ fontSize: "14px" }}
+    className={`shrink-0 leading-[1.15] font-[420] tracking-[0.28px] text-gray-500 ${className ?? ""}`}
+  >
+    Made with{" "}
+    <span className="[font-family:'Timeless_Serif',ui-serif,Georgia,serif] italic">
+      {APP_NAME}.
+    </span>
+  </span>
+);
+
 // Step-form button. Previous uses onClick; Next/Submit use type="submit" to trigger validation.
 const RenderStepButton = ({
   field,
@@ -329,6 +362,7 @@ const RenderStepButton = ({
   grouped = false,
   totalSteps = 1,
   hideSubmit = false,
+  showBranding = false,
 }: {
   field: ButtonField;
   isSubmitting: boolean;
@@ -336,6 +370,7 @@ const RenderStepButton = ({
   grouped?: boolean;
   totalSteps?: number;
   hideSubmit?: boolean;
+  showBranding?: boolean;
 }) => {
   const { t } = useTranslation();
   const buttonRole = field.buttonRole || "submit";
@@ -409,11 +444,13 @@ const RenderStepButton = ({
   return grouped ? (
     submitButton
   ) : (
+    // Branding (Figma 25778-10461) rides the submit row right-aligned (justify-between).
     <div
-      className={`flex ${isMultiStep ? "justify-end" : "justify-start"}`}
+      className={`flex items-center ${showBranding ? "justify-between gap-3" : isMultiStep ? "justify-end" : "justify-start"}`}
       style={{ maxWidth: "var(--bf-input-width)" }}
     >
       {submitButton}
+      {showBranding && <FormBrandingBadge />}
     </div>
   );
 };

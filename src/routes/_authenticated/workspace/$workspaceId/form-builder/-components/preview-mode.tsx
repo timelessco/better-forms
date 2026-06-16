@@ -1,6 +1,6 @@
-import { APP_NAME, SPRITE_PATH } from "@/lib/config/app-config";
+import { SPRITE_PATH } from "@/lib/config/app-config";
 import { Link, useSearch } from "@tanstack/react-router";
-import { SparklesIcon, XIcon } from "@/components/ui/icons";
+import { XIcon } from "@/components/ui/icons";
 import { useState, useCallback, useMemo } from "react";
 import { PopoverContainerContext } from "@/components/ui/popover";
 import type { Value } from "platejs";
@@ -70,19 +70,19 @@ export const PreviewModeContent = ({ doc, formId }: { doc: PreviewDoc; formId: s
   const content = (doc?.content as Value) || [];
   // Preview shows what the user is about to publish — read the draft.
   const docSettings = doc?.draftSettings;
-  const previewSettings = useMemo<PublicFormSettings>(
-    () =>
-      buildPublicFormSettings(docSettings, {
-        branding: Boolean(docSettings?.branding ?? true),
-      }),
-    [docSettings],
-  );
 
   const search = useSearch({ strict: false });
+  // Share sidebar's "Show branding" toggle writes embedBranding; fall back to the saved setting.
+  // Feed it into previewSettings so the form's inline "Made with Reform." badge tracks the toggle live.
+  const branding = (search.embedBranding as boolean) ?? docSettings?.branding ?? true;
+  const previewSettings = useMemo<PublicFormSettings>(
+    () => buildPublicFormSettings(docSettings, { branding }),
+    [docSettings, branding],
+  );
+
   const embedType = (search.embedType as EmbedType) ?? "fullpage";
   const hideTitle = (search.embedHideTitle as boolean) ?? false;
   const transparentBackground = (search.embedTransparent as boolean) ?? false;
-  const branding = (search.embedBranding as boolean) ?? docSettings?.branding ?? true;
   const height = (search.embedHeight as number) ?? 558;
   const dynamicHeight = (search.embedDynamicHeight as boolean) ?? true;
   const popupPosition = (search.embedPopupPosition as string) ?? "bottom-right";
@@ -149,7 +149,6 @@ export const PreviewModeContent = ({ doc, formId }: { doc: PreviewDoc; formId: s
               dynamicHeight={dynamicHeight}
               height={height}
               dynamicWidth={dynamicWidth}
-              branding={branding}
               darkOverlay={darkOverlay}
               isPopupOpen={isPopupOpen}
               handleClosePopup={handleClosePopup}
@@ -174,7 +173,6 @@ export const PreviewModeContent = ({ doc, formId }: { doc: PreviewDoc; formId: s
               doc={doc}
               content={content}
               customization={customization}
-              branding={branding}
               formId={formId}
             />
           )}
@@ -199,7 +197,6 @@ type EmbedPreviewSurfaceProps = SharedPreviewProps & {
   dynamicHeight: boolean;
   height: number;
   dynamicWidth: boolean;
-  branding: boolean;
   darkOverlay: boolean;
   isPopupOpen: boolean;
   handleClosePopup: () => void;
@@ -215,7 +212,6 @@ const EmbedPreviewSurface = ({
   dynamicHeight,
   height,
   dynamicWidth,
-  branding,
   darkOverlay,
   isPopupOpen,
   handleClosePopup,
@@ -304,8 +300,6 @@ const EmbedPreviewSurface = ({
                 <div className="h-3 w-3/5 rounded-full bg-[var(--color-gray-100)]" />
                 <div className="h-3 w-1/5 rounded-full bg-[var(--color-gray-100)]" />
               </div>
-
-              {branding && <BrandingBadge />}
             </>
           )}
         </div>
@@ -323,7 +317,6 @@ const EmbedPreviewSurface = ({
             doc={doc}
             content={content}
             customization={customization}
-            branding={branding}
             showEmoji={showEmoji}
             formId={formId}
           />
@@ -398,7 +391,6 @@ type PopupPreviewOverlayProps = SharedPreviewProps & {
   handleOpenPopup: () => void;
   popupPosition: string;
   popupWidth: number;
-  branding: boolean;
   showEmoji: boolean;
 };
 
@@ -414,7 +406,6 @@ const PopupPreviewOverlay = ({
   doc,
   content,
   customization,
-  branding,
   showEmoji,
   formId,
 }: PopupPreviewOverlayProps) => {
@@ -488,16 +479,6 @@ const PopupPreviewOverlay = ({
               formId={formId}
             />
           </div>
-
-          {branding && (
-            <div className="flex shrink-0 justify-center border-t border-border bg-muted/60 py-3">
-              <div className="flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
-                <span>Made with</span>
-                <SparklesIcon className="size-3 fill-muted-foreground text-muted-foreground" />
-                <span className="text-foreground">{APP_NAME}</span>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -540,7 +521,6 @@ const PopupPreviewOverlay = ({
 
 type FullpagePreviewSurfaceProps = SharedPreviewProps & {
   transparentBackground: boolean;
-  branding: boolean;
 };
 
 const FullpagePreviewSurface = ({
@@ -550,7 +530,6 @@ const FullpagePreviewSurface = ({
   doc,
   content,
   customization,
-  branding,
   formId,
 }: FullpagePreviewSurfaceProps) => {
   // Match FormPreviewFromPlate cover resolution: formHeader node is sole truth (legacy doc.cover may be stale). Only header-less forms fall back to doc.cover.
@@ -576,7 +555,6 @@ const FullpagePreviewSurface = ({
           "h-full min-h-0 w-full flex-1",
           previewSettings.presentationMode !== "field-by-field" &&
             "overflow-x-hidden overflow-y-auto",
-          previewSettings.presentationMode !== "field-by-field" && branding && "pb-16",
         )}
       >
         <FormPreviewFromPlate
@@ -592,7 +570,6 @@ const FullpagePreviewSurface = ({
           formId={formId}
         />
       </div>
-      {branding && <BrandingBadge />}
     </div>
   );
 };
@@ -630,13 +607,3 @@ const FieldByFieldCoverBackground = ({ cover }: { cover: string }) => {
     </>
   );
 };
-
-const BrandingBadge = () => (
-  <div className="absolute right-0 bottom-0 left-0 z-50 flex justify-center border-t border-border bg-muted/60 py-3 backdrop-blur">
-    <span className="flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
-      <span>Made with</span>
-      <SparklesIcon className="size-3 fill-muted-foreground text-muted-foreground" />
-      <span className="text-foreground">{APP_NAME}</span>
-    </span>
-  </div>
-);
