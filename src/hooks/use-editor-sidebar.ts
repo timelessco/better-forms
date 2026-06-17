@@ -29,6 +29,7 @@ export const useEditorSidebar = () => {
 
   const openSettings = useCallback((tab?: SettingsTab) => {
     editorUICollection.update("editor-ui", (draft) => {
+      if (draft.activeSidebar === "share") draft.previewMode = false;
       draft.activeSidebar = "settings";
       draft.selectedVersionId = null;
       if (tab) draft.settingsTab = tab;
@@ -45,6 +46,8 @@ export const useEditorSidebar = () => {
 
   const openVersionHistory = useCallback((versionId?: string) => {
     editorUICollection.update("editor-ui", (draft) => {
+      // Leaving Share drops its inline preview — else previewMode leaks into the drawer preview.
+      if (draft.activeSidebar === "share") draft.previewMode = false;
       draft.activeSidebar = "history";
       if (versionId) draft.selectedVersionId = versionId;
     });
@@ -52,6 +55,7 @@ export const useEditorSidebar = () => {
 
   const openCustomize = useCallback(() => {
     editorUICollection.update("editor-ui", (draft) => {
+      if (draft.activeSidebar === "share") draft.previewMode = false;
       draft.activeSidebar = "customize";
       draft.selectedVersionId = null;
     });
@@ -59,6 +63,7 @@ export const useEditorSidebar = () => {
 
   const openAbout = useCallback(() => {
     editorUICollection.update("editor-ui", (draft) => {
+      if (draft.activeSidebar === "share") draft.previewMode = false;
       draft.activeSidebar = "about";
       draft.selectedVersionId = null;
     });
@@ -95,6 +100,12 @@ export const useEditorSidebar = () => {
           (sidebar === "share" && draft.shareTab !== tab));
 
       const nextSidebar = isAlreadyOpen && !isSwitchingTab ? null : sidebar;
+
+      // Switching from Share to a different sidebar drops its inline preview — otherwise the
+      // leftover previewMode satisfies isDrawerPreview and the full-page drawer pops open.
+      if (draft.activeSidebar === "share" && nextSidebar !== "share") {
+        draft.previewMode = false;
+      }
 
       draft.activeSidebar = nextSidebar;
 

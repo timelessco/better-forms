@@ -179,33 +179,15 @@ import { generateOrderedIndexes, getLeadingSortIndex, sortByManualOrder } from "
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDistanceToNow } from "date-fns";
 import type * as React from "react";
-import { Activity, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Activity, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
 import { toast } from "sonner";
 
-import {
-  importCustomizeSidebar,
-  importFormSettingsSidebar,
-  importSettingsDialog,
-  importShareSummarySidebar,
-  importVersionHistorySidebar,
-} from "./_authenticated/-components/lazy-modules";
-
-const LazySettingsDialog = lazy(() =>
-  importSettingsDialog().then((m) => ({ default: m.SettingsDialog })),
-);
-const LazyFormSettingsSidebar = lazy(() =>
-  importFormSettingsSidebar().then((m) => ({ default: m.FormSettingsSidebar })),
-);
-const LazyShareSummarySidebar = lazy(() =>
-  importShareSummarySidebar().then((m) => ({ default: m.ShareSummarySidebar })),
-);
-const LazyVersionHistorySidebar = lazy(() =>
-  importVersionHistorySidebar().then((m) => ({ default: m.VersionHistorySidebar })),
-);
-const LazyCustomizeSidebar = lazy(() =>
-  importCustomizeSidebar().then((m) => ({ default: m.CustomizeSidebar })),
-);
+import { SettingsDialog } from "./_authenticated/-components/settings/settings-dialog";
+import { FormSettingsSidebar } from "@/components/form-builder/form-settings-sidebar";
+import { ShareSummarySidebar } from "@/components/form-builder/share-summary-sidebar";
+import { VersionHistorySidebar } from "@/components/form-builder/version-history-sidebar";
+import { CustomizeSidebar } from "@/components/ui/customize-sidebar";
 
 /**
  * <Activity> keeps each sidebar tree alive across toggles — no Form remount, scroll/field state preserved.
@@ -255,22 +237,22 @@ const PersistentSidebars = ({
       {openedSettings && (
         <SidebarSectionResetProvider value={settingsEpoch}>
           <Activity mode={showSettings ? "visible" : "hidden"}>
-            {formId && <LazyFormSettingsSidebar key={formId} formId={formId} />}
+            {formId && <FormSettingsSidebar key={formId} formId={formId} />}
           </Activity>
         </SidebarSectionResetProvider>
       )}
       {openedShare && (
         <SidebarSectionResetProvider value={shareEpoch}>
           <Activity mode={showShare ? "visible" : "hidden"}>
-            {formId && <LazyShareSummarySidebar key={formId} formId={formId} />}
+            {formId && <ShareSummarySidebar key={formId} formId={formId} />}
           </Activity>
         </SidebarSectionResetProvider>
       )}
-      {activeSidebar === "history" && formId && <LazyVersionHistorySidebar formId={formId} />}
+      {activeSidebar === "history" && formId && <VersionHistorySidebar formId={formId} />}
       {openedCustomize && (
         <SidebarSectionResetProvider value={customizeEpoch}>
           <Activity mode={showCustomize ? "visible" : "hidden"}>
-            {formId && <LazyCustomizeSidebar key={formId} formId={formId} />}
+            {formId && <CustomizeSidebar key={formId} formId={formId} />}
           </Activity>
         </SidebarSectionResetProvider>
       )}
@@ -379,11 +361,6 @@ const AuthLayoutContent = () => {
   const pathname = useLocation({ select: (s) => s.pathname });
   const isEditRoute = pathname.includes("/form-builder/") && pathname.endsWith("/edit");
   const { visible: isHeaderVisible, reportPointerActivity } = useEditorHeaderVisibility();
-
-  // Warm settings-dialog chunk so first open skips the round-trip.
-  useEffect(() => {
-    void importSettingsDialog();
-  }, []);
 
   const { formId } = useParams({ strict: false });
 
@@ -521,8 +498,6 @@ const AppSidebar = () => {
   const [trashDialogOpen, setTrashDialogOpen] = useState(false);
   const [paletteSearch, setPaletteSearch] = useState("");
 
-  const handleOpenSettings = useCallback(() => settingsDialogStore.open(), []);
-
   const handleOpenTrash = useCallback(() => setTrashDialogOpen(true), []);
 
   // Subscribe to loader-primed org query (not loader data) to stay active: refetch on focus/reconnect, react to invalidation, no GC while on screen.
@@ -621,13 +596,6 @@ const AppSidebar = () => {
                           </span>
                         )}
                       </SidebarItem>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarItem
-                        onClick={handleOpenSettings}
-                        prefix={<SettingsIcon className="size-[18px] text-muted-foreground" />}
-                        label="Settings"
-                      />
                     </SidebarMenuItem>
                   </SidebarMenu>
                 </SidebarGroupContent>
@@ -795,7 +763,7 @@ const AppSidebar = () => {
       />
 
       <Suspense fallback={null}>
-        <LazySettingsDialog />
+        <SettingsDialog />
       </Suspense>
     </>
   );

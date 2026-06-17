@@ -420,7 +420,14 @@ const RenderStepButton = ({
     return grouped ? (
       button
     ) : (
-      <div className="mb-4 flex justify-end" style={{ maxWidth: "var(--bf-input-width)" }}>
+      <div
+        className="mb-4 flex"
+        style={{
+          maxWidth: "var(--bf-input-width)",
+          // Button alignment (Buttons → Alignment); fallback keeps the prior right-aligned default.
+          justifyContent: "var(--bf-button-justify, flex-end)",
+        }}
+      >
         {button}
       </div>
     );
@@ -444,10 +451,19 @@ const RenderStepButton = ({
   return grouped ? (
     submitButton
   ) : (
-    // Branding (Figma 25778-10461) rides the submit row right-aligned (justify-between).
+    // Branding (Figma 25778-10461) rides the submit row right-aligned (justify-between); keep that
+    // fixed. Otherwise the button row honors --bf-button-justify (Buttons → Alignment), fallback to
+    // the prior default (multi-step right, single-step left).
     <div
-      className={`flex items-center ${showBranding ? "justify-between gap-3" : isMultiStep ? "justify-end" : "justify-start"}`}
-      style={{ maxWidth: "var(--bf-input-width)" }}
+      className={`flex items-center ${showBranding ? "justify-between gap-3" : ""}`}
+      style={{
+        maxWidth: "var(--bf-input-width)",
+        ...(showBranding
+          ? {}
+          : {
+              justifyContent: `var(--bf-button-justify, ${isMultiStep ? "flex-end" : "flex-start"})`,
+            }),
+      }}
     >
       {submitButton}
       {showBranding && <FormBrandingBadge />}

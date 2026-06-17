@@ -296,6 +296,8 @@ export const renderHeaderComponent = async ({
           )}
           {coverIsUrl && cover && (
             <div className={cn(coverClass, "overflow-hidden bg-muted")} data-bf-cover>
+              {/* Ambient glow: blurred copy behind the card (Fit-only, gated by --bf-cover-glow). */}
+              <img src={vercelImg(cover, 640)} alt="" aria-hidden data-bf-cover-glow />
               {tinted && (
                 <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
               )}

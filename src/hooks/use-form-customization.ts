@@ -1,19 +1,27 @@
 import { useEffect, useMemo } from "react";
-import { getThemeStyleVars, getGoogleFontLinkUrl } from "@/lib/theme/generate-theme-css";
+import {
+  getThemeStyleVars,
+  getGoogleFontLinkUrl,
+  resolveEffectiveMode,
+} from "@/lib/theme/generate-theme-css";
 import { loadGoogleFont } from "@/lib/theme/load-google-font";
 
 /**
  * Memoizes form customization/theme data; loads Google Fonts when selected. Shared by landing-editor, editor-app, preview-mode.
- * effectiveTheme = customization.defaultMode if "light"/"dark", else appTheme. Drives root `.dark` so previews match published output.
+ * effectiveTheme precedence: modeOverride (editor Customize toggle) → customization.defaultMode (if "light"/"dark") → appTheme.
+ * Drives the scoped preview `.dark`/`.bf-light` so previews match published output (and the editor's editing mode).
  */
 export const useFormCustomization = (
   doc: { customization?: unknown } | null | undefined,
   appTheme: "light" | "dark",
+  modeOverride?: "light" | "dark" | null,
 ) => {
   const rawCustomization = (doc?.customization ?? null) as Record<string, string> | null;
-  const formDefaultMode = rawCustomization?.defaultMode;
-  const effectiveTheme: "light" | "dark" =
-    formDefaultMode === "light" || formDefaultMode === "dark" ? formDefaultMode : appTheme;
+  const effectiveTheme = resolveEffectiveMode(
+    rawCustomization?.defaultMode,
+    appTheme,
+    modeOverride,
+  );
   const customization =
     rawCustomization && rawCustomization.mode !== effectiveTheme
       ? { ...rawCustomization, mode: effectiveTheme }

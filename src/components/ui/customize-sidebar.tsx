@@ -1,5 +1,5 @@
 import { ConfigRow, selectTriggerFigmaCls } from "@/components/form-builder/embed-config-panel";
-import { useTheme, useResolvedTheme } from "@/components/theme-provider";
+import { useResolvedTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { IconPickerPreview } from "@/components/icon-picker";
 import { ColorPicker } from "@/components/ui/color-picker";
@@ -8,7 +8,6 @@ import {
   DarkModeIcon,
   ImageLineIcon,
   LightModeIcon,
-  SelectChevronIcon,
   SystemModeIcon,
   TextAlignCenterIcon,
   TextAlignLeftIcon,
@@ -21,19 +20,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { Sidebar, SidebarContent, SidebarHeader } from "@/components/ui/sidebar";
 import { SidebarSection } from "@/components/ui/sidebar-section";
 import { StyleNumberInput } from "@/components/ui/style-controls";
+import { ToggleSelect } from "@/components/ui/toggle-select";
 import { Textarea } from "@/components/ui/textarea";
 import { getFormListings } from "@/collections";
 import { localFormCollection } from "@/collections/local/form";
 import { getHeaderMediaSetter } from "@/lib/editor/header-media-registry";
+import { useEditorColorMode } from "@/hooks/use-editor-color-mode";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import { useForm, useLocalForm } from "@/hooks/use-live-hooks";
 import { FONT_REGISTRY } from "@/lib/theme/font-registry";
-import { OVERRIDABLE_TOKEN_NAMES } from "@/lib/theme/generate-theme-css";
+import { OVERRIDABLE_TOKEN_NAMES, resolveEffectiveMode } from "@/lib/theme/generate-theme-css";
 import { loadGoogleFont } from "@/lib/theme/load-google-font";
 import { BASE_COLORS, DARK_BASE_COLORS, STYLES, THEME_COLORS } from "@/lib/theme/theme-presets";
 import { cn, isValidUrl } from "@/lib/utils";
 import { domMax, LazyMotion, m } from "motion/react";
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 const FONT_OPTIONS = Object.keys(FONT_REGISTRY).map((name) => ({
   label: name,
@@ -41,20 +42,20 @@ const FONT_OPTIONS = Object.keys(FONT_REGISTRY).map((name) => ({
 }));
 
 // Cover box width: Fill = full-bleed (edge to edge), Fit = contained to the form width.
-const COVER_WIDTH_OPTIONS: { label: string; value: string }[] = [
+const COVER_WIDTH_OPTIONS = [
   { label: "Fill", value: "fill" },
   { label: "Fit", value: "fit" },
-];
+] as const;
 
-const TYPO_SCOPE_OPTIONS: { label: string; value: string }[] = [
+const TYPO_SCOPE_OPTIONS = [
   { label: "Title", value: "title" },
   { label: "Body", value: "body" },
-];
+] as const;
 
-const MODE_OPTIONS: { label: string; value: string }[] = [
+const MODE_OPTIONS = [
   { label: "Light", value: "light" },
   { label: "Dark", value: "dark" },
-];
+] as const;
 
 // Semantic Colors rows (Figma) → underlying theme token written mode-prefixed.
 const SEMANTIC_COLOR_TOKENS = [
@@ -68,8 +69,11 @@ const SEMANTIC_COLOR_TOKENS = [
 ] as const;
 
 // Borderless compact trigger for header-right scope/mode selects (Figma Title/Light).
+// Figma (node 25420-11662): 13px, gray/700, lh 1.15, 0.26px (0.02em = tracking-4) tracking, 6px gap.
+// Style slot reads "Thin" but wght axis is overridden to 420 — ship font-[420] (variable axis,
+// un-pinned by the sidebar root's [font-variation-settings:normal]), NOT font-thin/100.
 const scopeTriggerCls =
-  "h-auto gap-1 border-none bg-transparent p-0 text-[13px] font-normal text-foreground shadow-none data-[size=default]:h-auto [&>svg]:size-3.5";
+  "h-auto gap-1.5 border-none bg-transparent p-0 text-[13px] font-[420] leading-[1.15] tracking-4 text-gray-700 shadow-none data-[size=default]:h-auto [&>svg]:size-3.5";
 
 // Figma slider rows read like plain label rows at rest (flat, no box); the gray-100 rounded track +
 // hash marks reveal only on hover/drag/keyboard-focus (revealOnHover, set via `bare`). 6px label/value
@@ -101,15 +105,10 @@ const RadiusEndIcon = ({ value, max }: { value?: string; max: number }) => {
   );
 };
 
-const ProBadge = () => (
-  <div className="rounded-[4px] bg-teal-100 px-1.5 py-px text-[9px] font-bold tracking-wider text-teal-700 uppercase shadow-sm dark:bg-teal-700/20 dark:text-teal-400">
-    Pro
-  </div>
-);
-
-/** Figma segmented pill toggle (Theme sun/moon/monitor, Alignment L/C/R). The value follows the
- * pointer as it slides across segments (hover applies, no click needed); the highlight pill
- * glides between segments via a shared layoutId. Click stays for touch/keyboard. */
+/** Figma segmented pill toggle (Theme sun/moon/monitor, Alignment L/C/R). Press and drag across the
+ * track to switch: the segment is picked from the pointer's X over the whole track (no per-button
+ * dead-zone), so the highlight pill follows the drag continuously and snaps via a shared layoutId.
+ * Pointer capture keeps the drag alive even past the edges. Click/keyboard still work. */
 const PillToggle = ({
   value,
   onChange,
@@ -120,9 +119,49 @@ const PillToggle = ({
   options: { value: string; label: string; icon: React.ReactNode }[];
 }) => {
   const pillId = useId();
+  const trackRef = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef(false);
+  // Track rect is stable for the duration of a drag — cache it on pointerDown so pointerMove
+  // (fired per pixel) doesn't force a layout read each frame.
+  const dragRectRef = useRef<DOMRect | null>(null);
+
+  // Pick the segment under clientX from the track's full width — boundaries fall on the 1/n marks,
+  // so a sweep switches the instant the pointer crosses, with no gap between buttons to stall on.
+  const selectAtX = useCallback(
+    (clientX: number, rect?: DOMRect | null) => {
+      const r = rect ?? trackRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const ratio = (clientX - r.left) / r.width;
+      const index = Math.min(options.length - 1, Math.max(0, Math.floor(ratio * options.length)));
+      if (options[index].value !== value) onChange(options[index].value);
+    },
+    [options, value, onChange],
+  );
+
+  const endDrag = useCallback((e: React.PointerEvent) => {
+    draggingRef.current = false;
+    dragRectRef.current = null;
+    trackRef.current?.releasePointerCapture?.(e.pointerId);
+  }, []);
+
   return (
     <LazyMotion features={domMax} strict>
-      <div className="flex w-[141px] items-center gap-1.5 rounded-lg bg-muted p-px">
+      <div
+        ref={trackRef}
+        onPointerDown={(e) => {
+          if (e.pointerType === "mouse" && e.button !== 0) return;
+          draggingRef.current = true;
+          dragRectRef.current = trackRef.current?.getBoundingClientRect() ?? null;
+          trackRef.current?.setPointerCapture?.(e.pointerId);
+          selectAtX(e.clientX, dragRectRef.current);
+        }}
+        onPointerMove={(e) => {
+          if (draggingRef.current) selectAtX(e.clientX, dragRectRef.current);
+        }}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        className="relative flex w-[141px] cursor-grab touch-none items-center gap-1.5 rounded-lg bg-muted p-px select-none active:cursor-grabbing"
+      >
         {options.map((o) => {
           const active = value === o.value;
           return (
@@ -132,11 +171,9 @@ const PillToggle = ({
               aria-label={o.label}
               aria-pressed={active}
               onClick={() => onChange(o.value)}
-              onPointerEnter={(e) => {
-                if (e.pointerType === "mouse" && !active) onChange(o.value);
-              }}
               className={cn(
-                "relative flex flex-1 items-center justify-center rounded-md py-1 transition-colors",
+                // inherit the track's grab/grabbing cursor so it stays consistent across buttons + gaps
+                "relative flex flex-1 cursor-[inherit] items-center justify-center rounded-md py-1 transition-colors",
                 active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -145,7 +182,7 @@ const PillToggle = ({
                   aria-hidden
                   layoutId={`${pillId}-pill`}
                   className="absolute inset-0 rounded-md bg-background shadow-sm"
-                  transition={{ type: "spring", duration: 0.25, bounce: 0 }}
+                  transition={{ type: "spring", duration: 0.18, bounce: 0 }}
                 />
               )}
               <span className="relative">{o.icon}</span>
@@ -157,7 +194,7 @@ const PillToggle = ({
   );
 };
 
-/** Header-right scope/mode select (Figma "Title ⌄" / "Light ⌄"). */
+/** Header-right scope/mode toggle (Figma "Title ⌄" / "Light ⌄"). Binary → click flips it. */
 const ScopeSelect = ({
   value,
   onChange,
@@ -165,20 +202,15 @@ const ScopeSelect = ({
 }: {
   value: string;
   onChange: (value: string) => void;
-  options: { value: string; label: string }[];
+  options: readonly [{ value: string; label: string }, { value: string; label: string }];
 }) => (
-  <Select value={value} onValueChange={(v) => v && onChange(v)}>
-    <SelectTrigger className={scopeTriggerCls} icon={<SelectChevronIcon className="size-3.5" />}>
-      {options.find((o) => o.value === value)?.label ?? value}
-    </SelectTrigger>
-    <SelectContent>
-      {options.map((o) => (
-        <SelectItem key={o.value} value={o.value}>
-          {o.label}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
+  <ToggleSelect
+    value={value}
+    onChange={onChange}
+    options={options}
+    className={scopeTriggerCls}
+    iconClassName="size-3.5"
+  />
 );
 
 interface CustomizeSidebarProps {
@@ -188,7 +220,7 @@ interface CustomizeSidebarProps {
 
 export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => {
   const { closeSidebar } = useEditorSidebar();
-  const { setTheme } = useTheme();
+  const { editorColorMode, setEditorColorMode } = useEditorColorMode();
   const cloudForm = useForm(isLocal ? undefined : formId);
   const localFormResult = useLocalForm(isLocal ? formId : undefined);
   const formResult = isLocal ? localFormResult : cloudForm;
@@ -319,13 +351,22 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
       if (Object.keys(updates).length > 0) {
         updateFields(updates);
       }
-      // App theme is the single source of truth for mode
-      setTheme(targetMode as "dark" | "light");
+      // Scope the switch to the editor/form preview only — NOT the app theme (no setTheme).
+      setEditorColorMode(targetMode as "dark" | "light");
     },
-    [updateFields, customization, setTheme],
+    [updateFields, customization, setEditorColorMode],
   );
 
-  const activeMode = resolvedAppTheme;
+  // Which mode the Colors section edits + the preview shows. Shares useFormCustomization's precedence
+  // (editor override → form defaultMode → app theme). Reset the override on close so the preview
+  // reverts to the form's effective theme (the customize tree is kept alive via <Activity>).
+  const activeMode = resolveEffectiveMode(
+    customization.defaultMode,
+    resolvedAppTheme,
+    editorColorMode,
+  );
+
+  useEffect(() => () => setEditorColorMode(null), [setEditorColorMode]);
   const activeFont = getValue("font");
 
   const cssKey = `${activeMode}:customCss`;
@@ -426,7 +467,7 @@ const CustomizeSidebarHeader = ({ closeSidebar }: { closeSidebar: () => void }) 
   <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pr-2 pb-2 pl-4">
     <div className="flex items-center justify-between">
       {/* drop font-sans so the root's variation reset isn't re-pinned */}
-      <h2 className="text-sm leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
+      <h2 className="text-base leading-[1.15] font-[450] tracking-[0.14px] text-gray-800">
         Customize
       </h2>
       <Button
@@ -485,25 +526,14 @@ const AppearanceSection = ({
       />
     </ConfigRow>
     <ConfigRow label="Cover width" surface="flat">
-      <Select
+      <ToggleSelect
         value={customization.coverWidth || "fill"}
-        onValueChange={(v) => v && updateScrubberField("coverWidth", v)}
-      >
-        <SelectTrigger
-          className={selectTriggerFigmaCls}
-          icon={<CaretDownIcon className="size-3" />}
-        >
-          {COVER_WIDTH_OPTIONS.find((o) => o.value === (customization.coverWidth || "fill"))
-            ?.label ?? "Fill"}
-        </SelectTrigger>
-        <SelectContent>
-          {COVER_WIDTH_OPTIONS.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        onChange={(v) => updateScrubberField("coverWidth", v)}
+        options={COVER_WIDTH_OPTIONS}
+        className={selectTriggerFigmaCls}
+        iconClassName="size-3"
+        aria-label="Cover width"
+      />
     </ConfigRow>
     <NumberRow
       label="Cover radius"
@@ -576,7 +606,7 @@ const CoverPickerButton = ({
       type="button"
       disabled={!onCoverChange}
       title={cover ? "Edit cover" : "Add cover"}
-      className="flex items-center gap-1.5 text-[14px] font-medium text-gray-700 enabled:cursor-pointer disabled:cursor-default"
+      className="flex items-center gap-1.5 text-[14px] font-[450] text-gray-700 enabled:cursor-pointer disabled:cursor-default"
     >
       {cover ? (
         <>
@@ -629,7 +659,7 @@ const LogoPickerButton = ({
       type="button"
       disabled={!onIconChange}
       title={logo ? "Edit logo" : "Add logo"}
-      className="flex items-center gap-1.5 text-[14px] font-medium text-gray-700 enabled:cursor-pointer disabled:cursor-default"
+      className="flex items-center gap-1.5 text-[14px] font-[450] text-gray-700 enabled:cursor-pointer disabled:cursor-default"
     >
       {logo ? (
         <>
@@ -696,22 +726,17 @@ const TypographySection = ({
   const sizeKey = isTitle ? "titleFontSize" : "baseFontSize";
   const spacingKey = isTitle ? "titleLetterSpacing" : "letterSpacing";
   const lineHeightKey = isTitle ? "titleLineHeight" : "lineHeight";
-  // Alignment is global (not scoped) — one control aligns the whole form (title + body + fields).
-  const alignKey = "textAlign";
 
   return (
     <SidebarSection
       label="Typography"
       collapsible="flat"
       headerRight={
-        <div className="flex items-center gap-2">
-          <ProBadge />
-          <ScopeSelect
-            value={scope}
-            onChange={(v) => setScope(v as "title" | "body")}
-            options={TYPO_SCOPE_OPTIONS}
-          />
-        </div>
+        <ScopeSelect
+          value={scope}
+          onChange={(v) => setScope(v as "title" | "body")}
+          options={TYPO_SCOPE_OPTIONS}
+        />
       }
     >
       {/* No hard Pro gate — free users can experiment; publish strips Pro keys (pro-publish-gate) */}
@@ -744,9 +769,9 @@ const TypographySection = ({
           max={isTitle ? 72 : 24}
           step={isTitle ? 2 : 1}
           unit="px"
-          displayUnit=""
           className={CONFIG_INPUT_CLS}
         />
+        {/* Spacing + Line height display as % (Figma) — value × 100; the raw number is stored/applied. */}
         <NumberRow
           label="Spacing"
           value={customization[spacingKey]}
@@ -758,7 +783,8 @@ const TypographySection = ({
           max={isTitle ? 3 : 0.2}
           step={isTitle ? 0.25 : 0.005}
           unit={isTitle ? "px" : "em"}
-          displayUnit=""
+          displayUnit="%"
+          displayScale={100}
           className={CONFIG_INPUT_CLS}
         />
         <NumberRow
@@ -772,31 +798,10 @@ const TypographySection = ({
           max={2}
           step={0.05}
           unit=""
+          displayUnit="%"
+          displayScale={100}
           className={CONFIG_INPUT_CLS}
         />
-        <ConfigRow label="Alignment" surface="flat">
-          <PillToggle
-            value={customization[alignKey] || "left"}
-            onChange={(v) => updateScrubberField(alignKey, v)}
-            options={[
-              {
-                value: "left",
-                label: "Left",
-                icon: <TextAlignLeftIcon className="size-[18px]" />,
-              },
-              {
-                value: "center",
-                label: "Center",
-                icon: <TextAlignCenterIcon className="size-[18px]" />,
-              },
-              {
-                value: "right",
-                label: "Right",
-                icon: <TextAlignRightIcon className="size-[18px]" />,
-              },
-            ]}
-          />
-        </ConfigRow>
       </div>
     </SidebarSection>
   );
@@ -820,10 +825,7 @@ const ColorsSection = ({
     collapsible="flat"
     className="!overflow-visible"
     headerRight={
-      <div className="flex items-center gap-2">
-        <ProBadge />
-        <ScopeSelect value={activeMode} onChange={handleModeToggle} options={MODE_OPTIONS} />
-      </div>
+      <ScopeSelect value={activeMode} onChange={handleModeToggle} options={MODE_OPTIONS} />
     }
   >
     <div className="relative isolate z-50 flex flex-col gap-2 overflow-visible">
@@ -842,7 +844,7 @@ const InputsSection = ({
   updateScrubberField,
   resetScrubberField,
 }: ScrubberProps) => (
-  <SidebarSection label="Inputs" collapsible="flat" headerRight={<ProBadge />}>
+  <SidebarSection label="Inputs" collapsible="flat">
     <div className="flex flex-col gap-2">
       <NumberRow
         label="Input width"
@@ -924,7 +926,7 @@ const ButtonsSection = ({
   updateScrubberField,
   resetScrubberField,
 }: ScrubberProps) => (
-  <SidebarSection label="Buttons" collapsible="flat" headerRight={<ProBadge />}>
+  <SidebarSection label="Buttons" collapsible="flat">
     <div className="flex flex-col gap-2">
       <NumberRow
         label="Width"
@@ -966,8 +968,30 @@ const ButtonsSection = ({
         step={1}
         unit="px"
         displayUnit=""
+        markStyle="dot"
+        endIcon={<RadiusEndIcon value={customization.buttonRadius} max={32} />}
         className={CONFIG_INPUT_CLS}
       />
+      {/* Aligns ONLY the action button within the form column (--bf-button-justify), not the doc. */}
+      <ConfigRow label="Alignment" surface="flat">
+        <PillToggle
+          value={customization.buttonAlign || "left"}
+          onChange={(v) => updateScrubberField("buttonAlign", v)}
+          options={[
+            { value: "left", label: "Left", icon: <TextAlignLeftIcon className="size-[18px]" /> },
+            {
+              value: "center",
+              label: "Center",
+              icon: <TextAlignCenterIcon className="size-[18px]" />,
+            },
+            {
+              value: "right",
+              label: "Right",
+              icon: <TextAlignRightIcon className="size-[18px]" />,
+            },
+          ]}
+        />
+      </ConfigRow>
     </div>
   </SidebarSection>
 );
@@ -979,13 +1003,14 @@ interface CustomCssSectionProps {
 }
 
 const CustomCssSection = ({ cssValue, handleCssChange, activeMode }: CustomCssSectionProps) => (
-  <SidebarSection label="Custom CSS" collapsible="flat" divider={false} headerRight={<ProBadge />}>
+  <SidebarSection label="Custom CSS" collapsible="flat" divider={false}>
     <div className="overflow-hidden rounded-lg bg-muted">
       <Textarea
         value={cssValue}
         onChange={handleCssChange}
         aria-label={`Custom CSS (${activeMode} mode)`}
-        className="h-36 rounded-none border-0 bg-muted p-3 font-mono text-[14px] text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        // Figma (node 25420-11752): IBM Plex Mono 14px, gray/500, lh 1.4 (140%), 0.14px tracking. Self-hosted @font-face (styles.css), generic mono fallback.
+        className="h-36 resize-none rounded-none border-0 bg-muted p-3 font-['IBM_Plex_Mono',ui-monospace,monospace] text-[14px] leading-[1.4] tracking-[0.14px] text-gray-500 focus-visible:ring-2 focus-visible:ring-ring"
         placeholder={"<style>\n.reform-block {...\n\n\n</style>"}
         spellCheck={false}
       />

@@ -10,6 +10,7 @@ import { useEditorHeaderVisibilitySafe } from "@/contexts/editor-header-visibili
 import { EditorThemeProvider } from "@/contexts/editor-theme-context";
 import { getFormListings } from "@/collections";
 import type { Form } from "@/collections";
+import { useEditorColorMode } from "@/hooks/use-editor-color-mode";
 import { useFormCustomization } from "@/hooks/use-form-customization";
 import { useFormThemeContextValue } from "@/hooks/use-form-theme";
 import { useForm } from "@/hooks/use-live-hooks";
@@ -101,6 +102,7 @@ const EditorAppInner = ({
   savedDocs: Form[] | undefined;
 }) => {
   const resolvedAppTheme = useResolvedTheme();
+  const { editorColorMode } = useEditorColorMode();
 
   const customizationDoc = versionCustomization
     ? { customization: versionCustomization }
@@ -108,6 +110,7 @@ const EditorAppInner = ({
   const { customization, hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
     customizationDoc,
     resolvedAppTheme,
+    editorColorMode,
   );
 
   const skipSaveRef = useRef(false);

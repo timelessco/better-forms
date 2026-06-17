@@ -12,6 +12,22 @@ import {
 import { FONT_MAP, getGoogleFontUrl } from "./font-registry";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "./customization-defaults";
 
+/**
+ * Effective color mode the form renders in. Precedence:
+ * override (editor Customize toggle) → form defaultMode (if "light"/"dark") → app theme.
+ * Single source of truth shared by useFormCustomization and the Customize sidebar so the preview
+ * always matches published output.
+ */
+export const resolveEffectiveMode = (
+  formDefaultMode: string | undefined,
+  appTheme: "light" | "dark",
+  override?: "light" | "dark" | null,
+): "light" | "dark" => {
+  const baseMode =
+    formDefaultMode === "light" || formDefaultMode === "dark" ? formDefaultMode : appTheme;
+  return override ?? baseMode;
+};
+
 /** Layout fields → --bf-* CSS vars. Apply to editor (layout only) + preview/public (full theme). */
 const LAYOUT_FIELDS: Record<string, string> = {
   pageWidth: "--bf-page-width",
@@ -38,6 +54,14 @@ const LAYOUT_FIELDS: Record<string, string> = {
   textAlign: "--bf-text-align",
   titleLineHeight: "--bf-title-line-height",
   titleAlign: "--bf-title-align",
+};
+
+// Button alignment (Buttons section) — left/center/right stored, emitted as the flex justify value
+// consumed by the action-button row wrapper only (scoped to the button, not the whole doc).
+const BUTTON_ALIGN_JUSTIFY: Record<string, string> = {
+  left: "flex-start",
+  center: "center",
+  right: "flex-end",
 };
 
 /** Migrates legacy "vw" page-width values to "%" (same numeric range 30-100). */
@@ -202,6 +226,9 @@ const buildModeAgnosticEntries = (
     }
   }
 
+  const buttonJustify = BUTTON_ALIGN_JUSTIFY[customization.buttonAlign];
+  if (buttonJustify) entries.push(["--bf-button-justify", buttonJustify]);
+
   // Cover width: "fit" bleeds 28px past the form width on each side (Figma) into the editor
   // gutter (always >= 64px). "fill"/unset emits the full-bleed values EXPLICITLY (same as the
   // styles.css fallbacks) — relying on key absence let stale fit vars survive a fit→fill
@@ -211,8 +238,13 @@ const buildModeAgnosticEntries = (
       ["--bf-cover-w", "calc(100% + 56px)"],
       ["--bf-cover-mx", "-28px"],
       ["--bf-cover-x", "0px"],
+      // Fit floats as a card: 32px gap from the top (Figma). Fill bleeds flush to the top.
+      ["--bf-cover-mt", "32px"],
       // Fit is a clean rounded card (Figma) — suppress the bottom fade/blur dissolve.
       ["--bf-cover-fade", "none"],
+      // Fit shows the ambient glow (blurred image copy) and goes overflow-visible so it can bleed.
+      ["--bf-cover-glow", "block"],
+      ["--bf-cover-overflow", "visible"],
       // Fill the card height (crop), not letterbox — overrides any stale coverFit:"contain".
       ["--bf-cover-fit", "cover"],
     );
@@ -223,6 +255,9 @@ const buildModeAgnosticEntries = (
       ["--bf-cover-w", "100cqw"],
       ["--bf-cover-mx", "-50cqw"],
       ["--bf-cover-x", "50%"],
+      ["--bf-cover-mt", "0px"],
+      ["--bf-cover-glow", "none"],
+      ["--bf-cover-overflow", "hidden"],
       ["--bf-cover-fade", "block"],
       // Crop to fill, never letterbox — stale legacy coverFit:"contain" centers the image
       // inside the full-bleed box, which reads as side gaps while the box itself is full width.

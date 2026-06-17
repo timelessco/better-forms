@@ -15,6 +15,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from "@/compone
 import { SidebarSection } from "@/components/ui/sidebar-section";
 import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { ToggleSelect } from "@/components/ui/toggle-select";
 import { FeatureGate } from "@/components/ui/feature-gate";
 import { settingsDialogStore } from "@/hooks/use-settings-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -413,7 +414,7 @@ interface ShareSidebarHeaderProps {
 const ShareSidebarHeader = ({ isDraft, form, navigate, closeSidebar }: ShareSidebarHeaderProps) => (
   <SidebarHeader className="shrink-0 gap-2.25 space-y-2 pt-2 pr-2 pb-2 pl-4">
     <div className="flex items-center justify-between">
-      <h2 className="text-sm leading-[1.15] font-medium tracking-[0.14px] text-gray-800">Share</h2>
+      <h2 className="text-base leading-[1.15] font-[450] tracking-[0.14px] text-gray-800">Share</h2>
       <Button
         variant="ghost-flat"
         size="icon-xs"
@@ -454,7 +455,12 @@ const ShareSidebarHeader = ({ isDraft, form, navigate, closeSidebar }: ShareSide
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className={"text-base font-medium tracking-[0.21px]"}
+                  // Figma tabs (node 26075-12772): 14px/500/+0.21px. Active = gray/700 (flips via token).
+                  // Inactive = gray/550 #8c8c8c (light) but ink-gray-5 #7c7c7c (dark) — no app token lands on
+                  // #7c7c7c dark, so override; dark:data-active reasserts active so the override skips it.
+                  className={
+                    "text-base font-medium tracking-[0.21px] text-[color:var(--color-gray-550)] dark:text-[#7c7c7c] data-active:text-gray-700 dark:data-active:text-gray-700"
+                  }
                 >
                   {tab.label}
                 </TabsTrigger>
@@ -498,7 +504,7 @@ const PreferenceRow = ({
 }) => (
   <div className="flex h-7 items-center justify-between gap-3">
     <div className="flex min-w-0 items-center gap-1.5">
-      <span className="truncate font-case text-[14px] font-normal text-muted-foreground">
+      <span className="truncate font-case text-[14px] leading-[1.15] font-[400] text-muted-foreground">
         {label}
       </span>
       {hint}
@@ -561,6 +567,11 @@ const PRESENTATION_LABELS: Record<PresentationMode, string> = {
   "field-by-field": "One at a time",
 };
 
+const PRESENTATION_OPTIONS = [
+  { value: "card", label: PRESENTATION_LABELS.card },
+  { value: "field-by-field", label: PRESENTATION_LABELS["field-by-field"] },
+] as const;
+
 // Popup bubble corner — drives the preview mockup's getCornerPos/getBubblePos.
 const POSITION_LABELS: Record<string, string> = {
   "bottom-right": "Bottom right",
@@ -582,20 +593,13 @@ const PresentationRows = ({
 }) => (
   <>
     <PreferenceRow label="Question layout">
-      <Select
+      <ToggleSelect
         value={docPresentationMode}
-        onValueChange={(v) => {
-          if (v) onModeChange(v as PresentationMode);
-        }}
-      >
-        <SelectTrigger className={selectTriggerFigmaCls}>
-          {PRESENTATION_LABELS[docPresentationMode]}
-        </SelectTrigger>
-        <SelectContent align="end">
-          <SelectItem value="card">All at once</SelectItem>
-          <SelectItem value="field-by-field">One at a time</SelectItem>
-        </SelectContent>
-      </Select>
+        onChange={(v) => onModeChange(v as PresentationMode)}
+        options={PRESENTATION_OPTIONS}
+        className={selectTriggerFigmaCls}
+        aria-label="Question layout"
+      />
     </PreferenceRow>
 
     <PreferenceRow label="Show progress bar">
@@ -737,20 +741,13 @@ const FullPagePreferences = ({
     {/* Figma full-page Appearance: Question layout, Transparent background, Show progress bar. */}
     <SidebarSection label="Appearance" collapsible={false}>
       <PreferenceRow label="Question layout">
-        <Select
+        <ToggleSelect
           value={docPresentationMode}
-          onValueChange={(v) => {
-            if (v) handlePresentationModeChange(v as PresentationMode);
-          }}
-        >
-          <SelectTrigger className={selectTriggerFigmaCls}>
-            {PRESENTATION_LABELS[docPresentationMode]}
-          </SelectTrigger>
-          <SelectContent align="end">
-            <SelectItem value="card">All at once</SelectItem>
-            <SelectItem value="field-by-field">One at a time</SelectItem>
-          </SelectContent>
-        </Select>
+          onChange={(v) => handlePresentationModeChange(v as PresentationMode)}
+          options={PRESENTATION_OPTIONS}
+          className={selectTriggerFigmaCls}
+          aria-label="Question layout"
+        />
       </PreferenceRow>
 
       <form.Field name="transparentBackground">
@@ -1089,10 +1086,11 @@ interface CustomDomainRowProps {
   selectedDomainName: string | undefined;
 }
 
-// Sentinel value: the first dropdown row opens the workspace domain settings instead of selecting.
+// Sentinel dropdown row: opens workspace domain settings instead of selecting a domain.
 const ADD_DOMAIN_VALUE = "__add_domain__";
 
-// Pencil → domain dropdown (apply immediately). Top row jumps to settings → Domains to add a new one.
+// No verified domains → a single "Add Domain" button jumps straight to settings (one click, no
+// dropdown). Domains exist → a dropdown to pick one, unlink the current one, or add another.
 const CustomDomainRow = ({
   orgId,
   formId,
@@ -1111,6 +1109,7 @@ const CustomDomainRow = ({
     () => (domains ?? []).filter((d) => d.status === "verified"),
     [domains],
   );
+  const hasDomains = verifiedDomains.length > 0;
 
   const assignDomainMutation = useMutation({
     mutationFn: (domainId: string | null) =>
@@ -1137,38 +1136,62 @@ const CustomDomainRow = ({
 
   return (
     <div className="flex h-7 items-center gap-3">
-      <span className="shrink-0 font-case text-[14px] font-normal text-muted-foreground">
+      <span className="shrink-0 font-case text-[14px] leading-[1.15] font-[400] text-muted-foreground">
         Custom domain
       </span>
       <div className="flex min-w-0 flex-1 justify-end">
-        <FeatureGate requiredPlan="pro">
-          <Select value={customDomainId ?? ""} onValueChange={handleValueChange} disabled={!orgId}>
-            <SelectTrigger
-              className="h-7 max-w-full gap-1.5 border-none bg-transparent px-0 py-0 text-[14px] font-medium shadow-none"
-              icon={selectedDomainName ? undefined : <span className="hidden" />}
+        {/* Free users get a plain, clickable "Add Domain" — the Pro block lives in the domains
+            panel it opens, not here. Only the domain Select (Pro users w/ domains) is gated. */}
+        {hasDomains ? (
+          <FeatureGate requiredPlan="pro">
+            <Select
+              value={customDomainId ?? ""}
+              onValueChange={handleValueChange}
+              disabled={!orgId}
             >
-              {selectedDomainName ? (
-                <span className="truncate text-foreground">{selectedDomainName}</span>
-              ) : (
-                <span className="flex items-center gap-1.5 font-[450] text-gray-700">
+              <SelectTrigger className="h-7 max-w-full gap-1.5 border-none bg-transparent px-0 py-0 text-[14px] font-medium shadow-none">
+                {selectedDomainName ? (
+                  <span className="truncate text-gray-700">{selectedDomainName}</span>
+                ) : (
+                  <span className="flex items-center gap-1.5 font-[450] whitespace-nowrap text-gray-700">
+                    <PlusIcon className="size-4" />
+                    Add Domain
+                  </span>
+                )}
+              </SelectTrigger>
+              <SelectContent align="end" alignItemWithTrigger={false}>
+                <SelectItem value={ADD_DOMAIN_VALUE} className="text-gray-700">
                   <PlusIcon className="size-4" />
-                  Add Domain
-                </span>
-              )}
-            </SelectTrigger>
-            <SelectContent align="end" alignItemWithTrigger={false}>
-              <SelectItem value={ADD_DOMAIN_VALUE} className="text-primary">
-                <PlusIcon className="size-4" />
-                Add domain
-              </SelectItem>
-              {verifiedDomains.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.domain}
+                  Add domain
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FeatureGate>
+                {/* Single-select with toggle-off: the selected row shows a tick (SelectItem's built-in
+                    indicator); clicking it again unlinks the domain so it's free for another form.
+                    onValueChange doesn't fire on a same-value re-click, so deselect rides onClick. */}
+                {verifiedDomains.map((d) => (
+                  <SelectItem
+                    key={d.id}
+                    value={d.id}
+                    onClick={() => {
+                      if (customDomainId === d.id) assignDomain(null);
+                    }}
+                  >
+                    {d.domain}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FeatureGate>
+        ) : (
+          <button
+            type="button"
+            onClick={() => settingsDialogStore.open("domains")}
+            disabled={!orgId}
+            className="flex h-7 items-center gap-1.5 text-[14px] font-[450] text-gray-700 enabled:cursor-pointer disabled:opacity-50"
+          >
+            <PlusIcon className="size-4" />
+            Add Domain
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1188,8 +1211,10 @@ const ShareSidebarFooter = ({
       variant="ghost-flat"
       size="sm"
       prefix={<LinkIcon className="size-4" />}
+      // Figma footer (26075:12832): w-120, rounded-8, ps-10/pe-8, 14px/500 gray-800, `case` feature.
       // ghost-flat = ghost minus the 1px border, so the box matches the border-none primary Get Code.
-      className="w-30 justify-center text-[14px] font-medium text-foreground"
+      // Keeps the ghost-flat hover (bg-secondary); Get Code stays static.
+      className="w-30 justify-center rounded-lg py-1.5 pe-2 font-case text-[14px] font-medium tracking-[0.14px] text-gray-800 has-data-[icon=inline-start]:ps-2.5"
     >
       Copy Link
     </CopyButton>
@@ -1198,7 +1223,9 @@ const ShareSidebarFooter = ({
       variant="default"
       size="sm"
       prefix={<CodeXmlIcon className="size-4" />}
-      className="flex-1 justify-center text-[14px] font-medium"
+      // Figma footer (26075:12837): flex-1, rounded-8, px-8, gray-950 bg, 14px/500 white, `case` feature.
+      // No hover/active by design — only Copy Link gets a hover state.
+      className="flex-1 justify-center rounded-lg py-1.5 pe-2 font-case text-[14px] font-medium tracking-[0.14px] has-data-[icon=inline-start]:ps-2"
     >
       Get Code
     </Button>

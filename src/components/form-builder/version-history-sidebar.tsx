@@ -275,13 +275,13 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
           ref={isSelected ? measureSelectedRow : undefined}
           onClick={() => selectVersion(version.id)}
           className={cn(
-            "flex w-full cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors",
+            "group/vh-row flex w-full cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors",
             isSelected ? "bg-muted" : "hover:bg-muted/50",
           )}
         >
           {/* Figma cell: 14px medium count title, 13px name w/ 16px avatar, leading-[1.15]. */}
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <p className="truncate text-sm leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
+            <p className="truncate text-base leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
               {version.version} Change{version.version === 1 ? "" : "s"}
             </p>
             <div className="flex min-w-0 items-center gap-1.5">
@@ -297,21 +297,20 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
             </div>
           </div>
 
-          {/* Selected row swaps the timestamp for the action menu (Figma: gray/300 button). */}
-          {/* Button is vertically centered in the row; timestamp aligns with the title line. */}
-          <div
-            className={cn(
-              "inline-flex shrink-0 items-center",
-              isSelected ? "self-center" : "pt-[1px]",
-            )}
-          >
-            {isSelected ? (
+          {/* Right slot: timestamp at rest; ⋯ menu reveals on row hover/focus (or while open).
+              ⋯ stays transparent until hovered directly → gray-300 (its active fill).
+              Timestamp top-aligned (with title); ⋯ vertically centered, per Figma. */}
+          <div className="relative flex shrink-0 items-start self-stretch">
+            <span className="pt-[1px] text-[13px] leading-[1.15] font-medium tracking-[0.13px] text-gray-500 transition-opacity group-focus-within/vh-row:opacity-0 group-hover/vh-row:opacity-0 group-has-[[data-popup-open]]/vh-row:opacity-0">
+              {formatVersionTime(version.publishedAt)}
+            </span>
+            <div className="absolute inset-y-0 right-0 flex items-center opacity-0 transition-opacity group-focus-within/vh-row:opacity-100 group-hover/vh-row:opacity-100 group-has-[[data-popup-open]]/vh-row:opacity-100">
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
                     <button
                       type="button"
-                      className="inline-flex size-7 cursor-pointer items-center justify-center rounded-lg bg-gray-300 p-1.25 text-muted-foreground"
+                      className="inline-flex size-7 cursor-pointer items-center justify-center rounded-lg p-1.25 text-muted-foreground transition-colors hover:bg-gray-300 data-popup-open:bg-gray-300"
                       onClick={stopPropagation}
                       onKeyDown={(e) => e.stopPropagation()}
                       aria-label="Version actions"
@@ -342,11 +341,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
-              <span className="text-[13px] leading-[1.15] font-medium tracking-[0.13px] text-gray-500">
-                {formatVersionTime(version.publishedAt)}
-              </span>
-            )}
+            </div>
           </div>
         </button>
       );
@@ -361,7 +356,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
       className="size-full animate-in border-none duration-200 ease-out [font-variation-settings:normal] slide-in-from-right-[40%]"
     >
       <SidebarHeader className="h-11 shrink-0 flex-row items-center justify-between py-2 pr-2 pl-4">
-        <h2 className="text-sm leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
+        <h2 className="text-base leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
           Version history
         </h2>
         <div className="flex items-center gap-1">
@@ -370,7 +365,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
               render={
                 <button
                   type="button"
-                  className="flex size-7 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary data-popup-open:bg-secondary"
+                  className="flex size-7 cursor-pointer items-center justify-center rounded-lg text-gray-800 transition-colors hover:bg-secondary data-popup-open:bg-secondary"
                   aria-label="Filter versions"
                 />
               }
@@ -409,7 +404,8 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
       </SidebarHeader>
 
       <SidebarContent className="relative pt-3 pr-2 pl-4">
-        <div className="flex">
+        {/* gap-2: not in Figma (rail is flush there), but keeps the row highlight off the rail. */}
+        <div className="flex gap-2">
           {/* Left timeline rail: live (current) at top, calendar (group by date) at bottom, chevron slides to the active row. */}
           <div
             ref={railRef}
@@ -454,7 +450,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
             {groupByDate ? (
               groups.map((group) => (
                 <div key={group.label} className="flex flex-col gap-2">
-                  <p className="px-2.5 py-2 text-sm leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
+                  <p className="px-2.5 py-2 text-base leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
                     {group.label}
                   </p>
                   {group.items.map((version) => renderRow(version))}
@@ -462,7 +458,7 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
               ))
             ) : (
               <>
-                <p className="px-2.5 py-2 text-sm leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
+                <p className="px-2.5 py-2 text-base leading-[1.15] font-medium tracking-[0.14px] text-gray-800">
                   Current Version
                 </p>
                 {filteredList.map((version) => renderRow(version))}

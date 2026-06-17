@@ -20,7 +20,8 @@ export const SidebarSectionResetProvider = SidebarSectionResetContext.Provider;
 
 // Figma system-flat header label scale; shared by both variants.
 // Figma section header (node 25424-12009): Inter Medium 13px, 0.13px tracking, gray/500 (#999).
-const HEADER_LABEL_CLS = "truncate text-[13px] font-medium tracking-[0.13px] text-gray-500";
+const HEADER_LABEL_CLS =
+  "truncate text-[13px] leading-[1.15] font-medium tracking-[0.13px] text-gray-500";
 
 interface SidebarSectionProps {
   label: string;

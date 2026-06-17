@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
 import { motion, AnimatePresence } from "motion/react";
-import { XIcon } from "@/components/ui/icons";
 import { SPRITE_PATH } from "@/lib/config/app-config";
 import { cn, isValidUrl } from "@/lib/utils";
 import type { EmbedType } from "@/hooks/use-editor-sidebar";
@@ -21,7 +20,8 @@ const MORPH_SPRING = { type: "spring" as const, stiffness: 400, damping: 30 };
 const INSTANT = { duration: 0 };
 const FADE_TRANSITION = { duration: 0.2 };
 
-const PAD = 16;
+// 8px corner gap — Figma 25363-20771: the popup card/bubble sit 8px from the frame edges.
+const PAD = 8;
 
 type IconDisplay =
   | { type: "image"; value: string }
@@ -211,8 +211,8 @@ export const EmbedPreviewMockup = ({
       if (!initialMeasure) isResizing.current = true;
       initialMeasure = false;
       setSize({
-        w: el.clientWidth - 32,
-        h: el.clientHeight - 32,
+        w: el.clientWidth - PAD * 2,
+        h: el.clientHeight - PAD * 2,
       });
     };
     measure();
@@ -255,11 +255,6 @@ export const EmbedPreviewMockup = ({
     setIsPopupExpanded(false);
   }, []);
 
-  const handleCloseClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsPopupExpanded(false);
-  }, []);
-
   const handleBubbleMouseEnter = useCallback(() => setIsPopupExpanded(true), []);
   const handleBubbleClick = useCallback(() => setIsPopupExpanded(true), []);
 
@@ -280,7 +275,7 @@ export const EmbedPreviewMockup = ({
   }
 
   return (
-    <div className="overflow-hidden rounded-[12px] bg-secondary">
+    <div className="flex h-[168px] flex-col overflow-hidden rounded-[12px] bg-secondary">
       <div className="flex items-center gap-1 px-2.25 pt-2.5 pb-2">
         <div className="flex gap-1">
           <div className="size-2 rounded-full bg-input" />
@@ -289,7 +284,7 @@ export const EmbedPreviewMockup = ({
         </div>
       </div>
 
-      <div ref={contentRef} className="relative h-[160px] overflow-hidden p-4">
+      <div ref={contentRef} className="relative flex-1 overflow-hidden p-4">
         <AnimatePresence mode="sync">
           {embedType === "standard" && (
             <motion.div
@@ -345,17 +340,6 @@ export const EmbedPreviewMockup = ({
             {/* Fullpage = the form fills the whole host page: a single solid panel filling the
                 browser viewport (see Figma 26068-6990). No inner chrome — the morph box itself is
                 the panel. */}
-
-            {isPopup && isPopupExpanded && (
-              <button
-                type="button"
-                aria-label="Close preview"
-                className="absolute top-1 right-1 z-30 flex size-3.5 cursor-pointer items-center justify-center rounded-full bg-muted-foreground/10 transition-colors hover:bg-muted-foreground/20"
-                onClick={handleCloseClick}
-              >
-                <XIcon className="size-2 text-muted-foreground" />
-              </button>
-            )}
 
             <AnimatePresence>
               {isPopup && !isPopupExpanded && popupIconDisplay && (

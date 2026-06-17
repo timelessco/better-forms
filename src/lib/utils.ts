@@ -5,6 +5,10 @@ import { twMerge } from "tailwind-merge";
 
 export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
+/** Clamp `value` into the inclusive [min, max] range. */
+export const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
 /** Parse timestamp from DB as UTC. Postgres returns "YYYY-MM-DD HH:mm:ss" without timezone; treat as UTC. */
 export const parseTimestampAsUTC = (value: string | undefined): Date | null => {
   if (!value) return null;

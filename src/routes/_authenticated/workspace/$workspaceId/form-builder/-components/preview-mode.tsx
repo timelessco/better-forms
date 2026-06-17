@@ -10,6 +10,7 @@ import { RenderStepPreviewInputEager } from "@/components/form-components/render
 import { PreviewRendererContext } from "@/components/form-components/render-step-preview-input";
 import { Button } from "@/components/ui/button";
 import type { EmbedType } from "@/hooks/use-editor-sidebar";
+import { useEditorColorMode } from "@/hooks/use-editor-color-mode";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
 import { useFormCustomization } from "@/hooks/use-form-customization";
 import { useFormThemeContextValue } from "@/hooks/use-form-theme";
@@ -62,19 +63,24 @@ export interface PreviewDoc {
 
 export const PreviewModeContent = ({ doc, formId }: { doc: PreviewDoc; formId: string }) => {
   const resolvedAppTheme = useResolvedTheme();
+  const { editorColorMode } = useEditorColorMode();
 
   const { customization, hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
     doc,
     resolvedAppTheme,
+    editorColorMode,
   );
   const content = (doc?.content as Value) || [];
   // Preview shows what the user is about to publish — read the draft.
   const docSettings = doc?.draftSettings;
 
   const search = useSearch({ strict: false });
-  // Share sidebar's "Show branding" toggle writes embedBranding; fall back to the saved setting.
-  // Feed it into previewSettings so the form's inline "Made with Reform." badge tracks the toggle live.
-  const branding = (search.embedBranding as boolean) ?? docSettings?.branding ?? true;
+  // "Show branding" toggle writes the draft setting immediately AND mirrors to embedBranding (via the
+  // share-form's debounced navigate). Read the draft FIRST — the search param lags 300ms, so on the
+  // embed/popup tabs the badge would otherwise stay until a tab switch flushed the search. Drives the
+  // form's inline "Made with Reform." badge live.
+  const branding =
+    (docSettings?.branding as boolean | undefined) ?? (search.embedBranding as boolean) ?? true;
   const previewSettings = useMemo<PublicFormSettings>(
     () => buildPublicFormSettings(docSettings, { branding }),
     [docSettings, branding],
@@ -238,20 +244,25 @@ const EmbedPreviewSurface = ({
             <PopupHostSkeleton />
           ) : (
             <>
-              {/* Host-page content above the embed */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className="size-14 shrink-0 rounded-full bg-[var(--color-gray-100)]" />
-                  <div className="flex-1 space-y-2.5">
-                    <div className="h-3 w-2/5 rounded-full bg-[var(--color-gray-100)]" />
-                    <div className="h-3 w-1/3 rounded-full bg-[var(--color-gray-100)]" />
+              {/* Host-page skeleton above the embed — Figma 26178-7520 (740-frame): gray/100 bars,
+                  h-16 rounded-12/14, 60px avatar, gap 14/12. Widths are 740-frame proportions. */}
+              <div className="flex flex-col gap-[14px]">
+                <div className="flex items-center gap-3">
+                  <div className="size-[60px] shrink-0 rounded-full bg-[var(--color-gray-100)]" />
+                  <div className="flex w-[37%] flex-col gap-3">
+                    <div className="h-4 w-full rounded-[12px] bg-[var(--color-gray-100)]" />
+                    <div className="h-4 w-[82%] rounded-[12px] bg-[var(--color-gray-100)]" />
                   </div>
                 </div>
-                <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
-                <div className="h-20 w-full rounded-2xl bg-[var(--color-gray-100)]" />
+                <div className="flex flex-col gap-[14px]">
+                  <div className="h-4 w-full rounded-[14px] bg-[var(--color-gray-100)]" />
+                  <div className="h-4 w-[58%] rounded-[14px] bg-[var(--color-gray-100)]" />
+                </div>
               </div>
 
-              <div className="flex w-full justify-start">
+              {/* z-20 lifts the form above the top/bottom scroll-fade overlays (z-10) so the gradient
+                  only dims the host-page skeleton, never the form itself. */}
+              <div className="relative z-20 flex w-full justify-start">
                 <div
                   ref={setEmbedFrame}
                   className={cn(
@@ -295,10 +306,11 @@ const EmbedPreviewSurface = ({
                 </div>
               </div>
 
-              {/* Host-page content below the embed */}
-              <div className="space-y-3">
-                <div className="h-3 w-3/5 rounded-full bg-[var(--color-gray-100)]" />
-                <div className="h-3 w-1/5 rounded-full bg-[var(--color-gray-100)]" />
+              {/* Host-page skeleton below the embed — Figma 26178-7602 (740-frame): 3 bars full/61%/13%. */}
+              <div className="flex flex-col gap-3">
+                <div className="h-4 w-full rounded-[12px] bg-[var(--color-gray-100)]" />
+                <div className="h-4 w-[61%] rounded-[12px] bg-[var(--color-gray-100)]" />
+                <div className="h-4 w-[13%] rounded-[12px] bg-[var(--color-gray-100)]" />
               </div>
             </>
           )}
@@ -326,59 +338,62 @@ const EmbedPreviewSurface = ({
   );
 };
 
-// Rich fake-webpage behind the popup, mirroring the Figma popup host mock.
-// Bars pin to neutral gray-100 (Figma skeleton); .bf-themed remaps --muted to the form tint, host chrome must stay neutral.
+// Rich fake-webpage behind the popup, mirroring Figma 26178-8180 (740-frame): gray/100 bars
+// (h-16, rounded-12), 60px avatars, rounded-16 blocks (66/140px), 32px between groups.
+// Bars pin to neutral gray-100; .bf-themed remaps --muted to the form tint, host chrome must stay neutral.
 const PopupHostSkeleton = () => {
+  const bar = "h-4 rounded-[12px] bg-[var(--color-gray-100)]";
   const authorRow = (
     <div className="flex items-center gap-3">
-      <div className="size-14 shrink-0 rounded-full bg-[var(--color-gray-100)]" />
-      <div className="flex-1 space-y-2">
-        <div className="h-3 w-3/4 rounded-full bg-[var(--color-gray-100)]" />
-        <div className="h-3 w-3/5 rounded-full bg-[var(--color-gray-100)]" />
+      <div className="size-[60px] shrink-0 rounded-full bg-[var(--color-gray-100)]" />
+      <div className="flex flex-1 flex-col gap-3">
+        <div className={cn(bar, "w-full")} />
+        <div className={cn(bar, "w-[82%]")} />
       </div>
     </div>
   );
   return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-4">
-        <div className="size-14 shrink-0 rounded-full bg-[var(--color-gray-100)]" />
-        <div className="flex-1 space-y-2.5">
-          <div className="h-3 w-2/5 rounded-full bg-[var(--color-gray-100)]" />
-          <div className="h-3 w-1/3 rounded-full bg-[var(--color-gray-100)]" />
+    <div className="flex flex-col gap-8">
+      {/* author row (column ~37% of 740) */}
+      <div className="w-[47%]">{authorRow}</div>
+
+      {/* 2 lines + 66px block */}
+      <div className="flex flex-col gap-[14px]">
+        <div className={cn(bar, "w-full")} />
+        <div className={cn(bar, "w-full")} />
+        <div className="h-[66px] w-full rounded-[16px] bg-[var(--color-gray-100)]" />
+      </div>
+
+      {/* 3 lines + 2-col 140px blocks */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-[14px]">
+          <div className={cn(bar, "w-full")} />
+          <div className={cn(bar, "w-[82%]")} />
+          <div className={cn(bar, "w-full")} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="h-[140px] rounded-[16px] bg-[var(--color-gray-100)]" />
+          <div className="h-[140px] rounded-[16px] bg-[var(--color-gray-100)]" />
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
-        <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
-        <div className="h-20 w-full rounded-2xl bg-[var(--color-gray-100)]" />
+      {/* 2 lines */}
+      <div className="flex flex-col gap-[14px]">
+        <div className={cn(bar, "w-[82%]")} />
+        <div className={cn(bar, "w-full")} />
       </div>
 
-      <div className="space-y-3">
-        <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
-        <div className="h-3 w-4/5 rounded-full bg-[var(--color-gray-100)]" />
-        <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
-      </div>
-
-      <div className="grid grid-cols-2 gap-6">
-        <div className="h-32 rounded-2xl bg-[var(--color-gray-100)]" />
-        <div className="h-32 rounded-2xl bg-[var(--color-gray-100)]" />
-      </div>
-
-      <div className="space-y-3">
-        <div className="h-3 w-4/5 rounded-full bg-[var(--color-gray-100)]" />
-        <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
-      </div>
-
-      <div className="grid grid-cols-2 gap-6">
-        {authorRow}
-        {authorRow}
-      </div>
-
-      <div className="space-y-3">
-        <div className="h-3 w-full rounded-full bg-[var(--color-gray-100)]" />
-        <div className="h-3 w-3/5 rounded-full bg-[var(--color-gray-100)]" />
-        <div className="h-3 w-[15%] rounded-full bg-[var(--color-gray-100)]" />
+      {/* author pair + 3 lines */}
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-5">
+          {authorRow}
+          {authorRow}
+        </div>
+        <div className="flex flex-col gap-3">
+          <div className={cn(bar, "w-full")} />
+          <div className={cn(bar, "w-[61%]")} />
+          <div className={cn(bar, "w-[13%]")} />
+        </div>
       </div>
     </div>
   );

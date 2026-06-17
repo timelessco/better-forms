@@ -131,15 +131,25 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
     <PlateElement
       className={cn("m-0 px-0", isPrevious ? "float-left" : "flex overflow-hidden")}
       {...props}
-      attributes={{ ...props.attributes, "data-bf-chrome": "" }}
+      attributes={{
+        ...props.attributes,
+        "data-bf-chrome": "",
+        // Button alignment: justify the single child via --bf-button-justify (Buttons → Alignment).
+        // Fallback keeps today's default (multi-step right, single-step left). Scoped to the button.
+        ...(isPrevious
+          ? {}
+          : {
+              style: {
+                ...props.attributes?.style,
+                justifyContent: `var(--bf-button-justify, ${isMultiStep ? "flex-end" : "flex-start"})`,
+              },
+            }),
+      }}
     >
       {/* Hidden children to maintain Slate structure */}
       <span className="hidden">{children}</span>
       <div
-        className={cn(
-          "group inline-flex items-center gap-1 py-2.5",
-          !isPrevious && isMultiStep && "ml-auto",
-        )}
+        className="group inline-flex items-center gap-1 py-2.5"
         contentEditable={false}
         // presentation (not aria-hidden) keeps the inner input accessible while neutralizing the div.
         role="presentation"

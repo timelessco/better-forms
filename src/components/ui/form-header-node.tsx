@@ -951,6 +951,18 @@ const HeaderCoverSection = ({
         onMouseEnter={() => setCoverHovered(true)}
         onMouseLeave={() => setCoverHovered(false)}
       >
+        {/* Ambient glow (Figma 25690:11807): blurred copy of the cover behind the card so the
+            shadow takes the photo's colours. Fit-only — styles.css gates it via --bf-cover-glow. */}
+        {hasImage && (
+          <img
+            src={cover}
+            alt=""
+            aria-hidden
+            data-bf-cover-glow
+            draggable={false}
+            style={{ objectPosition: `center ${position}%` }}
+          />
+        )}
         {hasImage ? (
           <>
             {cover.includes("tint=true") && (
