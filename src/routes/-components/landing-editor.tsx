@@ -8,6 +8,7 @@ import { EditorThemeProvider } from "@/contexts/editor-theme-context";
 import { useEditorHeaderVisibilitySafe } from "@/contexts/editor-header-visibility-context";
 import { PreviewDrawer } from "@/routes/_authenticated/workspace/$workspaceId/form-builder/-components/preview-drawer";
 import { PreviewModeContent } from "@/routes/_authenticated/workspace/$workspaceId/form-builder/-components/preview-mode";
+import { useEditorColorMode } from "@/hooks/use-editor-color-mode";
 import { useFormCustomization } from "@/hooks/use-form-customization";
 import { useResolvedTheme } from "@/components/theme-provider";
 import { EditorKit } from "@/components/editor/editor-kit";
@@ -203,9 +204,11 @@ const LocalEditorApp = () => {
   }
 
   const resolvedAppTheme = useResolvedTheme();
+  const { editorColorMode } = useEditorColorMode();
   const { customization, hasCustomization, themeVars, effectiveTheme } = useFormCustomization(
     savedDocs?.[0],
     resolvedAppTheme,
+    editorColorMode,
   );
   // Include `customization` so theme consumers can read the form's mode (matches editor-app/preview-mode).
   const themeCtx = useMemo(

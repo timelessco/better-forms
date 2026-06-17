@@ -43,7 +43,7 @@ const PRO_SECTIONS: { label: string; keys: readonly string[] }[] = [
     label: "Inputs",
     keys: ["inputWidth", "inputHeight", "inputRadius", "inputMarginBottom", "inputPadding"],
   },
-  { label: "Buttons", keys: ["buttonWidth", "buttonHeight", "buttonRadius"] },
+  { label: "Buttons", keys: ["buttonWidth", "buttonHeight", "buttonRadius", "buttonAlign"] },
 ];
 
 const PRO_PLAIN_KEY_SECTION = new Map<string, string>(

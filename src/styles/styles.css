@@ -160,6 +160,19 @@
     U+1EA0-1EF9, U+20AB;
 }
 
+/* IBM Plex Mono — latin only, Regular. Used by the Custom CSS editor box (chrome, not a form font). */
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-weight: 400;
+  font-display: swap;
+  font-style: normal;
+  src: url("/fonts/ibm-plex-mono/fonts/ibm-plex-mono-latin-400.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
 /* `dark:` applies under a `.dark` ancestor, EXCEPT inside a `.bf-light` subtree. The form
    preview adds `.bf-light` to a light form so the app's global `<html.dark>` can't leak its
    `dark:` styles (checkbox borders, button hovers, chips, etc.) into a light-themed form. */
@@ -449,7 +462,8 @@
   --font-sans: inter-v, inter-v-fallback;
 
   /* Variations Fonts */
-  --font-sans--font-variation-settings: "opsz" 20, "wght" var(--tw-font-weight, 450);
+  /* opsz 14 = Inter's default optical size (Figma renders "Inter Variable" at axis-default 14, not 20). */
+  --font-sans--font-variation-settings: "opsz" 14, "wght" var(--tw-font-weight, 450);
 
   /* Font Weight */
   --font-sans-weight: var(--tw-font-weight, 420);
@@ -809,20 +823,43 @@
   height: var(--bf-cover-height);
   /* unset = current square cover; overflow clips img once a radius is set */
   border-radius: var(--bf-cover-radius, 0);
-  overflow: hidden;
+  /* Fill clips to the rounded box (hidden); Fit goes visible so the ambient glow can bleed past. */
+  overflow: var(--bf-cover-overflow, hidden);
+  isolation: isolate; /* own stacking context so glow (z0) sits under the image (z1) */
   /* Full-bleed by default (var fallbacks reproduce the 100cqw breakout). Cover width "fit"
      makes generate-theme-css emit these vars to bleed the cover 28px past the form width on
      each side (into the editor gutter), so a radius rounds corners that are on-screen. */
   width: var(--bf-cover-w, 100cqw);
   margin-left: var(--bf-cover-mx, -50cqw);
   margin-right: var(--bf-cover-mx, -50cqw);
+  /* Fit floats the cover as a card with a 32px top gap (Figma); Fill stays flush (0). */
+  margin-top: var(--bf-cover-mt, 0);
   left: var(--bf-cover-x, 50%);
   right: var(--bf-cover-x, 50%);
 }
 
-/* Cover image fit (Fit=contain / Fill=cover); unset = current cover */
-.bf-themed [data-bf-cover] img {
+/* Cover image fit (Fit=contain / Fill=cover); unset = current cover. Sits above the glow and
+   self-clips to the radius (needed once overflow goes visible in Fit). */
+.bf-themed [data-bf-cover] img:not([data-bf-cover-glow]) {
   object-fit: var(--bf-cover-fit, cover);
+  position: relative;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+/* Ambient glow (Figma 25690:11807): a blurred, 35%-opacity copy of the cover image offset 16px
+   down + 20px inset, so the cover's shadow takes on the photo's colours. Fit only (var-gated). */
+.bf-themed [data-bf-cover] [data-bf-cover-glow] {
+  display: var(--bf-cover-glow, none);
+  position: absolute;
+  inset: 16px 20px auto 20px;
+  height: 100%;
+  z-index: 0;
+  border-radius: inherit;
+  object-fit: var(--bf-cover-fit, cover);
+  filter: blur(37px);
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 /* Cover fade (Figma node 25293:1954) — the cover dissolves into the page background at its
@@ -838,7 +875,16 @@
   height: 66%;
   z-index: 2;
   pointer-events: none;
-  background: linear-gradient(to bottom, transparent 0%, var(--background) 92%);
+  /* Fade from --background at 0 alpha (NOT `transparent`=transparent-black, which interpolates
+     through a gray haze = visible banding). Eased + held transparent up top so the cover stays
+     vivid and only the bottom ~quarter dissolves (Figma), not half the image. Smooth in light + dark. */
+  background: linear-gradient(
+    to bottom,
+    rgb(from var(--background) r g b / 0) 0%,
+    rgb(from var(--background) r g b / 0) 58%,
+    rgb(from var(--background) r g b / 0.45) 82%,
+    var(--background) 100%
+  );
 }
 [data-bf-cover]::before {
   content: "";
@@ -846,13 +892,15 @@
   position: absolute;
   inset-inline: 0;
   bottom: 0;
-  height: 34%;
+  /* Figma 25293-1954: backdrop blur(21px) gated to the lower region, eased in via mask so there's
+     no hard blur edge. The blur (not a white paint) is what makes the dissolve read smooth. */
+  height: 55%;
   z-index: 2;
   pointer-events: none;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 100%);
+  backdrop-filter: blur(21px);
+  -webkit-backdrop-filter: blur(21px);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 70%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 70%);
 }
 
 /* Logo/icon positioning: half overlapping cover, half below.

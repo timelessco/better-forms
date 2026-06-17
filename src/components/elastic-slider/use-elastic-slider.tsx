@@ -10,8 +10,11 @@ import {
 } from "react";
 
 import { useControllableState } from "@/hooks/use-controllable-state/use-controllable-state";
+import { clamp } from "@/lib/utils";
 
-// Drag detection & rubber band
+// Drag detection & rubber band. DEAD_ZONE/MAX_CURSOR_RANGE are the *roomy-side* values; when the
+// slider edge sits near the viewport border (e.g. the right-pinned sidebar) they shrink to the
+// cursor travel that actually exists, so the rubber stays reachable on both ends (computeRubberStretch).
 const CLICK_THRESHOLD = 3;
 const DEAD_ZONE = 32;
 const MAX_CURSOR_RANGE = 200;
@@ -23,8 +26,6 @@ const VALUE_OFFSET = 12 - 8;
 
 // Width of the hidden "auto" zone reserved at the left edge when allowAuto.
 const AUTO_SLOT_PERCENT = 8;
-
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 type InteractionState = {
   isInteracting: boolean;
@@ -264,10 +265,17 @@ export const useElasticSlider = ({
     const rect = wrapperRectRef.current;
     if (!rect) return 0;
 
-    const distancePast = sign < 0 ? rect.left - clientX : clientX - rect.right;
-    const overflow = Math.max(0, distancePast - DEAD_ZONE);
+    // The cursor stops at the viewport edge, so a slider pinned near it has little room on that
+    // side. Shrink the dead-zone + ramp to the room that actually exists, keeping the full stretch
+    // reachable (roomy side is unchanged: room ≥ DEAD_ZONE+MAX_CURSOR_RANGE → original 32/200).
+    const room = sign < 0 ? rect.left : window.innerWidth - rect.right;
+    const deadZone = Math.min(DEAD_ZONE, room * 0.2);
+    const range = Math.max(1, Math.min(MAX_CURSOR_RANGE, room - deadZone));
 
-    return sign * MAX_STRETCH * Math.sqrt(Math.min(overflow / MAX_CURSOR_RANGE, 1));
+    const distancePast = sign < 0 ? rect.left - clientX : clientX - rect.right;
+    const overflow = Math.max(0, distancePast - deadZone);
+
+    return sign * MAX_STRETCH * Math.sqrt(Math.min(overflow / range, 1));
   }, []);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -519,6 +527,17 @@ export const useElasticSlider = ({
     [discreteSteps, max, min, step, slotOffset, numericTrackPercent],
   );
 
+  // Line variant: marks across the track, hiding any that fall under the label text (Figma: marks
+  // never sit behind the label) — same rule as the dot variant.
+  const hashMarks = useMemo(
+    () =>
+      Array.from({ length: hashMarkCount }, (_, i) => {
+        const pct = hashMarkPct(i);
+        return { pct, hidden: pct < dodge.left };
+      }),
+    [hashMarkCount, hashMarkPct, dodge.left],
+  );
+
   // Dot variant: render a dot per snap stop, hiding the one the handle is currently on/nearest so the
   // handle never collides with a dot (matches the Figma filled states).
   const dotMarks = useMemo(() => {
@@ -526,9 +545,12 @@ export const useElasticSlider = ({
     const hideWithin = markStops.length > 0 ? 100 / (markStops.length + 1) / 2 : 5;
     return markStops.map((v) => {
       const pct = percentFromValue(v);
-      return { pct, hidden: Math.abs(pct - percentage) < hideWithin };
+      const nearHandle = Math.abs(pct - percentage) < hideWithin;
+      // Hide dots that fall under the label text (Figma: marks never sit behind the label).
+      const underLabel = pct < dodge.left;
+      return { pct, hidden: nearHandle || underLabel };
     });
-  }, [markStops, percentFromValue, percentage]);
+  }, [markStops, percentFromValue, percentage, dodge.left]);
 
   return {
     wrapperRef,
@@ -542,8 +564,7 @@ export const useElasticSlider = ({
     keyboardFocusRing,
     valueDodge,
     handleOpacity,
-    hashMarkCount,
-    hashMarkPct,
+    hashMarks,
     dotMarks,
     fillWidth,
     handleLeft,

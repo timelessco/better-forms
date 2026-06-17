@@ -20,6 +20,8 @@ interface StyleNumberInputProps {
   unit?: string;
   /** User-facing unit label (e.g. "%" when the internal unit is "vw"). If omitted, no unit is shown. */
   displayUnit?: string;
+  /** Multiply the DISPLAYED value by this; the stored/applied value stays raw (e.g. 100 shows a 1.15 ratio as "115%"). */
+  displayScale?: number;
   className?: string;
   valueWidth?: string;
   /** Show the scrubber track, knob, hash marks, and spring/rubber-band effects. Default true. */
@@ -47,6 +49,7 @@ export const StyleNumberInput = ({
   step = 1,
   unit: forcedUnit,
   displayUnit,
+  displayScale = 1,
   className,
   allowAuto = false,
   isAuto = false,
@@ -60,9 +63,10 @@ export const StyleNumberInput = ({
   const unit = forcedUnit ?? (match ? match[2] : "");
   const shownUnit = displayUnit ?? unit;
 
+  // Round after scaling so 1.15 × 100 reads "115%", not "114.99999%".
   const formatValue = React.useCallback(
-    (n: number) => (isAuto ? "Auto" : `${n}${shownUnit}`),
-    [isAuto, shownUnit],
+    (n: number) => (isAuto ? "Auto" : `${Math.round(n * displayScale * 100) / 100}${shownUnit}`),
+    [isAuto, shownUnit, displayScale],
   );
 
   const handleValueChange = React.useCallback(
@@ -86,18 +90,23 @@ export const StyleNumberInput = ({
       endIcon={endIcon}
       // bare = flush Figma customize rows: flat at rest, gray track revealed on hover/focus.
       revealOnHover={bare}
-      aria-label={isAuto ? `${label}: Auto` : `${label}: ${numValue}${shownUnit}`}
+      aria-label={
+        isAuto
+          ? `${label}: Auto`
+          : `${label}: ${Math.round(numValue * displayScale * 100) / 100}${shownUnit}`
+      }
       className={cn(
         bare ? "h-7 [--elastic-slider-height:1.75rem]" : "h-[34px] [--elastic-slider-height:34px]",
         // Revealed track = Figma gray/100 (solid --muted) for bare rows; white for bordered scrubber.
         bare ? "[--elastic-slider-bg:var(--muted)]" : "[--elastic-slider-bg:var(--background)]",
         // 6px inner padding (Figma): pairs with the -mx-1.5 bleed on sidebar rows so the label
         // column stays flush-aligned with non-slider rows while the track extends past it.
+        // leading-[1.15]: ElasticSlider's base label/value are `text-sm/none` (line-height:1); Figma rows are 14px/115% (16.1px).
         bare
-          ? "[&_[data-slot=elastic-slider-label]]:inset-s-1.5 [&_[data-slot=elastic-slider-label]]:text-[14px] [&_[data-slot=elastic-slider-label]]:font-normal [&_[data-slot=elastic-slider-label]]:text-muted-foreground"
+          ? "[&_[data-slot=elastic-slider-label]]:inset-s-1.5 [&_[data-slot=elastic-slider-label]]:text-[14px] [&_[data-slot=elastic-slider-label]]:leading-[1.15] [&_[data-slot=elastic-slider-label]]:font-[400] [&_[data-slot=elastic-slider-label]]:text-muted-foreground"
           : "[&_[data-slot=elastic-slider-label]]:inset-s-2 [&_[data-slot=elastic-slider-label]]:text-base [&_[data-slot=elastic-slider-label]]:font-normal",
         bare
-          ? "[&_[data-slot=elastic-slider-value]]:inset-e-1.5 [&_[data-slot=elastic-slider-value]]:text-[14px] [&_[data-slot=elastic-slider-value]]:font-medium [&_[data-slot=elastic-slider-value]]:text-gray-700 [&_[data-slot=elastic-slider-value]]:tabular-nums"
+          ? "[&_[data-slot=elastic-slider-value]]:inset-e-1.5 [&_[data-slot=elastic-slider-value]]:text-[14px] [&_[data-slot=elastic-slider-value]]:leading-[1.15] [&_[data-slot=elastic-slider-value]]:font-[450] [&_[data-slot=elastic-slider-value]]:text-gray-700 [&_[data-slot=elastic-slider-value]]:tabular-nums"
           : "[&_[data-slot=elastic-slider-value]]:inset-e-[11px] [&_[data-slot=elastic-slider-value]]:text-[13px] [&_[data-slot=elastic-slider-value]]:tabular-nums",
         className,
       )}

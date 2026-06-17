@@ -803,16 +803,17 @@ const FormBuilderHeaderActions = ({
         )
       )}
 
-      {canShare && (
-        <Button
-          variant="ghost-flat"
-          size="sm"
-          className="hidden rounded-lg px-2 py-1.5 text-[14px] font-medium tracking-[0.14px] text-foreground hover:text-foreground md:inline-flex"
-          onClick={onToggleShareSidebar}
-        >
-          Share
-        </Button>
-      )}
+      {/* Always shown; disabled until the form has a published version (publish to enable sharing). */}
+      <Button
+        variant="ghost-flat"
+        size="sm"
+        className="hidden rounded-lg px-2 py-1.5 text-[14px] font-medium tracking-[0.14px] text-foreground hover:text-foreground md:inline-flex"
+        onClick={onToggleShareSidebar}
+        disabled={!canShare}
+        title={canShare ? undefined : "Publish your form to share it"}
+      >
+        Share
+      </Button>
 
       {showPublish && (
         <Tooltip>
@@ -833,10 +834,9 @@ const FormBuilderHeaderActions = ({
               />
             }
           >
+            {/* Always "Publish" — the disabled + muted state alone signals already-published. */}
             {isPublishing ? (
               <Loader2Icon className="size-4 animate-spin" />
-            ) : savedDocs?.[0]?.status === "published" && !hasUnpublishedChanges ? (
-              <TextSwap key="Published">Published</TextSwap>
             ) : (
               <TextSwap key="Publish">Publish</TextSwap>
             )}

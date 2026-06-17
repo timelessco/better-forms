@@ -11,6 +11,9 @@ export type EditorUIState = {
   shareTab: ShareTab;
   selectedVersionId: string | null;
   previewMode: boolean;
+  // Transient: which color mode the Customize sidebar is editing/previewing. null = follow the
+  // form's effective theme. Scopes the editor preview only — never touches the app theme.
+  editorColorMode: "light" | "dark" | null;
 };
 
 const initialState: EditorUIState = {
@@ -20,6 +23,7 @@ const initialState: EditorUIState = {
   shareTab: "share",
   selectedVersionId: null,
   previewMode: false,
+  editorColorMode: null,
 };
 
 export const editorUICollection = createCollection(

@@ -149,6 +149,8 @@ const PreviewFormHeader = ({
     if (isValidUrl(cover) && !imageError) {
       return (
         <div className={cn(coverClass, "overflow-hidden bg-muted")} data-bf-cover>
+          {/* Ambient glow: blurred copy behind the card (Fit-only, gated by --bf-cover-glow). */}
+          <img src={cover} alt="" aria-hidden draggable={false} data-bf-cover-glow />
           {cover.includes("tint=true") && (
             <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
           )}

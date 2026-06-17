@@ -79,8 +79,7 @@ export const ElasticSlider = ({
     keyboardFocusRing,
     valueDodge,
     handleOpacity,
-    hashMarkCount,
-    hashMarkPct,
+    hashMarks,
     dotMarks,
     fillWidth,
     handleLeft,
@@ -157,18 +156,19 @@ export const ElasticSlider = ({
                 "opacity-0 transition-opacity group-hover/elastic-slider:opacity-100 group-data-[active=true]/elastic-slider:opacity-100 group-data-[focus-visible=true]/elastic-slider:opacity-100",
             )}
           >
-            {markStyle === "dot" ? (
-              <SliderDotMarks dotMarks={dotMarks} />
-            ) : (
-              <SliderHashMarks hashMarkCount={hashMarkCount} hashMarkPct={hashMarkPct} />
-            )}
-
             <m.div
               data-slot="elastic-slider-fill"
               aria-hidden="true"
               className="pointer-events-none absolute inset-y-0 inset-s-0 rounded-(--elastic-slider-tile-radius) bg-(--elastic-slider-tile-bg)"
               style={{ width: fillWidth }}
             />
+
+            {/* Marks render ABOVE the fill so they stay visible inside the filled tile (Figma). */}
+            {markStyle === "dot" ? (
+              <SliderDotMarks dotMarks={dotMarks} />
+            ) : (
+              <SliderHashMarks hashMarks={hashMarks} />
+            )}
 
             <SliderHandle
               handleLeft={handleLeft}
@@ -193,35 +193,30 @@ export const ElasticSlider = ({
   );
 };
 
-// Dash variant (Figma Size): evenly spaced vertical lines. Always visible (faint), and the fill
-// tile renders above them so marks to the left of the handle read as "consumed".
-const SliderHashMarks = ({
-  hashMarkCount,
-  hashMarkPct,
-}: {
-  hashMarkCount: number;
-  hashMarkPct: (i: number) => number;
-}) => (
+// Dash variant (Figma Size): evenly spaced vertical lines, rendered ABOVE the fill so they stay
+// visible inside the filled tile. Marks under the label text are hidden (hook's `hidden` flag).
+const SliderHashMarks = ({ hashMarks }: { hashMarks: { pct: number; hidden: boolean }[] }) => (
   <div
     data-slot="elastic-slider-hash-marks"
     aria-hidden="true"
     className="pointer-events-none absolute inset-0"
   >
-    {Array.from({ length: hashMarkCount }, (_, i) => {
-      const pct = hashMarkPct(i);
-      return (
-        <div
-          key={`hash-${pct}`}
-          className="absolute top-1/2 h-1.5 w-px -translate-x-1/2 -translate-y-1/2 rounded-full bg-(--elastic-slider-hash) rtl:translate-x-1/2"
-          style={{ left: `${pct}%` }}
-        />
-      );
-    })}
+    {hashMarks.map(({ pct, hidden }) => (
+      <div
+        key={`hash-${pct}`}
+        className={cn(
+          "absolute top-1/2 h-1.5 w-px -translate-x-1/2 -translate-y-1/2 rounded-full bg-(--elastic-slider-hash) rtl:translate-x-1/2",
+          hidden && "opacity-0",
+        )}
+        style={{ left: `${pct}%` }}
+      />
+    ))}
   </div>
 );
 
-// Dot variant (Figma Radius): a dot per snap stop. The hook hides the dot the handle sits on so the
-// handle never collides with a mark; the fill tile covers the dots left of the handle.
+// Dot variant (Figma Radius): a dot per snap stop, rendered ABOVE the fill so dots stay visible
+// inside the filled tile. The hook hides the dot the handle sits on (no collision) and any dot that
+// falls under the label text.
 const SliderDotMarks = ({ dotMarks }: { dotMarks: { pct: number; hidden: boolean }[] | null }) => (
   <div
     data-slot="elastic-slider-dot-marks"

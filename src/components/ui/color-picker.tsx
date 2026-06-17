@@ -4,14 +4,13 @@ import { Slider } from "@base-ui/react/slider";
 import * as React from "react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { clamp, cn } from "@/lib/utils";
 
 const HEX_RE = /^#?([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
 // {h: 0-360, s: 0-100, l: 0-100}. No alpha — the Figma picker (and recollect's) is opaque.
 type Hsl = { h: number; s: number; l: number };
 
-const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 const round = (n: number) => Math.round(n);
 
 const useUncontrolledSync = (
@@ -279,7 +278,7 @@ export const ColorPicker = ({ label, value, onChange, className }: ColorPickerPr
             const normalized = raw.startsWith("#") ? raw : `#${raw}`;
             if (HEX_RE.test(normalized)) onChange(normalized);
           }}
-          className="w-[72px] bg-transparent text-right font-mono text-[13px] font-medium text-foreground uppercase tabular-nums outline-none"
+          className="w-[72px] bg-transparent text-right font-mono text-[13px] font-medium text-gray-700 uppercase tabular-nums outline-none"
           maxLength={9}
         />
         <Popover>
@@ -288,7 +287,9 @@ export const ColorPicker = ({ label, value, onChange, className }: ColorPickerPr
               <button
                 type="button"
                 aria-label={`${label} color picker`}
-                className="relative size-3.5 shrink-0 cursor-pointer overflow-hidden rounded-full border border-border/60 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.4)]"
+                // Figma swatch (node 25420-11688): 14×14, rounded-7, NO border (border shrank the fill to 12×12),
+                // shadow defines white-on-white (no border needed).
+                className="relative size-3.5 shrink-0 cursor-pointer overflow-hidden rounded-[7px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.4)]"
                 style={{ backgroundImage: CHECKERED_BG }}
               >
                 <span className="absolute inset-0" style={{ backgroundColor: swatchHex }} />

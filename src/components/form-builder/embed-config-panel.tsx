@@ -139,7 +139,9 @@ export const ConfigRow = ({
     return (
       <div className="flex h-7 items-center gap-3 overflow-clip bg-background">
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-[14px] font-normal text-muted-foreground">{label}</span>
+          <span className="font-case text-[14px] leading-[1.15] font-[400] text-muted-foreground">
+            {label}
+          </span>
           {description && (
             <p className="text-sm font-normal text-wrap text-muted-foreground">{description}</p>
           )}
@@ -182,7 +184,7 @@ export const selectTriggerCls =
  * Separate from `selectTriggerCls` so the embed panel's trigger stays unchanged.
  */
 export const selectTriggerFigmaCls =
-  "data-[size=default]:h-[24px] shrink-0 border-none bg-transparent shadow-none rounded-[5px] px-0 py-0 gap-1 w-auto text-[14px] text-foreground font-medium whitespace-nowrap [&_svg]:size-[10px] ";
+  "data-[size=default]:h-[24px] shrink-0 border-none bg-transparent shadow-none rounded-[5px] px-0 py-0 gap-1 w-auto text-[14px] leading-[1.15] text-gray-700 font-[450] font-case whitespace-nowrap [&_svg]:size-[10px] ";
 
 export const triggerLabels: Record<string, string> = {
   button: "On button click",

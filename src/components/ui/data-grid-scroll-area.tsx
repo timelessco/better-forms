@@ -13,7 +13,7 @@ import { useLazyRef } from "@/hooks/use-lazy-ref";
 import { useDataGrid } from "@/components/ui/data-grid";
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
 
-import { cn } from "@/lib/utils";
+import { clamp, cn } from "@/lib/utils";
 
 const MIN_THUMB_SIZE = 24;
 const FALLBACK_SCROLLBAR_SIZE = 12;
@@ -49,8 +49,6 @@ type DataGridScrollAreaProps = Omit<ScrollAreaPrimitive.Root.Props, "children"> 
   children: ReactNode;
   orientation?: DataGridScrollAreaOrientation;
 };
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const areMetricsEqual = (next: ScrollbarMetrics, prev: ScrollbarMetrics) =>
   next.hasVerticalOverflow === prev.hasVerticalOverflow &&
