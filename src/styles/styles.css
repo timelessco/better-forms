@@ -269,6 +269,9 @@
   --destructive: #cd2b31;
   --destructive-foreground: #e03636;
   --border: var(--color-gray-200);
+  /* espresso-base-ui tabs tokens (surface = active-tab pill, border-soft = tab-list rule) */
+  --surface: oklch(100% 0 0);
+  --border-soft: var(--color-gray-200);
   --input: var(--color-gray-300);
   --ring: var(--color-gray-600);
   --chart-1: var(--color-blue-400);
@@ -406,6 +409,10 @@
   --destructive: #cd2b31;
   --destructive-foreground: #e03636;
   --border: var(--color-gray-400);
+  /* espresso-base-ui tabs tokens (dark) */
+  /* Active tab pill = Figma alpha/50 (#ffffff14, white @ 8%) over the gray-100 track — not a solid gray. */
+  --surface: oklch(100% 0 0 / 8%);
+  --border-soft: var(--color-gray-800);
   --input: var(--color-gray-300);
   --ring: var(--color-gray-600);
   --chart-1: var(--color-blue-900);
@@ -485,6 +492,9 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
+  --color-surface: var(--surface);
+  --color-border-soft: var(--border-soft);
+  --shadow-6xs: 0 0 1.5px 0 rgba(0, 0, 0, 0.16), 0 2px 5px 0 rgba(0, 0, 0, 0.14);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-chart-1: var(--chart-1);
@@ -697,6 +707,11 @@
   font-variation-settings: "opsz" 16, "wght" var(--tw-font-weight, 450);
 }
 
+/* opsz 24 = Figma settings-page date/tz/time + URL cell optical size. Re-binds wght so font-[420] still drives weight. */
+@utility font-opsz-24 {
+  font-variation-settings: "opsz" 24, "wght" var(--tw-font-weight, 450);
+}
+
 /* Canonical text-input box used by Input/Email/Number/Link/Textarea/Time/
    Phone/FileUpload field widgets. Matches the editor's form-field-node
    spec from Figma (gray/50 fill, 8px radius, hairline drop shadow) in both
@@ -852,13 +867,15 @@
   border-radius: inherit;
 }
 
-/* Ambient glow (Figma 25690:11807): a blurred, 35%-opacity copy of the cover image offset 16px
-   down + 20px inset, so the cover's shadow takes on the photo's colours. Fit only (var-gated). */
+/* Ambient glow (Figma 25690:11807): a blurred, 35%-opacity copy of the cover image so the cover's
+   shadow takes on the photo's colours. Fit only (var-gated). Anchored to the lower half (top 45%)
+   so the blur(37px) bleeds DOWN/sideways only — never above the cover top (that upward bleed read
+   as a halo/"chip" clipping the header). */
 .bf-themed [data-bf-cover] [data-bf-cover-glow] {
   display: var(--bf-cover-glow, none);
   position: absolute;
-  inset: 16px 20px auto 20px;
-  height: 100%;
+  inset: 45% 20px auto 20px;
+  height: 75%;
   z-index: 0;
   border-radius: inherit;
   object-fit: var(--bf-cover-fit, cover);

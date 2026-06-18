@@ -24,7 +24,7 @@ import { cn, DEFAULT_ICON_NAME, isHexColor, isValidUrl } from "@/lib/utils";
 import type { PublicFormSettings } from "@/types/form-settings";
 import { IconPickerPreview } from "@/components/icon-picker";
 import { SuccessCheck } from "@/components/transitions/success-check";
-import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
+import { AnimatePresence, domAnimation, LazyMotion, m, useReducedMotion } from "motion/react";
 import type { Value } from "platejs";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -116,6 +116,7 @@ const PreviewFormHeader = ({
   const handleImageError = () => setImageError(true);
   const handleIconError = () => setIconError(true);
   const headerRef = useRef<HTMLDivElement>(null);
+  const shouldReduceMotion = useReducedMotion();
 
   const hasCustomization = !!(customization && Object.keys(customization).length > 0);
   const isLogoMinimal =
@@ -256,15 +257,32 @@ const PreviewFormHeader = ({
           >
             {(!hasCover || !hasIcon) && <div className="h-8" />}
           </div>
-          {hasTitle && (
-            <h1
-              data-bf-title
-              style={{ textWrap: "pretty" }}
-              className="mt-4 font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px]"
-            >
-              {title}
-            </h1>
-          )}
+          {/* Title collapse: hideTitle toggle in the Share panel unmounts the h1; AnimatePresence
+              animates the height/opacity/margin so the layout reflows smoothly instead of snapping.
+              initial={false} skips the entrance on first paint (only toggles animate). The exiting
+              clone keeps its last title text even though the prop is wiped to "" upstream. */}
+          <LazyMotion features={domAnimation} strict>
+            <AnimatePresence initial={false}>
+              {hasTitle && (
+                <m.h1
+                  key="bf-title"
+                  data-bf-title
+                  initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                  animate={{ height: "auto", opacity: 1, marginTop: 16 }}
+                  exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                  transition={
+                    shouldReduceMotion
+                      ? { duration: 0 }
+                      : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }
+                  }
+                  style={{ textWrap: "pretty", overflow: "hidden" }}
+                  className="font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px]"
+                >
+                  {title}
+                </m.h1>
+              )}
+            </AnimatePresence>
+          </LazyMotion>
         </div>
       </div>
     );

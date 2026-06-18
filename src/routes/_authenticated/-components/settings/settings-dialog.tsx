@@ -5,37 +5,44 @@ import type { SettingsTab } from "@/hooks/use-settings-dialog";
 import { useSettingsDialog } from "@/hooks/use-settings-dialog";
 import { Activity, useCallback, useState } from "react";
 import { SidebarItem } from "@/components/sidebar-item";
-import { CircleUserIcon, CreditCardIcon, GlobeIcon } from "@/components/ui/icons";
+import { Bell02Icon, Globe01Icon, SettingsIcon } from "@/components/ui/icons";
 import { AccountSettingsContent } from "./account-settings-content";
 import { BillingContent } from "./billing-content";
 import { DomainsContent } from "./domains-content";
 import { MembersContent } from "./members-content";
+import { NotificationsContent } from "./notifications-content";
 
+// Figma system-flat settings sidebar (node 26146-13642): gear/bell/globe duotone icons.
 const navItems: {
   key: SettingsTab;
   label: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }[] = [
-  { key: "account", label: "Account", icon: CircleUserIcon },
-  { key: "billing", label: "Billing", icon: CreditCardIcon },
-  { key: "domains", label: "Domains", icon: GlobeIcon },
+  { key: "account", label: "Account", icon: SettingsIcon },
+  { key: "notifications", label: "Notifications", icon: Bell02Icon },
+  { key: "domains", label: "Domains", icon: Globe01Icon },
+  // Billing — kept out of the sidebar for now (re-add CreditCardIcon import when restoring):
+  // { key: "billing", label: "Billing", icon: CreditCardIcon },
 ];
 
 const tabTitles: Record<SettingsTab, string> = {
   account: "Account",
+  notifications: "Notifications",
   members: "Members",
   billing: "Billing",
-  domains: "Custom Domains",
+  domains: "Domain",
 };
 
 /** All tab panels render, only active visible. Lazy-mount on first activation, then kept resident via <Activity> — scroll/drafts/effects survive switches. */
 const TabPanels = ({ activeTab }: { activeTab: SettingsTab }) => {
   const [openedAccount, setOpenedAccount] = useState(activeTab === "account");
+  const [openedNotifications, setOpenedNotifications] = useState(activeTab === "notifications");
   const [openedMembers, setOpenedMembers] = useState(activeTab === "members");
   const [openedBilling, setOpenedBilling] = useState(activeTab === "billing");
   const [openedDomains, setOpenedDomains] = useState(activeTab === "domains");
 
   if (activeTab === "account" && !openedAccount) setOpenedAccount(true);
+  if (activeTab === "notifications" && !openedNotifications) setOpenedNotifications(true);
   if (activeTab === "members" && !openedMembers) setOpenedMembers(true);
   if (activeTab === "billing" && !openedBilling) setOpenedBilling(true);
   if (activeTab === "domains" && !openedDomains) setOpenedDomains(true);
@@ -45,6 +52,11 @@ const TabPanels = ({ activeTab }: { activeTab: SettingsTab }) => {
       {openedAccount && (
         <Activity mode={activeTab === "account" ? "visible" : "hidden"}>
           <AccountSettingsContent />
+        </Activity>
+      )}
+      {openedNotifications && (
+        <Activity mode={activeTab === "notifications" ? "visible" : "hidden"}>
+          <NotificationsContent />
         </Activity>
       )}
       {openedMembers && (
@@ -85,7 +97,7 @@ export const SettingsDialog = () => {
       >
         {/* Left Sidebar (top tabs on mobile) */}
         <div className="relative flex w-full shrink-0 flex-col after:absolute after:right-0 after:bottom-0 after:left-0 after:h-[0.5px] after:bg-[var(--color-gray-100)] md:w-[180px] md:after:top-0 md:after:left-auto md:after:h-auto md:after:w-[0.5px]">
-          <div className="hidden px-[18px] pt-5 pb-[12.21px] md:block">
+          <div className="hidden px-2 pt-5 pb-3 md:block">
             <p className="text-sm font-medium tracking-[0.26px] text-muted-foreground">Settings</p>
           </div>
 

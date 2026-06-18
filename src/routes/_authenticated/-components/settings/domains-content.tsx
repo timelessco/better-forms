@@ -1,21 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  CheckCircle2Icon,
-  ClockIcon,
+  ChevronLeftIcon,
   GlobeIcon,
   Loader2Icon,
-  RefreshCwIcon,
-  SettingsIcon,
-  Trash2Icon,
+  MoreHorizontalIcon,
   UploadIcon,
-  XIcon,
-  AlertCircleIcon,
 } from "@/components/ui/icons";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { InputGroup, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
 import { auth, useSession } from "@/lib/auth/auth-client";
@@ -49,6 +49,19 @@ type DnsRecord = ReturnType<typeof getDnsInstructions>[number];
 
 const MAX_DOMAINS = DOMAIN_LIMITS.maxDomainsPerOrg;
 
+const STATUS_LABEL: Record<DomainStatus, string> = {
+  pending: "Pending",
+  verified: "Verified",
+  failed: "Failed",
+};
+
+// Figma system-flat status pills (node 26156-14047/14120/13590) — pastel fill + saturated text.
+const STATUS_STYLES: Record<DomainStatus, string> = {
+  failed: "bg-[#ffe2dc] text-[#fc3103] dark:bg-[#fc3103]/15 dark:text-[#ff8a6e]",
+  pending: "bg-[#fdf8d8] text-[#b35309] dark:bg-[#b35309]/20 dark:text-[#e0a23c]",
+  verified: "bg-[#e4faeb] text-[#137949] dark:bg-[#137949]/20 dark:text-[#4ec48a]",
+};
+
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -66,31 +79,16 @@ const fileToBase64 = (file: File): Promise<string> =>
     reader.readAsDataURL(file);
   });
 
-const StatusBadge = ({ status }: { status: DomainStatus }) => {
-  switch (status) {
-    case "pending":
-      return (
-        <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-          <ClockIcon className="mr-1 size-3" />
-          Pending
-        </Badge>
-      );
-    case "verified":
-      return (
-        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-          <CheckCircle2Icon className="mr-1 size-3" />
-          Verified
-        </Badge>
-      );
-    case "failed":
-      return (
-        <Badge variant="destructive">
-          <AlertCircleIcon className="mr-1 size-3" />
-          Failed
-        </Badge>
-      );
-  }
-};
+const StatusBadge = ({ status }: { status: DomainStatus }) => (
+  <span
+    className={cn(
+      "inline-flex shrink-0 items-center rounded-full px-1.5 py-[3px] text-xs font-medium tracking-[0.24px]",
+      STATUS_STYLES[status],
+    )}
+  >
+    {STATUS_LABEL[status]}
+  </span>
+);
 
 export const DomainsContent = () => {
   const queryClient = useQueryClient();
@@ -98,7 +96,7 @@ export const DomainsContent = () => {
   const domainInputId = useId();
 
   const [newDomain, setNewDomain] = useState("");
-  // Per-domain DNS records (TXT challenge + CNAME) from add/check/recheckDomainStatus, keyed by domain.id for inline render.
+  // Per-domain DNS records (TXT challenge + CNAME) from add/check/recheckDomainStatus, keyed by domain.id.
   const [dnsRecordsByDomainId, setDnsRecordsByDomainId] = useState<Record<string, DnsRecord[]>>({});
   const clearDnsRecords = useCallback((id: string) => {
     setDnsRecordsByDomainId((prev) => {
@@ -108,31 +106,8 @@ export const DomainsContent = () => {
       return next;
     });
   }, []);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [expandedConfigId, setExpandedConfigId] = useState<string | null>(null);
-
-  const cancelDeleteButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Focus Cancel on confirm-delete — else trash button unmounts, focus drops to body, keyboard users must tab from top.
-  // eslint-disable-next-line react-doctor/no-effect-event-handler -- focus restoration must wait for the trash→cancel-button mount swap; can't run inside the click handler
-  useEffect(() => {
-    if (confirmDeleteId) {
-      cancelDeleteButtonRef.current?.focus();
-    }
-  }, [confirmDeleteId]);
-
-  const handleCancelDelete = useCallback(() => {
-    const cancelledId = confirmDeleteId;
-    setConfirmDeleteId(null);
-    if (!cancelledId) return;
-    // Trash button re-mounts after state flip; restore focus so tab order continues from the confirm invocation.
-    requestAnimationFrame(() => {
-      const trashBtn = document.querySelector<HTMLButtonElement>(
-        `[data-trash-for="${cancelledId}"]`,
-      );
-      trashBtn?.focus();
-    });
-  }, [confirmDeleteId]);
+  // Stacked detail screen: the domain whose DNS records / config is open (null = list).
+  const [selectedDomainId, setSelectedDomainId] = useState<string | null>(null);
 
   const orgId = session?.session?.activeOrganizationId as string | undefined;
 
@@ -179,8 +154,8 @@ export const DomainsContent = () => {
     mutationFn: (domainId: string) => removeDomain({ data: { domainId } }),
     onSuccess: (_data, domainId) => {
       void queryClient.invalidateQueries({ queryKey: ["org-domains", orgId] });
-      setConfirmDeleteId(null);
       clearDnsRecords(domainId);
+      setSelectedDomainId((prev) => (prev === domainId ? null : prev));
       toast.success("Domain removed");
     },
     onError: (error: unknown) => {
@@ -232,7 +207,6 @@ export const DomainsContent = () => {
     }) => updateDomainMeta({ data }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["org-domains", orgId] });
-      // Keep panel open — inline save (like account-settings), user iterates.
       toast.success("Saved");
     },
     onError: (error: unknown) => {
@@ -241,6 +215,8 @@ export const DomainsContent = () => {
   });
 
   const { mutate: mutateAddDomain } = addMutation;
+  const { mutate: mutateRemoveDomain } = removeMutation;
+  const { mutate: mutateRecheck } = recheckMutation;
   const { mutate: mutateUpdateMeta } = updateMetaMutation;
 
   const handleAddDomain = useCallback(() => {
@@ -248,6 +224,14 @@ export const DomainsContent = () => {
     if (!trimmed) return;
     mutateAddDomain(trimmed);
   }, [newDomain, mutateAddDomain]);
+
+  const handleDelete = useCallback(
+    (domain: Domain) => {
+      if (!window.confirm(`Remove ${domain.domain}? This can't be undone.`)) return;
+      mutateRemoveDomain(domain.id);
+    },
+    [mutateRemoveDomain],
+  );
 
   if (isSessionPending) {
     return (
@@ -257,12 +241,28 @@ export const DomainsContent = () => {
     );
   }
 
-  if (!isOwner && !isSessionPending) {
+  if (!isOwner) {
     return (
       <div className="py-8 text-center text-sm text-muted-foreground">
         <GlobeIcon className="mx-auto mb-3 size-8 opacity-50" />
         <p>Only the organization owner can manage domains.</p>
       </div>
+    );
+  }
+
+  const selectedDomain = (domains as Domain[]).find((d) => d.id === selectedDomainId);
+
+  if (selectedDomain) {
+    return (
+      <DomainDetail
+        domain={selectedDomain}
+        dnsRecords={dnsRecordsByDomainId[selectedDomain.id]}
+        isRecheckPending={recheckMutation.isPending}
+        isUpdateMetaPending={updateMetaMutation.isPending}
+        onBack={() => setSelectedDomainId(null)}
+        onRecheck={() => mutateRecheck(selectedDomain.id)}
+        onUpdateMeta={mutateUpdateMeta}
+      />
     );
   }
 
@@ -277,45 +277,35 @@ export const DomainsContent = () => {
         onAdd={handleAddDomain}
       />
 
-      {isLoadingDomains ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2Icon className="size-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : domains.length === 0 ? (
-        <div className="py-8 text-center text-sm text-muted-foreground">
-          <GlobeIcon className="mx-auto mb-3 size-8 opacity-50" />
-          <p>No custom domains yet</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {(domains as Domain[]).map((domain) => (
-            <DomainListItem
-              key={domain.id}
-              domain={domain}
-              state={{
-                confirmingDelete: confirmDeleteId === domain.id,
-                configuring: expandedConfigId === domain.id,
-              }}
-              pending={{
-                recheck: recheckMutation.isPending,
-                remove: removeMutation.isPending,
-                updateMeta: updateMetaMutation.isPending,
-              }}
-              dnsRecords={dnsRecordsByDomainId[domain.id]}
-              cancelDeleteButtonRef={cancelDeleteButtonRef}
-              handlers={{
-                onRecheck: () => recheckMutation.mutate(domain.id),
-                onRequestDelete: () => setConfirmDeleteId(domain.id),
-                onConfirmDelete: () => removeMutation.mutate(domain.id),
-                onCancelDelete: handleCancelDelete,
-                onOpenConfig: () => setExpandedConfigId(domain.id),
-                onCloseConfig: () => setExpandedConfigId(null),
-              }}
-              onUpdateMeta={mutateUpdateMeta}
-            />
-          ))}
-        </div>
-      )}
+      <div className="h-px w-full bg-[var(--color-gray-100)]" />
+
+      <div className="flex flex-col gap-4">
+        <p className="font-case text-base font-medium text-foreground">Added domains</p>
+        {isLoadingDomains ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2Icon className="size-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : domains.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            <GlobeIcon className="mx-auto mb-3 size-8 opacity-50" />
+            <p>No custom domains yet</p>
+          </div>
+        ) : (
+          <div className="flex flex-col">
+            {(domains as Domain[]).map((domain, i) => (
+              <DomainRow
+                key={domain.id}
+                domain={domain}
+                isLast={i === domains.length - 1}
+                isRecheckPending={recheckMutation.isPending}
+                onOpen={() => setSelectedDomainId(domain.id)}
+                onRecheck={() => mutateRecheck(domain.id)}
+                onDelete={() => handleDelete(domain)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -337,82 +327,110 @@ const AddDomainCard = ({
   onNewDomainChange,
   onAdd,
 }: AddDomainCardProps) => {
-  const trimmedDomain = newDomain.trim();
-  const canAddDomain = trimmedDomain.length > 0 && domainCount < MAX_DOMAINS;
+  const atLimit = domainCount >= MAX_DOMAINS;
+  const canAddDomain = newDomain.trim().length > 0 && !atLimit;
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <label
-          className="text-base tracking-[0.28px] text-muted-foreground"
-          htmlFor={domainInputId}
-        >
-          Add a custom domain
-        </label>
-        <span className="text-xs text-muted-foreground">
-          {domainCount} of {MAX_DOMAINS} domains used
-        </span>
-      </div>
+      <label className="text-base tracking-[0.28px] text-muted-foreground" htmlFor={domainInputId}>
+        Add a custom domain
+      </label>
       <InputGroup
         variant="borderless"
-        className={cn(
-          "h-[30px] overflow-clip border-0 bg-secondary ring-0",
-          canAddDomain && "pr-[3px]",
-        )}
+        className="h-[30px] overflow-clip border-0 bg-secondary pr-[3px] ring-0"
       >
         <InputGroupInput
           id={domainInputId}
+          // Flat like Figma; also kills elevation-sm's right-edge hairline that reads as a line
+          // next to the always-visible Save button (the group, not the input, owns the focus ring).
+          className="[box-shadow:none]!"
           placeholder="forms.acme.com"
           value={newDomain}
           onChange={(e) => onNewDomainChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") onAdd();
           }}
-          disabled={domainCount >= MAX_DOMAINS || isAdding}
+          disabled={atLimit || isAdding}
           variant="secondary"
         />
-        {canAddDomain && (
-          <InputGroupButton
-            variant="default"
-            onClick={onAdd}
-            disabled={isAdding}
-            className="h-[24px] w-[47px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
-          >
-            {isAdding ? <Loader2Icon className="size-3 animate-spin" /> : "Add"}
-          </InputGroupButton>
-        )}
+        <InputGroupButton
+          variant="default"
+          onClick={onAdd}
+          disabled={!canAddDomain || isAdding}
+          className="h-[24px] w-[47px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
+        >
+          {isAdding ? <Loader2Icon className="size-3 animate-spin" /> : "Save"}
+        </InputGroupButton>
       </InputGroup>
     </div>
   );
 };
 
-type DomainItemState = {
-  confirmingDelete: boolean;
-  configuring: boolean;
-};
-
-type DomainItemPending = {
-  recheck: boolean;
-  remove: boolean;
-  updateMeta: boolean;
-};
-
-type DomainItemHandlers = {
-  onRecheck: () => void;
-  onRequestDelete: () => void;
-  onConfirmDelete: () => void;
-  onCancelDelete: () => void;
-  onOpenConfig: () => void;
-  onCloseConfig: () => void;
-};
-
-interface DomainListItemProps {
+interface DomainRowProps {
   domain: Domain;
-  state: DomainItemState;
-  pending: DomainItemPending;
+  isLast: boolean;
+  isRecheckPending: boolean;
+  onOpen: () => void;
+  onRecheck: () => void;
+  onDelete: () => void;
+}
+
+const DomainRow = ({
+  domain,
+  isLast,
+  isRecheckPending,
+  onOpen,
+  onRecheck,
+  onDelete,
+}: DomainRowProps) => (
+  <div
+    className={cn(
+      "flex items-center justify-between gap-3 py-1.5",
+      !isLast && "border-b border-[var(--color-gray-100)]",
+    )}
+  >
+    <button
+      type="button"
+      onClick={onOpen}
+      className="max-w-[60%] min-w-0 truncate text-left text-base font-[420] text-gray-800 transition-colors hover:text-foreground"
+    >
+      {domain.domain}
+    </button>
+    <StatusBadge status={domain.status} />
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0 rounded-lg text-muted-foreground hover:text-gray-800"
+            aria-label={`Actions for ${domain.domain}`}
+          />
+        }
+      >
+        <MoreHorizontalIcon className="size-[18px]" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={4} className="w-40" positionerClassName="z-103">
+        {domain.status !== "verified" && (
+          <DropdownMenuItem onClick={onRecheck} disabled={isRecheckPending}>
+            Verify now
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem variant="destructive" onClick={onDelete}>
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </div>
+);
+
+interface DomainDetailProps {
+  domain: Domain;
   dnsRecords: DnsRecord[] | undefined;
-  cancelDeleteButtonRef: React.RefObject<HTMLButtonElement | null>;
-  handlers: DomainItemHandlers;
+  isRecheckPending: boolean;
+  isUpdateMetaPending: boolean;
+  onBack: () => void;
+  onRecheck: () => void;
   onUpdateMeta: (data: {
     domainId: string;
     siteTitle?: string;
@@ -421,213 +439,100 @@ interface DomainListItemProps {
   }) => void;
 }
 
-const DomainListItem = ({
+const DomainDetail = ({
   domain,
-  state,
-  pending,
   dnsRecords,
-  cancelDeleteButtonRef,
-  handlers,
+  isRecheckPending,
+  isUpdateMetaPending,
+  onBack,
+  onRecheck,
   onUpdateMeta,
-}: DomainListItemProps) => (
-  <div className="rounded-xl border">
-    <div className="flex items-center justify-between px-4 py-3">
-      <div className="flex items-center gap-3">
-        <GlobeIcon className="size-4 text-muted-foreground" />
-        <span className="text-sm font-medium">{domain.domain}</span>
-        <StatusBadge status={domain.status} />
+}: DomainDetailProps) => {
+  // Fall back to the base routing record so DNS shows even before the first verify check.
+  const records = dnsRecords ?? getDnsInstructions(domain.domain);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-1">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to domains"
+            className="-ml-1 flex size-6 shrink-0 items-center justify-center rounded-md text-gray-800 hover:bg-secondary"
+          >
+            <ChevronLeftIcon className="size-4" />
+          </button>
+          <span className="truncate text-xl text-foreground">{domain.domain}</span>
+        </div>
+        {domain.status !== "verified" && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onRecheck}
+            disabled={isRecheckPending}
+            className="h-7 rounded-lg bg-[var(--color-gray-200)] px-2 text-base font-medium tracking-[0.14px] text-foreground hover:bg-[var(--color-gray-300)]"
+            prefix={isRecheckPending ? <Loader2Icon className="size-4 animate-spin" /> : undefined}
+          >
+            Verify Now
+          </Button>
+        )}
       </div>
-      <DomainItemActions
-        domain={domain}
-        state={state}
-        pending={pending}
-        cancelDeleteButtonRef={cancelDeleteButtonRef}
-        handlers={handlers}
-      />
+
+      {domain.status === "verified" ? (
+        <DomainConfigPanel
+          domain={domain}
+          isUpdateMetaPending={isUpdateMetaPending}
+          onUpdateMeta={onUpdateMeta}
+        />
+      ) : (
+        <DomainDnsRecords records={records} />
+      )}
     </div>
+  );
+};
 
-    {dnsRecords && dnsRecords.length > 0 && domain.status !== "verified" && (
-      <DomainDnsRecords records={dnsRecords} />
-    )}
-
-    {state.configuring && (
-      <DomainConfigPanel
-        domain={domain}
-        isUpdateMetaPending={pending.updateMeta}
-        onUpdateMeta={onUpdateMeta}
-      />
-    )}
+const DnsKeyValueRow = ({
+  label,
+  value,
+  copyText,
+}: {
+  label: string;
+  value: string;
+  copyText?: string;
+}) => (
+  <div className="flex items-center gap-3 py-[7px]">
+    <span className="min-w-0 flex-1 text-base text-muted-foreground">{label}</span>
+    <span className="flex items-center gap-1.5 text-base whitespace-nowrap text-gray-800">
+      <span className="truncate">{value}</span>
+      {copyText && (
+        <CopyButton text={copyText} variant="ghost" size="icon-xs" aria-label={`Copy ${label}`} />
+      )}
+    </span>
   </div>
 );
 
-interface DomainItemActionsProps {
-  domain: Domain;
-  state: DomainItemState;
-  pending: Pick<DomainItemPending, "recheck" | "remove">;
-  cancelDeleteButtonRef: React.RefObject<HTMLButtonElement | null>;
-  handlers: DomainItemHandlers;
-}
-
-const DomainItemActions = ({
-  domain,
-  state,
-  pending,
-  cancelDeleteButtonRef,
-  handlers,
-}: DomainItemActionsProps) => {
-  const { confirmingDelete, configuring } = state;
-  const { recheck: isRecheckPending, remove: isRemovePending } = pending;
-  const {
-    onRecheck,
-    onRequestDelete,
-    onConfirmDelete,
-    onCancelDelete,
-    onOpenConfig,
-    onCloseConfig,
-  } = handlers;
-  if (confirmingDelete) {
-    return (
-      <div className="flex items-center gap-1.5">
-        <span className="mr-1 text-xs text-muted-foreground">Are you sure?</span>
-        <Button
-          ref={cancelDeleteButtonRef}
-          variant="outline"
-          size="icon"
-          className="size-7"
-          onClick={onCancelDelete}
-          disabled={isRemovePending}
-          aria-label="Cancel removing domain"
-        >
-          <XIcon className="size-3.5" />
-        </Button>
-        <Button
-          variant="destructive"
-          size="icon"
-          className="size-7"
-          onClick={onConfirmDelete}
-          disabled={isRemovePending}
-          aria-label="Confirm remove domain"
-        >
-          {isRemovePending ? (
-            <Loader2Icon className="size-3.5 animate-spin" />
-          ) : (
-            <Trash2Icon className="size-3.5" />
-          )}
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-1.5">
-      {(domain.status === "pending" || domain.status === "failed") && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onRecheck}
-          disabled={isRecheckPending}
-          prefix={
-            isRecheckPending ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : (
-              <RefreshCwIcon className="size-4" />
-            )
-          }
-        >
-          Verify now
-        </Button>
-      )}
-      {domain.status === "verified" && (
-        <Button
-          variant="outline"
-          size="icon-sm"
-          onClick={configuring ? onCloseConfig : onOpenConfig}
-          prefix={<SettingsIcon className="size-4" />}
-        ></Button>
-      )}
-      <Button
-        data-trash-for={domain.id}
-        variant="ghost"
-        size="icon"
-        className="size-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
-        onClick={onRequestDelete}
-        aria-label={`Remove ${domain.domain}`}
-      >
-        <Trash2Icon className="size-3.5" />
-      </Button>
-    </div>
-  );
-};
-
-const DomainDnsRecords = ({ records }: { records: DnsRecord[] }) => {
-  const hasTxt = records.some((r) => r.type === "TXT");
-  const hasCname = records.some((r) => r.type === "CNAME");
-  const hasShortName = records.some((r) => r.shortName);
-
-  return (
-    <div className="space-y-3 border-t bg-muted/40 px-4 py-3">
-      <p className="text-xs text-muted-foreground">
-        Add {records.length > 1 ? "all records" : "the record"} below at your DNS provider, then
-        click <strong className="text-foreground">Verify now</strong>.
-        {hasTxt && hasCname && (
-          <> The TXT proves ownership; the CNAME makes the subdomain resolve, both are required.</>
-        )}
-        {hasShortName && (
-          <>
-            {" "}
-            Some providers strip your zone from the Name and store it in the short form, both work.
-          </>
-        )}
+const DomainDnsRecords = ({ records }: { records: DnsRecord[] }) => (
+  <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-1">
+      <p className="text-base font-medium text-foreground">DNS records</p>
+      <p className="text-base leading-[1.5] tracking-[0.28px] text-muted-foreground">
+        Add these records to your domain name provider&rsquo;s DNS settings.
       </p>
-      <div className="flex items-start gap-2 rounded-md border border-dashed border-foreground/25 bg-background px-3 py-2 text-xs text-muted-foreground">
-        <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0" />
-        <span>
-          If your DNS provider offers a proxy or CDN feature on individual records, keep it{" "}
-          <strong className="text-foreground">disabled</strong> for this record. A proxied record
-          blocks the SSL handshake and the domain will stay unverified.
-        </span>
-      </div>
-      <div className="overflow-hidden rounded-md border bg-background text-xs">
-        <div className="grid grid-cols-[80px_minmax(0,1fr)_minmax(0,2fr)_36px] border-b bg-muted font-medium text-foreground">
-          <div className="border-r border-border px-3 py-2">Type</div>
-          <div className="border-r border-border px-3 py-2">Name</div>
-          <div className="border-r border-border px-3 py-2">Value</div>
-          <div />
-        </div>
-        {records.map((rec, i) => (
-          <div
-            key={`${rec.type}-${rec.name}-${rec.value}`}
-            className={cn(
-              "grid grid-cols-[80px_minmax(0,1fr)_minmax(0,2fr)_36px] items-center",
-              i > 0 && "border-t",
-            )}
-          >
-            <div className="border-r px-3 py-2 font-mono">{rec.type}</div>
-            <div className="min-w-0 space-y-0.5 border-r px-3 py-2 font-mono break-all">
-              <div>{rec.name}</div>
-              {rec.shortName && (
-                <div className="text-[10px] font-normal text-muted-foreground">
-                  or just <span className="font-mono">{rec.shortName}</span>
-                </div>
-              )}
-            </div>
-            <div className="flex min-w-0 items-center gap-1 border-r px-3 py-2">
-              <span className="min-w-0 flex-1 font-mono break-all">{rec.value}</span>
-            </div>
-            <div className="flex items-center justify-center">
-              <CopyButton
-                text={rec.value}
-                variant="ghost"
-                size="icon-xs"
-                aria-label={`Copy ${rec.type} value`}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
-  );
-};
+    <div className="flex flex-col gap-4">
+      {records.map((rec, i) => (
+        <div key={`${rec.type}-${rec.name}-${rec.value}`} className="flex flex-col">
+          {i > 0 && <div className="mb-2 h-px w-full bg-[var(--color-gray-100)]" />}
+          <DnsKeyValueRow label="Record type" value={rec.type} />
+          <DnsKeyValueRow label="Name" value={rec.shortName ?? rec.name} />
+          <DnsKeyValueRow label="Value" value={rec.value} copyText={rec.value} />
+          <DnsKeyValueRow label="TTL" value="Auto" />
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 interface DomainConfigPanelProps {
   domain: Domain;
@@ -690,7 +595,7 @@ const DomainConfigPanel = ({
   const titleDirty = siteTitle !== (domain.siteTitle ?? "");
 
   return (
-    <div className="space-y-5 border-t p-4">
+    <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
         <label
           className="text-base tracking-[0.28px] text-muted-foreground"
@@ -719,7 +624,7 @@ const DomainConfigPanel = ({
                 onUpdateMeta({ domainId: domain.id, siteTitle: siteTitle || undefined })
               }
               disabled={isUpdateMetaPending}
-              className="h-[24px] w-[47px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
+              className="h-[24px] w-[47px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
             >
               {isUpdateMetaPending ? <Loader2Icon className="size-3 animate-spin" /> : "Save"}
             </InputGroupButton>
@@ -783,7 +688,7 @@ const DomainAssetUpload = ({
         size="sm"
         onClick={() => inputRef.current?.click()}
         disabled={isUploading}
-        className="h-[30px] rounded-lg bg-neutral-50 px-3 text-sm text-neutral-800 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-neutral-200"
+        className="h-[30px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
         prefix={
           isUploading ? (
             <Loader2Icon className="size-3 animate-spin" />

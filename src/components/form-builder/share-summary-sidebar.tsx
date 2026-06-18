@@ -430,6 +430,9 @@ const ShareSidebarHeader = ({ isDraft, form, navigate, closeSidebar }: ShareSide
       <form.Field name="embedType">
         {(field: AnyFieldApi) => (
           <Tabs
+            // Header is pl-4 pr-2 (8px right); content rows are px-4 (16px). pr-2 here pulls the
+            // tab strip's right edge in to 16px so it aligns with the toggles/dropdown below.
+            className="pr-2"
             value={field.state.value}
             defaultValue={"fullpage"}
             onValueChange={(v) => {
@@ -458,8 +461,9 @@ const ShareSidebarHeader = ({ isDraft, form, navigate, closeSidebar }: ShareSide
                   // Figma tabs (node 26075-12772): 14px/500/+0.21px. Active = gray/700 (flips via token).
                   // Inactive = gray/550 #8c8c8c (light) but ink-gray-5 #7c7c7c (dark) — no app token lands on
                   // #7c7c7c dark, so override; dark:data-active reasserts active so the override skips it.
+                  // min-w-0 → equal-width tabs so the indicator only slides (no width-stretch jitter).
                   className={
-                    "text-base font-medium tracking-[0.21px] text-[color:var(--color-gray-550)] dark:text-[#7c7c7c] data-active:text-gray-700 dark:data-active:text-gray-700"
+                    "min-w-0 text-base font-medium tracking-[0.21px] text-[color:var(--color-gray-550)] dark:text-[#7c7c7c] data-active:text-gray-700 dark:data-active:text-gray-700"
                   }
                 >
                   {tab.label}
@@ -543,8 +547,9 @@ const InlineNumberInput = ({
     onChange(clamped);
     setText(String(clamped));
   };
+  // Number + unit share one color (gray-700) so the value reads uniform and matches other rows.
   return (
-    <span className="inline-flex items-center gap-0.5 font-case text-[14px] font-medium">
+    <span className="inline-flex items-center gap-0.5 font-case text-[14px] font-medium text-gray-700">
       <input
         type="text"
         inputMode="numeric"
@@ -557,7 +562,7 @@ const InlineNumberInput = ({
         className="w-9 bg-transparent text-right tabular-nums outline-none"
         aria-label="Width"
       />
-      <span className="text-muted-foreground">{suffix}</span>
+      <span>{suffix}</span>
     </span>
   );
 };
@@ -1222,10 +1227,10 @@ const ShareSidebarFooter = ({
       variant="ghost-flat"
       size="sm"
       prefix={<LinkIcon className="size-4" />}
-      // Figma footer (26075:12832): w-120, rounded-8, ps-10/pe-8, 14px/500 gray-800, `case` feature.
+      // Figma footer (26075:12832): rounded-8, ps-10/pe-8, 14px/500 gray-800, `case` feature.
       // ghost-flat = ghost minus the 1px border, so the box matches the border-none primary Get Code.
-      // Keeps the ghost-flat hover (bg-secondary); Get Code stays static.
-      className="w-30 justify-center rounded-lg py-1.5 pe-2 font-case text-[14px] font-medium tracking-[0.14px] text-gray-800 has-data-[icon=inline-start]:ps-2.5"
+      // flex-1 (same as Get Code) so the two share the footer width evenly as the sidebar resizes.
+      className="flex-1 justify-center rounded-lg py-1.5 pe-2 font-case text-[14px] font-medium tracking-[0.14px] text-gray-800 has-data-[icon=inline-start]:ps-2.5"
     >
       Copy Link
     </CopyButton>

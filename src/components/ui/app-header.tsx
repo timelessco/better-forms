@@ -24,7 +24,14 @@ import { useProPublishGate } from "@/components/form-builder/pro-publish-gate";
 import type { PublishOptions } from "@/components/form-builder/pro-publish-gate";
 import { toggleFavoriteLocal, updateFormStatus } from "@/collections";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
-import { discardChanges, publishForm, useHasUnpublishedChanges } from "@/hooks/use-form-versions";
+import {
+  discardChanges,
+  publishForm,
+  publishFormSettings,
+  useFormPublishStatus,
+  useHasUnpublishedChanges,
+} from "@/hooks/use-form-versions";
+import { parseError } from "@/lib/errors/parse";
 import { useForm, useIsFavorite, useWorkspace } from "@/hooks/use-live-hooks";
 import { useSession } from "@/lib/auth/auth-client";
 import { HOTKEYS, formatForDisplay } from "@/lib/hotkeys";
@@ -60,6 +67,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   const isLandingPage = pathname === "/";
   const isFormBuilder = pathname.startsWith("/form-builder") || pathname.includes("/form-builder/");
   const isEditRoute = pathname.endsWith("/edit");
+  const isSettingsRoute = pathname.endsWith("/settings");
   const { data: sessionData } = useSession();
   const session = sessionData;
   const navigate = useNavigate();
@@ -80,8 +88,14 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   const toggleVersionHistory = () => {
     toggleEditorSidebar("history");
   };
+  // Form-level settings is a full page (not the right sidebar). Navigate there.
   const toggleSettingsSidebar = () => {
-    toggleEditorSidebar("settings");
+    if (workspaceId && formId) {
+      void navigate({
+        to: "/workspace/$workspaceId/form-builder/$formId/settings",
+        params: { workspaceId, formId },
+      });
+    }
   };
 
   const toggleCustomizeSidebar = () => {
@@ -176,10 +190,8 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   const menuItems = buildFormBuilderMenuItems({
     isEditRoute,
     hasPublishedVersion,
-    hasUnpublishedChanges,
     workspaceId,
     formId,
-    onToggleFavorite: handleToggleFavorite,
     onNavigateInsights: () => {
       if (workspaceId && formId) {
         void navigate({
@@ -236,6 +248,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               workspaceId={workspaceId}
               formId={formId}
               isEditRoute={isEditRoute}
+              isSettingsRoute={isSettingsRoute}
             />
           )}
         </div>
@@ -268,28 +281,33 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
             />
           )}
 
-          {isFormBuilder && (
-            <FormBuilderHeaderActions
-              flags={{
-                isEditRoute,
-                hasUnpublishedChanges,
-                isDiscarding,
-                isPublishing,
-                previewMode,
-                canShare,
-                isLoadingSavedDocs,
-              }}
-              activeMenu={activeMenu}
-              workspaceId={workspaceId}
-              formId={formId}
-              savedDocs={savedDocs}
-              menuItems={menuItems}
-              onTogglePreview={togglePreview}
-              onToggleShareSidebar={toggleShareSidebar}
-              onPublish={handlePublish}
-              onSetActiveMenu={setActiveMenu}
-            />
-          )}
+          {isFormBuilder &&
+            (isSettingsRoute ? (
+              // Settings page: hide editor actions, show only a settings-only Save (Figma 26095-19007).
+              <SettingsHeaderActions formId={formId} />
+            ) : (
+              <FormBuilderHeaderActions
+                flags={{
+                  isEditRoute,
+                  hasUnpublishedChanges,
+                  isDiscarding,
+                  isPublishing,
+                  previewMode,
+                  canShare,
+                  isShareSidebarOpen,
+                  isLoadingSavedDocs,
+                }}
+                activeMenu={activeMenu}
+                workspaceId={workspaceId}
+                formId={formId}
+                savedDocs={savedDocs}
+                menuItems={menuItems}
+                onTogglePreview={togglePreview}
+                onToggleShareSidebar={toggleShareSidebar}
+                onPublish={handlePublish}
+                onSetActiveMenu={setActiveMenu}
+              />
+            ))}
         </div>
       </header>
 
@@ -429,10 +447,8 @@ const useAppHeaderFormActions = ({
 interface BuildFormBuilderMenuItemsOptions {
   isEditRoute: boolean;
   hasPublishedVersion: boolean;
-  hasUnpublishedChanges: boolean;
   workspaceId: string | undefined;
   formId: string | undefined;
-  onToggleFavorite: () => Promise<void> | void;
   onNavigateInsights: () => void;
   onToggleVersionHistory: () => void;
   onToggleCustomizeSidebar: () => void;
@@ -445,41 +461,14 @@ interface BuildFormBuilderMenuItemsOptions {
 const buildFormBuilderMenuItems = ({
   isEditRoute,
   hasPublishedVersion,
-  hasUnpublishedChanges,
-  onToggleFavorite,
   onNavigateInsights,
   onToggleVersionHistory,
   onToggleCustomizeSidebar,
   onToggleSettingsSidebar,
   onSetActiveDialog,
 }: BuildFormBuilderMenuItemsOptions): MenuItem[] =>
+  // Order follows Figma (node 25300-1772): Analytics · Settings · Customize · Version history · Delete.
   [
-    {
-      key: "customize",
-      label: "Customize",
-      shortcut: formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR),
-      onClick: onToggleCustomizeSidebar,
-      show: isEditRoute,
-    },
-    {
-      key: "settings",
-      label: "Settings",
-      shortcut: formatForDisplay(HOTKEYS.TOGGLE_SETTINGS_SIDEBAR),
-      onClick: onToggleSettingsSidebar,
-    },
-    {
-      key: "versionHistory",
-      label: "Version history",
-      shortcut: formatForDisplay(HOTKEYS.TOGGLE_VERSION_HISTORY),
-      onClick: onToggleVersionHistory,
-      show: isEditRoute && hasPublishedVersion,
-    },
-    {
-      key: "favorite",
-      label: "Favorite",
-      shortcut: formatForDisplay(HOTKEYS.TOGGLE_FAVORITE),
-      onClick: () => onToggleFavorite(),
-    },
     {
       key: "analytics",
       label: "Analytics",
@@ -489,10 +478,24 @@ const buildFormBuilderMenuItems = ({
       show: hasPublishedVersion,
     },
     {
-      key: "discard",
-      label: "Discard changes",
-      onClick: () => onSetActiveDialog("discard"),
-      show: hasUnpublishedChanges,
+      key: "settings",
+      label: "Settings",
+      shortcut: formatForDisplay(HOTKEYS.TOGGLE_SETTINGS_SIDEBAR),
+      onClick: onToggleSettingsSidebar,
+    },
+    {
+      key: "customize",
+      label: "Customize",
+      shortcut: formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR),
+      onClick: onToggleCustomizeSidebar,
+      show: isEditRoute,
+    },
+    {
+      key: "versionHistory",
+      label: "Version history",
+      shortcut: formatForDisplay(HOTKEYS.TOGGLE_VERSION_HISTORY),
+      onClick: onToggleVersionHistory,
+      show: isEditRoute && hasPublishedVersion,
     },
     {
       key: "delete",
@@ -507,6 +510,7 @@ interface HeaderBreadcrumbProps {
   workspaceId: string | undefined;
   formId: string | undefined;
   isEditRoute: boolean;
+  isSettingsRoute?: boolean;
 }
 
 const HeaderBreadcrumb = ({
@@ -515,6 +519,7 @@ const HeaderBreadcrumb = ({
   workspaceId,
   formId,
   isEditRoute,
+  isSettingsRoute,
 }: HeaderBreadcrumbProps) => {
   const titleText = savedDoc.title || "Untitled";
   const linkClassName = cn(
@@ -573,6 +578,25 @@ const HeaderBreadcrumb = ({
           <span className="truncate">{titleText}</span>
         </span>
       )}
+      {isSettingsRoute && (
+        <>
+          <span
+            aria-hidden="true"
+            className="hidden shrink-0 px-0.5 text-[16px] text-gray-500 sm:inline"
+          >
+            /
+          </span>
+          <span
+            aria-current="page"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "hidden shrink-0 cursor-default px-1.5 text-[14px] font-medium text-gray-800 hover:bg-transparent sm:inline-flex",
+            )}
+          >
+            Settings
+          </span>
+        </>
+      )}
     </nav>
   );
 };
@@ -585,6 +609,39 @@ interface LandingPageActionsProps {
   onSetActiveMenu: (menu: ActiveMenu) => void;
   onSignIn: () => void;
 }
+
+// Settings-route header: a single settings-only Save (commits draftSettings → live form_settings
+// without publishing content). Disabled when nothing changed — dirty via the same flag the global
+// Publish uses (now reliable: _getFormById carries liveSettings, so no listing load-order race).
+const SettingsHeaderActions = ({ formId }: { formId: string | undefined }) => {
+  const { hasSettingsChanges } = useFormPublishStatus(formId);
+  const [saving, setSaving] = useState(false);
+
+  const onSave = async () => {
+    if (!formId || !hasSettingsChanges || saving) return;
+    setSaving(true);
+    try {
+      const tx = publishFormSettings(formId);
+      await tx.isPersisted.promise;
+      toast.success("Settings saved");
+    } catch (error) {
+      toast.error(parseError(error).message || "Couldn't save settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Button
+      size="sm"
+      disabled={!hasSettingsChanges || saving}
+      onClick={onSave}
+      className="rounded-[8px] border-none bg-neutral-950 py-1.5 pr-2 pl-2.5 text-[14px] font-medium text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-stone-200"
+    >
+      {saving ? <Loader2Icon className="size-4 animate-spin" /> : "Save"}
+    </Button>
+  );
+};
 
 const LandingPageActions = ({
   previewMode,
@@ -679,6 +736,7 @@ interface FormBuilderHeaderActionsFlags {
   isPublishing: boolean;
   previewMode: boolean;
   canShare: boolean;
+  isShareSidebarOpen: boolean;
   isLoadingSavedDocs: boolean;
 }
 
@@ -713,6 +771,7 @@ const FormBuilderHeaderActions = ({
     isPublishing,
     previewMode,
     canShare,
+    isShareSidebarOpen,
     isLoadingSavedDocs,
   } = flags;
   const showPublish = workspaceId && formId;
@@ -758,10 +817,11 @@ const FormBuilderHeaderActions = ({
                 size="sm"
                 className={cn(
                   HEADER_ICON_BUTTON_CLS,
-                  previewMode && "bg-secondary text-foreground",
+                  // Share opening enters preview for its inline pane — don't light up the play button for that.
+                  previewMode && !isShareSidebarOpen && "bg-secondary text-foreground",
                 )}
                 onClick={onTogglePreview}
-                aria-label={previewMode ? "Back to Editor" : "Preview Form"}
+                aria-label={previewMode && !isShareSidebarOpen ? "Back to Editor" : "Preview Form"}
               />
             }
           >
@@ -803,13 +863,14 @@ const FormBuilderHeaderActions = ({
         )
       )}
 
-      {/* Always shown; disabled until the form has a published version (publish to enable sharing). */}
+      {/* Always shown; disabled until published, and while the Share tab is open (it's a trigger only —
+          the tab's own ✕ closes it). */}
       <Button
         variant="ghost-flat"
         size="sm"
         className="hidden rounded-lg px-2 py-1.5 text-[14px] font-medium tracking-[0.14px] text-foreground hover:text-foreground md:inline-flex"
         onClick={onToggleShareSidebar}
-        disabled={!canShare}
+        disabled={!canShare || isShareSidebarOpen}
         title={canShare ? undefined : "Publish your form to share it"}
       >
         Share

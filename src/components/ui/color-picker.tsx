@@ -278,7 +278,7 @@ export const ColorPicker = ({ label, value, onChange, className }: ColorPickerPr
             const normalized = raw.startsWith("#") ? raw : `#${raw}`;
             if (HEX_RE.test(normalized)) onChange(normalized);
           }}
-          className="w-[72px] bg-transparent text-right font-case text-[14px] leading-[1.15] font-[450] text-gray-700 uppercase tabular-nums outline-none font-opsz-16"
+          className="w-[72px] bg-transparent text-right font-case text-[14px] leading-[1.15] font-[450] text-gray-700 uppercase outline-none font-opsz-16"
           maxLength={9}
         />
         <Popover>
