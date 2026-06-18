@@ -114,7 +114,11 @@ export const ElasticSlider = ({
           // --elastic-slider-tile-radius per row. Dark equivalents keep contrast on dark surfaces.
           "[--elastic-slider-tile-bg:var(--color-gray-300)] dark:[--elastic-slider-tile-bg:var(--color-gray-600)]",
           "[--elastic-slider-tile-radius:var(--elastic-slider-radius)]",
+          // Dot marks = gray/400 (Figma 25441-4850) — darker than the fill so they stay visible on it.
           "[--elastic-slider-hash:var(--color-gray-400)] dark:[--elastic-slider-hash:var(--color-gray-500)]",
+          // Line marks = gray/300 (Figma 25441-4645 stroke #E0E0E0, round cap) — matches the fill, so
+          // it reads on the track and blends into the filled tile, as in Figma. Token flips for dark.
+          "[--elastic-slider-line:var(--color-gray-300)]",
           "[--elastic-slider-handle:var(--color-gray-500)] dark:[--elastic-slider-handle:var(--color-gray-400)]",
           "[--elastic-slider-label:var(--muted-foreground)]",
           "[--elastic-slider-focus:var(--foreground)]",
@@ -205,7 +209,7 @@ const SliderHashMarks = ({ hashMarks }: { hashMarks: { pct: number; hidden: bool
       <div
         key={`hash-${pct}`}
         className={cn(
-          "absolute top-1/2 h-1.5 w-px -translate-x-1/2 -translate-y-1/2 rounded-full bg-(--elastic-slider-hash) rtl:translate-x-1/2",
+          "absolute top-1/2 h-1.5 w-px -translate-x-1/2 -translate-y-1/2 rounded-full bg-(--elastic-slider-line) rtl:translate-x-1/2",
           hidden && "opacity-0",
         )}
         style={{ left: `${pct}%` }}
@@ -303,7 +307,7 @@ const SliderLabels = ({ labelRef, valueRef, label, displayValue, endIcon }: Slid
       data-slot="elastic-slider-value"
       aria-hidden="true"
       className={cn(
-        "pointer-events-none absolute inset-e-3 top-1/2 inline-flex -translate-y-1/2 items-center font-mono text-sm/none font-medium transition-colors",
+        "pointer-events-none absolute inset-e-3 top-1/2 inline-flex -translate-y-1/2 items-center text-sm/none font-medium transition-colors",
         "text-(--elastic-slider-label) group-data-[active=true]/elastic-slider:text-(--elastic-slider-focus)",
       )}
     >

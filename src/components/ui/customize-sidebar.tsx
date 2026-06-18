@@ -28,6 +28,7 @@ import { getHeaderMediaSetter } from "@/lib/editor/header-media-registry";
 import { useEditorColorMode } from "@/hooks/use-editor-color-mode";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
 import { useForm, useLocalForm } from "@/hooks/use-live-hooks";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { FONT_REGISTRY } from "@/lib/theme/font-registry";
 import { OVERRIDABLE_TOKEN_NAMES, resolveEffectiveMode } from "@/lib/theme/generate-theme-css";
 import { loadGoogleFont } from "@/lib/theme/load-google-font";
@@ -92,8 +93,19 @@ const NumberRow = (props: React.ComponentProps<typeof StyleNumberInput>) => (
 // Figma radius variant (nodes 25441-4674 / 4850, 25446-4875): dot hash marks + a corner glyph in
 // the value slot. The glyph is LIVE — its corner radius scales with the row's value (square at 0,
 // full quarter-curve at max) and CSS-transitions between snap stops as you drag.
-const RadiusEndIcon = ({ value, max }: { value?: string; max: number }) => {
-  const n = Number.parseFloat(value ?? "") || 0;
+// `autoValue` = the radius the row renders at when unset (Auto) — i.e. the CSS var() fallback
+// (cover 0, logo 6, input/button 8). The glyph reflects that so Auto shows the real curve, not 0.
+const RadiusEndIcon = ({
+  value,
+  max,
+  autoValue = 0,
+}: {
+  value?: string;
+  max: number;
+  autoValue?: number;
+}) => {
+  const parsed = Number.parseFloat(value ?? "");
+  const n = Number.isFinite(parsed) ? parsed : autoValue;
   const r = (Math.min(Math.max(n, 0), max) / max) * 7;
   return (
     <span aria-hidden className="flex size-4 items-center justify-center text-gray-700">
@@ -366,7 +378,7 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
     editorColorMode,
   );
 
-  useEffect(() => () => setEditorColorMode(null), [setEditorColorMode]);
+  useMountEffect(() => () => setEditorColorMode(null));
   const activeFont = getValue("font");
 
   const cssKey = `${activeMode}:customCss`;
@@ -572,7 +584,7 @@ const AppearanceSection = ({
       unit="px"
       displayUnit=""
       markStyle="dot"
-      endIcon={<RadiusEndIcon value={customization.logoRadius} max={48} />}
+      endIcon={<RadiusEndIcon value={customization.logoRadius} max={48} autoValue={6} />}
       className={CONFIG_INPUT_CLS}
     />
     <ConfigRow label="Theme" surface="flat">
@@ -606,7 +618,7 @@ const CoverPickerButton = ({
       type="button"
       disabled={!onCoverChange}
       title={cover ? "Edit cover" : "Add cover"}
-      className="flex items-center gap-1.5 text-[14px] font-[450] text-gray-700 enabled:cursor-pointer disabled:cursor-default"
+      className="flex items-center gap-1.5 font-case text-[14px] leading-[1.15] font-[450] text-gray-700 font-opsz-16 enabled:cursor-pointer disabled:cursor-default"
     >
       {cover ? (
         <>
@@ -659,7 +671,7 @@ const LogoPickerButton = ({
       type="button"
       disabled={!onIconChange}
       title={logo ? "Edit logo" : "Add logo"}
-      className="flex items-center gap-1.5 text-[14px] font-[450] text-gray-700 enabled:cursor-pointer disabled:cursor-default"
+      className="flex items-center gap-1.5 font-case text-[14px] leading-[1.15] font-[450] text-gray-700 font-opsz-16 enabled:cursor-pointer disabled:cursor-default"
     >
       {logo ? (
         <>
@@ -870,7 +882,6 @@ const InputsSection = ({
         max={64}
         step={1}
         unit="px"
-        displayUnit=""
         className={CONFIG_INPUT_CLS}
       />
       <NumberRow
@@ -886,7 +897,7 @@ const InputsSection = ({
         unit="px"
         displayUnit=""
         markStyle="dot"
-        endIcon={<RadiusEndIcon value={customization.inputRadius} max={32} />}
+        endIcon={<RadiusEndIcon value={customization.inputRadius} max={32} autoValue={8} />}
         className={CONFIG_INPUT_CLS}
       />
       <NumberRow
@@ -900,7 +911,6 @@ const InputsSection = ({
         max={64}
         step={2}
         unit="px"
-        displayUnit=""
         className={CONFIG_INPUT_CLS}
       />
       <NumberRow
@@ -914,7 +924,6 @@ const InputsSection = ({
         max={32}
         step={1}
         unit="px"
-        displayUnit=""
         className={CONFIG_INPUT_CLS}
       />
     </div>
@@ -939,7 +948,6 @@ const ButtonsSection = ({
         max={400}
         step={4}
         unit="px"
-        displayUnit=""
         className={CONFIG_INPUT_CLS}
       />
       <NumberRow
@@ -953,7 +961,6 @@ const ButtonsSection = ({
         max={64}
         step={1}
         unit="px"
-        displayUnit=""
         className={CONFIG_INPUT_CLS}
       />
       <NumberRow
@@ -969,7 +976,7 @@ const ButtonsSection = ({
         unit="px"
         displayUnit=""
         markStyle="dot"
-        endIcon={<RadiusEndIcon value={customization.buttonRadius} max={32} />}
+        endIcon={<RadiusEndIcon value={customization.buttonRadius} max={32} autoValue={8} />}
         className={CONFIG_INPUT_CLS}
       />
       {/* Aligns ONLY the action button within the form column (--bf-button-justify), not the doc. */}

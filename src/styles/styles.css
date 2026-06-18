@@ -692,6 +692,11 @@
   font-feature-settings: "case";
 }
 
+/* opsz 16 = Figma value-cell optical size (labels stay at axis-default 14). Re-binds wght so font-[450] still drives weight. */
+@utility font-opsz-16 {
+  font-variation-settings: "opsz" 16, "wght" var(--tw-font-weight, 450);
+}
+
 /* Canonical text-input box used by Input/Email/Number/Link/Textarea/Time/
    Phone/FileUpload field widgets. Matches the editor's form-field-node
    spec from Figma (gray/50 fill, 8px radius, hairline drop shadow) in both
@@ -1070,6 +1075,15 @@
 .bf-themed [data-bf-field-list] [data-slate-editor] *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6),
 .bf-themed [data-bf-form-container] [data-slate-editor] *:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) {
   font-size: inherit;
+}
+
+/* Line height: form body content (NOT headings/title). The Line-height control sets --bf-line-height,
+   but the text-* utilities pin every text element's line-height to 1.15, overriding the inherited
+   value on .bf-themed — so force the var on the leaf body text (editor + preview + public). Title +
+   header subtree keep their own (--bf-title-line-height). Unset = 1.15 (current default, no change). */
+.bf-themed [data-bf-field-list] *:not(h1, h2, h3, h4, h5, h6):not([data-bf-header]):not([data-bf-header] *),
+.bf-themed [data-bf-form-container] *:not(h1, h2, h3, h4, h5, h6):not([data-bf-header]):not([data-bf-header] *) {
+  line-height: var(--bf-line-height, 1.15);
 }
 
 /* Spacing tokens — adjust these to experiment with the form layout:
