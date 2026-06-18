@@ -781,7 +781,9 @@ const SettingsPageInner = ({ formId, isLocal }: { formId: string; isLocal?: bool
         <TabsList
           variant="line"
           size="default"
-          className="h-auto! w-full justify-start gap-6 border-gray-200"
+          // `!` beats the line-variant's default border-border-soft (= #afafaf in dark, too bright);
+          // Figma's tab rail is gray-200 (#ededed light / #292929 dark) in both modes.
+          className="h-auto! w-full justify-start gap-6 border-gray-200!"
         >
           {TABS.map(({ id, label, Icon }) => (
             <TabsTrigger
