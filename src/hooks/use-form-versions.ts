@@ -13,7 +13,9 @@ import {
   publishFormVersion,
   restoreFormVersion,
 } from "@/lib/server-fn/form-versions";
+import { saveFormSettings } from "@/lib/server-fn/forms";
 import { stripProCustomization } from "@/lib/theme/pro-customization";
+import { defaultFormSettings } from "@/types/form-settings";
 import { useForm } from "./use-live-hooks";
 
 const EMPTY_STATUS = {
@@ -117,6 +119,28 @@ export const publishForm = (formId: string, opts?: { stripProStyles?: boolean })
       if (draft.draftSettings !== undefined) {
         draft.liveSettings = draft.draftSettings;
       }
+      draft.updatedAt = new Date().toISOString();
+    });
+  });
+
+  return tx;
+};
+
+/** Settings-only publish: commit draftSettings to live `form_settings` without snapshotting
+ * content into a version. Optimistically aligns liveSettings so the settings dirty-flag clears.
+ * Pending content/field edits are deliberately untouched (no content leak). */
+export const publishFormSettings = (formId: string) => {
+  const settings = getFormListings().get(formId)?.draftSettings ?? defaultFormSettings;
+  const tx = createTransaction({
+    mutationFn: async () => {
+      await saveFormSettings({ data: { formId, settings } });
+      await getFormListings().utils.refetch();
+    },
+  });
+
+  tx.mutate(() => {
+    getFormListings().update(formId, (draft) => {
+      if (draft.draftSettings !== undefined) draft.liveSettings = draft.draftSettings;
       draft.updatedAt = new Date().toISOString();
     });
   });

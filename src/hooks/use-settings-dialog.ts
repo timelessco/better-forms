@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-type SettingsTab = "account" | "members" | "billing" | "domains";
+type SettingsTab = "account" | "notifications" | "members" | "billing" | "domains";
 type SettingsState = { isOpen: boolean; activeTab: SettingsTab };
 const listeners = new Set<() => void>();
 let state: SettingsState = { isOpen: false, activeTab: "account" };

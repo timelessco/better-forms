@@ -463,14 +463,15 @@ const PopupPreviewOverlay = ({
           }}
         >
           <div className="pointer-events-auto absolute top-4 right-4 z-30">
+            {/* Match the app's standard close button (sidebar headers): ghost-flat, rounded-lg. */}
             <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 rounded-full bg-background/50 text-muted-foreground shadow-sm backdrop-blur-sm hover:bg-muted"
+              variant="ghost-flat"
+              size="icon-xs"
+              className="size-7 rounded-lg p-1.25 text-gray-800 hover:text-foreground"
               onClick={handleClosePopup}
               aria-label="Close"
             >
-              <XIcon className="size-4" />
+              <XIcon className="size-4.5" />
             </Button>
           </div>
 

@@ -10,7 +10,7 @@ import { db } from "@/db";
 import { authMiddleware, formProSettingsMiddleware } from "@/lib/auth/middleware";
 import type { ErrorCode } from "@/lib/errors/codes";
 import { purgeFormCache, purgeFormCacheBatch } from "@/lib/server-fn/cdn-cache";
-import { defaultFormSettings } from "@/types/form-settings";
+import { defaultFormSettings, sanitizeFormSettings } from "@/types/form-settings";
 import type { FormSettings } from "@/types/form-settings";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm, authFormsBulk } from "./auth-helpers.server";
@@ -213,6 +213,41 @@ export const setFormAnalytics = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+/** Settings-only publish: commit draftSettings straight to live `form_settings` WITHOUT
+ * snapshotting content into a version. This is what the Settings page "Save" button calls —
+ * it deliberately does NOT go through publishForm, so pending field/content edits stay in
+ * draft and never leak live. Writes draft + live in one tx so both clear the dirty flag. */
+export const saveFormSettings = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(
+    v.object({
+      formId: v.pipe(v.string(), v.uuid()),
+      settings: v.record(v.string(), v.any()),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const orgId = getActiveOrgId(context.session);
+    await authForm(data.formId, context.session.user.id, orgId);
+
+    const sanitized = sanitizeFormSettings(data.settings);
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      await tx
+        .update(forms)
+        .set({ draftSettings: sanitized, updatedAt: now })
+        .where(eq(forms.id, data.formId));
+      await tx
+        .insert(formSettings)
+        .values({ formId: data.formId, settings: sanitized, updatedAt: now })
+        .onConflictDoUpdate({
+          target: formSettings.formId,
+          set: { settings: sanitized, updatedAt: now },
+        });
+    });
+
+    return { ok: true as const };
+  });
+
 export const deleteForm = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(v.object({ id: v.pipe(v.string(), v.uuid()) }))
@@ -360,9 +395,15 @@ export const _getFormById = createServerFn({ method: "GET" })
   .inputValidator(v.object({ id: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const orgId = getActiveOrgId(context.session);
-    const [_, [form]] = await Promise.all([
+    const [_, [form], [settingsRow]] = await Promise.all([
       authForm(data.id, context.session.user.id, orgId),
       db.select().from(forms).where(eq(forms.id, data.id)),
+      // Carry live settings on the detail so the settings dirty-flag is correct regardless of
+      // whether the listing (which also joins form_settings) has loaded yet. Null until first save.
+      db
+        .select({ settings: formSettings.settings })
+        .from(formSettings)
+        .where(eq(formSettings.formId, data.id)),
     ]);
 
     if (!form) {
@@ -376,7 +417,7 @@ export const _getFormById = createServerFn({ method: "GET" })
       });
     }
 
-    return { form: serializeForm(form) };
+    return { form: { ...serializeForm(form), liveSettings: settingsRow?.settings ?? null } };
   });
 
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;

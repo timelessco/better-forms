@@ -240,7 +240,9 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
 
   const groups = useMemo(() => groupVersionsByDate(filteredList), [filteredList]);
 
-  const effectiveVersionId = selectedVersionId ?? versionList[0]?.id ?? null;
+  // No auto-select: default = current version (nothing highlighted, only hover). A row highlights
+  // (bg-muted) only once the user clicks it — never the first row by default.
+  const effectiveVersionId = selectedVersionId;
   const currentVersionId = versionList[0]?.id ?? null;
 
   const handleSelectCurrent = useCallback(() => {
@@ -433,8 +435,9 @@ export const VersionHistorySidebar = ({ formId }: VersionHistorySidebarProps) =>
               />
             </div>
 
-            {/* Active-version pointer: slides to the selected row's vertical center. */}
-            {indicator !== null && (
+            {/* Active-version pointer: slides to the selected row's center. Hidden when no version is
+                selected (current version / Return to editing) — the live node at top denotes current. */}
+            {effectiveVersionId !== null && indicator !== null && (
               <div
                 aria-hidden
                 className="pointer-events-none absolute left-1/2 z-10 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-gray-200 text-gray-800 transition-[top] ease-out"

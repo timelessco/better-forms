@@ -106,7 +106,8 @@ const getTargetStyle = (
         const w = 74;
         const h = 96;
         const pos = getCornerPos(popupPosition, cw, ch, w, h);
-        return { ...pos, width: w, height: h, borderRadius: 12 };
+        // Figma popup card (node 25300-…): 8px radius — keep the card corners tight, not pill-soft.
+        return { ...pos, width: w, height: h, borderRadius: 8 };
       }
       const size = 28;
       const pos = getCornerPos(popupPosition, cw, ch, size, size);
