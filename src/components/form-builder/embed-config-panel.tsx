@@ -184,7 +184,7 @@ export const selectTriggerCls =
  * Separate from `selectTriggerCls` so the embed panel's trigger stays unchanged.
  */
 export const selectTriggerFigmaCls =
-  "data-[size=default]:h-[24px] shrink-0 border-none bg-transparent shadow-none rounded-[5px] px-0 py-0 gap-1 w-auto text-[14px] leading-[1.15] text-gray-700 font-[450] font-case whitespace-nowrap [&_svg]:size-[10px] ";
+  "data-[size=default]:h-[24px] shrink-0 border-none bg-transparent shadow-none rounded-[5px] px-0 py-0 gap-1 w-auto text-[14px] leading-[1.15] text-gray-700 font-[450] font-case font-opsz-16 whitespace-nowrap [&_svg]:size-[10px] ";
 
 export const triggerLabels: Record<string, string> = {
   button: "On button click",

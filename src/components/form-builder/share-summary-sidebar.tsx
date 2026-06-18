@@ -1109,7 +1109,18 @@ const CustomDomainRow = ({
     () => (domains ?? []).filter((d) => d.status === "verified"),
     [domains],
   );
-  const hasDomains = verifiedDomains.length > 0;
+  // Always list the currently-assigned domain — even if it lost "verified" status or was deleted —
+  // so there's an unlink path (click it to deselect); else a stale customDomainId gets stranded.
+  const listedDomains = useMemo<{ id: string; domain: string }[]>(() => {
+    const base = verifiedDomains.map((d) => ({ id: d.id, domain: d.domain }));
+    if (!customDomainId || base.some((d) => d.id === customDomainId)) return base;
+    const assigned = (domains ?? []).find((d) => d.id === customDomainId);
+    return [
+      { id: customDomainId, domain: assigned?.domain ?? selectedDomainName ?? customDomainId },
+      ...base,
+    ];
+  }, [verifiedDomains, domains, customDomainId, selectedDomainName]);
+  const hasDomains = listedDomains.length > 0;
 
   const assignDomainMutation = useMutation({
     mutationFn: (domainId: string | null) =>
@@ -1167,7 +1178,7 @@ const CustomDomainRow = ({
                 {/* Single-select with toggle-off: the selected row shows a tick (SelectItem's built-in
                     indicator); clicking it again unlinks the domain so it's free for another form.
                     onValueChange doesn't fire on a same-value re-click, so deselect rides onClick. */}
-                {verifiedDomains.map((d) => (
+                {listedDomains.map((d) => (
                   <SelectItem
                     key={d.id}
                     value={d.id}
