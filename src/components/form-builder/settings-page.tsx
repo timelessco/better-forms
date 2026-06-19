@@ -120,6 +120,8 @@ const DateField = ({
   );
 };
 
+// Design-system Select styled as the gray-100 field shell (matches the sibling date/time cells),
+// globe glyph replacing the default chevron — drops the native OS dropdown.
 const TimezoneField = ({
   value,
   onChange,
@@ -127,21 +129,25 @@ const TimezoneField = ({
   value: string | null;
   onChange: (value: string) => void;
 }) => (
-  <div className={fieldShellCls}>
-    <select
+  <Select value={value ?? TIMEZONES[0]} onValueChange={(v) => onChange(v ?? TIMEZONES[0])}>
+    <SelectTrigger
       aria-label="Timezone"
-      value={value ?? TIMEZONES[0]}
-      onChange={(e) => onChange(e.target.value)}
-      className={cn(fieldTextCls, "cursor-pointer appearance-none")}
+      className={cn(
+        fieldShellCls,
+        "w-full cursor-pointer border-none text-base leading-[1.15] font-[420] text-gray-700 font-opsz-24 data-[size=default]:h-auto",
+      )}
+      icon={<IconGlobe className="size-4 shrink-0 text-gray-700" />}
     >
+      <SelectValue placeholder="Timezone" className="font-[420]" />
+    </SelectTrigger>
+    <SelectContent align="start">
       {TIMEZONES.map((tz) => (
-        <option key={tz} value={tz}>
+        <SelectItem key={tz} value={tz}>
           {tz}
-        </option>
+        </SelectItem>
       ))}
-    </select>
-    <IconGlobe className="size-4 shrink-0 text-gray-700" />
-  </div>
+    </SelectContent>
+  </Select>
 );
 
 const TimeField = ({
@@ -710,7 +716,7 @@ const AccessTab = withForm({
               <button
                 type="button"
                 onClick={() => form.setFieldValue("closeForm", !closeForm)}
-                className="flex shrink-0 items-center justify-center gap-1.5 rounded-[8px] bg-[#fbeded] px-2 py-1.5 font-case text-base leading-[1.15] font-medium tracking-[0.14px] whitespace-nowrap text-[#eb4d52]"
+                className="flex shrink-0 items-center justify-center gap-1.5 rounded-[8px] bg-[#fbeded] px-2 py-1.5 font-case text-base leading-[1.15] font-medium tracking-[0.14px] whitespace-nowrap text-[#eb4d52] outline-none focus-visible:ring-[3px] focus-visible:ring-[#eb4d52]/30"
               >
                 {closeForm ? "Reopen Form" : "Close Form"}
               </button>
@@ -783,7 +789,8 @@ const SettingsPageInner = ({ formId, isLocal }: { formId: string; isLocal?: bool
           size="default"
           // `!` beats the line-variant's default border-border-soft (= #afafaf in dark, too bright);
           // Figma's tab rail is gray-200 (#ededed light / #292929 dark) in both modes.
-          className="h-auto! w-full justify-start gap-6 border-gray-200!"
+          // p-0! drops the variant's p-px so the rail is 33px (32px pill + 1px border), not 35px.
+          className="h-auto! w-full justify-start gap-6 border-gray-200! p-0!"
         >
           {TABS.map(({ id, label, Icon }) => (
             <TabsTrigger

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { notFound } from "@tanstack/react-router";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import * as v from "valibot";
 import {
   customDomains,
@@ -15,6 +15,12 @@ import { db } from "@/db";
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { resolveOgInputs } from "@/lib/og/resolve-inputs";
 import { buildOgImageUrl } from "@/lib/og/url";
+import { timingSafeEqualStr } from "@/lib/server-fn/email-otp.server";
+import {
+  hashFormPassword,
+  isHashedFormPassword,
+  verifyFormPasswordHash,
+} from "@/lib/server-fn/password-hash.server";
 import { isServerPlan } from "@/lib/server-fn/plan-helpers";
 import { shortIdSchema } from "@/lib/short-id";
 import { buildPublicFormSettings } from "@/types/form-settings";
@@ -188,5 +194,30 @@ export const verifyFormPassword = createServerFn({ method: "POST" })
       return { valid: false };
     }
 
-    return { valid: formRow.settings?.password === data.password };
+    const stored = formRow.settings?.password;
+    if (!stored) {
+      return { valid: false };
+    }
+
+    if (isHashedFormPassword(stored)) {
+      return { valid: verifyFormPasswordHash(data.password, stored) };
+    }
+
+    // Legacy plaintext row: constant-time compare, then best-effort upgrade to a hash so
+    // the plaintext is replaced on first successful login. Failure must not break login.
+    const ok = timingSafeEqualStr(stored, data.password);
+    if (ok) {
+      try {
+        const hashed = hashFormPassword(data.password);
+        await db
+          .update(formSettings)
+          .set({
+            settings: sql`${formSettings.settings} || ${JSON.stringify({ password: hashed })}::jsonb`,
+          })
+          .where(eq(formSettings.formId, data.formId));
+      } catch {
+        // best-effort: row stays plaintext until next settings save
+      }
+    }
+    return { valid: ok };
   });

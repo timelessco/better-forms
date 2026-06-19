@@ -1,3 +1,4 @@
+import { log } from "evlog";
 import * as React from "react";
 
 // use-layout-effect.tsx
@@ -53,7 +54,8 @@ export const useControllableState = <T,>({
       if (wasControlled !== isControlled) {
         const from = wasControlled ? "controlled" : "uncontrolled";
         const to = isControlled ? "controlled" : "uncontrolled";
-        console.warn(
+        log.warn(
+          "use-controllable-state",
           `${caller} is changing from ${from} to ${to}. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.`,
         );
       }

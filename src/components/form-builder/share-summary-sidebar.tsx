@@ -1,3 +1,4 @@
+import { log } from "evlog";
 import type { AnyFieldApi } from "@tanstack/react-form";
 import { useForm as useTanstackForm } from "@tanstack/react-form";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -209,7 +210,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
           void invalidateInsightsQueries(queryClient, formId);
         })
         .catch((err) => {
-          console.error("[ShareSidebar] setFormAnalytics failed:", err);
+          log.error({ tag: "ShareSidebar", msg: "setFormAnalytics failed", error: err });
           toast.error("Failed to update analytics setting");
           // Revert the optimistic flip.
           updateSettings({ analytics: !value });
@@ -256,7 +257,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
         );
       } catch (error) {
         toast.error("Failed to publish form");
-        console.error(error);
+        log.error({ tag: "ShareSidebar", msg: "publish form failed", error });
       }
     },
     [formId],

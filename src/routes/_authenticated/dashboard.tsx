@@ -8,18 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
-import { Card } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,17 +18,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { Input } from "@/components/ui/input";
 import {
   CheckIcon,
-  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronsLeftIcon,
+  ChevronsRightIcon,
   CopyIcon,
   FileTextIcon,
   HelpCircleIcon,
   Loader2Icon,
-  PlusIcon,
+  MoreHorizontalIcon,
   Trash2Icon,
   XIcon,
 } from "@/components/ui/icons";
@@ -47,35 +36,91 @@ import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  bulkArchiveFormsLocal,
-  createFormLocal,
-  createWorkspaceLocal,
-  updateFormStatus,
-} from "@/collections";
+  FigBulletListIcon,
+  FigCommentIcon,
+  FigFilterIcon,
+  FigPeopleIcon,
+  FigPlusIcon,
+  FigRegistrationIcon,
+  FigRsvpIcon,
+  FigSmallDownIcon,
+  FigSortIcon,
+  FigSurveyIcon,
+  FigTilesIcon,
+  FigTimeIcon,
+} from "@/components/dashboard/dashboard-icons";
+import { FormCardThumbnail, FormListThumbnail } from "@/components/dashboard/form-card-thumbnail";
+import { bulkArchiveFormsLocal, createFormLocal, updateFormStatus } from "@/collections";
 import { useDuplicateForm } from "@/hooks/use-duplicate-form";
-import { useFavorites, useOrgForms, useOrgWorkspaces } from "@/hooks/use-live-hooks";
+import {
+  useFavorites,
+  useOrgForms,
+  useOrgWorkspaces,
+  useSubmissionCounts,
+} from "@/hooks/use-live-hooks";
 import { useSession } from "@/lib/auth/auth-client";
 import { formatForDisplay, HOTKEYS } from "@/lib/hotkeys";
 import { clearLocalDraftIds } from "@/db/local-draft";
 import { hasLocalDataToSync, syncLocalDataToCloud } from "@/db/sync";
-import { getLeadingSortIndex, sortByManualOrder } from "@/lib/sort-utils";
+import { buildTemplateContent, FORM_TEMPLATE_META } from "@/lib/form-templates";
+import type { FormTemplateId } from "@/lib/form-templates";
+import { sortByManualOrder } from "@/lib/sort-utils";
 import { cn, parseTimestampAsUTC } from "@/lib/utils";
+import { log } from "evlog";
 import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { orgDataForLayoutQueryOptions } from "@/lib/server-fn/org";
 import { parseError } from "@/lib/errors/parse";
 import { formatDistanceToNow } from "date-fns";
-import { generateKeyBetween } from "fractional-indexing";
-import { FolderPlus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import * as v from "valibot";
 import { IconSwap } from "@/components/transitions/icon-swap";
 import { NumberPopIn } from "@/components/transitions/number-pop-in";
 import { TextSwap } from "@/components/transitions/text-swap";
 import { toast } from "sonner";
-const FORMS_PER_PAGE = 10;
+
+// Fallback page size before the viewport is measured (SSR / first paint).
+const FORMS_PER_PAGE = 12;
+
+// Page size that fills the viewport: as many full card rows as fit above the pager, × the current
+// column count — so the pagination control stays on-screen without scrolling. Measured live via a ref
+// callback + ResizeObserver (no useEffect; same pattern as use-mobile) so it adapts to viewport width
+// (columns), height, sidebar collapse, and the chrome above the grid.
+const PAGER_RESERVE = 120; // pager block + section gap + bottom breathing room
+const CARD_STRIDE_FALLBACK = 220; // card height before a card is measured
+
+const useViewportPageSize = (
+  fallback: number,
+): readonly [number, (grid: HTMLDivElement | null) => void] => {
+  const [perPage, setPerPage] = useState(fallback);
+  const attach = useCallback((grid: HTMLDivElement | null) => {
+    if (!grid) return;
+    const recompute = () => {
+      const style = getComputedStyle(grid);
+      const cols = Math.max(1, style.gridTemplateColumns.split(" ").length);
+      const gap = Number.parseFloat(style.rowGap) || 12;
+      const card = grid.firstElementChild as HTMLElement | null;
+      const stride = (card?.getBoundingClientRect().height || CARD_STRIDE_FALLBACK) + gap;
+      const available = window.innerHeight - grid.getBoundingClientRect().top - PAGER_RESERVE;
+      const rows = Math.max(1, Math.floor((available + gap) / stride));
+      setPerPage(cols * rows);
+    };
+    recompute();
+    const observer = new ResizeObserver(recompute);
+    observer.observe(grid);
+    window.addEventListener("resize", recompute);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", recompute);
+    };
+  }, []);
+  return [perPage, attach] as const;
+};
 
 type FormFilter = "all" | "favorites" | "drafts" | "published";
+type FormViewMode = "grid" | "list";
+type FormSort = "recent" | "title";
 
 const FILTER_OPTIONS: ReadonlyArray<{ value: FormFilter; label: string }> = [
   { value: "all", label: "All" },
@@ -84,7 +129,32 @@ const FILTER_OPTIONS: ReadonlyArray<{ value: FormFilter; label: string }> = [
   { value: "published", label: "Published" },
 ];
 
-const DashboardFilters = ({
+// Template-card icons — verbatim Figma glyphs from node 26208:8027.
+const TEMPLATE_ICONS: Record<FormTemplateId, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+  blank: FigPlusIcon,
+  survey: FigSurveyIcon,
+  feedback: FigCommentIcon,
+  eventRsvp: FigRsvpIcon,
+  registration: FigRegistrationIcon,
+};
+
+const greetingFor = (date: Date): string => {
+  const h = date.getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+};
+
+const FILTER_LABEL: Record<FormFilter, string> = {
+  all: "All",
+  favorites: "Favorites",
+  drafts: "Drafts",
+  published: "Published",
+};
+
+// Figma 26208:8074 — gray/100 pill trigger (filter icon + active label + chevron) opening the
+// All/Favorites/Drafts/Published options. Replaces the old filter-pill row.
+const FilterMenu = ({
   currentFilter,
   counts,
   onChange,
@@ -93,32 +163,38 @@ const DashboardFilters = ({
   counts: Record<FormFilter, number>;
   onChange: (next: FormFilter) => void;
 }) => (
-  <div role="tablist" aria-label="Filter forms" className="-mx-1 flex flex-wrap items-center gap-1">
-    {FILTER_OPTIONS.map((option) => {
-      const isActive = currentFilter === option.value;
-      const count = counts[option.value];
-      return (
-        <button
-          key={option.value}
-          type="button"
-          role="tab"
-          aria-selected={isActive}
-          onClick={() => onChange(option.value)}
-          className={cn(
-            "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors",
-            isActive
-              ? "border-transparent bg-foreground text-background"
-              : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground",
-          )}
+  <DropdownMenu>
+    <DropdownMenuTrigger
+      render={
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label="Filter forms"
+          className="rounded-lg bg-secondary px-2 hover:bg-secondary/80"
         >
-          <span>{option.label}</span>
-          <span className={cn(isActive ? "text-background/70" : "text-muted-foreground/60")}>
-            <NumberPopIn value={count} className="tabular-nums" />
+          <FigFilterIcon className="size-4 text-gray-800" />
+          <span className="font-case text-base font-[450] tracking-[0.14px] text-gray-800">
+            {FILTER_LABEL[currentFilter]}
           </span>
-        </button>
-      );
-    })}
-  </div>
+          <FigSmallDownIcon className="size-4 text-gray-800" />
+        </Button>
+      }
+    />
+    <DropdownMenuContent align="end" sideOffset={4}>
+      <DropdownMenuGroup>
+        <DropdownMenuLabel>Filter</DropdownMenuLabel>
+        {FILTER_OPTIONS.map((option) => (
+          <DropdownMenuItem key={option.value} onClick={() => onChange(option.value)}>
+            <span className="flex-1 text-left">{option.label}</span>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              <NumberPopIn value={counts[option.value]} />
+            </span>
+            {currentFilter === option.value && <CheckIcon className="size-4" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuGroup>
+    </DropdownMenuContent>
+  </DropdownMenu>
 );
 
 const FILTER_EMPTY_COPY: Record<Exclude<FormFilter, "all">, string> = {
@@ -178,7 +254,6 @@ const SyncOverlay = () => {
   );
 };
 
-// Module-level flag survives component unmount/remount during navigation
 let _hasSynced = false;
 
 const useLocalDataSync = (
@@ -207,7 +282,7 @@ const useLocalDataSync = (
         }
         _hasSynced = true;
       } catch (error) {
-        console.error("Failed to sync local data:", error);
+        log.error({ tag: "dashboard", msg: "Failed to sync local data", error });
         toast.error("Signed in but failed to sync local data");
       } finally {
         setIsSyncing(false);
@@ -221,14 +296,12 @@ const useLocalDataSync = (
 const DashboardPage = () => {
   const navigate = useNavigate();
   const duplicateFormFn = useDuplicateForm();
+  const { q: searchQuery = "" } = useSearch({ strict: false }) as { q?: string };
   const { data: activeOrg } = useQuery({
     ...orgDataForLayoutQueryOptions(),
     select: (d) => d.activeOrg,
   });
   const [isCreating, setIsCreating] = useState(false);
-  const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
-  const [newWorkspaceName, setNewWorkspaceName] = useState("");
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [formToDelete, setFormToDelete] = useState<{
@@ -239,6 +312,9 @@ const DashboardPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [duplicatingFormId, setDuplicatingFormId] = useState<string | null>(null);
   const [currentFilter, setCurrentFilter] = useState<FormFilter>("all");
+  const [viewMode, setViewMode] = useState<FormViewMode>("grid");
+  const [sortBy, setSortBy] = useState<FormSort>("recent");
+  const [formsPerPage, gridRef] = useViewportPageSize(FORMS_PER_PAGE);
 
   const { data: session } = useSession();
   const { isSyncing } = useLocalDataSync(session?.user, activeOrg?.id);
@@ -257,6 +333,7 @@ const DashboardPage = () => {
   const orgForms = useMemo(() => (isDataReady ? liveForms || [] : []), [isDataReady, liveForms]);
 
   const { data: favorites } = useFavorites(session?.user?.id);
+  const submissionCounts = useSubmissionCounts();
   const favoriteFormIds = useMemo(
     () => new Set((favorites ?? []).map((f) => f.formId)),
     [favorites],
@@ -274,6 +351,16 @@ const DashboardPage = () => {
     return { all: orgForms.length, favorites: favs, drafts, published };
   }, [orgForms, favoriteFormIds]);
 
+  const orderedWorkspaces = useMemo(
+    () =>
+      sortByManualOrder(
+        orgWorkspaces,
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      ),
+    [orgWorkspaces],
+  );
+
+  // Filter → search → sort pipeline. Search matches title; sort by recency or title.
   const filteredForms = useMemo(() => {
     switch (currentFilter) {
       case "favorites":
@@ -287,73 +374,21 @@ const DashboardPage = () => {
     }
   }, [orgForms, currentFilter, favoriteFormIds]);
 
-  const workspaceNameMap = useMemo(
-    () => new Map(orgWorkspaces.map((ws) => [ws.id, ws.name])),
-    [orgWorkspaces],
-  );
+  const searchedForms = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return filteredForms;
+    return filteredForms.filter((f) => (f.title ?? "Untitled").toLowerCase().includes(q));
+  }, [filteredForms, searchQuery]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredForms.length / FORMS_PER_PAGE));
-  const startIndex = (currentPage - 1) * FORMS_PER_PAGE;
-  const paginatedForms = filteredForms.slice(startIndex, startIndex + FORMS_PER_PAGE);
-
-  const handleFilterChange = useCallback((next: FormFilter) => {
-    setCurrentFilter(next);
-    setCurrentPage(1);
-    setSelectedFormIds(new Set());
-  }, []);
-
-  const handleOpenCreateWorkspace = useCallback(() => {
-    setNewWorkspaceName("");
-    setCreateWorkspaceOpen(true);
-  }, []);
-
-  const handleCloseCreateWorkspace = useCallback(() => {
-    setCreateWorkspaceOpen(false);
-    setNewWorkspaceName("");
-  }, []);
-
-  const handleConfirmCreateWorkspace = useCallback(async () => {
-    const trimmedName = newWorkspaceName.trim();
-    if (!activeOrg?.id || !trimmedName || isCreatingWorkspace) return;
-    setIsCreatingWorkspace(true);
-    try {
-      // Place before current lead so it tops the sidebar; fractional-indexing keeps it stable through drag-reorders.
-      const leadingSortIndex = generateKeyBetween(null, getLeadingSortIndex(orgWorkspaces));
-      const workspace = await createWorkspaceLocal(activeOrg.id, trimmedName, leadingSortIndex);
-      setCreateWorkspaceOpen(false);
-      setNewWorkspaceName("");
-      toast.success("Workspace created");
-      void navigate({
-        to: "/workspace/$workspaceId",
-        params: { workspaceId: workspace.id },
-      });
-    } catch (error) {
-      console.error("Failed to create workspace:", error);
-      toast.error("Failed to create workspace");
-    } finally {
-      setIsCreatingWorkspace(false);
+  const visibleForms = useMemo(() => {
+    const sorted = [...searchedForms];
+    if (sortBy === "title") {
+      sorted.sort((a, b) => (a.title ?? "Untitled").localeCompare(b.title ?? "Untitled"));
+    } else {
+      sorted.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     }
-  }, [activeOrg?.id, newWorkspaceName, orgWorkspaces, navigate, isCreatingWorkspace]);
-
-  const handleCreateWorkspaceKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        void handleConfirmCreateWorkspace();
-      }
-    },
-    [handleConfirmCreateWorkspace],
-  );
-
-  // Mirror sidebar order so "New form" targets the same first-listed workspace when no explicit pick.
-  const orderedWorkspaces = useMemo(
-    () =>
-      sortByManualOrder(
-        orgWorkspaces,
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      ),
-    [orgWorkspaces],
-  );
+    return sorted;
+  }, [searchedForms, sortBy]);
 
   const handleCreateForm = useCallback(
     (workspaceId?: string) => {
@@ -368,7 +403,34 @@ const DashboardPage = () => {
           params: { workspaceId: targetId, formId: newForm.id },
         });
       } catch (error) {
-        console.error("Failed to create form:", error);
+        log.error({ tag: "dashboard", msg: "Failed to create form", error });
+      } finally {
+        setIsCreating(false);
+      }
+    },
+    [orderedWorkspaces, navigate],
+  );
+
+  // Template cards create a pre-seeded form (starter fields per template) then open the editor.
+  const handleCreateFromTemplate = useCallback(
+    (templateId: FormTemplateId) => {
+      const targetId = orderedWorkspaces[0]?.id;
+      if (!targetId) return;
+      const meta = FORM_TEMPLATE_META.find((t) => t.id === templateId);
+      const title = meta?.label ?? "Untitled";
+
+      setIsCreating(true);
+      try {
+        const { form: newForm } = createFormLocal(targetId, {
+          title,
+          content: buildTemplateContent(templateId),
+        });
+        void navigate({
+          to: "/workspace/$workspaceId/form-builder/$formId/edit",
+          params: { workspaceId: targetId, formId: newForm.id },
+        });
+      } catch (error) {
+        log.error({ tag: "dashboard", msg: "Failed to create form from template", error });
       } finally {
         setIsCreating(false);
       }
@@ -388,7 +450,7 @@ const DashboardPage = () => {
         setDeleteDialogOpen(false);
         setFormToDelete(null);
       } catch (error) {
-        console.error("Failed to archive form:", error);
+        log.error({ tag: "dashboard", msg: "Failed to archive form", error });
       }
     }
   }, [formToDelete]);
@@ -405,13 +467,6 @@ const DashboardPage = () => {
       }
     },
     [duplicateFormFn],
-  );
-
-  const handlePrevPage = useCallback(() => setCurrentPage((p) => Math.max(1, p - 1)), []);
-
-  const handleNextPage = useCallback(
-    () => setCurrentPage((p) => Math.min(totalPages, p + 1)),
-    [totalPages],
   );
 
   const formatLastEdited = (timestamp: string) =>
@@ -431,19 +486,18 @@ const DashboardPage = () => {
     });
   }, []);
 
-  // Global dashboard hotkeys (Mod+A/Delete/Escape) at doc level; bail when a dialog is open so its hotkeys win. Check Base UI's data-open attr — more reliable than tracking each dialog in context.
   const isModalDialogOpen = () =>
     typeof document !== "undefined" &&
     document.querySelector('[data-slot="dialog-content"][data-open]') !== null;
 
   const handleSelectAll = useCallback(() => {
     if (isModalDialogOpen()) return;
-    if (selectedFormIds.size === paginatedForms.length) {
+    if (selectedFormIds.size === visibleForms.length) {
       setSelectedFormIds(new Set());
     } else {
-      setSelectedFormIds(new Set(paginatedForms.map((f) => f.id)));
+      setSelectedFormIds(new Set(visibleForms.map((f) => f.id)));
     }
-  }, [selectedFormIds.size, paginatedForms]);
+  }, [selectedFormIds.size, visibleForms]);
 
   const handleClearSelection = useCallback(() => {
     if (isModalDialogOpen()) return;
@@ -470,10 +524,26 @@ const DashboardPage = () => {
     }
   }, [selectedFormIds]);
 
-  const [lastPageForSelection, setLastPageForSelection] = useState(currentPage);
-  if (lastPageForSelection !== currentPage) {
-    setLastPageForSelection(currentPage);
+  // Filter → search → sort pipeline. Search matches title; sort by recency (updatedAt) or title.
+  const totalPages = Math.max(1, Math.ceil(visibleForms.length / formsPerPage));
+  // Page size can shrink on resize — clamp the current page so we never land on an empty page.
+  if (currentPage > totalPages) {
+    setCurrentPage(totalPages);
+  }
+  const startIndex = (currentPage - 1) * formsPerPage;
+  const paginatedForms = visibleForms.slice(startIndex, startIndex + formsPerPage);
+
+  const handleFilterChange = useCallback((next: FormFilter) => {
+    setCurrentFilter(next);
+    setCurrentPage(1);
     setSelectedFormIds(new Set());
+  }, []);
+
+  // Reset search/sort-driven pagination when search changes.
+  const [lastSearch, setLastSearch] = useState(searchQuery);
+  if (lastSearch !== searchQuery) {
+    setLastSearch(searchQuery);
+    setCurrentPage(1);
   }
 
   useHotkey(HOTKEYS.DASHBOARD_SELECT_ALL, handleSelectAll, {
@@ -495,52 +565,76 @@ const DashboardPage = () => {
     ignoreInputs: true,
   });
 
+  const orgWorkspacesCount = orderedWorkspaces.length;
+  const userName = session?.user?.name;
+
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-background text-foreground">
-      <main className="mx-auto w-full max-w-6xl flex-1 p-6 md:p-12 lg:p-20">
-        <DashboardHeader
-          isLoading={isLoading}
-          orgFormsCount={orgForms.length}
-          orderedWorkspaces={orderedWorkspaces}
-          isCreating={isCreating}
-          handleCreateWorkspace={handleOpenCreateWorkspace}
-          handleCreateForm={handleCreateForm}
-        />
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8 md:px-12 md:py-12 lg:px-20">
+        <section className="flex flex-col gap-5">
+          {/* Greeting */}
+          <h1 className="text-xl leading-[1.15] font-semibold text-gray-950">
+            <TextSwap key={userName}>
+              {greetingFor(new Date())}
+              {userName ? `, ${userName}` : ""}
+            </TextSwap>
+          </h1>
 
-        <div className="space-y-6">
-          {!isLoading && orgForms.length > 0 && (
-            <DashboardFilters
-              currentFilter={currentFilter}
-              counts={filterCounts}
-              onChange={handleFilterChange}
-            />
-          )}
+          {/* Quick-create templates */}
+          <QuickCreateTemplates
+            isCreating={isCreating}
+            disabled={isLoading || isCreating || orgWorkspacesCount === 0}
+            onCreate={handleCreateFromTemplate}
+          />
+        </section>
 
-          <DashboardFormList
+        {/* Recent Forms */}
+        <section className="mt-10 space-y-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-[15px] leading-[1.15] font-semibold tracking-[0.225px] text-gray-950">
+              Recent Forms
+            </h2>
+            {!isLoading && orgForms.length > 0 && (
+              <div className="flex items-center gap-2">
+                <FilterMenu
+                  currentFilter={currentFilter}
+                  counts={filterCounts}
+                  onChange={handleFilterChange}
+                />
+                <SortMenu sortBy={sortBy} onChange={setSortBy} />
+                <ViewToggle mode={viewMode} onChange={setViewMode} />
+              </div>
+            )}
+          </div>
+
+          <DashboardFormGrid
             isSyncing={isSyncing}
             isLoading={isLoading}
+            viewMode={viewMode}
+            gridRef={gridRef}
             paginatedForms={paginatedForms}
             selectedFormIds={selectedFormIds}
-            workspaceNameMap={workspaceNameMap}
             duplicatingFormId={duplicatingFormId}
+            submissionCounts={submissionCounts}
             formatLastEdited={formatLastEdited}
             handleDuplicate={handleDuplicate}
             handleDeleteClick={handleDeleteClick}
             handleToggleSelect={handleToggleSelect}
           />
 
-          {!isLoading && filteredForms.length === 0 && orgForms.length > 0 && (
+          {!isLoading && visibleForms.length === 0 && orgForms.length > 0 && (
             <FilteredEmptyState filter={currentFilter} />
           )}
 
           {!isLoading && totalPages > 1 && (
             <DashboardPagination
               startIndex={startIndex}
-              totalForms={filteredForms.length}
+              pageSize={formsPerPage}
+              totalForms={visibleForms.length}
               currentPage={currentPage}
               totalPages={totalPages}
-              onPrevPage={handlePrevPage}
-              onNextPage={handleNextPage}
+              onPrevPage={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              onNextPage={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               onSetPage={setCurrentPage}
             />
           )}
@@ -548,11 +642,11 @@ const DashboardPage = () => {
           {!isLoading && orgForms.length === 0 && (
             <DashboardEmptyState
               isCreating={isCreating}
-              disabled={isLoading || isCreating || orgWorkspaces.length === 0}
-              onCreate={handleCreateForm}
+              disabled={isLoading || isCreating || orgWorkspacesCount === 0}
+              onCreate={() => handleCreateForm()}
             />
           )}
-        </div>
+        </section>
       </main>
 
       {hasSelection && (
@@ -578,250 +672,625 @@ const DashboardPage = () => {
         title={formToDelete?.title}
         onConfirm={handleConfirmDelete}
       />
-
-      <WorkspaceCreateDialog
-        open={createWorkspaceOpen}
-        name={newWorkspaceName}
-        isCreating={isCreatingWorkspace}
-        onOpenChange={setCreateWorkspaceOpen}
-        onNameChange={(e) => setNewWorkspaceName(e.target.value)}
-        onClose={handleCloseCreateWorkspace}
-        onCreate={handleConfirmCreateWorkspace}
-        onKeyDown={handleCreateWorkspaceKeyDown}
-      />
     </div>
   );
 };
 
-interface WorkspaceCreateDialogProps {
-  open: boolean;
-  name: string;
+interface QuickCreateTemplatesProps {
   isCreating: boolean;
-  onOpenChange: (open: boolean) => void;
-  onNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onClose: () => void;
-  onCreate: () => void;
-  onKeyDown: (e: React.KeyboardEvent) => void;
+  disabled: boolean;
+  onCreate: (templateId: FormTemplateId) => void;
 }
 
-const WorkspaceCreateDialog = ({
-  open,
-  name,
-  isCreating,
-  onOpenChange,
-  onNameChange,
-  onClose,
-  onCreate,
-  onKeyDown,
-}: WorkspaceCreateDialogProps) => (
-  <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="gap-4 sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle>Create workspace</DialogTitle>
-        <DialogDescription>Give your new workspace a name to get started.</DialogDescription>
-      </DialogHeader>
-      <Input
-        value={name}
-        onChange={onNameChange}
-        placeholder="Workspace name"
-        aria-label="Workspace name"
-        onKeyDown={onKeyDown}
-        autoFocus
-      />
-      <DialogFooter>
-        <Button variant="outline" onClick={onClose} disabled={isCreating}>
-          Cancel
-        </Button>
-        <Button onClick={onCreate} disabled={!name.trim() || isCreating}>
-          {isCreating ? (
-            <>
-              <Loader2Icon className="mr-1.5 size-3.5 animate-spin" />
-              Creating…
-            </>
-          ) : (
-            "Save"
+// Figma node 26208:8027 — row of equal-flex template cards. Blank = dashed gray/300 border;
+// others = solid gray/100 hairline. 24px icon + 14px label.
+const QuickCreateTemplates = ({ disabled, onCreate }: QuickCreateTemplatesProps) => (
+  <div className="flex items-stretch gap-3">
+    {FORM_TEMPLATE_META.map((template) => {
+      const Icon = TEMPLATE_ICONS[template.id];
+      const isBlank = template.id === "blank";
+      return (
+        <button
+          key={template.id}
+          type="button"
+          disabled={disabled}
+          onClick={() => onCreate(template.id)}
+          className={cn(
+            "flex flex-1 cursor-pointer flex-col items-center gap-3 rounded-[12px] border bg-gray-50 px-5 py-[18px] transition-colors",
+            "hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+            isBlank ? "border-dashed border-gray-300" : "border-gray-100",
           )}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+          aria-label={`Create ${template.label}`}
+        >
+          {/* DEV FLAG: Survey/RSVP/Registration use house-set icon stand-ins, not the verbatim
+              Figma illustration glyphs — verify against Figma node 26208:8027. */}
+          <Icon className="size-6 text-gray-950" />
+          <span className="text-base font-[450] tracking-[0.28px] text-gray-950">
+            {template.label}
+          </span>
+        </button>
+      );
+    })}
+  </div>
 );
 
-interface DashboardHeaderProps {
-  isLoading: boolean;
-  orgFormsCount: number;
-  orderedWorkspaces: ReadonlyArray<{ id: string; name: string }>;
-  isCreating: boolean;
-  handleCreateWorkspace: () => void;
-  handleCreateForm: (workspaceId?: string) => void;
-}
-
-const DashboardHeader = ({
-  isLoading,
-  orgFormsCount,
-  orderedWorkspaces,
-  isCreating,
-  handleCreateWorkspace,
-  handleCreateForm,
-}: DashboardHeaderProps) => {
-  const orgWorkspacesCount = orderedWorkspaces.length;
-  const topWorkspace = orderedWorkspaces[0];
-  const hasMultipleWorkspaces = orgWorkspacesCount > 1;
-
-  const subtitleString = isLoading
-    ? "Loading..."
-    : `${orgFormsCount} form${orgFormsCount !== 1 ? "s" : ""} across ${orgWorkspacesCount} workspace${orgWorkspacesCount !== 1 ? "s" : ""}`;
-
-  return (
-    <div className="mb-8 flex items-center justify-between">
-      <div>
-        <h1 className="text-2xl font-semibold">Home</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          <TextSwap key={subtitleString}>{subtitleString}</TextSwap>
-        </p>
-      </div>
-      <div className="flex items-center gap-3">
+const SortMenu = ({
+  sortBy,
+  onChange,
+}: {
+  sortBy: FormSort;
+  onChange: (next: FormSort) => void;
+}) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger
+      render={
         <Button
-          className="ml-1"
+          variant="ghost"
           size="sm"
-          variant="secondary"
-          prefix={<FolderPlus className="size-4" />}
-          onClick={handleCreateWorkspace}
-          disabled={isLoading}
+          aria-label="Sort forms"
+          className="rounded-lg bg-secondary px-2 hover:bg-secondary/80"
         >
-          New workspace
+          <FigSortIcon className="size-4 text-gray-800" />
+          <span className="font-case text-base font-[450] tracking-[0.14px] text-gray-800">
+            {sortBy === "title" ? "Name" : "Recent"}
+          </span>
+          <FigSmallDownIcon className="size-4 text-gray-800" />
         </Button>
-        {hasMultipleWorkspaces ? (
-          <ButtonGroup>
-            <Button
-              size="sm"
-              prefix={
-                isCreating ? (
-                  <Loader2Icon className="animate-spin" />
-                ) : (
-                  <PlusIcon className="size-4" />
-                )
-              }
-              onClick={() => handleCreateForm(topWorkspace?.id)}
-              disabled={isLoading || isCreating || !topWorkspace}
-            >
-              New form in {topWorkspace?.name ?? "workspace"}
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    size="sm"
-                    aria-label="Pick a different workspace"
-                    disabled={isLoading || isCreating}
-                  >
-                    <ChevronDownIcon className="size-3" />
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end" sideOffset={4} className="w-56">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Create new form in…</DropdownMenuLabel>
-                  {orderedWorkspaces.map((ws) => (
-                    <DropdownMenuItem
-                      key={ws.id}
-                      onClick={() => handleCreateForm(ws.id)}
-                      disabled={isCreating}
-                    >
-                      <span className="flex-1 truncate text-left">{ws.name}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </ButtonGroup>
-        ) : (
-          <Button
-            size="sm"
-            prefix={
-              isCreating ? (
-                <Loader2Icon className="animate-spin" />
-              ) : (
-                <PlusIcon className="size-4" />
-              )
-            }
-            onClick={() => handleCreateForm()}
-            disabled={isLoading || isCreating || orgWorkspacesCount === 0}
-          >
-            New form
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-};
+      }
+    />
+    <DropdownMenuContent align="end" sideOffset={4}>
+      <DropdownMenuGroup>
+        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => onChange("recent")}>
+          <span className="flex-1 text-left">Recent</span>
+          {sortBy === "recent" && <CheckIcon className="size-4" />}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onChange("title")}>
+          <span className="flex-1 text-left">Name</span>
+          {sortBy === "title" && <CheckIcon className="size-4" />}
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+    </DropdownMenuContent>
+  </DropdownMenu>
+);
 
-type FormListItemForm = {
+// Figma "tabs" (26208:8090) — gray/100 track with an active white pill + shadow. tiles/bullet-list icons.
+const ViewToggle = ({
+  mode,
+  onChange,
+}: {
+  mode: FormViewMode;
+  onChange: (next: FormViewMode) => void;
+}) => (
+  <div className="flex h-7 items-center gap-1 rounded-lg bg-secondary p-px">
+    <button
+      type="button"
+      aria-label="Grid view"
+      aria-pressed={mode === "grid"}
+      onClick={() => onChange("grid")}
+      className={cn(
+        "flex size-[26px] items-center justify-center rounded-[7px] transition-all",
+        mode === "grid"
+          ? "bg-surface shadow-[0px_0px_1.5px_0px_rgba(0,0,0,0.16),0px_2px_5px_0px_rgba(0,0,0,0.14)]"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <FigTilesIcon className="size-4" />
+    </button>
+    <button
+      type="button"
+      aria-label="List view"
+      aria-pressed={mode === "list"}
+      onClick={() => onChange("list")}
+      className={cn(
+        "flex size-[26px] items-center justify-center rounded-[7px] transition-all",
+        mode === "list"
+          ? "bg-surface shadow-[0px_0px_1.5px_0px_rgba(0,0,0,0.16),0px_2px_5px_0px_rgba(0,0,0,0.14)]"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <FigBulletListIcon className="size-4" />
+    </button>
+  </div>
+);
+
+type FormCardForm = {
   id: string;
   title: string | null;
-  status: "draft" | "published" | "archived" | string;
+  status: string;
   workspaceId: string;
   updatedAt: string;
+  cover?: string | null;
+  customization?: Record<string, unknown> | null;
 };
 
-interface DashboardFormListProps {
+interface DashboardFormGridProps {
   isSyncing: boolean;
   isLoading: boolean;
-  paginatedForms: ReadonlyArray<FormListItemForm>;
+  viewMode: FormViewMode;
+  gridRef: (grid: HTMLDivElement | null) => void;
+  paginatedForms: ReadonlyArray<FormCardForm>;
   selectedFormIds: Set<string>;
-  workspaceNameMap: Map<string, string>;
   duplicatingFormId: string | null;
+  submissionCounts: Map<string, number>;
   formatLastEdited: (timestamp: string) => string;
   handleDuplicate: (formId: string) => Promise<void> | void;
   handleDeleteClick: (form: { id: string; title: string }) => void;
   handleToggleSelect: (formId: string) => void;
 }
 
-const DashboardFormList = ({
+const DashboardFormGrid = ({
   isSyncing,
   isLoading,
+  viewMode,
+  gridRef,
   paginatedForms,
   selectedFormIds,
-  workspaceNameMap,
   duplicatingFormId,
+  submissionCounts,
   formatLastEdited,
   handleDuplicate,
   handleDeleteClick,
   handleToggleSelect,
-}: DashboardFormListProps) => (
-  <div className="grid grid-cols-1 gap-2">
-    {isSyncing ? (
-      <SyncOverlay />
-    ) : isLoading ? (
-      ["a", "b", "c", "d", "e"].map((id) => (
-        <div key={`skeleton-${id}`} className="-mx-2 flex animate-pulse flex-col rounded-xl p-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col gap-2">
-                <div className="h-5 w-48 rounded bg-muted" />
-                <div className="h-3 w-32 rounded bg-muted" />
-              </div>
-            </div>
-          </div>
-        </div>
-      ))
-    ) : (
-      paginatedForms.map((form) => (
-        <FormListItem
+}: DashboardFormGridProps) => {
+  if (isSyncing) return <SyncOverlay />;
+  if (isLoading) {
+    return (
+      <div
+        ref={gridRef}
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      >
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div
+            key={`skeleton-${i}`}
+            className="bg-gray-0 h-[218px] animate-pulse rounded-[12px] border border-gray-100"
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (viewMode === "list") {
+    return (
+      <DashboardTable
+        paginatedForms={paginatedForms}
+        selectedFormIds={selectedFormIds}
+        duplicatingFormId={duplicatingFormId}
+        submissionCounts={submissionCounts}
+        handleDuplicate={handleDuplicate}
+        handleDeleteClick={handleDeleteClick}
+        handleToggleSelect={handleToggleSelect}
+      />
+    );
+  }
+
+  return (
+    <div
+      ref={gridRef}
+      className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+    >
+      {paginatedForms.map((form) => (
+        <FormCard
           key={form.id}
           form={form}
           isSelected={selectedFormIds.has(form.id)}
-          workspaceNameMap={workspaceNameMap}
           duplicatingFormId={duplicatingFormId}
+          responseCount={submissionCounts.get(form.id) ?? 0}
           formatLastEdited={formatLastEdited}
           onDuplicate={handleDuplicate}
           onDeleteClick={handleDeleteClick}
           onToggleSelect={handleToggleSelect}
         />
-      ))
-    )}
+      ))}
+    </div>
+  );
+};
+
+interface FormCardProps {
+  form: FormCardForm;
+  isSelected: boolean;
+  duplicatingFormId: string | null;
+  responseCount: number;
+  formatLastEdited: (timestamp: string) => string;
+  onDuplicate: (formId: string) => Promise<void> | void;
+  onDeleteClick: (form: { id: string; title: string }) => void;
+  onToggleSelect: (formId: string) => void;
+}
+
+// Chip for the on-cover hover actions (ghost-flat variant kills the ghost's transparent border).
+const CARD_ACTION_SHADOW = "shadow-[0px_1px_2px_0px_rgba(0,0,0,0.18)] dark:shadow-none";
+// Unselected: translucent frosted — light = white chip / dark icon; dark = dark chip / white icon.
+const CARD_ACTION_BTN = cn(
+  CARD_ACTION_SHADOW,
+  "bg-white/80 text-gray-700 backdrop-blur-md hover:bg-white hover:text-gray-900 dark:bg-black/45 dark:text-white dark:hover:bg-black/65",
+);
+// Selected: frosted primary-tinted chip — same translucent + backdrop-blur treatment as the
+// duplicate/trash chips, just carrying the primary tint so it still reads as selected. primary/
+// primary-foreground auto-flip → dark frosted + white check in light, white frosted + dark check in
+// dark. Used INSTEAD of CARD_ACTION_BTN (not merged) so the base chip's dark:bg can't win the cascade.
+const CARD_ACTION_SELECTED = cn(
+  CARD_ACTION_SHADOW,
+  "bg-primary/70 text-primary-foreground backdrop-blur-md hover:bg-primary/80 hover:text-primary-foreground",
+);
+
+// Figma node 26216:10218 — card with 90px preview area (cover banner) and an info block:
+// title (gray/900) then 3 meta rows (icon + 14px gray/700, status in green).
+const FormCard = ({
+  form,
+  isSelected,
+  duplicatingFormId,
+  responseCount,
+  formatLastEdited,
+  onDuplicate,
+  onDeleteClick,
+  onToggleSelect,
+}: FormCardProps) => {
+  const isPublished = form.status === "published";
+
+  // Action groups sit over the cover; reveal on hover/focus (or stay pinned while duplicating/selected).
+  const actionsPinned = duplicatingFormId === form.id || isSelected;
+  const actionGroupCls = cn(
+    "absolute top-3 z-[1] flex items-center gap-1 transition-opacity",
+    actionsPinned
+      ? "opacity-100"
+      : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100",
+  );
+
+  return (
+    <div
+      className={cn(
+        "group bg-gray-0 relative flex flex-col rounded-[12px] border border-gray-100 px-1.5 pt-1.5 pb-2 transition-[background-color,box-shadow] duration-200",
+        isSelected ? "ring-2 elevation-card ring-ring/50" : "hover:elevation-card",
+      )}
+    >
+      <Link
+        to={
+          isPublished
+            ? "/workspace/$workspaceId/form-builder/$formId/submissions"
+            : "/workspace/$workspaceId/form-builder/$formId/edit"
+        }
+        params={{ workspaceId: form.workspaceId, formId: form.id }}
+        preload="intent"
+        className="flex flex-col outline-none"
+      >
+        <FormCardThumbnail title={form.title ?? "Untitled"} cover={form.cover} />
+
+        {/* Info block */}
+        <div className="mt-3 flex w-full flex-col gap-2">
+          <div className="px-1">
+            <p className="truncate text-base font-medium tracking-[0.28px] text-foreground">
+              {form.title || "Untitled"}
+            </p>
+          </div>
+          <div className="flex w-full flex-col">
+            <MetaRow>
+              {/* Status dot — success green (#1e8d02) for published; muted for draft. Centered in a
+                  16px slot so its label aligns with the 16px-icon rows below (Figma icon/line/dot). */}
+              <span className="flex size-4 shrink-0 items-center justify-center">
+                <span
+                  className={cn(
+                    "size-2.5 rounded-full",
+                    isPublished ? "bg-[var(--color-success)]" : "bg-muted-foreground/50",
+                  )}
+                />
+              </span>
+              <span
+                className={cn(
+                  "text-base font-[420] tracking-[0.28px]",
+                  isPublished ? "text-[var(--color-success)]" : "text-muted-foreground",
+                )}
+              >
+                {isPublished ? "Published" : "Draft"}
+              </span>
+            </MetaRow>
+            <MetaRow>
+              <FigTimeIcon className="size-4 shrink-0 text-gray-700" />
+              <span className="min-w-0 truncate text-base font-[420] tracking-[0.28px] text-gray-700">
+                {formatLastEdited(form.updatedAt)}
+              </span>
+            </MetaRow>
+            <MetaRow>
+              <FigPeopleIcon className="size-4 shrink-0 text-gray-700" />
+              <span className="min-w-0 truncate text-base font-[420] tracking-[0.28px] text-gray-700">
+                {responseCount} {responseCount === 1 ? "response" : "responses"}
+              </span>
+            </MetaRow>
+          </div>
+        </div>
+      </Link>
+
+      {/* Hover actions (overlay; siblings of the Link so no nested anchors). Split across both top
+          corners — manage (duplicate/delete) on the left, select on the right. */}
+      <TooltipProvider>
+        <div className={cn(actionGroupCls, "left-3")}>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost-flat"
+                  size="icon-sm"
+                  className={CARD_ACTION_BTN}
+                  aria-label="Duplicate form"
+                  disabled={duplicatingFormId === form.id}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    void onDuplicate(form.id);
+                  }}
+                />
+              }
+            >
+              <IconSwap
+                state={duplicatingFormId === form.id ? "b" : "a"}
+                iconA={<CopyIcon className="size-4" />}
+                iconB={<Loader2Icon className="size-4 animate-spin" />}
+              />
+            </TooltipTrigger>
+            <TooltipContent>Duplicate</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost-flat"
+                  size="icon-sm"
+                  className={cn(CARD_ACTION_BTN, "hover:text-destructive")}
+                  aria-label="Delete form"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDeleteClick({ id: form.id, title: form.title || "Untitled" });
+                  }}
+                />
+              }
+            >
+              <Trash2Icon className="size-4" />
+            </TooltipTrigger>
+            <TooltipContent>Delete</TooltipContent>
+          </Tooltip>
+        </div>
+
+        <div className={cn(actionGroupCls, "right-3")}>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost-flat"
+                  size="icon-sm"
+                  className={isSelected ? CARD_ACTION_SELECTED : CARD_ACTION_BTN}
+                  aria-label={isSelected ? "Deselect form" : "Select form"}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleSelect(form.id);
+                  }}
+                />
+              }
+            >
+              <CheckIcon className="size-3.5" />
+            </TooltipTrigger>
+            <TooltipContent>{isSelected ? "Deselect" : "Select"}</TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
+    </div>
+  );
+};
+
+const MetaRow = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex w-full items-center gap-2 px-1 py-[5px]">{children}</div>
+);
+
+// Shared column widths for the list table (Figma node 26216:13434). Title is fluid (flex-1);
+// a 32px gap (gap-8) separates it from the fixed Status/Responses/Edited/Actions columns.
+const LIST_COL_STATUS = "w-36"; // 144px
+const LIST_COL_RESPONSES = "w-36"; // 144px
+const LIST_COL_EDITED = "w-[216px]";
+const LIST_COL_ACTIONS = "size-7"; // 28px
+
+interface DashboardTableProps {
+  paginatedForms: ReadonlyArray<FormCardForm>;
+  selectedFormIds: Set<string>;
+  duplicatingFormId: string | null;
+  submissionCounts: Map<string, number>;
+  handleDuplicate: (formId: string) => Promise<void> | void;
+  handleDeleteClick: (form: { id: string; title: string }) => void;
+  handleToggleSelect: (formId: string) => void;
+}
+
+const TableHead = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-sm font-[420] tracking-[0.26px] text-gray-500">{children}</span>
+);
+
+const DashboardTable = ({
+  paginatedForms,
+  selectedFormIds,
+  duplicatingFormId,
+  submissionCounts,
+  handleDuplicate,
+  handleDeleteClick,
+  handleToggleSelect,
+}: DashboardTableProps) => (
+  <div className="overflow-x-auto">
+    <div className="min-w-[680px]">
+      {/* Header row — border-b gray-100, 13px / font-420 / gray-500 (Figma 26216:13365) */}
+      <div className="flex h-8 items-center gap-8 border-b border-gray-100 px-1">
+        <div className="flex-1 px-2">
+          <TableHead>Name</TableHead>
+        </div>
+        <div className="flex shrink-0 items-center">
+          <div className={cn(LIST_COL_STATUS, "px-2")}>
+            <TableHead>Status</TableHead>
+          </div>
+          <div className={cn(LIST_COL_RESPONSES, "px-2")}>
+            <TableHead>Responses</TableHead>
+          </div>
+          <div className={cn(LIST_COL_EDITED, "px-2")}>
+            <TableHead>Last edited</TableHead>
+          </div>
+          <div className={cn(LIST_COL_ACTIONS, "shrink-0")} />
+        </div>
+      </div>
+
+      {paginatedForms.map((form) => (
+        <FormListRow
+          key={form.id}
+          form={form}
+          isSelected={selectedFormIds.has(form.id)}
+          duplicatingFormId={duplicatingFormId}
+          responseCount={submissionCounts.get(form.id) ?? 0}
+          onDuplicate={handleDuplicate}
+          onDeleteClick={handleDeleteClick}
+          onToggleSelect={handleToggleSelect}
+        />
+      ))}
+    </div>
   </div>
 );
+
+interface FormListRowProps {
+  form: FormCardForm;
+  isSelected: boolean;
+  duplicatingFormId: string | null;
+  responseCount: number;
+  onDuplicate: (formId: string) => Promise<void> | void;
+  onDeleteClick: (form: { id: string; title: string }) => void;
+  onToggleSelect: (formId: string) => void;
+}
+
+// Figma 26216:13294 — 44px row: thumbnail+title (flex) | status pill | responses | edited | ⋯ menu.
+const FormListRow = ({
+  form,
+  isSelected,
+  duplicatingFormId,
+  responseCount,
+  onDuplicate,
+  onDeleteClick,
+  onToggleSelect,
+}: FormListRowProps) => {
+  const isPublished = form.status === "published";
+  const relative = `${formatDistanceToNow(parseTimestampAsUTC(form.updatedAt) ?? new Date())} ago`;
+
+  return (
+    <div
+      className={cn(
+        "group flex h-11 items-center gap-8 rounded-lg border-b border-gray-100 px-1 transition-colors hover:bg-secondary",
+        isSelected && "bg-secondary",
+      )}
+    >
+      {/* Name — select chip + thumbnail + title. Chip reserves its slot so the row never reflows;
+          reveal on hover/focus, pinned while selected (same frosted style as the card front). */}
+      <div className="flex min-w-0 flex-1 items-center gap-2 pl-1">
+        <span
+          className={cn(
+            "shrink-0 transition-opacity",
+            isSelected
+              ? "opacity-100"
+              : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100",
+          )}
+        >
+          <Button
+            variant="ghost-flat"
+            size="icon-sm"
+            className={isSelected ? CARD_ACTION_SELECTED : CARD_ACTION_BTN}
+            aria-label={isSelected ? "Deselect form" : "Select form"}
+            onClick={() => onToggleSelect(form.id)}
+          >
+            <CheckIcon className="size-3.5" />
+          </Button>
+        </span>
+        <Link
+          to={
+            isPublished
+              ? "/workspace/$workspaceId/form-builder/$formId/submissions"
+              : "/workspace/$workspaceId/form-builder/$formId/edit"
+          }
+          params={{ workspaceId: form.workspaceId, formId: form.id }}
+          preload="intent"
+          className="flex min-w-0 flex-1 items-center gap-2 outline-none"
+        >
+          <FormListThumbnail title={form.title ?? "Untitled"} cover={form.cover} />
+          <span className="truncate text-base font-[450] tracking-[0.28px] text-gray-800">
+            {form.title || "Untitled"}
+          </span>
+        </Link>
+      </div>
+
+      <div className="flex shrink-0 items-center">
+        {/* Status pill — published: soft-green pair; draft: muted */}
+        <div className={cn(LIST_COL_STATUS, "px-2")}>
+          <span
+            className={cn(
+              "inline-flex items-center rounded-[60px] px-1.5 py-[3px] text-xs font-[450] tracking-[0.24px]",
+              isPublished
+                ? "bg-[var(--color-success-soft)] text-[var(--color-success-on-soft)]"
+                : "bg-secondary text-muted-foreground",
+            )}
+          >
+            {isPublished ? "Published" : "Draft"}
+          </span>
+        </div>
+        {/* Responses */}
+        <div className={cn(LIST_COL_RESPONSES, "px-2")}>
+          <span className="text-base font-[420] tracking-[0.28px] text-gray-700">
+            {responseCount}
+          </span>
+        </div>
+        {/* Last edited */}
+        <div className={cn(LIST_COL_EDITED, "px-2")}>
+          <span className="truncate text-base font-[420] tracking-[0.28px] text-gray-700">
+            {relative}
+          </span>
+        </div>
+        {/* Actions — ⋯ overflow menu */}
+        <div className={cn(LIST_COL_ACTIONS, "flex shrink-0 items-center justify-center")}>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost-flat"
+                  size="icon-sm"
+                  aria-label="Form actions"
+                  disabled={duplicatingFormId === form.id}
+                  className={cn(
+                    "text-muted-foreground",
+                    duplicatingFormId === form.id || isSelected
+                      ? "opacity-100"
+                      : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+                  )}
+                />
+              }
+            >
+              {duplicatingFormId === form.id ? (
+                <Loader2Icon className="size-4 animate-spin" />
+              ) : (
+                <MoreHorizontalIcon className="size-4" />
+              )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={4}>
+              <DropdownMenuItem
+                onClick={() => {
+                  void onDuplicate(form.id);
+                }}
+              >
+                <CopyIcon className="size-4" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onDeleteClick({ id: form.id, title: form.title || "Untitled" })}
+              >
+                <Trash2Icon className="size-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const FloatingHelpButton = () => (
   <div className="fixed right-6 bottom-6">
@@ -838,6 +1307,7 @@ const FloatingHelpButton = () => (
 
 type DashboardPaginationProps = {
   startIndex: number;
+  pageSize: number;
   totalForms: number;
   currentPage: number;
   totalPages: number;
@@ -848,48 +1318,93 @@ type DashboardPaginationProps = {
 
 const DashboardPagination = ({
   startIndex,
+  pageSize,
   totalForms,
   currentPage,
   totalPages,
   onPrevPage,
   onNextPage,
   onSetPage,
-}: DashboardPaginationProps) => (
-  <div className="flex items-center justify-between border-t pt-4">
-    <p className="text-sm text-muted-foreground">
-      Showing {startIndex + 1}-{Math.min(startIndex + FORMS_PER_PAGE, totalForms)} of {totalForms}{" "}
-      forms
-    </p>
-    <div className="flex items-center gap-2">
-      <Button variant="secondary" size="sm" onClick={onPrevPage} disabled={currentPage === 1}>
-        <ChevronLeftIcon className="size-4" />
-        Previous
-      </Button>
+}: DashboardPaginationProps) => {
+  // Show a small window of page numbers (max 4); «/» jump to first/last so the control width stays
+  // bounded. Page in fixed blocks so adjacent pages share a window — the numbers stay put and only
+  // the highlight moves, instead of the whole row sliding one slot on every step.
+  const maxVisible = 4;
+  const blockStart = Math.floor((currentPage - 1) / maxVisible) * maxVisible + 1;
+  const windowStart = Math.min(blockStart, Math.max(1, totalPages - maxVisible + 1));
+  const windowEnd = Math.min(totalPages, windowStart + maxVisible - 1);
+  const pages = Array.from({ length: windowEnd - windowStart + 1 }, (_, i) => windowStart + i);
+  const isFirst = currentPage === 1;
+  const isLast = currentPage === totalPages;
+  const showJumps = totalPages > maxVisible;
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-y-3 border-t pt-4">
+      <p className="shrink-0 text-sm whitespace-nowrap text-muted-foreground">
+        Showing {startIndex + 1}-{Math.min(startIndex + pageSize, totalForms)} of {totalForms} forms
+      </p>
       <div className="flex items-center gap-1">
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+        {showJumps && (
           <Button
-            key={page}
-            variant={currentPage === page ? "default" : "ghost"}
+            variant="secondary"
             size="sm"
             className="size-8 p-0"
-            onClick={() => onSetPage(page)}
+            aria-label="First page"
+            onClick={() => onSetPage(1)}
+            disabled={isFirst}
           >
-            {page}
+            <ChevronsLeftIcon className="size-4" />
           </Button>
-        ))}
+        )}
+        <Button
+          variant="secondary"
+          size="sm"
+          className="size-8 p-0"
+          aria-label="Previous page"
+          onClick={onPrevPage}
+          disabled={isFirst}
+        >
+          <ChevronLeftIcon className="size-4" />
+        </Button>
+        <div className="flex items-center gap-1">
+          {pages.map((page) => (
+            <Button
+              key={page}
+              variant={currentPage === page ? "default" : "ghost"}
+              size="sm"
+              className="size-8 p-0"
+              onClick={() => onSetPage(page)}
+            >
+              {page}
+            </Button>
+          ))}
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="size-8 p-0"
+          aria-label="Next page"
+          onClick={onNextPage}
+          disabled={isLast}
+        >
+          <ChevronRightIcon className="size-4" />
+        </Button>
+        {showJumps && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="size-8 p-0"
+            aria-label="Last page"
+            onClick={() => onSetPage(totalPages)}
+            disabled={isLast}
+          >
+            <ChevronsRightIcon className="size-4" />
+          </Button>
+        )}
       </div>
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={onNextPage}
-        disabled={currentPage === totalPages}
-      >
-        Next
-        <ChevronRightIcon className="size-4" />
-      </Button>
     </div>
-  </div>
-);
+  );
+};
 
 type DashboardEmptyStateProps = {
   isCreating: boolean;
@@ -976,155 +1491,6 @@ const SingleDeleteDialog = ({ open, onOpenChange, title, onConfirm }: SingleDele
   </AlertDialog>
 );
 
-type FormListItemProps = {
-  form: FormListItemForm;
-  isSelected: boolean;
-  workspaceNameMap: Map<string, string>;
-  duplicatingFormId: string | null;
-  formatLastEdited: (timestamp: string) => string;
-  onDuplicate: (formId: string) => void;
-  onDeleteClick: (form: { id: string; title: string }) => void;
-  onToggleSelect: (formId: string) => void;
-};
-
-const FormListItem = ({
-  form,
-  isSelected,
-  workspaceNameMap,
-  duplicatingFormId,
-  formatLastEdited,
-  onDuplicate,
-  onDeleteClick,
-  onToggleSelect,
-}: FormListItemProps) => (
-  <Card
-    className={`group cursor-pointer gap-0 bg-transparent px-3 py-2 ring-0 transition-[background-color,box-shadow] duration-200 hover:bg-muted/30 has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-ring/50 ${isSelected ? "bg-muted/50" : ""}`}
-  >
-    <Link
-      to={
-        form.status === "published"
-          ? "/workspace/$workspaceId/form-builder/$formId/submissions"
-          : "/workspace/$workspaceId/form-builder/$formId/edit"
-      }
-      params={{
-        workspaceId: form.workspaceId,
-        formId: form.id,
-      }}
-      preload="intent"
-      className="outline-none"
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold transition-colors">{form.title || "Untitled"}</span>
-              <Badge
-                variant="secondary"
-                className={`h-4 px-1.5 text-[10px] font-normal ${
-                  form.status === "published"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-muted/80 text-muted-foreground"
-                } rounded-full`}
-              >
-                {form.status === "published" ? "Published" : "Draft"}
-              </Badge>
-            </div>
-            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span>{workspaceNameMap.get(form.workspaceId) || "Unknown workspace"}</span>
-              <span className="size-0.5 rounded-full bg-muted-foreground/30"></span>
-              <span>{formatLastEdited(form.updatedAt)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div
-          className={cn(
-            "flex items-center gap-1 transition-opacity",
-            duplicatingFormId === form.id || isSelected
-              ? "opacity-100"
-              : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100",
-          )}
-        >
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Duplicate form"
-                    disabled={duplicatingFormId === form.id}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onDuplicate(form.id);
-                    }}
-                  />
-                }
-              >
-                <IconSwap
-                  state={duplicatingFormId === form.id ? "b" : "a"}
-                  iconA={<CopyIcon className="size-4 text-muted-foreground" />}
-                  iconB={<Loader2Icon className="size-4 animate-spin text-muted-foreground" />}
-                />
-              </TooltipTrigger>
-              <TooltipContent>Duplicate</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Delete form"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onDeleteClick({
-                        id: form.id,
-                        title: form.title || "Untitled",
-                      });
-                    }}
-                  />
-                }
-              >
-                <Trash2Icon className="size-4 text-[var(--sidebar-icon-stroke)]" />
-              </TooltipTrigger>
-              <TooltipContent>Delete</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={isSelected ? "Deselect form" : "Select form"}
-                    className={
-                      isSelected
-                        ? "bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/30"
-                        : "text-muted-foreground"
-                    }
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onToggleSelect(form.id);
-                    }}
-                  />
-                }
-              >
-                <CheckIcon className="size-3.5 text-[var(--sidebar-icon-stroke)]" />
-              </TooltipTrigger>
-              <TooltipContent>{isSelected ? "Deselect" : "Select"}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-    </Link>
-  </Card>
-);
-
 type BulkSelectionToolbarProps = {
   count: number;
   onBulkDelete: () => void;
@@ -1139,7 +1505,7 @@ const BulkSelectionToolbar = ({
   <div className="fixed bottom-6 left-1/2 z-50 w-[min(560px,90vw)] -translate-x-1/2 animate-in duration-300 fade-in slide-in-from-bottom-4">
     <div className="shadow-card-elevated flex items-center justify-between rounded-2xl bg-background px-4 py-3 dark:bg-muted/50">
       <div className="flex items-center gap-2.5">
-        <div className="flex size-6 items-center justify-center rounded-md bg-foreground text-background">
+        <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
           <CheckIcon className="size-4" strokeWidth={3} />
         </div>
         <span className="text-sm font-medium">{count} selected</span>
@@ -1165,6 +1531,8 @@ const BulkSelectionToolbar = ({
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardPage,
+  // Header search writes ?q= (debounced). Optional so existing navigations need not supply it.
+  validateSearch: v.object({ q: v.optional(v.string()) }),
   ssr: "data-only",
   pendingComponent: Loader,
   errorComponent: ErrorBoundary,

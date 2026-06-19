@@ -1,3 +1,4 @@
+import { log } from "evlog";
 import { createServerFn } from "@tanstack/react-start";
 import { and, count, eq, sql } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
@@ -85,6 +86,88 @@ const getAllowedFieldNames = (versionId: string | null, content: Value): Set<str
   } catch {
     return null;
   }
+};
+
+interface UpsertSubmissionArgs {
+  formId: string;
+  draftId: string;
+  formVersionId: string | null;
+  data: unknown;
+  isCompleted: boolean;
+  lastStepReached: number | null;
+  now: Date;
+}
+
+/**
+ * Atomic upsert keyed on the partial unique index uniq_submissions_form_id_draft_id
+ * (formId, draftId WHERE draftId IS NOT NULL). Replaces a read-then-write that let two
+ * concurrent submits both INSERT → unique violation → spurious 500. A CTE captures the
+ * pre-write isCompleted (RETURNING only exposes the new row), so callers can still derive the
+ * no-downgrade noop and once-only finalize. The CASE no-downgrade guard keeps a completed row
+ * completed when a late debounced save arrives with isCompleted=false. Returns the resolved
+ * submission id and whether the row was already completed before this write.
+ */
+export const upsertSubmissionByDraft = async (
+  args: UpsertSubmissionArgs,
+): Promise<{ submissionId: string; wasCompleted: boolean }> => {
+  const newId = crypto.randomUUID();
+  const sanitizedJson = JSON.stringify(args.data);
+  const nowIso = args.now.toISOString();
+  const rows = await db.execute<{
+    id: string;
+    priorIsCompleted: boolean | null;
+  }>(sql`
+    WITH prior AS (
+      SELECT "id", "isCompleted"
+      FROM "submissions"
+      WHERE "formId" = ${args.formId} AND "draftId" = ${args.draftId}
+    ),
+    up AS (
+      INSERT INTO "submissions"
+        ("id", "formId", "formVersionId", "data", "isCompleted", "draftId",
+         "lastStepReached", "createdAt", "updatedAt")
+      VALUES
+        (${newId}, ${args.formId}, ${args.formVersionId}, ${sanitizedJson}::jsonb,
+         ${args.isCompleted}, ${args.draftId}, ${args.lastStepReached},
+         ${nowIso}::timestamptz, ${nowIso}::timestamptz)
+      ON CONFLICT ("formId", "draftId") WHERE "draftId" IS NOT NULL
+      DO UPDATE SET
+        "data" = CASE
+          WHEN "submissions"."isCompleted" = true AND excluded."isCompleted" = false
+            THEN "submissions"."data"
+          ELSE excluded."data"
+        END,
+        "isCompleted" = CASE
+          WHEN "submissions"."isCompleted" = true AND excluded."isCompleted" = false
+            THEN "submissions"."isCompleted"
+          ELSE excluded."isCompleted"
+        END,
+        "lastStepReached" = CASE
+          WHEN "submissions"."isCompleted" = true AND excluded."isCompleted" = false
+            THEN "submissions"."lastStepReached"
+          ELSE excluded."lastStepReached"
+        END,
+        "formVersionId" = CASE
+          WHEN "submissions"."isCompleted" = true AND excluded."isCompleted" = false
+            THEN "submissions"."formVersionId"
+          ELSE excluded."formVersionId"
+        END,
+        "updatedAt" = CASE
+          WHEN "submissions"."isCompleted" = true AND excluded."isCompleted" = false
+            THEN "submissions"."updatedAt"
+          ELSE excluded."updatedAt"
+        END
+      RETURNING "id"
+    )
+    SELECT up."id" AS "id", prior."isCompleted" AS "priorIsCompleted"
+    FROM up
+    LEFT JOIN prior ON prior."id" = up."id"
+  `);
+  const row = rows[0];
+  return {
+    submissionId: row?.id ?? newId,
+    wasCompleted: row?.priorIsCompleted === true,
+  };
 };
 
 /**
@@ -291,38 +374,24 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
       sanitizedData = cleaned;
     }
 
-    const existing = data.draftId
-      ? await db
-          .select({
-            id: submissions.id,
-            isCompleted: submissions.isCompleted,
-          })
-          .from(submissions)
-          .where(and(eq(submissions.formId, data.formId), eq(submissions.draftId, data.draftId)))
-          .limit(1)
-      : [];
-    const existingRow = existing[0];
-
-    // Defense in depth: never downgrade completed → incomplete on out-of-order debounced save.
-    if (existingRow?.isCompleted && !data.isCompleted) {
-      return { submissionId: existingRow.id, success: true, noop: true };
-    }
-
     const now = new Date();
     let submissionId: string;
+    // Prior completed state of the (formId, draftId) row, if it already existed. Drives the
+    // no-downgrade noop and the once-only finalize/notification logic below.
+    let wasCompleted = false;
 
-    if (existingRow) {
-      submissionId = existingRow.id;
-      await db
-        .update(submissions)
-        .set({
-          data: sanitizedData,
-          isCompleted: data.isCompleted,
-          lastStepReached: data.lastStepReached ?? null,
-          updatedAt: now,
-          formVersionId: form.lastPublishedVersionId,
-        })
-        .where(eq(submissions.id, existingRow.id));
+    if (data.draftId) {
+      const result = await upsertSubmissionByDraft({
+        formId: data.formId,
+        draftId: data.draftId,
+        formVersionId: form.lastPublishedVersionId,
+        data: sanitizedData,
+        isCompleted: data.isCompleted,
+        lastStepReached: data.lastStepReached ?? null,
+        now,
+      });
+      submissionId = result.submissionId;
+      wasCompleted = result.wasCompleted;
     } else {
       submissionId = crypto.randomUUID();
       await db.insert(submissions).values({
@@ -331,15 +400,21 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
         formVersionId: form.lastPublishedVersionId,
         data: sanitizedData,
         isCompleted: data.isCompleted,
-        draftId: data.draftId ?? null,
+        draftId: null,
         lastStepReached: data.lastStepReached ?? null,
         createdAt: now,
         updatedAt: now,
       });
     }
 
+    // Defense in depth: never downgrade completed → incomplete on out-of-order debounced save.
+    // The upsert's CASE guard already left the stored row untouched; just short-circuit here.
+    if (wasCompleted && !data.isCompleted) {
+      return { submissionId, success: true, noop: true };
+    }
+
     // Notifications + emails only fire on final submit, not on each draft save.
-    const isFinalizing = data.isCompleted && (!existingRow || !existingRow.isCompleted);
+    const isFinalizing = data.isCompleted && !wasCompleted;
     if (isFinalizing) {
       // creator may be NULL after user delete (FK SET NULL).
       if (form.createdByUserId) {
@@ -369,7 +444,7 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
             data.formId,
             submissionId,
             sanitizedData,
-          ).catch((err) => console.error("[Email] Notification error:", err)),
+          ).catch((err) => log.error({ tag: "Email", msg: "Notification error", error: err })),
         );
       }
 
@@ -455,7 +530,7 @@ const sendEmailNotifications = async (
         formRow?.title ?? "Untitled Form",
         submissionId,
         submissionData,
-      ).catch((err) => console.error("[Email] Self notification error:", err));
+      ).catch((err) => log.error({ tag: "Email", msg: "Self notification error", error: err }));
     }
   }
 
@@ -467,7 +542,7 @@ const sendEmailNotifications = async (
         settings.respondentEmailBody ||
         "Thank you for filling out our form. We have received your response.";
       sendRespondentConfirmation(respondentEmail, subject, body).catch((err) =>
-        console.error("[Email] Respondent notification error:", err),
+        log.error({ tag: "Email", msg: "Respondent notification error", error: err }),
       );
     }
   }

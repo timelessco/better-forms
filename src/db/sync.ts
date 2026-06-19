@@ -1,4 +1,5 @@
 import { createTransaction } from "@tanstack/react-db";
+import { log } from "evlog";
 import { logger } from "@/lib/utils";
 import { localFormCollection } from "@/collections/local/form";
 import { getFormListings, getWorkspaces, createWorkspaceLocal } from "@/collections";
@@ -20,7 +21,7 @@ export const syncLocalDataToCloud = async (organizationId: string): Promise<Sync
     logger(`Organization ID: ${organizationId}`);
 
     if (!organizationId) {
-      console.error("syncLocalDataToCloud: organizationId is required");
+      log.error("syncLocalDataToCloud", "organizationId is required");
       throw new Error("Organization ID is required for sync");
     }
 
@@ -43,7 +44,11 @@ export const syncLocalDataToCloud = async (organizationId: string): Promise<Sync
         targetWorkspaceId = newWorkspace.id;
         logger(`Created workspace ${targetWorkspaceId} via collection`);
       } catch (wsError) {
-        console.error("Failed to create workspace:", wsError);
+        log.error({
+          tag: "syncLocalDataToCloud",
+          msg: "Failed to create workspace",
+          error: wsError,
+        });
         throw wsError;
       }
     } else {
@@ -94,7 +99,11 @@ export const syncLocalDataToCloud = async (organizationId: string): Promise<Sync
           `Synced form "${localForm.title || "Untitled"}" as ${newFormId} via createTransaction`,
         );
       } catch (error) {
-        console.error(`Failed to sync form "${localForm.title || "Untitled"}":`, error);
+        log.error({
+          tag: "syncLocalDataToCloud",
+          msg: `Failed to sync form "${localForm.title || "Untitled"}"`,
+          error,
+        });
       }
     }
 
@@ -110,7 +119,7 @@ export const syncLocalDataToCloud = async (organizationId: string): Promise<Sync
       syncedForms,
     };
   } catch (error) {
-    console.error("Failed to sync local data to cloud:", error);
+    log.error({ tag: "syncLocalDataToCloud", msg: "Failed to sync local data to cloud", error });
     throw error;
   }
 };
@@ -120,7 +129,7 @@ export const hasLocalDataToSync = async (): Promise<boolean> => {
     const forms = await localFormCollection.toArrayWhenReady();
     return forms.length > 0;
   } catch (error) {
-    console.error("Failed to check for local data:", error);
+    log.error({ tag: "hasLocalDataToSync", msg: "Failed to check for local data", error });
     return false;
   }
 };

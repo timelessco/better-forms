@@ -1,3 +1,4 @@
+import { log } from "evlog";
 import { memo, ReactNode, useCallback, useMemo, useRef, useState } from "react";
 // eslint-disable-next-line import/no-cycle -- registered in data-grid.tsx's tableComponents
 import { useDataGrid } from "@/components/ui/data-grid";
@@ -267,8 +268,9 @@ const DataGridApiVirtual = <TData extends RowData>({
     table.getRowModel().rows.length !== table.getPrePaginatedRowModel().rows.length
   ) {
     warnedInfinitePagination = true;
-    console.warn(
-      "DataGridApiVirtual: infinite mode without manualPagination — rows are silently clipped to the page size; set manualPagination: true",
+    log.warn(
+      "DataGridApiVirtual",
+      "infinite mode without manualPagination — rows are silently clipped to the page size; set manualPagination: true",
     );
   }
 

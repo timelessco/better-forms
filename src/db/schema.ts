@@ -831,6 +831,13 @@ export const uploadRateLimits = pgTable("upload_rate_limits", {
   count: integer("count").notNull().default(0),
 });
 
+// Per-org short-window rate limit for AI form-generate (separate from the per-day quota). Keyed by orgId; window/counter live here so tuning needs no migration.
+export const aiRequestRateLimits = pgTable("ai_request_rate_limits", {
+  orgId: text("org_id").primaryKey(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull().defaultNow(),
+  count: integer("count").notNull().default(0),
+});
+
 // AI form-generate calls per org per UTC day; rate-limit check in /api/ai/form-generate. `id` = `${organizationId}:${YYYY-MM-DD}` so one upsert handles the daily bucket, no composite-PK migration.
 export const aiGenerationCounts = pgTable(
   "ai_generation_counts",

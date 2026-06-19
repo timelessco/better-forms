@@ -70,6 +70,7 @@ export const useOrgForms = (_organizationId?: string) =>
         status: form.status,
         updatedAt: form.updatedAt,
         icon: form.icon,
+        cover: form.cover,
         customization: form.customization,
         sortIndex: form.sortIndex,
       }))

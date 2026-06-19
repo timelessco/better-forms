@@ -200,7 +200,16 @@
 	--color-gray-800: #303030;
 	--color-gray-900: #212121;
 	--color-gray-950: #141414;
-	--color-gray-1000: #000;
+  --color-gray-1000: #000;
+
+  /* App-wide success (Figma published-state green #1e8d02). The .bf-themed scope overrides this
+     per-form via --bf-success; defined here so non-themed surfaces (e.g. dashboard) get the token. */
+  --color-success: #1e8d02;
+  --color-success-foreground: #ffffff;
+  /* Soft "published" pill pair (Figma list row 26216:13362). */
+  --color-success-soft: #e4faeb;
+  --color-success-on-soft: #137949;
+
 
 	/* Light Gray Alpha Shades */
 	--color-gray-alpha-50: rgb(0 0 0 / 3%); /* 3% Black */
@@ -342,6 +351,13 @@
 	--color-gray-900: #d1d1d1;
 	--color-gray-950: #f8f8f8;
 	--color-gray-1000: #fff;
+
+	/* DEV FLAG: Figma dark-mode success green not provided — reusing #1e8d02; verify against dark frame. */
+	--color-success: #1e8d02;
+	--color-success-foreground: #ffffff;
+	/* DEV FLAG: dark values for the published pill are inferred (no Figma dark table); verify. */
+	--color-success-soft: #0e3318;
+	--color-success-on-soft: #5fd07a;
 
 	/* Dark Gray Alpha Shades */
 	--color-gray-alpha-50: rgb(255 255 255 / 5%); /* 5% White */
@@ -662,6 +678,16 @@
 
 @utility elevation-xl {
   box-shadow:
+    0 0 1px 0 rgba(0, 0, 0, 0.2),
+    0 0 10px 2px rgba(0, 0, 0, 0.04),
+    0 24px 30px -8px rgba(0, 0, 0, 0.1);
+}
+
+/* Figma `elevation/light/xl` for dashboard form cards — same 3 layers as elevation-xl plus the
+   inset top highlight. Kept separate so shared elevation-xl (popovers) is unaffected. Mode-independent. */
+@utility elevation-card {
+  box-shadow:
+    inset 0 0.25px 2px 0 rgba(255, 255, 255, 0.15),
     0 0 1px 0 rgba(0, 0, 0, 0.2),
     0 0 10px 2px rgba(0, 0, 0, 0.04),
     0 24px 30px -8px rgba(0, 0, 0, 0.1);
