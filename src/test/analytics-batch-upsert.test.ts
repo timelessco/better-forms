@@ -22,10 +22,8 @@ import {
   createTestWorkspace,
   getTestUtils,
 } from "@/test/helpers";
-import {
-  recordQuestionProgressBatchImpl,
-  type RecordQuestionProgressInput,
-} from "@/lib/server-fn/analytics.server";
+import { recordQuestionProgressBatchImpl } from "@/lib/server-fn/analytics.server";
+import type { RecordQuestionProgressInput } from "@/lib/server-fn/analytics.server";
 
 describe("recordQuestionProgressBatchImpl multi-row upsert", () => {
   const ownerId = crypto.randomUUID();
