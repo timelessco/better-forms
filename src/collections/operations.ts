@@ -95,8 +95,11 @@ export const getVersionContent = (versionId: string) => {
 
 export const createFormLocal = (
   workspaceId: string,
-  title = "Untitled",
+  options: { title?: string; content?: unknown[] } | string = "Untitled",
 ): { form: Form; persisted: Promise<void> } => {
+  const title = typeof options === "string" ? options : (options.title ?? "Untitled");
+  const content =
+    typeof options === "object" && options.content ? options.content : DEFAULT_FORM_CONTENT;
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const newForm: Form = {
@@ -105,7 +108,7 @@ export const createFormLocal = (
     title,
     formName: "draft",
     schemaName: "draftFormSchema",
-    content: DEFAULT_FORM_CONTENT,
+    content,
     icon: null,
     cover: null,
     status: "draft",

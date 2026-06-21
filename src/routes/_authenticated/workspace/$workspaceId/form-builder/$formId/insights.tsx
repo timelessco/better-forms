@@ -1,3 +1,4 @@
+import { log } from "evlog";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Suspense, useCallback, useState } from "react";
@@ -157,7 +158,7 @@ const InsightsPage = () => {
       await invalidateInsightsQueries(queryClient, formId);
     },
     onError: (err) => {
-      console.error("[Insights] enable analytics failed:", err);
+      log.error({ tag: "Insights", msg: "enable analytics failed", error: err });
       toast.error("Failed to enable analytics");
     },
   });

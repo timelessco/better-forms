@@ -217,9 +217,53 @@ export const recordQuestionProgressImpl = async (
 export const recordQuestionProgressBatchImpl = async (
   data: RecordQuestionProgressBatchInput,
 ): Promise<{ ok: true; processed: number }> => {
+  const now = new Date();
+  // De-dup by (visitId, questionId): the conflict key. Postgres rejects a row hit twice in one
+  // ON CONFLICT statement, so merge intra-batch dupes the way the upsert would (monotonic lifecycle).
+  type Row = typeof formQuestionProgress.$inferInsert;
+  const byKey = new Map<string, Row>();
   for (const item of data.items) {
-    await recordQuestionProgressImpl(item);
+    const key = `${item.visitId} ${item.questionId}`;
+    const prev = byKey.get(key);
+    const isStart = item.event === "start" || item.event === "complete";
+    const isComplete = item.event === "complete";
+    byKey.set(key, {
+      id: prev?.id ?? crypto.randomUUID(),
+      visitId: item.visitId,
+      formId: item.formId,
+      visitorHash: item.visitorHash,
+      questionId: item.questionId,
+      questionType: prev?.questionType ?? item.questionType ?? null,
+      questionIndex: prev?.questionIndex ?? item.questionIndex,
+      stepId: prev?.stepId ?? item.stepId ?? null,
+      stepIndex: prev?.stepIndex ?? item.stepIndex ?? null,
+      viewedAt: now,
+      startedAt: prev?.startedAt ?? (isStart ? now : null),
+      completedAt: prev?.completedAt ?? (isComplete ? now : null),
+      wasLastQuestion: (prev?.wasLastQuestion ?? false) || (item.wasLastQuestion ?? false),
+    });
   }
+
+  const rows = [...byKey.values()];
+  if (rows.length === 0) {
+    return { ok: true, processed: 0 };
+  }
+
+  await db
+    .insert(formQuestionProgress)
+    .values(rows)
+    .onConflictDoUpdate({
+      target: [formQuestionProgress.visitId, formQuestionProgress.questionId],
+      // Identical to recordQuestionProgressImpl: excluded.* not raw Date (postgres-js binder).
+      set: {
+        startedAt: sql`coalesce(${formQuestionProgress.startedAt}, excluded."startedAt")`,
+        completedAt: sql`coalesce(${formQuestionProgress.completedAt}, excluded."completedAt")`,
+        wasLastQuestion: sql`${formQuestionProgress.wasLastQuestion} or excluded."wasLastQuestion"`,
+        stepId: sql`coalesce(${formQuestionProgress.stepId}, excluded."stepId")`,
+        stepIndex: sql`coalesce(${formQuestionProgress.stepIndex}, excluded."stepIndex")`,
+      },
+    });
+
   return { ok: true, processed: data.items.length };
 };
 

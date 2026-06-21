@@ -1,5 +1,6 @@
 "use client";
 
+import { log } from "evlog";
 import type React from "react";
 import { createContext, use, useCallback, useMemo, useState } from "react";
 
@@ -914,10 +915,11 @@ const FilterOperatorDropdown = <T = unknown,>({
     context.i18n.helpers.formatOperator(operator);
 
   if (!operators.find((op) => op.value === operator)) {
-    console.warn(
-      `Operator "${operator}" not found in operators for field "${field.key}" (type: ${field.type}). Available operators:`,
-      operators.map((op) => op.value),
-    );
+    log.warn({
+      tag: "filters",
+      msg: `Operator "${operator}" not found in operators for field "${field.key}" (type: ${field.type})`,
+      availableOperators: operators.map((op) => op.value),
+    });
   }
 
   return (

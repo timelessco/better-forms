@@ -9,11 +9,21 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Loader2Icon, MoreHorizontalIcon, PencilIcon, PlayIcon } from "@/components/ui/icons";
+import { ButtonGroup } from "@/components/ui/button-group";
+import {
+  ChevronDownIcon,
+  Loader2Icon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  PlayIcon,
+} from "@/components/ui/icons";
+import { FigPlusIcon, FigSearchAltIcon } from "@/components/dashboard/dashboard-icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
@@ -22,8 +32,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { TextSwap } from "@/components/transitions/text-swap";
 import { useProPublishGate } from "@/components/form-builder/pro-publish-gate";
 import type { PublishOptions } from "@/components/form-builder/pro-publish-gate";
-import { toggleFavoriteLocal, updateFormStatus } from "@/collections";
+import { toggleFavoriteLocal, createFormLocal, updateFormStatus } from "@/collections";
 import { useEditorSidebar } from "@/hooks/use-editor-sidebar";
+import { orgDataForLayoutQueryOptions } from "@/lib/server-fn/org";
+import { sortByManualOrder } from "@/lib/sort-utils";
 import {
   discardChanges,
   publishForm,
@@ -32,13 +44,15 @@ import {
   useHasUnpublishedChanges,
 } from "@/hooks/use-form-versions";
 import { parseError } from "@/lib/errors/parse";
-import { useForm, useIsFavorite, useWorkspace } from "@/hooks/use-live-hooks";
+import { useForm, useIsFavorite, useOrgWorkspaces, useWorkspace } from "@/hooks/use-live-hooks";
 import { useSession } from "@/lib/auth/auth-client";
 import { HOTKEYS, formatForDisplay } from "@/lib/hotkeys";
 import { cn } from "@/lib/utils";
+import { log } from "evlog";
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { Link, useLocation, useNavigate, useParams } from "@tanstack/react-router";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useLocation, useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { LogoToggle } from "./logo";
 import { useSidebarSafe } from "./sidebar";
@@ -210,7 +224,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     <>
       <header
         className={cn(
-          "group/header -z-10 flex h-11 w-full shrink-0 items-center justify-between bg-background px-2 text-[13px] transition-opacity duration-150 select-none",
+          "group/header -z-10 flex h-11 w-full shrink-0 items-center justify-between bg-background pr-2 pl-4 text-[13px] transition-opacity duration-150 select-none",
           isDistractionHidden && "pointer-events-none opacity-0",
         )}
       >
@@ -241,6 +255,11 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               </TooltipContent>
             </Tooltip>
           )}
+          {isDashboard && (
+            <span className="inline-flex items-center rounded-lg p-1 text-base font-[450] tracking-[0.14px] text-gray-800">
+              Home
+            </span>
+          )}
           {isFormBuilder && savedDocs?.[0] && (
             <HeaderBreadcrumb
               workspace={workspace}
@@ -256,19 +275,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
         {/* Header stays constant — preview now lives in its own full-page drawer, so the
             Share sidebar no longer collapses it to a "Preview" label or hides actions. */}
         <div className="flex shrink-0 items-center gap-2">
-          {isDashboard && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "px-2.5 font-normal text-gray-700 hover:text-foreground",
-                activeSidebar === "about" && "bg-accent/50 text-foreground",
-              )}
-              onClick={() => toggleEditorSidebar("about")}
-            >
-              About
-            </Button>
-          )}
+          {isDashboard && <DashboardHeaderActions />}
 
           {isLandingPage && (
             <LandingPageActions
@@ -385,7 +392,7 @@ const useAppHeaderFormActions = ({
         });
       } catch (error) {
         toast.error("Failed to publish form");
-        console.error(error);
+        log.error({ tag: "app-header", msg: "publish form failed", error });
       } finally {
         setWorkflowState("idle");
       }
@@ -402,7 +409,7 @@ const useAppHeaderFormActions = ({
         toast.info("Changes discarded, reverted to last published version");
       } catch (error) {
         toast.error("Failed to discard changes");
-        console.error(error);
+        log.error({ tag: "app-header", msg: "discard changes failed", error });
       } finally {
         setWorkflowState("idle");
       }
@@ -721,6 +728,119 @@ const LandingPageActions = ({
     </Button>
   </>
 );
+
+// Dashboard header actions (Figma 26208:8017): Search field (writes /dashboard?q=, debounced) +
+// New Form (ButtonGroup keeps the workspace picker). Renders only on /dashboard.
+const DashboardHeaderActions = () => {
+  const navigate = useNavigate();
+  const { data: activeOrg } = useQuery({
+    ...orgDataForLayoutQueryOptions(),
+    select: (d) => d.activeOrg,
+  });
+  const { data: liveWorkspaces } = useOrgWorkspaces(activeOrg?.id);
+
+  const orderedWorkspaces = useMemo(
+    () =>
+      sortByManualOrder(
+        liveWorkspaces ?? [],
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      ),
+    [liveWorkspaces],
+  );
+
+  const topWorkspace = orderedWorkspaces[0];
+  const hasMultipleWorkspaces = orderedWorkspaces.length > 1;
+
+  const search = useSearch({ strict: false }) as { q?: string };
+  const [input, setInput] = useState(search.q ?? "");
+
+  // Sync local input when the URL param changes externally (back/forward, clear).
+  useEffect(() => {
+    setInput(search.q ?? "");
+  }, [search.q]);
+
+  // Debounce keystrokes → URL ?q= so the dashboard list re-filters.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const next = input.trim() || undefined;
+      if ((search.q ?? undefined) === next) return;
+      void navigate({
+        to: "/dashboard",
+        search: (prev: Record<string, unknown>) => ({ ...prev, q: next }),
+        replace: true,
+      });
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [input, search.q, navigate]);
+
+  const handleCreateForm = (workspaceId?: string) => {
+    const targetId = workspaceId ?? topWorkspace?.id;
+    if (!targetId) return;
+    const { form: newForm } = createFormLocal(targetId);
+    void navigate({
+      to: "/workspace/$workspaceId/form-builder/$formId/edit",
+      params: { workspaceId: targetId, formId: newForm.id },
+    });
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Search — gray/100 surface, 200px, search-alt icon + placeholder */}
+      <div className="flex h-7 w-[200px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2">
+        <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
+        <input
+          type="search"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Search"
+          aria-label="Search forms"
+          className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+
+      {hasMultipleWorkspaces ? (
+        <ButtonGroup>
+          <Button
+            size="sm"
+            prefix={<FigPlusIcon className="size-4" />}
+            className="ps-2! font-case text-base tracking-[0.14px]"
+            onClick={() => handleCreateForm(topWorkspace?.id)}
+          >
+            New Form
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button size="sm" aria-label="Pick a different workspace">
+                  <ChevronDownIcon className="size-3" />
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end" sideOffset={4} className="w-56">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Create new form in…</DropdownMenuLabel>
+                {orderedWorkspaces.map((ws) => (
+                  <DropdownMenuItem key={ws.id} onClick={() => handleCreateForm(ws.id)}>
+                    <span className="flex-1 truncate text-left">{ws.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </ButtonGroup>
+      ) : (
+        <Button
+          size="sm"
+          prefix={<FigPlusIcon className="size-4" />}
+          className="ps-2! font-case text-base tracking-[0.14px]"
+          onClick={() => handleCreateForm()}
+        >
+          New Form
+        </Button>
+      )}
+    </div>
+  );
+};
 
 interface MenuItem {
   key: string;

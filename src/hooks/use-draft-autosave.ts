@@ -1,3 +1,4 @@
+import { log } from "evlog";
 import { useCallback } from "react";
 import { createPublicSubmission } from "@/lib/server-fn/public-submissions";
 
@@ -112,7 +113,7 @@ export const useDraftAutoSave = (formId: string) => {
         });
       } catch (err) {
         // Best-effort; never surface to user. Next blur/submit retries implicitly.
-        console.error("[Reform] Draft autosave failed:", err);
+        log.error({ tag: "Reform", msg: "Draft autosave failed", error: err });
       }
     },
     [formId],

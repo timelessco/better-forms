@@ -66,6 +66,7 @@ export type ErrorCode =
 
   // --- AI quota / generation ------------------------------------------
   | "quota/ai-daily-limit"
+  | "quota/ai-rate-limited" // per-org short-window burst limit on AI form-generate
 
   // --- Vercel infrastructure (custom-domains via Vercel API) ----------
   // Wrap upstream Vercel SDK failures; status mirrors upstream, else 502.

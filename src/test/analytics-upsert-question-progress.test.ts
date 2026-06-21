@@ -122,7 +122,7 @@ describe("recordQuestionProgressBatchImpl", () => {
     calls.length = 0;
   });
 
-  it("processes items sequentially and reports the count", async () => {
+  it("de-dups same (visitId, questionId) into one upsert and reports the input count", async () => {
     const result = await recordQuestionProgressBatchImpl({
       items: [
         { ...baseInput, event: "view" },
@@ -131,7 +131,8 @@ describe("recordQuestionProgressBatchImpl", () => {
       ],
     });
 
+    // 3 events for the same (visitId, questionId) collapse to a single multi-row upsert call.
     expect(result).toEqual({ ok: true, processed: 3 });
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(1);
   });
 });
