@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { submissions } from "@/db/schema";
-import { upsertSubmissionByDraft } from "@/lib/server-fn/public-submissions";
+import { upsertSubmissionByDraft } from "@/lib/server-fn/public-submissions-upsert.server";
 import {
   getTestUtils,
   createTestOrg,
