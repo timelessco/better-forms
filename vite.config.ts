@@ -213,13 +213,12 @@ const config = defineConfig({
           // those utilities (e.g. `getDisabledMountTransitionStyles`, `useForm`,
           // `useDebouncedCallback`) to pull the full editor chunk + KaTeX CSS
           // on the public form's happy path. Also covers tiny class-name utilities
-          // (`clsx`, `tailwind-merge`, `class-variance-authority`) that every `cn()`
-          // caller would otherwise drag into whatever chunk Rollup picks first.
+          // (`cnfast`, `class-variance-authority`) that every `cn()` caller would
+          // otherwise drag into whatever chunk Rollup picks first.
           if (id.includes("node_modules/use-sync-external-store")) return "shared-runtime";
           if (id.includes("node_modules/scheduler")) return "shared-runtime";
           if (
-            id.includes("node_modules/clsx") ||
-            id.includes("node_modules/tailwind-merge") ||
+            id.includes("node_modules/cnfast") ||
             id.includes("node_modules/class-variance-authority")
           )
             return "shared-runtime";

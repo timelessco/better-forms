@@ -81,6 +81,9 @@ minimumReleaseAgeExclude:
   - "nitro"
   - "env-runner"
   - "httpxy"
+  #  - cnfast (2026-06-22) replaces clsx+tailwind-merge cn impl; package is
+  #    days old so every version is inside the window. Remove once it ages out.
+  - "cnfast"
 
 # 7-day supply-chain quarantine (see CLAUDE.md). Freshly published registry
 # versions are held back for 10080 minutes; the explicit exclude list above

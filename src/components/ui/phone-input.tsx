@@ -109,7 +109,7 @@ function InputComponent({ className, ...props }: React.ComponentProps<"input">) 
         // Right "input-text" piece: bordered in light for the seam, transparent in dark (bg
         // contrast like other dark inputs). Surface bg-background by default; .bf-themed overrides
         // via [data-bf-input-fill]. Inner input fully transparent — bg/shadow/border forced with !
-        // because Input's cva ships bg-card + dark:border in a CSS layer out-racing tailwind-merge.
+        // because Input's cva ships bg-card + dark:border in a CSS layer out-racing cn's merge.
         "flex-1 rounded-l-none rounded-r-[8px] bg-transparent! px-2.5 py-2 text-sm tracking-[0.28px] text-foreground shadow-none! ring-0! outline-none! focus-visible:ring-0 aria-invalid:ring-0 dark:border-0! dark:bg-transparent! dark:shadow-none!",
         variant === "sm" && "h-7",
         variant === "lg" && "h-9",

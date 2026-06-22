@@ -1,9 +1,6 @@
-import { clsx } from "clsx";
-import type { ClassValue } from "clsx";
 import { log } from "evlog";
-import { twMerge } from "tailwind-merge";
 
-export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
+export { cn } from "cnfast";
 
 /** Clamp `value` into the inclusive [min, max] range. */
 export const clamp = (value: number, min: number, max: number) =>
