@@ -90,7 +90,11 @@ export const createTestWorkspace = async (orgId: string, creatorId: string) => {
   return workspace;
 };
 
-export const createTestForm = async (workspaceId: string, creatorId: string) => {
+export const createTestForm = async (
+  workspaceId: string,
+  creatorId: string,
+  status: "draft" | "published" | "archived" = "draft",
+) => {
   const id = crypto.randomUUID();
   const now = new Date();
   const [form] = await db
@@ -105,7 +109,7 @@ export const createTestForm = async (workspaceId: string, creatorId: string) => 
       schemaName: "draftFormSchema",
       content: [],
       draftSettings: defaultFormSettings,
-      status: "draft",
+      status,
       createdAt: now,
       updatedAt: now,
     })

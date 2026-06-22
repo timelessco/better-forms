@@ -33,6 +33,13 @@ const makeInsertChain = () => {
 vi.mock<typeof import("@/db")>(import("@/db"), () => ({
   db: {
     insert: () => makeInsertChain(),
+    // isFormPublished()'s lookup: resolve to a published form so the ingestion gate passes and
+    // the test reaches the insert/upsert it actually asserts. (Rate limit is skipped: no request IP.)
+    select: () => ({
+      from: () => ({
+        where: () => ({ limit: () => Promise.resolve([{ status: "published" }]) }),
+      }),
+    }),
   } as unknown as (typeof import("@/db"))["db"],
 }));
 

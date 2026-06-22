@@ -85,7 +85,8 @@ describe("analytics Option B contract", () => {
 
   /** Set up a form whose live analytics setting is the given value. */
   const seedForm = async (analytics: boolean) => {
-    const form = await createTestForm(workspaceId, ownerId);
+    // Ingestion now requires a published form (analytics ingestion gate).
+    const form = await createTestForm(workspaceId, ownerId, "published");
     await db
       .insert(formSettings)
       .values({ formId: form.id, settings: { ...defaultFormSettings, analytics } });

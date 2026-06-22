@@ -831,6 +831,14 @@ export const uploadRateLimits = pgTable("upload_rate_limits", {
   count: integer("count").notNull().default(0),
 });
 
+// Per-IP short-window rate limit for anonymous analytics ingestion (visits + question progress).
+// Mirrors upload_rate_limits; cleanup-on-write keeps it small (see checkAnalyticsRateLimit).
+export const analyticsRateLimits = pgTable("analytics_rate_limits", {
+  ip: text("ip").primaryKey(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull().defaultNow(),
+  count: integer("count").notNull().default(0),
+});
+
 // Per-org short-window rate limit for AI form-generate (separate from the per-day quota). Keyed by orgId; window/counter live here so tuning needs no migration.
 export const aiRequestRateLimits = pgTable("ai_request_rate_limits", {
   orgId: text("org_id").primaryKey(),

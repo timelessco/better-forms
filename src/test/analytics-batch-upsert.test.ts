@@ -60,7 +60,8 @@ describe("recordQuestionProgressBatchImpl multi-row upsert", () => {
     orgId = org.id;
     const ws = await createTestWorkspace(orgId, ownerId);
     workspaceId = ws.id;
-    const form = await createTestForm(workspaceId, ownerId);
+    // Ingestion now requires a published form (recordQuestionProgressBatchImpl gate).
+    const form = await createTestForm(workspaceId, ownerId, "published");
     formId = form.id;
     await db
       .insert(formVisits)
