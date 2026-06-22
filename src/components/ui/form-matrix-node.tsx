@@ -226,7 +226,8 @@ export const FormMatrixElement = ({ children, ...props }: PlateElementProps) => 
                   onPointerDown={(e) => e.stopPropagation()}
                   aria-label="Column label"
                   placeholder="Column"
-                  className="w-full bg-transparent text-center text-xs font-medium text-muted-foreground outline-none placeholder:text-muted-foreground/60"
+                  data-bf-matrix-col
+                  className="w-full bg-transparent text-center text-muted-foreground outline-none placeholder:text-muted-foreground/60"
                 />
               </div>
             ))}
@@ -251,7 +252,8 @@ export const FormMatrixElement = ({ children, ...props }: PlateElementProps) => 
                   onPointerDown={(e) => e.stopPropagation()}
                   aria-label="Row label"
                   placeholder="Row"
-                  className="w-full bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground/60"
+                  data-bf-matrix-row
+                  className="w-full bg-transparent text-[14px] text-gray-800 outline-none placeholder:text-muted-foreground/60"
                 />
               </div>
               {columns.map((col) => (

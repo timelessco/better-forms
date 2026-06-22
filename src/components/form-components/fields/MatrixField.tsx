@@ -83,7 +83,8 @@ const MatrixField = ({ element, form }: FieldRendererProps<"Matrix">) => {
                     <span
                       key={col.value}
                       role="columnheader"
-                      className="px-2 py-2 text-center text-xs font-medium whitespace-nowrap text-muted-foreground"
+                      data-bf-matrix-col
+                      className="px-2 py-2 text-center whitespace-nowrap text-muted-foreground"
                     >
                       {col.label}
                     </span>
@@ -101,7 +102,11 @@ const MatrixField = ({ element, form }: FieldRendererProps<"Matrix">) => {
                     )}
                     style={{ gridTemplateColumns }}
                   >
-                    <span role="rowheader" className="px-3 py-2 text-[14px] text-foreground">
+                    <span
+                      role="rowheader"
+                      data-bf-matrix-row
+                      className="px-3 py-2 text-[14px] text-gray-800"
+                    >
                       {row.label}
                     </span>
                     {columns.map((col) => {

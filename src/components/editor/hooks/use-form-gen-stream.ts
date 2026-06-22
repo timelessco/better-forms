@@ -228,12 +228,20 @@ export const useFormGenStream = ({
         body: JSON.stringify(requestBody),
       });
       if (!res.ok) {
-        // 429 = daily AI quota exhausted; structured body. Show rate-limit toast + Upgrade CTA.
+        // 429 = AI limit. Two kinds: short-window burst ("quota/ai-rate-limited" → slow down) and
+        // daily quota ("quota/ai-daily-limit" → Upgrade CTA). Branch on the structured body code.
         if (res.status === 429) {
           const body = (await res.json().catch(() => null)) as {
+            code?: string;
             message?: string;
             limit?: number;
           } | null;
+          if (body?.code === "quota/ai-rate-limited") {
+            toast.error(
+              body.message || "Too many AI requests. Please wait a moment before generating again.",
+            );
+            throw new Error(body.message || "AI rate limited");
+          }
           toast.error(body?.message || "Daily AI limit reached. Upgrade to Pro for unlimited.", {
             action: {
               label: "Upgrade to Pro",
@@ -404,12 +412,16 @@ export const useFormGenStream = ({
       } catch {
         // err.message wasn't a JSON body (network error, abort, etc.)
       }
+      const isRateLimited =
+        bodyCode === "quota/ai-rate-limited" || parsed.code === "quota/ai-rate-limited";
       const isDailyLimit =
         bodyCode === "quota/ai-daily-limit" ||
         parsed.code === "quota/ai-daily-limit" ||
         msg.includes(AI_DAILY_LIMIT_ERROR) ||
         msg.includes("Daily AI limit");
-      if (isDailyLimit) {
+      if (isRateLimited) {
+        toast.error("Too many AI requests. Please wait a moment before generating again.");
+      } else if (isDailyLimit) {
         toast.error("Daily AI limit reached. Upgrade to Pro for unlimited generations.", {
           action: {
             label: "Upgrade to Pro",

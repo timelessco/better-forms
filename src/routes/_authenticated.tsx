@@ -86,6 +86,7 @@ import {
   useEditorHeaderVisibility,
 } from "@/contexts/editor-header-visibility-context";
 import { MinimalSidebarProvider, useMinimalSidebar } from "@/contexts/minimal-sidebar-context";
+import { log } from "evlog";
 import { Search as LucideSearch } from "lucide-react";
 import {
   createFormLocal,
@@ -673,7 +674,13 @@ const AppSidebar = () => {
                             params: { workspaceId: workspace.id },
                           });
                         })
-                        .catch(console.error);
+                        .catch((error) =>
+                          log.error({
+                            tag: "_authenticated",
+                            msg: "create workspace failed",
+                            error,
+                          }),
+                        );
                     }
                     setIsPaletteOpen(false);
                   }}
@@ -1921,7 +1928,11 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
         }
       });
     } catch (err) {
-      console.error("Failed to compute workspace sort indexes", err);
+      log.error({
+        tag: "_authenticated",
+        msg: "Failed to compute workspace sort indexes",
+        error: err,
+      });
     }
   }, []);
 
@@ -1953,7 +1964,11 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
         // Auto-switch sidebar to manual mode so the reorder "sticks" visually
         if (sortModeRef.current !== "manual") handleSortChange("manual");
       } catch (err) {
-        console.error("Failed to compute form sort indexes", err);
+        log.error({
+          tag: "_authenticated",
+          msg: "Failed to compute form sort indexes",
+          error: err,
+        });
       }
     },
     [handleSortChange],
@@ -2297,7 +2312,11 @@ const SortableFavoritesSection = ({
           }
         });
       } catch (err) {
-        console.error("Failed to compute favorite sort indexes", err);
+        log.error({
+          tag: "_authenticated",
+          msg: "Failed to compute favorite sort indexes",
+          error: err,
+        });
       }
     },
     [sorted],

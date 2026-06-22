@@ -1079,13 +1079,26 @@ const HeaderTitleTextarea = ({
   editor,
 }: HeaderTitleTextareaProps) => {
   const moveToFirstBlock = useCallback(() => {
-    const firstBlockPath = [1];
-    // eslint-disable-next-line typescript-eslint/no-explicit-any
-    const startPoint = (editor.api as any).edges(firstBlockPath)?.[0];
-    if (startPoint) {
-      editor.tf.select(startPoint);
-      editor.tf.focus();
+    // The block under the header must be an editable caret target. A void block
+    // (the submit button, page break, etc.) or no block at all → drop a paragraph in.
+    const firstBlock = editor.children[1];
+    if (!firstBlock || editor.api.isVoid(firstBlock)) {
+      editor.tf.insertNodes(
+        // eslint-disable-next-line typescript-eslint/no-explicit-any
+        { type: "p", children: [{ text: "" }] } as any,
+        { at: [1] },
+      );
     }
+    // Structural edits (insert above, or the onboarding re-init) re-render async;
+    // wait a frame so the target block's DOM exists before placing the caret.
+    requestAnimationFrame(() => {
+      // eslint-disable-next-line typescript-eslint/no-explicit-any
+      const startPoint = (editor.api as any).edges([1])?.[0];
+      if (startPoint) {
+        editor.tf.select(startPoint);
+        editor.tf.focus();
+      }
+    });
   }, [editor]);
 
   return (

@@ -13,7 +13,7 @@ A modern form builder application that lets you create, customize, and share bea
 - **Workspaces & Organizations** — Multi-tenant workspace management with team invitations and role-based access
 - **Billing & Subscriptions** — Integrated payment handling via Polar
 - **Theme Support** — Light and dark mode with customizable styling
-- **Real-time Sync** — Local-first data layer with ElectricSQL for instant UI updates
+- **Real-time Sync** — Local-first data layer with TanStack DB (query-based, local-first collections) for instant UI updates
 
 ## Tech Stack
 
@@ -21,20 +21,21 @@ A modern form builder application that lets you create, customize, and share bea
 | ------------ | ------------------------------------------------------------------------------------------------------------------ |
 | Framework    | [TanStack Start](https://tanstack.com/start) (Vite + React 19)                                                     |
 | Routing      | [TanStack Router](https://tanstack.com/router) (file-based, type-safe)                                             |
-| Data         | [TanStack DB](https://tanstack.com/db) + [ElectricSQL](https://electric-sql.com) (local-first sync)                |
+| Data         | [TanStack DB](https://tanstack.com/db) (query-based, local-first collections)                                      |
 | Database     | PostgreSQL + [Drizzle ORM](https://orm.drizzle.team)                                                               |
 | Auth         | [Better Auth](https://www.better-auth.com) (email/password, OTP, 2FA, organizations)                               |
 | Editor       | [Plate.js](https://platejs.org) (rich text, block-based)                                                           |
 | UI           | [shadcn/ui](https://ui.shadcn.com) + [Radix UI](https://radix-ui.com) + [Tailwind CSS v4](https://tailwindcss.com) |
 | AI           | [Vercel AI SDK](https://sdk.vercel.ai)                                                                             |
 | Payments     | [Polar](https://polar.sh)                                                                                          |
-| File Uploads | [UploadThing](https://uploadthing.com)                                                                             |
+| File Uploads | [Vercel Blob](https://vercel.com/docs/vercel-blob)                                                                 |
 | Monitoring   | [Sentry](https://sentry.io)                                                                                        |
 | Server       | [Nitro](https://nitro.unjs.io)                                                                                     |
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) (runtime and package manager)
+- [Node.js](https://nodejs.org) 24.x
+- [pnpm](https://pnpm.io) (`corepack enable` or `npm i -g pnpm`)
 - [PostgreSQL](https://www.postgresql.org) database
 
 ## Getting Started
@@ -49,7 +50,7 @@ A modern form builder application that lets you create, customize, and share bea
 2. **Install dependencies**
 
    ```bash
-   bun install
+   pnpm install
    ```
 
 3. **Set up environment variables**
@@ -62,32 +63,41 @@ A modern form builder application that lets you create, customize, and share bea
 
 4. **Set up the database**
 
-   ```bash
-   bun db:generate
-   bun db:migrate
-   ```
+   Point `DATABASE_URL` / `DIRECT_URL` at your Postgres instance, then apply the
+   schema as described in [CONTRIBUTING.md → Database changes](CONTRIBUTING.md#database-changes).
+
+   > ⚠️ **Database commands are not safe to run blindly in this repo.**
+   > Migration tracking has drifted from `src/db/schema.ts`; `pnpm db:push` will
+   > try to DROP existing tables. Do **not** run `db:push` / `db:migrate` /
+   > `db:generate` without coordinating with a maintainer. Schema changes are
+   > applied as additive, idempotent DDL via the direct connection. See
+   > CONTRIBUTING.md → Database changes.
 
 5. **Start the development server**
 
    ```bash
-   bun dev
+   pnpm dev
    ```
 
    Open the URL printed in the terminal.
 
 ## Scripts
 
-| Command           | Description                     |
-| ----------------- | ------------------------------- |
-| `bun dev`         | Start the Vite dev server       |
-| `bun build`       | Production build                |
-| `bun start`       | Start production server         |
-| `bun test`        | Run tests with Vitest           |
-| `bun lint`        | Lint with oxlint + knip         |
-| `bun fmt`         | Format with oxfmt               |
-| `bun check`       | Run all checks (Ultracite)      |
-| `bun fix`         | Auto-fix lint and format issues |
-| `bun db:generate` | Generate Drizzle migrations     |
-| `bun db:migrate`  | Run database migrations         |
-| `bun db:push`     | Push schema changes directly    |
-| `bun db:studio`   | Open Drizzle Studio             |
+| Command            | Description                                         |
+| ------------------ | --------------------------------------------------- |
+| `pnpm dev`         | Start the Vite dev server                           |
+| `pnpm build`       | Production build                                    |
+| `pnpm start`       | Start production server                             |
+| `pnpm test`        | Run tests with Vitest                               |
+| `pnpm lint`        | Lint with oxlint + knip                             |
+| `pnpm fmt`         | Format with oxfmt                                   |
+| `pnpm check`       | Run all checks (oxfmt format check + oxlint + knip) |
+| `pnpm fix`         | Auto-fix lint and format issues                     |
+| `pnpm db:generate` | Generate Drizzle migrations (⚠️ see warning)        |
+| `pnpm db:migrate`  | Run database migrations (⚠️ see warning)            |
+| `pnpm db:push`     | Push schema changes directly (⚠️ see warning)       |
+| `pnpm db:studio`   | Open Drizzle Studio                                 |
+
+> ⚠️ `db:generate` / `db:migrate` / `db:push` are **not** safe to run blindly —
+> migration tracking has drifted and `db:push` will try to DROP existing tables.
+> See [CONTRIBUTING.md → Database changes](CONTRIBUTING.md#database-changes).

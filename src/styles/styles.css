@@ -200,7 +200,16 @@
 	--color-gray-800: #303030;
 	--color-gray-900: #212121;
 	--color-gray-950: #141414;
-	--color-gray-1000: #000;
+  --color-gray-1000: #000;
+
+  /* App-wide success (Figma published-state green #1e8d02). The .bf-themed scope overrides this
+     per-form via --bf-success; defined here so non-themed surfaces (e.g. dashboard) get the token. */
+  --color-success: #1e8d02;
+  --color-success-foreground: #ffffff;
+  /* Soft "published" pill pair (Figma list row 26216:13362). */
+  --color-success-soft: #e4faeb;
+  --color-success-on-soft: #137949;
+
 
 	/* Light Gray Alpha Shades */
 	--color-gray-alpha-50: rgb(0 0 0 / 3%); /* 3% Black */
@@ -342,6 +351,13 @@
 	--color-gray-900: #d1d1d1;
 	--color-gray-950: #f8f8f8;
 	--color-gray-1000: #fff;
+
+	/* DEV FLAG: Figma dark-mode success green not provided — reusing #1e8d02; verify against dark frame. */
+	--color-success: #1e8d02;
+	--color-success-foreground: #ffffff;
+	/* DEV FLAG: dark values for the published pill are inferred (no Figma dark table); verify. */
+	--color-success-soft: #0e3318;
+	--color-success-on-soft: #5fd07a;
 
 	/* Dark Gray Alpha Shades */
 	--color-gray-alpha-50: rgb(255 255 255 / 5%); /* 5% White */
@@ -540,6 +556,9 @@
   --font-weight-black: 900;
   /* Font Variation Settings */
   --font-variation-420: "wght" 420;
+  /* Figma "text/base/regular" weight role — opsz pinned to Inter's 14 default. Shared by every
+     placeholder/upload/matrix/block-menu rule so the regular weight lives in one place. */
+  --font-variation-regular: "opsz" 14, "wght" 420;
 
 
   /* Font Size (line-height overrides Tailwind's defaults to match Figma's 115%) */
@@ -662,6 +681,16 @@
 
 @utility elevation-xl {
   box-shadow:
+    0 0 1px 0 rgba(0, 0, 0, 0.2),
+    0 0 10px 2px rgba(0, 0, 0, 0.04),
+    0 24px 30px -8px rgba(0, 0, 0, 0.1);
+}
+
+/* Figma `elevation/light/xl` for dashboard form cards — same 3 layers as elevation-xl plus the
+   inset top highlight. Kept separate so shared elevation-xl (popovers) is unaffected. Mode-independent. */
+@utility elevation-card {
+  box-shadow:
+    inset 0 0.25px 2px 0 rgba(255, 255, 255, 0.15),
     0 0 1px 0 rgba(0, 0, 0, 0.2),
     0 0 10px 2px rgba(0, 0, 0, 0.04),
     0 24px 30px -8px rgba(0, 0, 0, 0.1);
@@ -1029,16 +1058,75 @@
 
 /* Typography bridge */
 .bf-themed {
-  font-size: var(--bf-font-size);
+  /* Default body size 14px (Figma system-flat); --bf-font-size overrides when customized */
+  font-size: var(--bf-font-size, 0.875rem);
   /* unset = current defaults (normal line-height, left-aligned body) */
   line-height: var(--bf-line-height, normal);
   text-align: var(--bf-text-align, left);
+  /* Figma system-flat uses case-sensitive forms across all form text */
+  font-feature-settings: "case";
 }
 
 /* Override global * { letter-spacing: 0.01em } inside themed forms */
 .bf-themed,
 .bf-themed * {
   letter-spacing: var(--bf-letter-spacing);
+}
+
+/* All form placeholders — Figma "text/base/regular" @ 50% opacity (node 25434:2713):
+   gray-600 (theme-adaptive: #7c7c7c light / #949494 dark), 14px, wght 420, 0.28px.
+   Real placeholders (preview, live, editor inline inputs) + slate placeholders carry the full
+   spec incl. color+opacity; lh stays inherited so the textarea's 22px isn't clobbered. */
+.bf-themed input::placeholder,
+.bf-themed textarea::placeholder,
+.bf-themed [data-slate-placeholder] {
+  color: var(--color-gray-600);
+  opacity: 0.5;
+  font-size: 14px;
+  font-variation-settings: var(--font-variation-regular);
+  letter-spacing: 0.28px;
+}
+/* Editor field placeholders are author-editable spans (they carry a caret) — match weight/size/
+   tracking only; the span keeps its own muted-foreground/50 color (no element opacity → caret stays crisp). */
+.bf-themed [data-bf-placeholder] {
+  font-size: 14px;
+  font-variation-settings: var(--font-variation-regular);
+  letter-spacing: 0.28px;
+}
+
+/* Upload field text (editor node + preview/live) — Figma node 25687:11155, both Regular (wght 420,
+   0.02em → 0.28px@14 / 0.26px@13). Primary "Click to choose…" 14px/gray-600; secondary "Max file…"
+   13px/gray-500. !important overrides the field-list font-size rule + global * letter-spacing. */
+.bf-themed [data-bf-upload-primary],
+.bf-themed [data-bf-upload-secondary] {
+  font-variation-settings: var(--font-variation-regular);
+  letter-spacing: 0.02em !important;
+}
+.bf-themed [data-bf-upload-primary] {
+  font-size: 14px !important;
+}
+.bf-themed [data-bf-upload-secondary] {
+  font-size: 13px !important;
+}
+
+/* Matrix headers (editor node + preview/live) — Figma node 25644:10558, both Regular (wght 420,
+   0.02em → 0.26px@13 / 0.28px@14). Column headers 13px/gray-600 (text-muted-foreground); row labels
+   14px/gray-800. !important on the column size beats the field-list font-size rule (preview); the
+   row follows --bf-font-size (14px default). */
+.bf-themed [data-bf-matrix-col],
+.bf-themed [data-bf-matrix-row] {
+  font-variation-settings: var(--font-variation-regular);
+  letter-spacing: 0.02em !important;
+}
+.bf-themed [data-bf-matrix-col] {
+  font-size: 13px !important;
+}
+
+/* Form branding badge "Made with Reform" (Figma 26031:13933) — Regular 420 / 0.28px / gray-500.
+   Overrides the .bf-themed variation(450) + global * letter-spacing(0.14px); size 14px is inline. */
+.bf-themed [data-bf-branding] {
+  font-variation-settings: var(--font-variation-regular);
+  letter-spacing: 0.02em !important;
 }
 
 /* Header is excluded from body typography — revert to base layer defaults */
@@ -1055,8 +1143,8 @@
   font-size: var(--bf-title-font-size);
   letter-spacing: var(--bf-title-letter-spacing);
   font-style: var(--bf-title-font-style, normal);
-  /* unset title color falls back to body foreground = current look */
-  color: var(--bf-title-color, var(--bf-foreground));
+  /* unset title color → Figma system-flat gray-800 (#303030); --bf-title-color overrides */
+  color: var(--bf-title-color, var(--color-gray-800));
 }
 
 /* Title line-height; alignment follows the global --bf-text-align (whole-form alignment). */
@@ -1070,9 +1158,27 @@
   display: none !important;
 }
 
+/* Block-menu rows — Figma system-flat item typography (node 25644:10041): 14px / wght 420 /
+   0.28px / gray-800 (lh 1.15 + case inherited from the popover). Row height (h-[26px]) and
+   padding are untouched, so list measurements stay matching Figma. */
+.bf-block-menu [data-slot="dropdown-menu-item"] {
+  font-size: 14px;
+  font-variation-settings: var(--font-variation-regular);
+  color: var(--color-gray-800);
+}
+.bf-block-menu [data-slot="dropdown-menu-item"] > span {
+  /* label spans pin their own text-foreground/80 — override so the text reads gray-800 */
+  color: var(--color-gray-800);
+}
+/* Override global * { letter-spacing: 0.01em } for the rows + their text */
+.bf-block-menu [data-slot="dropdown-menu-item"],
+.bf-block-menu [data-slot="dropdown-menu-item"] * {
+  letter-spacing: 0.28px;
+}
+
 /* Font-size: editor blocks (inputs, labels, buttons, textareas, paragraphs — NOT headings/header) */
 .bf-themed [data-slate-editor] {
-  font-size: var(--bf-font-size);
+  font-size: var(--bf-font-size, 0.875rem);
 }
 
 .bf-themed [data-slate-editor] [data-slate-node="element"]:not(h1, h2, h3, h4, h5, h6):not([data-bf-header]),

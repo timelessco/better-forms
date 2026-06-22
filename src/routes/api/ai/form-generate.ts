@@ -33,6 +33,7 @@ import {
   checkAiQuota,
   incrementAiCount,
 } from "@/lib/server-fn/ai-quota.server";
+import { checkAiRequestRateLimit } from "@/lib/server-fn/ai-request-rate-limit.server";
 import type { ServerPlan } from "@/lib/server-fn/plan-helpers";
 import { logger } from "@/lib/utils";
 
@@ -151,6 +152,33 @@ export const Route = createFileRoute("/api/ai/form-generate")({
           planLookupError = e instanceof Error ? e.message : String(e);
           logger("[ai-plan] lookup threw — falling back to free", planLookupError);
           // Fall through free/null orgId — skips quota tracking, still gates as free.
+        }
+
+        // Short-window burst limit (all plans, incl. Pro/Business): caps a runaway loop / leaked session before the LLM call, independent of the per-day quota below.
+        if (resolvedOrgId) {
+          const burst = await checkAiRequestRateLimit(resolvedOrgId);
+          logger("[ai-rate-limit] check", {
+            orgId: resolvedOrgId,
+            allowed: burst.allowed,
+            count: burst.count,
+            limit: burst.limit,
+            windowMinutes: burst.windowMinutes,
+          });
+          if (!burst.allowed) {
+            // Distinct `code` so the client shows "slow down" vs. the daily "limit reached". Wire-compatible with client parseError(err).code.
+            return new Response(
+              JSON.stringify({
+                code: "quota/ai-rate-limited",
+                error: "ai_rate_limited",
+                count: burst.count,
+                limit: burst.limit,
+                windowMinutes: burst.windowMinutes,
+                message: `Too many AI requests. Please wait a moment before generating again.`,
+                fix: "Slow down — try again in a few minutes",
+              }),
+              { status: 429, headers: { "Content-Type": "application/json" } },
+            );
+          }
         }
 
         // Rate-limit check. Pro/business get null limit → always allowed.

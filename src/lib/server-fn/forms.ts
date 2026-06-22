@@ -15,6 +15,7 @@ import type { FormSettings } from "@/types/form-settings";
 import { getActiveOrgId } from "./auth-helpers";
 import { authForm, authFormsBulk } from "./auth-helpers.server";
 import { mergeFormSettings } from "./merge-form-settings.server";
+import { hashFormPassword, isHashedFormPassword } from "./password-hash.server";
 import { getOrgPlan, getOrgPlanWithPolarSync } from "./plan-helpers.server";
 import { generateShortId } from "@/lib/short-id";
 
@@ -124,6 +125,13 @@ export const updateForm = createServerFn({ method: "POST" })
     const orgId = getActiveOrgId(context.session);
     await authForm(id, context.session.user.id, orgId);
 
+    // This path also persists draftSettings (the settings UI flushes here via updateForm, not
+    // saveFormSettings). Hash a non-empty, not-already-hashed password so plaintext never lands at
+    // rest. Idempotent guard keeps re-saves from double-hashing.
+    if (settingsPatch?.password && !isHashedFormPassword(settingsPatch.password)) {
+      settingsPatch.password = hashFormPassword(settingsPatch.password);
+    }
+
     const [form] = await db
       .update(forms)
       .set({
@@ -230,6 +238,10 @@ export const saveFormSettings = createServerFn({ method: "POST" })
     await authForm(data.formId, context.session.user.id, orgId);
 
     const sanitized = sanitizeFormSettings(data.settings);
+    // Hash a non-empty, not-already-hashed password before persisting; never store plaintext.
+    if (sanitized.password && !isHashedFormPassword(sanitized.password)) {
+      sanitized.password = hashFormPassword(sanitized.password);
+    }
     const now = new Date();
     await db.transaction(async (tx) => {
       await tx

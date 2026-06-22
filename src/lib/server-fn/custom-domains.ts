@@ -1,3 +1,4 @@
+import { log } from "evlog";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { and, eq, isNotNull } from "drizzle-orm";
@@ -122,7 +123,7 @@ export const addDomain = createServerFn({ method: "POST" })
     } catch (e) {
       vercelFailed = true;
       vercelErrorMessage = e instanceof Error ? e.message : "Unknown Vercel error";
-      console.error("[addDomain] Vercel add failed:", vercelErrorMessage);
+      log.error({ tag: "addDomain", msg: "Vercel add failed", error: vercelErrorMessage });
     }
 
     const now = new Date();

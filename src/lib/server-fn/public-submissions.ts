@@ -1,3 +1,4 @@
+import { log } from "evlog";
 import { createServerFn } from "@tanstack/react-start";
 import { and, count, eq, sql } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
@@ -23,6 +24,7 @@ import { buildVisibleSchema, sanitizeSubmission } from "@/lib/logic/sanitize-sub
 import { isEmailVerifiedToken } from "./email-otp.server";
 import { isServerPlan } from "./plan-helpers";
 import { recordOwnerSubmissionNotification } from "./notifications-helpers.server";
+import { upsertSubmissionByDraft } from "./public-submissions-upsert.server";
 import { sendFormSubmissionNotification, sendRespondentConfirmation } from "@/integrations/email";
 
 // Gate-relevant subset of forms.settings actually read server-side. looseObject so
@@ -291,38 +293,24 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
       sanitizedData = cleaned;
     }
 
-    const existing = data.draftId
-      ? await db
-          .select({
-            id: submissions.id,
-            isCompleted: submissions.isCompleted,
-          })
-          .from(submissions)
-          .where(and(eq(submissions.formId, data.formId), eq(submissions.draftId, data.draftId)))
-          .limit(1)
-      : [];
-    const existingRow = existing[0];
-
-    // Defense in depth: never downgrade completed → incomplete on out-of-order debounced save.
-    if (existingRow?.isCompleted && !data.isCompleted) {
-      return { submissionId: existingRow.id, success: true, noop: true };
-    }
-
     const now = new Date();
     let submissionId: string;
+    // Prior completed state of the (formId, draftId) row, if it already existed. Drives the
+    // no-downgrade noop and the once-only finalize/notification logic below.
+    let wasCompleted = false;
 
-    if (existingRow) {
-      submissionId = existingRow.id;
-      await db
-        .update(submissions)
-        .set({
-          data: sanitizedData,
-          isCompleted: data.isCompleted,
-          lastStepReached: data.lastStepReached ?? null,
-          updatedAt: now,
-          formVersionId: form.lastPublishedVersionId,
-        })
-        .where(eq(submissions.id, existingRow.id));
+    if (data.draftId) {
+      const result = await upsertSubmissionByDraft({
+        formId: data.formId,
+        draftId: data.draftId,
+        formVersionId: form.lastPublishedVersionId,
+        data: sanitizedData,
+        isCompleted: data.isCompleted,
+        lastStepReached: data.lastStepReached ?? null,
+        now,
+      });
+      submissionId = result.submissionId;
+      wasCompleted = result.wasCompleted;
     } else {
       submissionId = crypto.randomUUID();
       await db.insert(submissions).values({
@@ -331,15 +319,21 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
         formVersionId: form.lastPublishedVersionId,
         data: sanitizedData,
         isCompleted: data.isCompleted,
-        draftId: data.draftId ?? null,
+        draftId: null,
         lastStepReached: data.lastStepReached ?? null,
         createdAt: now,
         updatedAt: now,
       });
     }
 
+    // Defense in depth: never downgrade completed → incomplete on out-of-order debounced save.
+    // The upsert's CASE guard already left the stored row untouched; just short-circuit here.
+    if (wasCompleted && !data.isCompleted) {
+      return { submissionId, success: true, noop: true };
+    }
+
     // Notifications + emails only fire on final submit, not on each draft save.
-    const isFinalizing = data.isCompleted && (!existingRow || !existingRow.isCompleted);
+    const isFinalizing = data.isCompleted && !wasCompleted;
     if (isFinalizing) {
       // creator may be NULL after user delete (FK SET NULL).
       if (form.createdByUserId) {
@@ -369,7 +363,7 @@ export const createPublicSubmission = createServerFn({ method: "POST" })
             data.formId,
             submissionId,
             sanitizedData,
-          ).catch((err) => console.error("[Email] Notification error:", err)),
+          ).catch((err) => log.error({ tag: "Email", msg: "Notification error", error: err })),
         );
       }
 
@@ -455,7 +449,7 @@ const sendEmailNotifications = async (
         formRow?.title ?? "Untitled Form",
         submissionId,
         submissionData,
-      ).catch((err) => console.error("[Email] Self notification error:", err));
+      ).catch((err) => log.error({ tag: "Email", msg: "Self notification error", error: err }));
     }
   }
 
@@ -467,7 +461,7 @@ const sendEmailNotifications = async (
         settings.respondentEmailBody ||
         "Thank you for filling out our form. We have received your response.";
       sendRespondentConfirmation(respondentEmail, subject, body).catch((err) =>
-        console.error("[Email] Respondent notification error:", err),
+        log.error({ tag: "Email", msg: "Respondent notification error", error: err }),
       );
     }
   }

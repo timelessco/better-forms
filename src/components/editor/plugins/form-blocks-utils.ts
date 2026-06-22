@@ -64,6 +64,16 @@ export const findNextNonButtonPath = (editor: PlateEditor, currentPath: Path): P
 
 export type FocusTarget = { kind: "button" | "field"; path: Path };
 
+// Pure-void display fields: no editable caret or sub-input, so landing on them via Tab only
+// block-selects (jarring "Ask AI" pop). Tab nav skips them like upload; click/arrow still reach
+// them. formMatrix is NOT here — it has editable row/col cells goToFocusTarget focuses.
+const SKIP_FOCUS_TYPES = new Set([
+  "formFileUpload",
+  "formLinearScale",
+  "formRating",
+  "formSignature",
+]);
+
 const isActionButton = (node: TElement | undefined): boolean =>
   node?.type === "formButton" &&
   ((node as Record<string, unknown>).buttonRole || "submit") !== "previous";
@@ -89,6 +99,7 @@ export const findNextFocusTarget = (
     }
     if (node.type === "formButton") return { kind: "button", path: [i] };
     if (fromAction && !crossedBreak) continue; // trailing same-page content after Submit isn't a stop
+    if (SKIP_FOCUS_TYPES.has(node.type)) continue; // void display field → skip, not a tab stop
     return { kind: "field", path: [i] };
   }
   return null;
@@ -106,6 +117,7 @@ export const findPrevFocusTarget = (
     if (node.type === "formHeader") continue;
     if (node.type === "pageBreak") continue;
     if (node.type === "formButton") return { kind: "button", path: [i] };
+    if (SKIP_FOCUS_TYPES.has(node.type)) continue; // void display field → skip, not a tab stop
     return { kind: "field", path: [i] };
   }
   return null;

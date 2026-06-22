@@ -38,6 +38,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { log } from "evlog";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 import {
@@ -144,7 +145,7 @@ export const WorkspaceItemMinimal = ({
         params: { workspaceId: workspace.id, formId: newForm.id },
       });
     } catch (error) {
-      console.error("Failed to create form:", error);
+      log.error({ tag: "workspace-item-minimal", msg: "Failed to create form", error });
     } finally {
       setIsCreatingForm(false);
     }

@@ -48,7 +48,9 @@ const SortableRankRow = ({
       // scale stretches text rows into the image row's slot — giant distorted labels mid-drag.
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
-        "flex cursor-pointer touch-manipulation gap-2 py-1 text-left text-sm transition-colors",
+        // Figma ranking item (26153:13884): 14px / gray-900 / 450 / 0.14px. Follow --bf-font-size
+        // directly (14px default, customizable) so it's 14px in both field-list and form-container preview.
+        "flex cursor-pointer touch-manipulation gap-2 py-1 text-left [font-size:var(--bf-font-size,0.875rem)] transition-colors",
         // image rows top-align so the handle/badge stays on the label line
         option.image ? "items-start" : "items-center",
         isDragging && "relative z-10 cursor-grabbing opacity-80",

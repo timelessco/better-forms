@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { log } from "evlog";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq, inArray } from "drizzle-orm";
@@ -88,7 +89,9 @@ export const publishFormVersion = createServerFn({ method: "POST" })
 
       // DEBUG: log snapshot publish reads from DB to diagnose "changed it but published is
       // stale" reports. Revert once verified.
-      console.log("[publish] read forms row", {
+      log.info({
+        tag: "publish",
+        msg: "read forms row",
         formId: data.formId,
         title: form.title,
         contentLen: Array.isArray(form.content) ? form.content.length : null,
@@ -105,7 +108,9 @@ export const publishFormVersion = createServerFn({ method: "POST" })
       const versionedDirty = form.publishedContentHash !== contentHash;
       const isFirstPublish = !form.lastPublishedVersionId;
 
-      console.log("[publish] decision", {
+      log.info({
+        tag: "publish",
+        msg: "decision",
         versionedDirty,
         isFirstPublish,
         willInsertVersion: versionedDirty || isFirstPublish,
@@ -140,7 +145,9 @@ export const publishFormVersion = createServerFn({ method: "POST" })
           .returning();
         newVersion = inserted;
 
-        console.log("[publish] inserted new version row", {
+        log.info({
+          tag: "publish",
+          msg: "inserted new version row",
           versionId,
           version: nextVersionNumber,
           contentLen: Array.isArray(inserted?.content)

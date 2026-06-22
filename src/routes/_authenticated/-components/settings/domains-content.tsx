@@ -82,7 +82,7 @@ const fileToBase64 = (file: File): Promise<string> =>
 const StatusBadge = ({ status }: { status: DomainStatus }) => (
   <span
     className={cn(
-      "inline-flex shrink-0 items-center rounded-full px-1.5 py-[3px] text-xs font-medium tracking-[0.24px]",
+      "inline-flex shrink-0 items-center rounded-full px-1.5 py-[3px] text-xs leading-[1.15] font-medium tracking-[0.24px]",
       STATUS_STYLES[status],
     )}
   >
@@ -384,19 +384,21 @@ const DomainRow = ({
   onDelete,
 }: DomainRowProps) => (
   <div
-    className={cn(
-      "flex items-center justify-between gap-3 py-1.5",
-      !isLast && "border-b border-[var(--color-gray-100)]",
-    )}
+    className={cn("flex items-center py-1.5", !isLast && "border-b border-[var(--color-gray-100)]")}
   >
+    {/* Figma: domain 14/420/gray-800/opsz-24; flex-1 (Figma's fixed 200px → responsive) so the
+        fixed-width status slot below keeps every badge column-aligned across rows. */}
     <button
       type="button"
       onClick={onOpen}
-      className="max-w-[60%] min-w-0 truncate text-left text-base font-[420] text-gray-800 transition-colors hover:text-foreground"
+      className="min-w-0 flex-1 truncate text-left text-base font-[420] text-gray-800 transition-colors font-opsz-24 hover:text-foreground"
     >
       {domain.domain}
     </button>
-    <StatusBadge status={domain.status} />
+    {/* Fixed 100px status slot, badge left-aligned (Figma node 26156:14119) — aligns the badge column. */}
+    <div className="w-[100px] shrink-0">
+      <StatusBadge status={domain.status} />
+    </div>
     <DropdownMenu>
       <DropdownMenuTrigger
         render={

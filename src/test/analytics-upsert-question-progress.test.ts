@@ -33,6 +33,13 @@ const makeInsertChain = () => {
 vi.mock<typeof import("@/db")>(import("@/db"), () => ({
   db: {
     insert: () => makeInsertChain(),
+    // isFormPublished()'s lookup: resolve to a published form so the ingestion gate passes and
+    // the test reaches the insert/upsert it actually asserts. (Rate limit is skipped: no request IP.)
+    select: () => ({
+      from: () => ({
+        where: () => ({ limit: () => Promise.resolve([{ status: "published" }]) }),
+      }),
+    }),
   } as unknown as (typeof import("@/db"))["db"],
 }));
 
@@ -122,7 +129,7 @@ describe("recordQuestionProgressBatchImpl", () => {
     calls.length = 0;
   });
 
-  it("processes items sequentially and reports the count", async () => {
+  it("de-dups same (visitId, questionId) into one upsert and reports the input count", async () => {
     const result = await recordQuestionProgressBatchImpl({
       items: [
         { ...baseInput, event: "view" },
@@ -131,7 +138,8 @@ describe("recordQuestionProgressBatchImpl", () => {
       ],
     });
 
+    // 3 events for the same (visitId, questionId) collapse to a single multi-row upsert call.
     expect(result).toEqual({ ok: true, processed: 3 });
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(1);
   });
 });

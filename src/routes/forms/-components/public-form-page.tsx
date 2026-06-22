@@ -6,6 +6,7 @@ import {
   SunIcon,
 } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
+import { log } from "evlog";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FormPreviewRSC } from "@/components/form-components/form-preview-rsc";
 import type { FormLogicValue } from "@/lib/logic/build-form-logic";
@@ -107,7 +108,7 @@ const sendToParent = (event: string, payload?: Record<string, unknown>): void =>
   try {
     window.parent.postMessage(JSON.stringify({ event, ...payload }), "*");
   } catch (e) {
-    console.error("[Reform] Failed to send message to parent:", e);
+    log.error({ tag: "Reform", msg: "Failed to send message to parent", error: e });
   }
 };
 
@@ -375,7 +376,7 @@ export const PublicFormPage = ({
           });
         }
       } catch (err) {
-        console.error("Submission error:", err);
+        log.error({ tag: "public-form-page", msg: "Submission error", error: err });
         setSubmitError(getTranslations(resolvedLanguage).submitFailed);
         throw err; // Re-throw so the form knows it failed
       }

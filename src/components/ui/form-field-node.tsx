@@ -14,7 +14,7 @@ import {
   TextIcon,
 } from "@/components/ui/icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useFieldLabelText, useFormInputNode } from "@/hooks/use-form-input-node";
+import { useFieldLabelText } from "@/hooks/use-form-input-node";
 import { cn } from "@/lib/utils";
 
 type IconComponent = ComponentType<{ className?: string }>;
@@ -43,8 +43,6 @@ const VARIANTS: Record<string, FormFieldVariant> = {
 export const FormFieldElement = (allProps: PlateElementProps) => {
   const { children, ...props } = allProps;
   const { attributes, element, ...rest } = props;
-  // Hook is unconditional (rules-of-hooks); variant gating happens after.
-  const { focused, isSelected } = useFormInputNode(element);
   // Pulled from the preceding label block so the editor's add-item indicator
   // reads e.g. "Add full name" (matching the live preview) instead of the
   // generic "Add item". Hook subscribes to label edits and updates live.
@@ -86,12 +84,14 @@ export const FormFieldElement = (allProps: PlateElementProps) => {
         }}
         className={cn(
           "relative flex h-[30px] w-full cursor-text items-center gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-[10px] text-sm caret-current elevation-sm",
-          isSelected && focused && "ring-[3px] ring-ring/50",
         )}
         element={element}
         {...rest}
       >
-        <span className="line-clamp-1 min-w-0 flex-1 break-all text-muted-foreground/50 outline-none">
+        <span
+          className="line-clamp-1 min-w-0 flex-1 break-all text-muted-foreground/50 outline-none"
+          data-bf-placeholder
+        >
           {children}
         </span>
         <Tooltip>
@@ -124,7 +124,10 @@ export const FormFieldElement = (allProps: PlateElementProps) => {
                 className="relative flex h-[30px] flex-1 items-center gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-[10px] text-sm elevation-sm"
                 aria-hidden="true"
               >
-                <span className="line-clamp-1 min-w-0 flex-1 break-all text-muted-foreground/50">
+                <span
+                  className="line-clamp-1 min-w-0 flex-1 break-all text-muted-foreground/50"
+                  data-bf-placeholder
+                >
                   {placeholder}
                 </span>
                 <Icon className="ml-1 size-3.5 shrink-0 text-muted-foreground" />

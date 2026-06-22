@@ -387,7 +387,6 @@ const OptionChipsRow = ({ children, ...props }: PlateElementProps) => {
       attributes={{ ...attributes, "data-bf-input": "true" }}
       className={cn(
         "relative flex min-h-7 w-full max-w-116 cursor-default items-center rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] px-2 py-1 text-sm elevation-sm",
-        isSelected && focused && "ring-[3px] ring-ring/50",
       )}
       element={element}
       {...rest}

@@ -1,7 +1,8 @@
-import { getRequestHeaders } from "@tanstack/react-start/server";
+import { getRequestHeaders, getRequestIP } from "@tanstack/react-start/server";
 import { and, count, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  analyticsRateLimits,
   formAnalyticsDaily,
   formDropoffDaily,
   formQuestionProgress,
@@ -105,6 +106,72 @@ export const getAnalyticsState = async (
   return { toggle, display };
 };
 
+// ── Ingestion guards (anonymous endpoints): reject writes for missing/non-published forms and
+// rate-limit per IP, mirroring the public-file-upload hardening. Analytics is best-effort, so a
+// blocked write returns the no-op shape and never throws — a real respondent on a shared IP must
+// not see the form break. ──
+
+const ANALYTICS_WINDOW_MINUTES = 1;
+// Visits + per-question progress are chatty; 120/min/IP clears a long multi-step respondent.
+const ANALYTICS_MAX_PER_WINDOW = 120;
+const ANALYTICS_CLEANUP_PROBABILITY = 0.01;
+// SQL literal: Postgres can't cast a parameterized int into an interval. Build-time constant, safe.
+const ANALYTICS_WINDOW_INTERVAL_SQL = sql.raw(`interval '${ANALYTICS_WINDOW_MINUTES} minutes'`);
+
+// null when there's no client IP — callers skip the rate limit then. getRequestIP throws off the
+// server runtime ("No StartEvent in AsyncLocalStorage", e.g. unit tests), so guard it. Production
+// traffic always carries x-forwarded-for (set by Vercel); this only fails open off-platform, where
+// flooding isn't the concern (the published-form gate still applies).
+const getClientIp = (): string | null => {
+  try {
+    return getRequestIP({ xForwardedFor: true }) ?? null;
+  } catch {
+    return null;
+  }
+};
+
+// Only published forms accept analytics — drops fabricated visits/progress for draft/archived/
+// missing formIds (which would otherwise pollute a real customer's funnel + grow the tables).
+const isFormPublished = async (formId: string): Promise<boolean> => {
+  const [form] = await db
+    .select({ status: forms.status })
+    .from(forms)
+    .where(eq(forms.id, formId))
+    .limit(1);
+  return form?.status === "published";
+};
+
+// Per-IP sliding-window limit. Returns false when the IP is over budget (caller no-ops). Atomic
+// upsert + cleanup-on-write keeps the table small without a cron (see upload_rate_limits).
+// Exported for direct testing (request context can't supply an IP in unit tests).
+export const checkAnalyticsRateLimit = async (ip: string): Promise<boolean> => {
+  if (Math.random() < ANALYTICS_CLEANUP_PROBABILITY) {
+    await db.execute(
+      sql`DELETE FROM analytics_rate_limits WHERE window_start < now() - interval '1 hour'`,
+    );
+  }
+  const result = await db
+    .insert(analyticsRateLimits)
+    .values({ ip, count: 1 })
+    .onConflictDoUpdate({
+      target: analyticsRateLimits.ip,
+      set: {
+        count: sql`CASE
+          WHEN ${analyticsRateLimits.windowStart} < now() - ${ANALYTICS_WINDOW_INTERVAL_SQL}
+            THEN 1
+          ELSE ${analyticsRateLimits.count} + 1
+        END`,
+        windowStart: sql`CASE
+          WHEN ${analyticsRateLimits.windowStart} < now() - ${ANALYTICS_WINDOW_INTERVAL_SQL}
+            THEN now()
+          ELSE ${analyticsRateLimits.windowStart}
+        END`,
+      },
+    })
+    .returning({ count: analyticsRateLimits.count });
+  return (result[0]?.count ?? 0) <= ANALYTICS_MAX_PER_WINDOW;
+};
+
 export const recordFormVisitImpl = async (
   data: RecordFormVisitInput,
 ): Promise<{ visitId: string | null }> => {
@@ -112,6 +179,15 @@ export const recordFormVisitImpl = async (
   const ua = headers.get("user-agent");
 
   if (isBotUserAgent(ua)) {
+    return { visitId: null };
+  }
+
+  // Per-IP rate limit + published-form gate before any write (see ingestion guards above).
+  const ip = getClientIp();
+  if (ip && !(await checkAnalyticsRateLimit(ip))) {
+    return { visitId: null };
+  }
+  if (!(await isFormPublished(data.formId))) {
     return { visitId: null };
   }
 
@@ -177,6 +253,15 @@ export const updateFormVisitImpl = async (data: UpdateFormVisitInput): Promise<{
 export const recordQuestionProgressImpl = async (
   data: RecordQuestionProgressInput,
 ): Promise<{ ok: true }> => {
+  // Per-IP rate limit + published-form gate before any write (best-effort: no-op, never throw).
+  const ip = getClientIp();
+  if (ip && !(await checkAnalyticsRateLimit(ip))) {
+    return { ok: true };
+  }
+  if (!(await isFormPublished(data.formId))) {
+    return { ok: true };
+  }
+
   const now = new Date();
   const isStart = data.event === "start" || data.event === "complete";
   const isComplete = data.event === "complete";
@@ -217,9 +302,64 @@ export const recordQuestionProgressImpl = async (
 export const recordQuestionProgressBatchImpl = async (
   data: RecordQuestionProgressBatchInput,
 ): Promise<{ ok: true; processed: number }> => {
-  for (const item of data.items) {
-    await recordQuestionProgressImpl(item);
+  // Rate-limit + published gate once per batch (not per item). A batch is one respondent's
+  // session = one form, so the first item's formId is authoritative for the published check.
+  const ip = getClientIp();
+  if (ip && !(await checkAnalyticsRateLimit(ip))) {
+    return { ok: true, processed: 0 };
   }
+  const batchFormId = data.items[0]?.formId;
+  if (batchFormId && !(await isFormPublished(batchFormId))) {
+    return { ok: true, processed: 0 };
+  }
+
+  const now = new Date();
+  // De-dup by (visitId, questionId): the conflict key. Postgres rejects a row hit twice in one
+  // ON CONFLICT statement, so merge intra-batch dupes the way the upsert would (monotonic lifecycle).
+  type Row = typeof formQuestionProgress.$inferInsert;
+  const byKey = new Map<string, Row>();
+  for (const item of data.items) {
+    const key = `${item.visitId} ${item.questionId}`;
+    const prev = byKey.get(key);
+    const isStart = item.event === "start" || item.event === "complete";
+    const isComplete = item.event === "complete";
+    byKey.set(key, {
+      id: prev?.id ?? crypto.randomUUID(),
+      visitId: item.visitId,
+      formId: item.formId,
+      visitorHash: item.visitorHash,
+      questionId: item.questionId,
+      questionType: prev?.questionType ?? item.questionType ?? null,
+      questionIndex: prev?.questionIndex ?? item.questionIndex,
+      stepId: prev?.stepId ?? item.stepId ?? null,
+      stepIndex: prev?.stepIndex ?? item.stepIndex ?? null,
+      viewedAt: now,
+      startedAt: prev?.startedAt ?? (isStart ? now : null),
+      completedAt: prev?.completedAt ?? (isComplete ? now : null),
+      wasLastQuestion: (prev?.wasLastQuestion ?? false) || (item.wasLastQuestion ?? false),
+    });
+  }
+
+  const rows = [...byKey.values()];
+  if (rows.length === 0) {
+    return { ok: true, processed: 0 };
+  }
+
+  await db
+    .insert(formQuestionProgress)
+    .values(rows)
+    .onConflictDoUpdate({
+      target: [formQuestionProgress.visitId, formQuestionProgress.questionId],
+      // Identical to recordQuestionProgressImpl: excluded.* not raw Date (postgres-js binder).
+      set: {
+        startedAt: sql`coalesce(${formQuestionProgress.startedAt}, excluded."startedAt")`,
+        completedAt: sql`coalesce(${formQuestionProgress.completedAt}, excluded."completedAt")`,
+        wasLastQuestion: sql`${formQuestionProgress.wasLastQuestion} or excluded."wasLastQuestion"`,
+        stepId: sql`coalesce(${formQuestionProgress.stepId}, excluded."stepId")`,
+        stepIndex: sql`coalesce(${formQuestionProgress.stepIndex}, excluded."stepIndex")`,
+      },
+    });
+
   return { ok: true, processed: data.items.length };
 };
 

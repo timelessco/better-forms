@@ -16,7 +16,8 @@ const TextareaField = ({ element, form, name }: FieldRendererProps<"Textarea">) 
             autoComplete={guessAutocomplete(element)}
             aria-label={getAriaLabelFallback(element)}
             aria-labelledby={isArrayItem ? fieldLabelId(element.name) : getAriaLabelledBy(element)}
-            className="min-h-24 form-input pr-[8px] pl-[10px]"
+            // Figma multi-line answer: 22px line-height (local; ! beats the field-list line-height pin)
+            className="min-h-24 form-input pr-[8px] pl-[10px] leading-[22px]!"
           />
           <f.FieldError />
         </>

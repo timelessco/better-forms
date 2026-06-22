@@ -6,23 +6,18 @@ import { BlockSelection } from "@/components/ui/block-selection";
 import { IconRating } from "@/components/ui/icons";
 import { RatingStar } from "@/components/ui/rating-star";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useFormInputNode } from "@/hooks/use-form-input-node";
 import { extractRatingFields } from "@/lib/form-schema/form-field-constants";
 import { cn } from "@/lib/utils";
 
 export const FormRatingElement = ({ children, ...props }: PlateElementProps) => {
   const { attributes, element, ...rest } = props;
-  const { focused, isSelected } = useFormInputNode(element);
 
   const { starCount } = extractRatingFields(element);
 
   return (
     <PlateElement
       attributes={{ ...attributes, "data-bf-input": "true" }}
-      className={cn(
-        "relative flex w-full cursor-default items-start gap-2 rounded-[8px]",
-        isSelected && focused && "ring-[3px] ring-ring/50",
-      )}
+      className={cn("relative flex w-full cursor-default items-start gap-2 rounded-[8px]")}
       element={element}
       {...rest}
     >

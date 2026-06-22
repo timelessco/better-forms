@@ -47,3 +47,22 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec oxlint --type-aware --type-check --format=github
+      - run: pnpm exec tsc --noEmit
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # --no-file-parallelism: tests share one remote Supabase DB and flake in parallel.
+      # Drop once tests are DB-isolated (plan 010).
+      - run: pnpm exec vitest run --no-file-parallelism
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}

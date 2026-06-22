@@ -3,11 +3,15 @@ import { Resend } from "resend";
 import { APP_NAME } from "@/lib/config/app-config";
 import { logger } from "@/lib/utils";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy singleton: the Resend constructor throws on a missing key, so building it at module load
+// would crash every test suite that transitively imports this file in a keyless env (CI). Defer
+// until an email is actually sent.
+let resendClient: Resend | null = null;
+const resend = () => (resendClient ??= new Resend(process.env.RESEND_API_KEY));
 const FROM_EMAIL = `${APP_NAME} <noreply@share.recollect.so>`;
 
 export const sendMagicLinkEmail = async (email: string, url: string) => {
-  const { error } = await resend.emails.send({
+  const { error } = await resend().emails.send({
     from: FROM_EMAIL,
     to: email,
     subject: `Sign in to ${APP_NAME}`,
@@ -38,7 +42,7 @@ export const sendOrgInvitationEmail = async (
   inviterName: string,
   inviteLink: string,
 ) => {
-  const { error } = await resend.emails.send({
+  const { error } = await resend().emails.send({
     from: FROM_EMAIL,
     to: email,
     subject: `You're invited to join ${orgName}`,
@@ -80,7 +84,7 @@ export const sendFormSubmissionNotification = async (
     })
     .join("");
 
-  const { error } = await resend.emails.send({
+  const { error } = await resend().emails.send({
     from: FROM_EMAIL,
     to,
     subject: `New submission: ${formTitle}`,
@@ -106,7 +110,7 @@ export const sendFormSubmissionNotification = async (
 };
 
 export const sendRespondentConfirmation = async (to: string, subject: string, body: string) => {
-  const { error } = await resend.emails.send({
+  const { error } = await resend().emails.send({
     from: FROM_EMAIL,
     to,
     subject,
@@ -127,7 +131,7 @@ export const sendRespondentConfirmation = async (to: string, subject: string, bo
 /** OTP for the public-form "Verify email" field. Throws on send failure so the
  * caller can surface it (unlike fire-and-forget notification mails). */
 export const sendEmailVerificationCode = async (to: string, code: string, formTitle: string) => {
-  const { error } = await resend.emails.send({
+  const { error } = await resend().emails.send({
     from: FROM_EMAIL,
     to,
     subject: `${code} is your verification code`,
@@ -156,7 +160,7 @@ export const sendChangeEmailConfirmationEmail = async (
   newEmail: string,
   url: string,
 ) => {
-  const { error } = await resend.emails.send({
+  const { error } = await resend().emails.send({
     from: FROM_EMAIL,
     to: email,
     subject: `Confirm your email change`,

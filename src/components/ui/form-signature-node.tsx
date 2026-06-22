@@ -5,7 +5,6 @@ import { PlateElement } from "platejs/react";
 import { BlockSelection } from "@/components/ui/block-selection";
 import { IconSignature } from "@/components/ui/icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useFormInputNode } from "@/hooks/use-form-input-node";
 import { cn } from "@/lib/utils";
 
 // Script font stack for the "Sign here" placeholder — no bundled font, falls back across OSes to a
@@ -14,15 +13,11 @@ const SIGNATURE_FONT = '"Snell Roundhand", "Segoe Script", "Brush Script MT", cu
 
 export const FormSignatureElement = ({ children, ...props }: PlateElementProps) => {
   const { attributes, element, ...rest } = props;
-  const { focused, isSelected } = useFormInputNode(element);
 
   return (
     <PlateElement
       attributes={{ ...attributes, "data-bf-input": "true" }}
-      className={cn(
-        "relative w-full cursor-default rounded-[8px]",
-        isSelected && focused && "ring-[3px] ring-ring/50",
-      )}
+      className={cn("relative w-full cursor-default rounded-[8px]")}
       element={element}
       {...rest}
     >

@@ -11,6 +11,7 @@ import {
 } from "./theme-presets";
 import { FONT_MAP, getGoogleFontUrl } from "./font-registry";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "./customization-defaults";
+import { migrateCustomization } from "./customization-migrate";
 
 /**
  * Effective color mode the form renders in. Precedence:
@@ -278,9 +279,10 @@ const buildThemeVarEntries = (customization: Record<string, string>): [string, s
 /** React style object of CSS custom props for the full theme. Apply to a `.bf-themed`
  * container; styles.css bridge rules map --bf-* to shadcn vars in scope. */
 export const getThemeStyleVars = (
-  customization: Record<string, string> | null | undefined,
+  raw: Record<string, string> | null | undefined,
 ): CSSProperties => {
-  if (!customization || Object.keys(customization).length === 0) return {};
+  const customization = migrateCustomization(raw);
+  if (Object.keys(customization).length === 0) return {};
 
   const vars: Record<string, string> = {};
   for (const [prop, value] of buildThemeVarEntries(customization)) {
@@ -301,10 +303,9 @@ const applyLogoMinimalFlag = (
 
 /** `<style>` body setting CSS custom props on `.bf-themed`, for public-form SSR
  * injection. Consuming bridge rules live in styles.css. */
-export const generateThemeCss = (
-  customization: Record<string, string> | null | undefined,
-): string => {
-  if (!customization || Object.keys(customization).length === 0) return "";
+export const generateThemeCss = (raw: Record<string, string> | null | undefined): string => {
+  const customization = migrateCustomization(raw);
+  if (Object.keys(customization).length === 0) return "";
 
   const entries = buildThemeVarEntries(customization);
   if (entries.length === 0) return "";
@@ -330,10 +331,9 @@ const formatCssBlock = (selector: string, entries: [string, string][]): string =
 // Prefer over generateThemeCss for SSR: avoids flash when viewer theme ≠ server
 // default. Emits both sets; root `.dark`/`.light` class picks one in pure CSS,
 // no hydration regen.
-export const generateDualThemeCss = (
-  customization: Record<string, string> | null | undefined,
-): string => {
-  if (!customization || Object.keys(customization).length === 0) return "";
+export const generateDualThemeCss = (raw: Record<string, string> | null | undefined): string => {
+  const customization = migrateCustomization(raw);
+  if (Object.keys(customization).length === 0) return "";
 
   const lightTokens = resolveTokens({ ...customization, mode: "light" });
   const darkTokens = resolveTokens({ ...customization, mode: "dark" });
