@@ -18,6 +18,19 @@ overrides:
   # while the other devtools sit on 0.11 (solid-js 1.9.12). Two Solid instances
   # crash the shared devtools shell ("multiple instances of Solid"). Pin to one.
   "solid-js": "1.9.13"
+  # Security: force patched versions for transitive advisories (pnpm audit, plan 009).
+  # All patch/minor bumps of transitive deps — no direct-dep majors.
+  "shell-quote@<1.8.4": "^1.8.4"
+  "undici@<6.27.0": "^6.27.0"
+  "undici@>=7.0.0 <7.28.0": "^7.28.0"
+  "hono@<4.12.25": "^4.12.25"
+  "ws@<8.21.0": "^8.21.0"
+  "@opentelemetry/core@<2.8.0": "^2.8.0"
+  "qs@<6.15.2": "^6.15.2"
+  "launch-editor@<2.14.1": "^2.14.1"
+  # js-video-url-parser ReDoS (GHSA, transitive via @platejs/media): patched 0.5.2
+  # is NOT published (latest is 0.5.1) — no fix available; deferred.
+  "js-yaml@<4.1.2": "^4.1.2"
 
 # Quarantine bypass:
 #  - @tanstack/react-table & table-core: alpha.42 has a broken-on-arrival
@@ -84,6 +97,10 @@ minimumReleaseAgeExclude:
   #  - cnfast (2026-06-22) replaces clsx+tailwind-merge cn impl; package is
   #    days old so every version is inside the window. Remove once it ages out.
   - "cnfast"
+  #  - undici security patches (6.27.0 / 7.28.0, published 2026-06-15) needed by the
+  #    plan-009 overrides; both age out 2026-06-22. Mature Node core dep — safe to
+  #    pull the security fix early. Remove once aged out.
+  - "undici"
 
 # 7-day supply-chain quarantine (see CLAUDE.md). Freshly published registry
 # versions are held back for 10080 minutes; the explicit exclude list above
