@@ -1122,6 +1122,13 @@
   font-size: 13px !important;
 }
 
+/* Form branding badge "Made with Reform" (Figma 26031:13933) — Regular 420 / 0.28px / gray-500.
+   Overrides the .bf-themed variation(450) + global * letter-spacing(0.14px); size 14px is inline. */
+.bf-themed [data-bf-branding] {
+  font-variation-settings: var(--font-variation-regular);
+  letter-spacing: 0.02em !important;
+}
+
 /* Header is excluded from body typography — revert to base layer defaults */
 .bf-themed [data-bf-header],
 .bf-themed [data-bf-header] * {

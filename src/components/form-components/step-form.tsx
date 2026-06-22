@@ -345,7 +345,10 @@ const FormBrandingBadge = ({ className }: { className?: string }) => (
     // Inline fontSize: the form applies a base size via a non-layered rule that out-races Tailwind
     // utilities (same reason the submit button pins fontSize inline). Figma = 14px.
     style={{ fontSize: "14px" }}
-    className={`shrink-0 leading-[1.15] font-[420] tracking-[0.28px] text-gray-500 ${className ?? ""}`}
+    // weight 420 + 0.28px tracking come from the shared rule (data-bf-branding) since the
+    // .bf-themed variation(450)/letter-spacing(0.14px) defaults would otherwise override classes.
+    data-bf-branding
+    className={`shrink-0 leading-[1.15] text-gray-500 ${className ?? ""}`}
   >
     Made with{" "}
     <span className="[font-family:'Timeless_Serif',ui-serif,Georgia,serif] italic">
