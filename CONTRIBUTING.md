@@ -76,12 +76,21 @@ refactor: lazy-load editor plugins for faster initial load
 
 ## Database Changes
 
+> ⚠️ **Database commands are not safe to run blindly in this repo.**
+> Migration tracking has drifted from `src/db/schema.ts`; `pnpm db:push` will
+> try to DROP existing tables. Do **not** run `db:push` / `db:migrate` /
+> `db:generate` without coordinating with a maintainer. Schema changes are
+> applied as additive, idempotent DDL via the direct connection (`DIRECT_URL`).
+
 When modifying the database schema in `src/db/schema.ts`:
 
 1. Make your schema changes
-2. Generate a migration — `pnpm db:generate`
-3. Apply the migration — `pnpm db:migrate`
-4. Include the generated migration files in your PR
+2. Coordinate with a maintainer before applying — do **not** run `db:generate` /
+   `db:migrate` / `db:push` (see warning above)
+3. Apply the change as additive, idempotent DDL via the direct connection
+   (`DIRECT_URL`) — e.g. an idempotent `CREATE TABLE IF NOT EXISTS` or
+   `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` script run with `tsx`
+4. Include the DDL script in your PR
 
 ## Testing
 
