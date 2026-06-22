@@ -5,13 +5,11 @@ import { PlateElement } from "platejs/react";
 import { BlockSelection } from "@/components/ui/block-selection";
 import { IconLinearScale } from "@/components/ui/icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useFormInputNode } from "@/hooks/use-form-input-node";
 import { buildScaleValues, LINEAR_SCALE_DEFAULTS } from "@/lib/form-schema/form-field-constants";
 import { cn } from "@/lib/utils";
 
 export const FormLinearScaleElement = ({ children, ...props }: PlateElementProps) => {
   const { attributes, element, ...rest } = props;
-  const { focused, isSelected } = useFormInputNode(element);
 
   const min = (element.scaleMin as number | undefined) ?? LINEAR_SCALE_DEFAULTS.min;
   const max = (element.scaleMax as number | undefined) ?? LINEAR_SCALE_DEFAULTS.max;
@@ -27,10 +25,7 @@ export const FormLinearScaleElement = ({ children, ...props }: PlateElementProps
   return (
     <PlateElement
       attributes={{ ...attributes, "data-bf-input": "true" }}
-      className={cn(
-        "relative flex w-full cursor-default items-start gap-2 rounded-[8px]",
-        isSelected && focused && "ring-[3px] ring-ring/50",
-      )}
+      className={cn("relative flex w-full cursor-default items-start gap-2 rounded-[8px]")}
       element={element}
       {...rest}
     >

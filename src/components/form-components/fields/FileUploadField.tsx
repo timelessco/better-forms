@@ -247,9 +247,14 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
                 <div className="flex flex-col items-center gap-1.5 text-muted-foreground select-none">
                   <div className="flex items-center gap-1.5">
                     <UploadLineIcon className="size-4" />
-                    <span className="text-sm">Click to choose a file or drag here</span>
+                    <span className="text-sm" data-bf-upload-primary>
+                      Click to choose a file or drag here
+                    </span>
                   </div>
-                  <span className="text-[13px] text-[color:var(--color-gray-500)]">
+                  <span
+                    className="text-[13px] text-[color:var(--color-gray-500)]"
+                    data-bf-upload-secondary
+                  >
                     Max file up to {maxFileSizeMb}MB
                   </span>
                 </div>

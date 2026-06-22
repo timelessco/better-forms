@@ -5,13 +5,11 @@ import { PlateElement } from "platejs/react";
 import { BlockSelection } from "@/components/ui/block-selection";
 import { UploadIcon, UploadLineIcon } from "@/components/ui/icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useFormInputNode } from "@/hooks/use-form-input-node";
 import { DEFAULT_MAX_FILE_SIZE_MB } from "@/lib/form-schema/file-upload-types";
 import { cn } from "@/lib/utils";
 
 export const FormFileUploadElement = ({ children, ...props }: PlateElementProps) => {
   const { attributes, element, ...rest } = props;
-  const { focused, isSelected } = useFormInputNode(element);
 
   const maxFileSize =
     typeof element.maxFileSize === "number" ? element.maxFileSize : DEFAULT_MAX_FILE_SIZE_MB;
@@ -21,7 +19,6 @@ export const FormFileUploadElement = ({ children, ...props }: PlateElementProps)
       attributes={{ ...attributes, "data-bf-input": "true" }}
       className={cn(
         "relative flex min-h-[100px] w-full cursor-default flex-col items-center justify-center gap-1.5 rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] p-4 elevation-sm",
-        isSelected && focused && "ring-[3px] ring-ring/50",
       )}
       element={element}
       {...rest}
@@ -33,9 +30,11 @@ export const FormFileUploadElement = ({ children, ...props }: PlateElementProps)
       >
         <div className="flex items-center gap-1.5">
           <UploadLineIcon className="size-4" />
-          <span className="text-sm">Click to choose a file or drag here</span>
+          <span className="text-sm" data-bf-upload-primary>
+            Click to choose a file or drag here
+          </span>
         </div>
-        <span className="text-[13px] text-[color:var(--color-gray-500)]">
+        <span className="text-[13px] text-[color:var(--color-gray-500)]" data-bf-upload-secondary>
           Max file up to {maxFileSize}MB
         </span>
       </div>

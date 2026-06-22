@@ -489,7 +489,7 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
         <DropdownMenu open onOpenChange={handleOpenChange} modal={false}>
           <DropdownMenuContent
             anchor={virtualAnchor}
-            className={themeReanchor.className}
+            className={cn("bf-block-menu", themeReanchor.className)}
             style={themeReanchor.style}
             // Pre-lock: collision-aware placement off the click point (flips side AND align to fit).
             // Locked: keep the settled side + align with avoidance off, so view morphs grow away

@@ -83,7 +83,17 @@ export const DropdownSelect = ({
               className,
             )}
           >
-            <span className={cn("flex-1 truncate", !selectedOption && "text-foreground/70")}>
+            <span
+              // Placeholder (no selection) carries the shared placeholder spec (420/0.28px/gray-600@50%).
+              data-bf-placeholder={selectedOption ? undefined : ""}
+              className={cn(
+                "flex-1 truncate",
+                // Figma dropdown (25578:10438): placeholder = gray/600 @ 50%; selected value = gray/900.
+                // Customizable via the form's Input/Text colors: foreground defaults to gray-900,
+                // muted-foreground to gray-600 — Figma defaults that still flip with theme + customization.
+                selectedOption ? "text-foreground" : "text-muted-foreground/50",
+              )}
+            >
               {selectedOption ? selectedOption.label : placeholder}
             </span>
             <ChevronDownIcon
@@ -98,7 +108,7 @@ export const DropdownSelect = ({
       <PopoverContent
         align="start"
         sideOffset={4}
-        className={cn("w-(--anchor-width) p-1", themeReanchor.className)}
+        className={cn("w-(--anchor-width) rounded-[12px] p-1", themeReanchor.className)}
         style={themeReanchor.style}
         onKeyDown={handleOptionsKeyDown}
       >
@@ -110,8 +120,11 @@ export const DropdownSelect = ({
               type="button"
               data-dselect-option
               className={cn(
+                // Figma dropdown-item (25578:10455): h-28 / px-8 py-6 / rounded-8 / 14px / gray-900 text.
+                // Portaled popover doesn't get the field-list font-size rule, so follow --bf-font-size
+                // directly (14px default, customizable) instead of the base text-sm (13px).
                 // Gray-shade highlight (hover + keyboard focus), no focus ring — uniform with radio/checkbox options.
-                "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none hover:bg-accent focus-visible:bg-accent",
+                "flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 [font-size:var(--bf-font-size,0.875rem)] text-foreground outline-none hover:bg-accent focus-visible:bg-accent",
                 isSelected && "bg-accent font-medium",
               )}
               onClick={() => {

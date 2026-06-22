@@ -4,13 +4,12 @@ import { PlateElement, useEditorRef } from "platejs/react";
 
 import { AlignLeftIcon } from "@/components/ui/icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useFieldLabelText, useFormInputNode } from "@/hooks/use-form-input-node";
+import { useFieldLabelText } from "@/hooks/use-form-input-node";
 import { cn } from "@/lib/utils";
 
 export const FormTextareaElement = ({ children, ...props }: PlateElementProps) => {
   const { attributes, element, ...rest } = props;
   const placeholder = element.placeholder as string | undefined;
-  const { focused, isSelected } = useFormInputNode(element);
   // Pulled from the preceding label block so the editor's add-item indicator
   // reads e.g. "Add full name" (matching the live preview) instead of the
   // generic "Add item". Hook subscribes to label edits and updates live.
@@ -41,12 +40,14 @@ export const FormTextareaElement = ({ children, ...props }: PlateElementProps) =
         attributes={{ ...attributes, placeholder, "data-bf-input": "true" }}
         className={cn(
           "relative flex min-h-24 w-full cursor-text items-start gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-[8px] pl-[10px] text-sm caret-current elevation-sm before:top-2.5",
-          isSelected && focused && "ring-[3px] ring-ring/50",
         )}
         element={element}
         {...rest}
       >
-        <span className="block min-w-px flex-1 pt-2.5 pb-2 text-muted-foreground/50 outline-none">
+        <span
+          className="block min-w-px flex-1 pt-2.5 pb-2 text-[14px] leading-[22px] text-muted-foreground/50 outline-none"
+          data-bf-placeholder
+        >
           {children}
         </span>
         <Tooltip>
@@ -75,7 +76,10 @@ export const FormTextareaElement = ({ children, ...props }: PlateElementProps) =
                 className="relative flex min-h-24 flex-1 items-start gap-[4px] rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-[8px] pl-[10px] text-sm elevation-sm"
                 aria-hidden="true"
               >
-                <span className="block min-w-px flex-1 pt-2.5 pb-2 text-muted-foreground/50">
+                <span
+                  className="block min-w-px flex-1 pt-2.5 pb-2 text-[14px] leading-[22px] text-muted-foreground/50"
+                  data-bf-placeholder
+                >
                   {placeholder}
                 </span>
                 <AlignLeftIcon className="mt-3 ml-1 size-3.5 shrink-0 text-muted-foreground" />

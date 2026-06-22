@@ -381,7 +381,7 @@ export const FieldLabelText = ({
     return (
       <span
         id={labelId}
-        className="flex w-full items-center gap-1 py-2.5 text-sm select-none"
+        className="flex w-full items-center gap-1 py-2.5 text-sm text-gray-800 select-none"
         data-bf-field-label
       >
         <span>{body}</span>
@@ -391,7 +391,12 @@ export const FieldLabelText = ({
   }
 
   return (
-    <Label htmlFor={htmlFor} id={labelId} className="w-full gap-1" data-bf-field-label>
+    <Label
+      htmlFor={htmlFor}
+      id={labelId}
+      className="w-full gap-1 text-gray-800"
+      data-bf-field-label
+    >
       <span>{body}</span>
       {badge}
     </Label>
