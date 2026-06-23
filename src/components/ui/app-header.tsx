@@ -9,21 +9,26 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import {
-  ChevronDownIcon,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  ChevronRightIcon,
+  FolderIcon,
   Loader2Icon,
   MoreHorizontalIcon,
   PencilIcon,
   PlayIcon,
 } from "@/components/ui/icons";
-import { FigPlusIcon, FigSearchAltIcon } from "@/components/dashboard/dashboard-icons";
+import { FigAddSmIcon, FigSearchAltIcon } from "@/components/dashboard/dashboard-icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
@@ -730,7 +735,9 @@ const LandingPageActions = ({
 );
 
 // Dashboard header actions (Figma 26208:8017): Search field (writes /dashboard?q=, debounced) +
-// New Form (ButtonGroup keeps the workspace picker). Renders only on /dashboard.
+// New Form button (Figma 26247:7573). One simple button: with a single workspace it creates
+// straight in the default (top) workspace; with multiple it opens a picker dialog first.
+// Renders only on /dashboard.
 const DashboardHeaderActions = () => {
   const navigate = useNavigate();
   const { data: activeOrg } = useQuery({
@@ -750,6 +757,7 @@ const DashboardHeaderActions = () => {
 
   const topWorkspace = orderedWorkspaces[0];
   const hasMultipleWorkspaces = orderedWorkspaces.length > 1;
+  const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
 
   const search = useSearch({ strict: false }) as { q?: string };
   const [input, setInput] = useState(search.q ?? "");
@@ -783,6 +791,20 @@ const DashboardHeaderActions = () => {
     });
   };
 
+  // One button: multiple workspaces → ask which one first; otherwise create in the default workspace.
+  const handleNewForm = () => {
+    if (hasMultipleWorkspaces) {
+      setWorkspaceDialogOpen(true);
+      return;
+    }
+    handleCreateForm();
+  };
+
+  const handleSelectWorkspace = (workspaceId: string) => {
+    setWorkspaceDialogOpen(false);
+    handleCreateForm(workspaceId);
+  };
+
   return (
     <div className="flex items-center gap-2">
       {/* Search — gray/100 surface, 200px, search-alt icon + placeholder */}
@@ -798,46 +820,41 @@ const DashboardHeaderActions = () => {
         />
       </div>
 
-      {hasMultipleWorkspaces ? (
-        <ButtonGroup>
-          <Button
-            size="sm"
-            prefix={<FigPlusIcon className="size-4" />}
-            className="ps-2! font-case text-base tracking-[0.14px]"
-            onClick={() => handleCreateForm(topWorkspace?.id)}
-          >
-            New Form
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button size="sm" aria-label="Pick a different workspace">
-                  <ChevronDownIcon className="size-3" />
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end" sideOffset={4} className="w-56">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Create new form in…</DropdownMenuLabel>
-                {orderedWorkspaces.map((ws) => (
-                  <DropdownMenuItem key={ws.id} onClick={() => handleCreateForm(ws.id)}>
-                    <span className="flex-1 truncate text-left">{ws.name}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </ButtonGroup>
-      ) : (
-        <Button
-          size="sm"
-          prefix={<FigPlusIcon className="size-4" />}
-          className="ps-2! font-case text-base tracking-[0.14px]"
-          onClick={() => handleCreateForm()}
-        >
-          New Form
-        </Button>
-      )}
+      {/* New Form — Figma 26247:7573 (dark primary #141414, add-sm icon, 28px tall, 8px/10px padding,
+          8px radius to match the search field). */}
+      <Button
+        size="sm"
+        prefix={<FigAddSmIcon className="size-4" />}
+        className="rounded-[8px] ps-2! font-case text-base tracking-[0.14px]"
+        onClick={handleNewForm}
+      >
+        New Form
+      </Button>
+
+      <Dialog open={workspaceDialogOpen} onOpenChange={setWorkspaceDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New form</DialogTitle>
+            <DialogDescription>Choose a workspace for your new form.</DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 flex flex-col gap-1">
+            {orderedWorkspaces.map((ws) => (
+              <button
+                key={ws.id}
+                type="button"
+                onClick={() => handleSelectWorkspace(ws.id)}
+                className="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+              >
+                <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate text-base font-[450] tracking-[0.14px] text-gray-800">
+                  {ws.name}
+                </span>
+                <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

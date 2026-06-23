@@ -2,6 +2,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
 import { enrichFormDetail, getFormListings, isInitialized } from "@/collections";
+import { pushRecentForm } from "@/lib/recent-forms";
 import { getFormVersionsQueryOption } from "@/lib/server-fn/form-versions";
 import { getFormbyIdQueryOption, getFormStatus } from "@/lib/server-fn/forms-queries";
 import type { FormStatus } from "@/lib/server-fn/forms-queries";
@@ -72,6 +73,10 @@ export const Route = createFileRoute("/_authenticated/workspace/$workspaceId/for
       }
     },
     loader: async ({ context, params }) => {
+      // Remember this form as recently-opened (localStorage; powers the command palette). Client-only
+      // route (ssr:false), so window is available; covers every open path (dashboard, sidebar, palette, URL).
+      pushRecentForm(params.formId);
+
       // Skip server fetch if collection has this form (e.g. optimistic create/duplicate) — component reads useLiveQuery. Guard: collections may not be init yet (SSR/first load before parent layout).
       if (isInitialized()) {
         const cachedForm = getFormListings().get(params.formId);

@@ -17,11 +17,12 @@ import {
   Command,
   CommandDialog,
   CommandEmpty,
+  CommandFooter,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
+  CommandShortcut,
 } from "@/components/ui/command";
 import {
   Dialog,
@@ -50,6 +51,8 @@ import {
   UsersIcon,
   XIcon,
 } from "@/components/ui/icons";
+import { FigTilesIcon } from "@/components/dashboard/dashboard-icons";
+import { useRecentFormIds } from "@/lib/recent-forms";
 import { Input } from "@/components/ui/input";
 import Loader from "@/components/ui/loader";
 import { LogoToggle } from "@/components/ui/logo";
@@ -508,7 +511,55 @@ const AppSidebar = () => {
   });
   const { data: workspacesData } = useOrgWorkspaces(activeOrg?.id);
   const { data: formsData } = useOrgForms(activeOrg?.id);
+  const submissionCounts = useSubmissionCounts();
+  // Recently-opened forms (localStorage, no DB round-trip) resolved against the live listings; fall
+  // back to most-recently-updated when there's no open history yet. Top 6 feed Recent Searches.
+  const recentFormIds = useRecentFormIds();
+  const formById = useMemo(
+    () => new Map((formsData ?? []).map((form) => [form.id, form])),
+    [formsData],
+  );
+  const recentForms = useMemo(() => {
+    const opened = recentFormIds
+      .map((id) => formById.get(id))
+      .filter((form): form is NonNullable<typeof form> => Boolean(form));
+    return (opened.length > 0 ? opened : (formsData ?? [])).slice(0, 6);
+  }, [recentFormIds, formById, formsData]);
   const { unreadSubmissionCount } = useSubmissionNotifications({ poll: true });
+
+  // Figma 26612:40177 — file-doc + title + right-aligned meta (response count, or "Draft").
+  const renderPaletteForm = (form: NonNullable<typeof formsData>[number]) => {
+    const count = submissionCounts.get(form.id) ?? 0;
+    const meta =
+      form.status === "draft" ? "Draft" : `${count} ${count === 1 ? "response" : "responses"}`;
+    const isPublished = form.status === "published";
+    return (
+      <CommandItem
+        key={form.id}
+        value={`${form.title || "Untitled form"} ${form.id}`}
+        onSelect={() => {
+          setIsPaletteOpen(false);
+          setPaletteSearch("");
+          void router.navigate({
+            to: isPublished
+              ? "/workspace/$workspaceId/form-builder/$formId/submissions"
+              : "/workspace/$workspaceId/form-builder/$formId/edit",
+            params: { workspaceId: form.workspaceId, formId: form.id },
+          });
+        }}
+      >
+        <ThemedFormIcon
+          icon={form.icon}
+          customization={form.customization as Record<string, string> | undefined}
+          monochrome
+          size="16"
+          iconSize="16"
+        />
+        <span className="min-w-0 flex-1 truncate">{form.title || "Untitled form"}</span>
+        <CommandShortcut className="shrink-0">{meta}</CommandShortcut>
+      </CommandItem>
+    );
+  };
   const { data: invitations } = useQuery(auth.organization.listUserInvitations.queryOptions());
   const pendingInvitationCount = useMemo(
     () => (invitations ?? []).filter((inv: { status: string }) => inv.status === "pending").length,
@@ -625,13 +676,27 @@ const AppSidebar = () => {
         >
           <Command>
             <CommandInput
-              placeholder="Search for forms and help articles"
+              placeholder="Search forms..."
               value={paletteSearch}
               onValueChange={setPaletteSearch}
             />
             <CommandList>
               <CommandEmpty>No results found.</CommandEmpty>
-              <CommandGroup heading="Actions">
+              {/* Recent Searches (default) → recent forms with response counts; while searching,
+                  the same rows cover all forms (Figma 26612:40174). */}
+              {paletteSearch.trim().length === 0
+                ? recentForms.length > 0 && (
+                    <CommandGroup heading="Recent Searches">
+                      {recentForms.map(renderPaletteForm)}
+                    </CommandGroup>
+                  )
+                : formsData &&
+                  formsData.length > 0 && (
+                    <CommandGroup heading="Forms">{formsData.map(renderPaletteForm)}</CommandGroup>
+                  )}
+
+              {/* Quick Actions (Figma 26612:40201) */}
+              <CommandGroup heading="Quick Actions">
                 <CommandItem
                   onSelect={async () => {
                     setIsPaletteOpen(false);
@@ -658,7 +723,16 @@ const AppSidebar = () => {
                   }}
                 >
                   <PlusIcon className="size-4" />
-                  <span>New form</span>
+                  <span>Create a new form</span>
+                </CommandItem>
+                <CommandItem
+                  onSelect={() => {
+                    void router.navigate({ to: "/dashboard" });
+                    setIsPaletteOpen(false);
+                  }}
+                >
+                  <FigTilesIcon className="size-4" />
+                  <span>Browse templates</span>
                 </CommandItem>
                 <CommandItem
                   onSelect={() => {
@@ -689,37 +763,6 @@ const AppSidebar = () => {
                   <span>New workspace</span>
                 </CommandItem>
               </CommandGroup>
-              {paletteSearch.trim().length > 0 && formsData && formsData.length > 0 && (
-                <>
-                  <CommandSeparator />
-                  <CommandGroup heading="Forms">
-                    {formsData.map((form) => (
-                      <CommandItem
-                        key={form.id}
-                        value={`${form.title || "Untitled form"} ${form.id}`}
-                        onSelect={() => {
-                          setIsPaletteOpen(false);
-                          setPaletteSearch("");
-                          void router.navigate({
-                            to: "/workspace/$workspaceId/form-builder/$formId/edit",
-                            params: {
-                              workspaceId: form.workspaceId,
-                              formId: form.id,
-                            },
-                          });
-                        }}
-                      >
-                        <SidebarFormIcon
-                          icon={form.icon}
-                          customization={form.customization as Record<string, string> | undefined}
-                        />
-                        <span>{form.title || "Untitled form"}</span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </>
-              )}
-              <CommandSeparator />
               <CommandGroup heading="Navigation">
                 <CommandItem
                   onSelect={() => {
@@ -759,6 +802,7 @@ const AppSidebar = () => {
                 </CommandItem>
               </CommandGroup>
             </CommandList>
+            <CommandFooter />
           </Command>
         </CommandDialog>
       )}
@@ -968,7 +1012,8 @@ const TrashDialog = ({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="gap-0 border-foreground/10 bg-background p-0 sm:max-w-[500px]"
+        // Anchor in the upper area like the command palette (top ≈ 19.5%), not vertical-center.
+        className="top-[19.5%] translate-y-0 gap-0 border-foreground/10 bg-background p-0 sm:max-w-[500px]"
       >
         <div className="p-1.5 pb-0">
           {/* Matches CommandInput shell — same search affordance as elsewhere. */}

@@ -38,7 +38,6 @@ import { createAppColumnHelper, SelectionCheckbox, useAppTable } from "@/compone
 import type { DataGridApi, DataGridFeatures } from "@/components/ui/data-grid";
 
 import { ChevronDownIcon, FilterIcon, Trash2Icon, XIcon } from "@/components/ui/icons";
-import { NumberPopIn } from "@/components/transitions/number-pop-in";
 import { TextSwap } from "@/components/transitions/text-swap";
 import { Columns, Download, ExternalLink, FileText, Paperclip, Search } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -612,17 +611,6 @@ const SubmissionsPage = () => {
     [submissionsData],
   );
 
-  const { completedCount, partialCount } = useMemo(() => {
-    let completed = 0;
-    for (const s of allSubmissions) {
-      if (s.isCompleted) completed++;
-    }
-    return {
-      completedCount: completed,
-      partialCount: allSubmissions.length - completed,
-    };
-  }, [allSubmissions]);
-
   // Intersect with loaded ids — stale keys from refetch/delete never drive bulk actions/hotkeys.
   const effectiveRowSelection = useMemo(() => {
     const loadedIds = new Set(allSubmissions.map((s) => s.id));
@@ -778,9 +766,6 @@ const SubmissionsPage = () => {
       <div className="flex h-full min-h-0 min-w-0 flex-col bg-background">
         <SubmissionsToolbar
           activeTab={activeTab}
-          allCount={allSubmissions.length}
-          completedCount={completedCount}
-          partialCount={partialCount}
           globalFilter={globalFilter}
           table={table}
           onSetTabAll={handleSetActiveTabAll}
@@ -979,9 +964,6 @@ const useSubmissionsHotkeys = ({
 
 interface SubmissionsToolbarProps {
   activeTab: "all" | "completed" | "partial";
-  allCount: number;
-  completedCount: number;
-  partialCount: number;
   globalFilter: string;
   table: DataGridApi<SerializedSubmission>;
   onSetTabAll: () => void;
@@ -993,9 +975,6 @@ interface SubmissionsToolbarProps {
 
 const SubmissionsToolbar = ({
   activeTab,
-  allCount,
-  completedCount,
-  partialCount,
   globalFilter,
   table,
   onSetTabAll,
@@ -1004,8 +983,6 @@ const SubmissionsToolbar = ({
   onGlobalFilterChange,
   onDownloadCSV,
 }: SubmissionsToolbarProps) => {
-  const activeCount =
-    activeTab === "all" ? allCount : activeTab === "completed" ? completedCount : partialCount;
   const activeLabel =
     activeTab === "all" ? "All" : activeTab === "completed" ? "Completed" : "Partial";
   return (
@@ -1022,24 +999,12 @@ const SubmissionsToolbar = ({
             }
           >
             <TextSwap key={activeLabel}>{activeLabel}</TextSwap>
-            <span className="opacity-60">
-              <NumberPopIn value={activeCount} />
-            </span>
             <ChevronDownIcon className="size-2.5 shrink-0 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-36">
-            <DropdownMenuItem onClick={onSetTabAll} className="gap-2">
-              All
-              <span className="ml-auto text-xs text-muted-foreground">{allCount}</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onSetTabCompleted} className="gap-2">
-              Completed
-              <span className="ml-auto text-xs text-muted-foreground">{completedCount}</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onSetTabPartial} className="gap-2">
-              Partial
-              <span className="ml-auto text-xs text-muted-foreground">{partialCount}</span>
-            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onSetTabAll}>All</DropdownMenuItem>
+            <DropdownMenuItem onClick={onSetTabCompleted}>Completed</DropdownMenuItem>
+            <DropdownMenuItem onClick={onSetTabPartial}>Partial</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
