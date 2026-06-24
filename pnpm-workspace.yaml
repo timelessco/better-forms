@@ -42,6 +42,9 @@ overrides:
 #    branding footer + theme toggle). Removable once the version ages past
 #    the 7-day window.
 minimumReleaseAgeExclude:
+  # glimm WebGL page-transition lib (added 2026-06-24): 0.1.4 published 2 days
+  # ago, inside the 7-day window. Removable once it ages past 2026-06-29.
+  - "glimm"
   - "@tanstack/react-table"
   - "@tanstack/react-table-devtools"
   - "@tanstack/table-core"

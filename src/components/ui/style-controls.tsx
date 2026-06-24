@@ -106,8 +106,8 @@ export const StyleNumberInput = ({
           ? "[&_[data-slot=elastic-slider-label]]:inset-s-1.5 [&_[data-slot=elastic-slider-label]]:text-[14px] [&_[data-slot=elastic-slider-label]]:leading-[1.15] [&_[data-slot=elastic-slider-label]]:font-[400] [&_[data-slot=elastic-slider-label]]:text-muted-foreground"
           : "[&_[data-slot=elastic-slider-label]]:inset-s-2 [&_[data-slot=elastic-slider-label]]:text-base [&_[data-slot=elastic-slider-label]]:font-normal",
         bare
-          ? "[&_[data-slot=elastic-slider-value]]:inset-e-1.5 [&_[data-slot=elastic-slider-value]]:font-case [&_[data-slot=elastic-slider-value]]:text-[14px] [&_[data-slot=elastic-slider-value]]:leading-[1.15] [&_[data-slot=elastic-slider-value]]:font-[450] [&_[data-slot=elastic-slider-value]]:text-gray-700 [&_[data-slot=elastic-slider-value]]:tabular-nums [&_[data-slot=elastic-slider-value]]:font-opsz-16"
-          : "[&_[data-slot=elastic-slider-value]]:inset-e-[11px] [&_[data-slot=elastic-slider-value]]:text-[13px] [&_[data-slot=elastic-slider-value]]:tabular-nums",
+          ? "[&_[data-slot=elastic-slider-value]]:inset-e-1.5 [&_[data-slot=elastic-slider-value]]:font-case [&_[data-slot=elastic-slider-value]]:text-[14px] [&_[data-slot=elastic-slider-value]]:leading-[1.15] [&_[data-slot=elastic-slider-value]]:font-[450] [&_[data-slot=elastic-slider-value]]:text-gray-700 [&_[data-slot=elastic-slider-value]]:font-opsz-16"
+          : "[&_[data-slot=elastic-slider-value]]:inset-e-[11px] [&_[data-slot=elastic-slider-value]]:text-[13px]",
         className,
       )}
       trackClassName={cn(!bare && "border border-border/60", className)}
@@ -171,7 +171,7 @@ export const StyleColorPicker = ({
               onChange(val);
             }
           }}
-          className="w-[60px] bg-transparent text-right font-mono text-[11px] text-muted-foreground uppercase tabular-nums outline-none"
+          className="w-[60px] bg-transparent text-right font-mono text-[11px] text-muted-foreground uppercase outline-none"
           maxLength={7}
         />
         <div

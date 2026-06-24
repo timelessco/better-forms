@@ -101,7 +101,7 @@ const CheckboxField = ({ element, form }: FieldRendererProps<"Checkbox">) => {
                         onCheckedChange={(checked) => toggle(option.value, Boolean(checked))}
                         aria-invalid={hasErrors}
                       />
-                      <span className="text-sm">{option.label}</span>
+                      <span className="text-base">{option.label}</span>
                     </label>
                   );
                 }
@@ -120,7 +120,7 @@ const CheckboxField = ({ element, form }: FieldRendererProps<"Checkbox">) => {
                       // Figma selected state: gray-200 rounded row pill (badge flips to white). No
                       // focus ring (the keyboard handler programmatically focuses, which would show
                       // focus-visible on click); a subtle gray-100 bg marks keyboard focus instead.
-                      "flex cursor-pointer flex-col items-start gap-1.5 rounded-lg px-2 py-1.5 text-left text-sm transition-colors outline-none",
+                      "flex cursor-pointer flex-col items-start gap-1.5 rounded-lg px-2 py-1.5 text-left text-base transition-colors outline-none",
                       isSelected ? "bg-gray-200" : "focus-visible:bg-gray-100",
                       hasErrors && "text-destructive",
                     )}

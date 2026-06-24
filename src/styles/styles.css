@@ -705,6 +705,15 @@
     inset 0 0.25px 1.5px 0 rgba(255, 255, 255, 0.08);
 }
 
+/* Figma `elevation/light/md` — mid tier for the floating publish toast pill. */
+@utility elevation-md {
+  box-shadow:
+    0 6px 12px -2px rgba(0, 0, 0, 0.122),
+    0 0 6px 2px rgba(0, 0, 0, 0.031),
+    0 0 1.5px 0 rgba(0, 0, 0, 0.149),
+    inset 0 0.25px 1.5px 0 rgba(255, 255, 255, 0.078);
+}
+
 @keyframes drop-line-pulse {
   0%,
   100% {

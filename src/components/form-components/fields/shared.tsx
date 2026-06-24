@@ -253,7 +253,7 @@ export const ImageOptionGrid = ({
                 hasErrors={hasErrors}
               />
             )}
-            <span className="min-w-0 flex-1 truncate text-sm">{option.label}</span>
+            <span className="min-w-0 flex-1 truncate text-base">{option.label}</span>
           </span>
         </button>
       );

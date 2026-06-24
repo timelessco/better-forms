@@ -9,21 +9,27 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import {
-  ChevronDownIcon,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  FolderIcon,
   Loader2Icon,
   MoreHorizontalIcon,
   PencilIcon,
   PlayIcon,
 } from "@/components/ui/icons";
-import { FigPlusIcon, FigSearchAltIcon } from "@/components/dashboard/dashboard-icons";
+import { FigAddSmIcon, FigSearchAltIcon } from "@/components/dashboard/dashboard-icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
@@ -49,10 +55,11 @@ import { useSession } from "@/lib/auth/auth-client";
 import { HOTKEYS, formatForDisplay } from "@/lib/hotkeys";
 import { cn } from "@/lib/utils";
 import { log } from "evlog";
+import { useGlimm } from "glimm/react";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { LogoToggle } from "./logo";
 import { useSidebarSafe } from "./sidebar";
@@ -78,6 +85,8 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   };
   const pathname = useLocation({ select: (s) => s.pathname });
   const isDashboard = pathname === "/dashboard";
+  const isTemplatesRoute = pathname === "/templates" || pathname.startsWith("/templates/");
+  const isTemplatesGallery = pathname === "/templates";
   const isLandingPage = pathname === "/";
   const isFormBuilder = pathname.startsWith("/form-builder") || pathname.includes("/form-builder/");
   const isEditRoute = pathname.endsWith("/edit");
@@ -173,7 +182,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     isEditorSidebarOpen,
     isLeftSidebarOpen,
     navigate,
-    openShare,
     handleCloseSidebar,
     toggleMainSidebar,
     toggleShareSidebar,
@@ -260,6 +268,25 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               Home
             </span>
           )}
+          {isTemplatesRoute && (
+            <nav aria-label="Breadcrumb" className="flex min-w-0 items-center text-base">
+              <Link
+                to="/dashboard"
+                className="rounded-lg p-1 font-[450] tracking-[0.14px] text-gray-500 hover:text-foreground"
+              >
+                Home
+              </Link>
+              <span aria-hidden className="shrink-0 px-0.5 text-gray-400">
+                /
+              </span>
+              <Link
+                to="/templates"
+                className="rounded-lg p-1 font-[450] tracking-[0.14px] text-gray-800 hover:text-foreground"
+              >
+                Templates
+              </Link>
+            </nav>
+          )}
           {isFormBuilder && savedDocs?.[0] && (
             <HeaderBreadcrumb
               workspace={workspace}
@@ -276,6 +303,8 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
             Share sidebar no longer collapses it to a "Preview" label or hides actions. */}
         <div className="flex shrink-0 items-center gap-2">
           {isDashboard && <DashboardHeaderActions />}
+
+          {isTemplatesGallery && <TemplatesHeaderActions />}
 
           {isLandingPage && (
             <LandingPageActions
@@ -339,12 +368,23 @@ interface UseAppHeaderFormActionsOptions {
   isEditorSidebarOpen: boolean;
   isLeftSidebarOpen: boolean;
   navigate: ReturnType<typeof useNavigate>;
-  openShare: () => void;
   handleCloseSidebar: () => void;
   toggleMainSidebar: () => void;
   toggleShareSidebar: () => void;
   setWorkflowState: (state: "idle" | "publishing" | "discarding") => void;
 }
+
+// Figma `system-flat` 26701:11571 — dark pill toast, centered along the bottom.
+const showPublishedToast = () =>
+  toast.custom(
+    () => (
+      <div className="flex items-center gap-1.5 rounded-[8px] bg-[#171717] py-2 pr-3 pl-2.5 text-white elevation-md">
+        <CheckIcon className="size-4" />
+        <span className="text-base">Changes Published</span>
+      </div>
+    ),
+    { position: "bottom-center" },
+  );
 
 const useAppHeaderFormActions = ({
   formId,
@@ -353,12 +393,13 @@ const useAppHeaderFormActions = ({
   isEditorSidebarOpen,
   isLeftSidebarOpen,
   navigate,
-  openShare,
   handleCloseSidebar,
   toggleMainSidebar,
   toggleShareSidebar,
   setWorkflowState,
 }: UseAppHeaderFormActionsOptions) => {
+  const { sweep } = useGlimm();
+
   const handleToggleFavorite = async () => {
     if (!sessionUserId || !formId) return;
     await toggleFavoriteLocal(sessionUserId, formId);
@@ -379,23 +420,38 @@ const useAppHeaderFormActions = ({
   const { guardPublish, proPublishDialog } = useProPublishGate(formId);
 
   const performPublish = async ({ stripProStyles }: PublishOptions) => {
-    if (formId && workspaceId) {
-      setWorkflowState("publishing");
-      try {
-        const tx = publishForm(formId, { stripProStyles });
-        await tx.isPersisted.promise;
-        toast.success(stripProStyles ? "Form published without Pro styles" : "Form published");
-        openShare();
-        void navigate({
-          to: "/workspace/$workspaceId/form-builder/$formId/submissions",
-          params: { workspaceId, formId },
-        });
-      } catch (error) {
-        toast.error("Failed to publish form");
-        log.error({ tag: "app-header", msg: "publish form failed", error });
-      } finally {
-        setWorkflowState("idle");
-      }
+    if (!formId || !workspaceId) return;
+    setWorkflowState("publishing");
+    // Sweep fires on click for instant feedback; glimm awaits the midpoint
+    // callback, so the band holds at peak coverage until publish resolves,
+    // then fades out — no navigation, stay on the editor.
+    const handle = sweep(
+      async () => {
+        try {
+          const tx = publishForm(formId, { stripProStyles });
+          // Capture the content thumbnail during the publish round-trip; canvas stays mounted (no
+          // nav). Dynamic import keeps the browser-only capture lib + its server-fn out of SSR.
+          const previewPromise = import("@/lib/og/capture-form-preview")
+            .then((m) => m.captureAndUploadFormPreview(formId))
+            .catch((error) =>
+              log.error({ tag: "app-header", msg: "preview capture failed", error }),
+            );
+          await tx.isPersisted.promise;
+          showPublishedToast();
+          // Best-effort: thumbnail (card preview + OG) finishes in the background. Never faults publish.
+          void previewPromise;
+        } catch (error) {
+          toast.error("Failed to publish form");
+          log.error({ tag: "app-header", msg: "publish form failed", error });
+        }
+      },
+      { palette: "prism" },
+    );
+    try {
+      await handle.done;
+    } finally {
+      // Always clear the spinner, even if the sweep promise rejects/never settles cleanly.
+      setWorkflowState("idle");
     }
   };
 
@@ -487,20 +543,17 @@ const buildFormBuilderMenuItems = ({
     {
       key: "settings",
       label: "Settings",
-      shortcut: formatForDisplay(HOTKEYS.TOGGLE_SETTINGS_SIDEBAR),
       onClick: onToggleSettingsSidebar,
     },
     {
       key: "customize",
       label: "Customize",
-      shortcut: formatForDisplay(HOTKEYS.TOGGLE_CUSTOMIZE_SIDEBAR),
       onClick: onToggleCustomizeSidebar,
       show: isEditRoute,
     },
     {
       key: "versionHistory",
       label: "Version history",
-      shortcut: formatForDisplay(HOTKEYS.TOGGLE_VERSION_HISTORY),
       onClick: onToggleVersionHistory,
       show: isEditRoute && hasPublishedVersion,
     },
@@ -715,7 +768,6 @@ const LandingPageActions = ({
       </TooltipTrigger>
       <TooltipContent side="bottom" align="end">
         <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
-        <p className="text-xs text-muted-foreground">{formatForDisplay(HOTKEYS.TOGGLE_PREVIEW)}</p>
       </TooltipContent>
     </Tooltip>
     {/* Publish */}
@@ -730,7 +782,9 @@ const LandingPageActions = ({
 );
 
 // Dashboard header actions (Figma 26208:8017): Search field (writes /dashboard?q=, debounced) +
-// New Form (ButtonGroup keeps the workspace picker). Renders only on /dashboard.
+// New Form button (Figma 26247:7573). One simple button: with a single workspace it creates
+// straight in the default (top) workspace; with multiple it opens a picker dialog first.
+// Renders only on /dashboard.
 const DashboardHeaderActions = () => {
   const navigate = useNavigate();
   const { data: activeOrg } = useQuery({
@@ -750,6 +804,7 @@ const DashboardHeaderActions = () => {
 
   const topWorkspace = orderedWorkspaces[0];
   const hasMultipleWorkspaces = orderedWorkspaces.length > 1;
+  const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
 
   const search = useSearch({ strict: false }) as { q?: string };
   const [input, setInput] = useState(search.q ?? "");
@@ -783,6 +838,20 @@ const DashboardHeaderActions = () => {
     });
   };
 
+  // One button: multiple workspaces → ask which one first; otherwise create in the default workspace.
+  const handleNewForm = () => {
+    if (hasMultipleWorkspaces) {
+      setWorkspaceDialogOpen(true);
+      return;
+    }
+    handleCreateForm();
+  };
+
+  const handleSelectWorkspace = (workspaceId: string) => {
+    setWorkspaceDialogOpen(false);
+    handleCreateForm(workspaceId);
+  };
+
   return (
     <div className="flex items-center gap-2">
       {/* Search — gray/100 surface, 200px, search-alt icon + placeholder */}
@@ -798,46 +867,86 @@ const DashboardHeaderActions = () => {
         />
       </div>
 
-      {hasMultipleWorkspaces ? (
-        <ButtonGroup>
-          <Button
-            size="sm"
-            prefix={<FigPlusIcon className="size-4" />}
-            className="ps-2! font-case text-base tracking-[0.14px]"
-            onClick={() => handleCreateForm(topWorkspace?.id)}
-          >
-            New Form
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button size="sm" aria-label="Pick a different workspace">
-                  <ChevronDownIcon className="size-3" />
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end" sideOffset={4} className="w-56">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Create new form in…</DropdownMenuLabel>
-                {orderedWorkspaces.map((ws) => (
-                  <DropdownMenuItem key={ws.id} onClick={() => handleCreateForm(ws.id)}>
-                    <span className="flex-1 truncate text-left">{ws.name}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </ButtonGroup>
-      ) : (
-        <Button
-          size="sm"
-          prefix={<FigPlusIcon className="size-4" />}
-          className="ps-2! font-case text-base tracking-[0.14px]"
-          onClick={() => handleCreateForm()}
-        >
-          New Form
-        </Button>
-      )}
+      {/* New Form — Figma 26247:7573 (dark primary #141414, add-sm icon, 28px tall, 8px/10px padding,
+          8px radius to match the search field). */}
+      <Button
+        size="sm"
+        prefix={<FigAddSmIcon className="size-4" />}
+        className="rounded-[8px] ps-2! font-case text-base tracking-[0.14px]"
+        onClick={handleNewForm}
+      >
+        New Form
+      </Button>
+
+      <Dialog open={workspaceDialogOpen} onOpenChange={setWorkspaceDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New form</DialogTitle>
+            <DialogDescription>Choose a workspace for your new form.</DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 flex flex-col gap-1">
+            {orderedWorkspaces.map((ws) => (
+              <button
+                key={ws.id}
+                type="button"
+                onClick={() => handleSelectWorkspace(ws.id)}
+                className="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+              >
+                <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate text-base font-[450] tracking-[0.14px] text-gray-800">
+                  {ws.name}
+                </span>
+                <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+// Templates gallery header: search field only. Writes ?q= on /templates; the gallery reads it.
+const TemplatesHeaderActions = () => {
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as { q?: string };
+  const [input, setInput] = useState(search.q ?? "");
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Reconcile local input with the URL param when it changes externally (back/forward, clear) —
+  // render-time adjustment instead of an effect, so in-flight keystrokes are never dropped.
+  const [prevQ, setPrevQ] = useState(search.q);
+  if (search.q !== prevQ) {
+    setPrevQ(search.q);
+    setInput(search.q ?? "");
+  }
+
+  // Debounce keystrokes → URL ?q= so the gallery re-filters (event-driven, not effect-driven).
+  const handleChange = (value: string) => {
+    setInput(value);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const next = value.trim() || undefined;
+      if ((search.q ?? undefined) === next) return;
+      void navigate({
+        to: "/templates",
+        search: (prev: Record<string, unknown>) => ({ ...prev, q: next }),
+        replace: true,
+      });
+    }, 200);
+  };
+
+  return (
+    <div className="flex h-7 w-[200px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2">
+      <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
+      <input
+        type="search"
+        value={input}
+        onChange={(e) => handleChange(e.target.value)}
+        placeholder="Search templates"
+        aria-label="Search templates"
+        className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
+      />
     </div>
   );
 };
@@ -949,9 +1058,6 @@ const FormBuilderHeaderActions = ({
           </TooltipTrigger>
           <TooltipContent side="bottom" align="end">
             <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
-            <p className="text-xs text-muted-foreground">
-              {formatForDisplay(HOTKEYS.TOGGLE_PREVIEW)}
-            </p>
           </TooltipContent>
         </Tooltip>
       ) : (

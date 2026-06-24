@@ -342,6 +342,7 @@ export const getFormListings = createServerFn({ method: "GET" })
         workspaceId: forms.workspaceId,
         icon: forms.icon,
         cover: forms.cover,
+        previewImageUrl: forms.previewImageUrl,
         customization: forms.customization,
         formName: forms.formName,
         sortIndex: forms.sortIndex,

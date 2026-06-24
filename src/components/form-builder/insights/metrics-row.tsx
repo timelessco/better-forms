@@ -44,7 +44,7 @@ const MetricCard = ({ label, value, Icon }: MetricCardProps) => (
         <span className="text-xs font-medium tracking-wide uppercase">{label}</span>
       </div>
       <span className="text-2xl font-semibold text-foreground">
-        <NumberPopIn value={value} className="tabular-nums" />
+        <NumberPopIn value={value} />
       </span>
     </CardContent>
   </Card>

@@ -206,7 +206,7 @@ const TokenStepper = ({
           // Reject non-numeric input — this control is tied to a Number field.
           if (NUMERIC_PATTERN.test(e.target.value)) onChange(e.target.value);
         }}
-        className="w-12 bg-transparent text-center text-[13px] text-foreground tabular-nums outline-none placeholder:text-muted-foreground"
+        className="w-12 bg-transparent text-center text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
       />
       <button
         type="button"

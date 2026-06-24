@@ -125,7 +125,7 @@ const StatTile = ({ meta, summary }: { meta: MetricMeta; summary: VitalMetricSum
       </div>
       <p className="text-xs text-pretty text-muted-foreground">{meta.description}</p>
       <p className="text-2xl font-semibold text-balance">
-        <NumberPopIn value={formatValue(meta.name, summary.p75)} className="tabular-nums" />
+        <NumberPopIn value={formatValue(meta.name, summary.p75)} />
       </p>
       {delta ? (
         <p

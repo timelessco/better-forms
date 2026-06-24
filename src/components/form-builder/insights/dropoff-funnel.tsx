@@ -36,7 +36,7 @@ const SummaryStat = ({ label, value }: SummaryStatProps) => (
     <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
       {label}
     </span>
-    <span className="text-lg font-semibold text-foreground tabular-nums">{value}</span>
+    <span className="text-lg font-semibold text-foreground">{value}</span>
   </div>
 );
 
@@ -110,17 +110,15 @@ const QuestionRow = ({ question, index, mode }: QuestionRowProps) => {
     <div className="grid grid-cols-[24px_minmax(0,1fr)_80px_90px_90px_100px] items-center gap-3 border-b border-border px-2.5 py-2 text-[13px] transition-colors last:border-b-0 hover:bg-muted/40">
       <span aria-hidden="true" />
       <span className="flex min-w-0 items-center gap-2">
-        <span className="text-muted-foreground tabular-nums">{index + 1}.</span>
+        <span className="text-muted-foreground">{index + 1}.</span>
         <span className="truncate font-medium text-foreground" title={label}>
           {label}
         </span>
       </span>
-      <span className="text-right tabular-nums">{numberFormatter.format(question.viewCount)}</span>
-      <span className="text-right tabular-nums">{numberFormatter.format(question.startCount)}</span>
-      <span className="text-right tabular-nums">
-        {numberFormatter.format(question.completeCount)}
-      </span>
-      <span className="text-right tabular-nums">{formatPercent(dropoffRate)}</span>
+      <span className="text-right">{numberFormatter.format(question.viewCount)}</span>
+      <span className="text-right">{numberFormatter.format(question.startCount)}</span>
+      <span className="text-right">{numberFormatter.format(question.completeCount)}</span>
+      <span className="text-right">{formatPercent(dropoffRate)}</span>
     </div>
   );
 };
@@ -152,17 +150,15 @@ const StepRow = ({ step, mode }: StepRowProps) => {
           aria-hidden="true"
         />
         <span className="flex min-w-0 items-center gap-2">
-          <span className="text-muted-foreground tabular-nums">{step.stepIndex + 1}.</span>
+          <span className="text-muted-foreground">{step.stepIndex + 1}.</span>
           <span className="truncate font-medium text-foreground" title={stepLabel}>
             {stepLabel}
           </span>
         </span>
-        <span className="text-right tabular-nums">{numberFormatter.format(step.viewCount)}</span>
-        <span className="text-right tabular-nums">{numberFormatter.format(step.startCount)}</span>
-        <span className="text-right tabular-nums">
-          {numberFormatter.format(step.completeCount)}
-        </span>
-        <span className="text-right tabular-nums">{formatPercent(dropoffRate)}</span>
+        <span className="text-right">{numberFormatter.format(step.viewCount)}</span>
+        <span className="text-right">{numberFormatter.format(step.startCount)}</span>
+        <span className="text-right">{numberFormatter.format(step.completeCount)}</span>
+        <span className="text-right">{formatPercent(dropoffRate)}</span>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="bg-muted/30">
@@ -179,16 +175,10 @@ const StepRow = ({ step, mode }: StepRowProps) => {
                     {formatQuestionLabel(q)}
                   </span>
                 </span>
-                <span className="text-right tabular-nums">
-                  {numberFormatter.format(q.viewCount)}
-                </span>
-                <span className="text-right tabular-nums">
-                  {numberFormatter.format(q.startCount)}
-                </span>
-                <span className="text-right tabular-nums">
-                  {numberFormatter.format(q.completeCount)}
-                </span>
-                <span className="text-right tabular-nums">{formatPercent(qDropoff)}</span>
+                <span className="text-right">{numberFormatter.format(q.viewCount)}</span>
+                <span className="text-right">{numberFormatter.format(q.startCount)}</span>
+                <span className="text-right">{numberFormatter.format(q.completeCount)}</span>
+                <span className="text-right">{formatPercent(qDropoff)}</span>
               </div>
             );
           })}

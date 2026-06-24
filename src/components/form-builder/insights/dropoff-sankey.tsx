@@ -171,7 +171,7 @@ const createRoundedStepCurve = (context: CurveContext) => {
 const FunnelStatRow = ({ label, value }: { label: string; value: string }) => (
   <div className="flex flex-1 items-center justify-between gap-4 leading-none">
     <span className="text-muted-foreground">{label}</span>
-    <span className="font-mono font-medium text-foreground tabular-nums">{value}</span>
+    <span className="font-mono font-medium text-foreground">{value}</span>
   </div>
 );
 
@@ -248,10 +248,10 @@ const FunnelChart = ({ segments }: FunnelChartProps) => {
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-semibold text-foreground">
-                  <NumberPopIn value={numberFormatter.format(seg.count)} className="tabular-nums" />
+                  <NumberPopIn value={numberFormatter.format(seg.count)} />
                 </span>
                 {seg.stepDrop !== null && seg.stepDrop > 0 && (
-                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                  <span className="text-[11px] text-muted-foreground">
                     −{Math.round(seg.stepDrop * 100)}%
                   </span>
                 )}
@@ -374,6 +374,6 @@ const SummaryStat = ({ label, value }: SummaryStatProps) => (
     <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
       {label}
     </span>
-    <span className="text-lg font-semibold text-foreground tabular-nums">{value}</span>
+    <span className="text-lg font-semibold text-foreground">{value}</span>
   </div>
 );

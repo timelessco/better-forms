@@ -29,6 +29,8 @@ export type FormListing = {
   content?: unknown[];
   schemaName?: string | null;
   cover?: string | null;
+  /** Generated content thumbnail (Plate render → Blob). Card preview + OG image. */
+  previewImageUrl?: string | null;
   createdByUserId?: string | null;
 };
 

@@ -164,9 +164,7 @@ const BreakdownTable = ({ data, columnLabel, renderName }: BreakdownTableProps) 
               <TableCell className="font-medium">
                 {renderName ? renderName(entry.name) : entry.name}
               </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {numberFormatter.format(entry.value)}
-              </TableCell>
+              <TableCell className="text-right">{numberFormatter.format(entry.value)}</TableCell>
             </TableRow>
           ))}
         </TableBody>

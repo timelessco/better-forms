@@ -100,7 +100,7 @@ const TimeSegment = ({ value, min, max, ariaLabel, inputId, unset, onCommit }: S
             step(-1);
           }
         }}
-        className="min-w-0 flex-1 [appearance:textfield] bg-transparent text-base tracking-[0.28px] text-foreground tabular-nums outline-none placeholder:text-foreground/70 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="min-w-0 flex-1 [appearance:textfield] bg-transparent text-base tracking-[0.28px] text-foreground outline-none placeholder:text-foreground/70 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       {/* Single Figma icon/line/select glyph; transparent top/bottom halves drive ±1. */}
       <div className="relative flex h-4 w-3 shrink-0 flex-col text-muted-foreground">
@@ -197,7 +197,7 @@ export const TimePicker = ({
           aria-label="Toggle AM or PM"
           onClick={() => emit({ period: view.period === "AM" ? "PM" : "AM" })}
           className={cn(
-            "flex shrink-0 items-center rounded-lg bg-(--color-gray-alpha-100) px-2.5 py-1.5 text-base tracking-[0.28px] tabular-nums",
+            "flex shrink-0 items-center rounded-lg bg-(--color-gray-alpha-100) px-2.5 py-1.5 text-base tracking-[0.28px]",
             parts ? "text-foreground" : "text-foreground/70",
           )}
         >

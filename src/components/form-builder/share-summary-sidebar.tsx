@@ -560,7 +560,7 @@ const InlineNumberInput = ({
         onKeyDown={(e) => {
           if (e.key === "Enter") e.currentTarget.blur();
         }}
-        className="w-9 bg-transparent text-right tabular-nums outline-none"
+        className="w-9 bg-transparent text-right outline-none"
         aria-label="Width"
       />
       <span>{suffix}</span>

@@ -161,6 +161,8 @@ export const forms = pgTable(
     content: jsonb().notNull().default([]),
     icon: text(),
     cover: text(),
+    // Generated content thumbnail (Plate render → Blob); card preview + OG image. Set on publish.
+    previewImageUrl: text(),
     status: text().notNull().default("draft"),
     // Version history fields
     lastPublishedVersionId: text().references((): AnyPgColumn => formVersions.id, {

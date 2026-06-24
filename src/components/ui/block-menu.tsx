@@ -521,7 +521,11 @@ export const BlockMenu = ({ children }: { children: React.ReactNode }) => {
                   ) : (
                     <m.div
                       key={view}
-                      className={cn("p-1", activePanel.width ?? "w-[246px]")}
+                      // Figma 25634-17867: subpanel card padding 16/14/14 (t/x/b), 12px gap header→body.
+                      className={cn(
+                        "flex flex-col gap-3 px-3.5 pt-4 pb-3.5",
+                        activePanel.width ?? "w-[246px]",
+                      )}
                       custom={direction}
                       variants={slideVariants}
                       initial="initial"
@@ -1055,12 +1059,12 @@ const SubmenuRow = ({
   return (
     <DropdownMenuItem
       closeOnClick={false}
-      className="text-sm text-foreground/80"
+      className="text-sm text-gray-800"
       onClick={() => actions.setView(view)}
     >
       {icon}
       <span className="flex-1 text-left">{label}</span>
-      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+      <ChevronRightIcon className="size-4 shrink-0 text-gray-800" />
     </DropdownMenuItem>
   );
 };
@@ -1072,7 +1076,7 @@ const PanelHeader = ({ label }: { label: string }) => {
     <button
       type="button"
       onClick={() => actions.setView(null)}
-      className="flex w-full items-center gap-0.5 px-1 py-1 text-[14px] text-muted-foreground transition-colors hover:text-foreground"
+      className="flex w-full items-center gap-0.5 text-[14px] text-muted-foreground transition-colors hover:text-foreground"
     >
       <ChevronLeftIcon className="-ms-0.5 size-4" />
       <span>{label}</span>
@@ -1082,7 +1086,7 @@ const PanelHeader = ({ label }: { label: string }) => {
 
 // Standard layout for numeric-settings panels (StepperRows etc.).
 const PanelBody = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex flex-col gap-2 p-1">{children}</div>
+  <div className="flex flex-col gap-2.5">{children}</div>
 );
 
 type StepperRowProps = {
@@ -1205,7 +1209,7 @@ const StepperRow = ({
             aria-label={ariaLabel}
             aria-invalid={error !== null}
             className={cn(
-              "min-w-0 flex-1 [appearance:textfield] bg-transparent text-[14px] font-medium tabular-nums outline-none placeholder:text-muted-foreground/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+              "min-w-0 flex-1 [appearance:textfield] bg-transparent text-[14px] font-medium outline-none placeholder:text-muted-foreground/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
               error ? "text-destructive" : "text-foreground",
             )}
           />
@@ -1262,7 +1266,7 @@ const SwitchRow = ({
     aria-label={ariaLabel}
   >
     {icon}
-    <span className="min-w-0 flex-1 text-left text-foreground/80">{label}</span>
+    <span className="min-w-0 flex-1 text-left text-gray-800">{label}</span>
     {/* Visual only — the row owns the click. An interactive Switch double-fires: Base UI's menu
         item activates on the native click before React's stopPropagation runs, so a direct switch
         click toggled twice (= no visible change). */}
@@ -1282,7 +1286,7 @@ const RequiredToggle = () => {
   const { state, actions } = useBlockMenu();
   return (
     <SwitchRow
-      icon={<RequiredFieldIcon className="text-foreground/80" />}
+      icon={<RequiredFieldIcon className="text-gray-800" />}
       label="Required"
       ariaLabel="Required"
       checked={Boolean(state.inputNode?.required)}
@@ -1295,7 +1299,7 @@ const VerifyEmail = () => {
   const { state, actions } = useBlockMenu();
   return (
     <SwitchRow
-      icon={<VerifiedIcon className="text-foreground/80" />}
+      icon={<VerifiedIcon className="text-gray-800" />}
       label="Verify email"
       ariaLabel="Verify email"
       checked={Boolean(state.inputNode?.verifyEmail)}
@@ -1309,7 +1313,7 @@ const VerifyEmail = () => {
 // selected ⇒ all countries, auto-detected from locale. Search header stays pinned while scrolling.
 const DefaultCountryCode = () => (
   <SubmenuRow
-    icon={<IconPhone className="text-foreground/80" />}
+    icon={<IconPhone className="text-gray-800" />}
     label="Allowed countries"
     view="default-country-code"
   />
@@ -1353,7 +1357,7 @@ const DefaultCountryCodePanel = () => {
             <DropdownMenuItem
               key={c.code}
               closeOnClick={false}
-              className="text-foreground/80"
+              className="text-gray-800"
               onClick={() => actions.toggleAllowedCountry(c.code)}
             >
               <span aria-hidden className="shrink-0 text-base leading-none">
@@ -1363,7 +1367,7 @@ const DefaultCountryCodePanel = () => {
                 {c.name} (+{c.dialCode})
               </span>
               {selected?.includes(c.code) && (
-                <CheckIcon className="size-4 shrink-0 text-foreground/80" />
+                <CheckIcon className="size-4 shrink-0 text-gray-800" />
               )}
             </DropdownMenuItem>
           ))
@@ -1379,7 +1383,7 @@ const RepeatableToggle = () => {
   if (!REPEATABLE_BLOCK_FIELD_TYPES.has(state.fieldType)) return null;
   return (
     <SwitchRow
-      icon={<RepeatIcon className="size-4 text-foreground/80" />}
+      icon={<RepeatIcon className="size-4 text-gray-800" />}
       label="Repeatable"
       ariaLabel="Repeatable"
       checked={Boolean(state.inputNode?.isFieldArray)}
@@ -1394,7 +1398,7 @@ const supportsMaxLength = (type: BlockMenuInputNode["type"] | undefined) => type
 
 const CharacterLimit = () => (
   <SubmenuRow
-    icon={<CharacterLimitIcon className="text-foreground/80" />}
+    icon={<CharacterLimitIcon className="text-gray-800" />}
     label="Character limit"
     view="character-limit"
   />
@@ -1431,7 +1435,7 @@ const CharacterLimitPanel = () => {
 
 const ValueRange = () => (
   <SubmenuRow
-    icon={<SelectionLimitIcon className="text-foreground/80" />}
+    icon={<SelectionLimitIcon className="text-gray-800" />}
     label="Value range"
     view="value-range"
   />
@@ -1493,9 +1497,9 @@ const FormatChoiceRow = ({
   active: boolean;
   onSelect: () => void;
 }) => (
-  <DropdownMenuItem closeOnClick={false} className="text-foreground/80" onClick={onSelect}>
+  <DropdownMenuItem closeOnClick={false} className="text-gray-800" onClick={onSelect}>
     <span className="min-w-0 flex-1 text-left">{label}</span>
-    {active && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
+    {active && <CheckIcon className="size-4 shrink-0 text-gray-800" />}
   </DropdownMenuItem>
 );
 
@@ -1505,7 +1509,7 @@ const FormatSectionHeader = ({ label }: { label: string }) => (
 
 const NumberFormat = () => (
   <SubmenuRow
-    icon={<HashIcon className="size-4 text-foreground/80" />}
+    icon={<HashIcon className="size-4 text-gray-800" />}
     label="Format"
     view="number-format"
   />
@@ -1562,7 +1566,7 @@ const NumberFormatPanel = () => {
 
 const SelectionLimit = () => (
   <SubmenuRow
-    icon={<SelectionLimitIcon className="text-foreground/80" />}
+    icon={<SelectionLimitIcon className="text-gray-800" />}
     label="Selection limit"
     view="selection-limit"
   />
@@ -1599,7 +1603,7 @@ const ShuffleOptions = () => {
   const { state, actions } = useBlockMenu();
   return (
     <SwitchRow
-      icon={<ShuffleOptionsIcon className="text-foreground/80" />}
+      icon={<ShuffleOptionsIcon className="text-gray-800" />}
       label="Shuffle options"
       ariaLabel="Shuffle options"
       checked={Boolean(state.inputNode?.randomizeOrder)}
@@ -1614,7 +1618,7 @@ const ShowAsDropdown = () => {
   const { state, actions } = useBlockMenu();
   return (
     <SwitchRow
-      icon={<IconDropdown className="text-foreground/80" />}
+      icon={<IconDropdown className="text-gray-800" />}
       label="Show as dropdown"
       ariaLabel="Show as dropdown"
       checked={Boolean(state.inputNode?.showAsDropdown)}
@@ -1629,7 +1633,7 @@ const MultipleSelection = () => {
   const { state, actions } = useBlockMenu();
   return (
     <SwitchRow
-      icon={<ListTodoIcon className="text-foreground/80" />}
+      icon={<ListTodoIcon className="text-gray-800" />}
       label="Multiple selection"
       ariaLabel="Multiple selection"
       checked={Boolean(state.inputNode?.multiple)}
@@ -1646,7 +1650,7 @@ const OPTION_LABEL_CHOICES: { value: OptionLabelStyle; label: string }[] = [
 ];
 
 const OptionLabels = () => (
-  <SubmenuRow icon={<LabelsIcon className="text-foreground/80" />} label="Labels" view="labels" />
+  <SubmenuRow icon={<LabelsIcon className="text-gray-800" />} label="Labels" view="labels" />
 );
 
 const OptionLabelsPanel = () => {
@@ -1661,11 +1665,11 @@ const OptionLabelsPanel = () => {
         <DropdownMenuItem
           key={choice.value}
           closeOnClick={false}
-          className="text-foreground/80"
+          className="text-gray-800"
           onClick={() => actions.setOptionLabel(choice.value)}
         >
           <span className="min-w-0 flex-1 text-left">{choice.label}</span>
-          {current === choice.value && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
+          {current === choice.value && <CheckIcon className="size-4 shrink-0 text-gray-800" />}
         </DropdownMenuItem>
       ))}
     </div>
@@ -1677,7 +1681,7 @@ const OptionImage = () => {
   const { state, actions } = useBlockMenu();
   return (
     <SwitchRow
-      icon={<PhotoIcon className="text-foreground/80" />}
+      icon={<PhotoIcon className="text-gray-800" />}
       label="Image"
       ariaLabel="Image"
       checked={state.inputNode?.showImage === true}
@@ -1689,7 +1693,7 @@ const OptionImage = () => {
 // File-upload "Selection limit" submenu (Figma node 25633-11549): max file size + max file count.
 const FileSelectionLimit = () => (
   <SubmenuRow
-    icon={<SelectionLimitIcon className="text-foreground/80" />}
+    icon={<SelectionLimitIcon className="text-gray-800" />}
     label="Selection limit"
     view="file-selection-limit"
   />
@@ -1727,7 +1731,7 @@ const FileSelectionLimitPanel = () => {
 // down. Each category's "All" row flips the whole group.
 const AllowedFiles = () => (
   <SubmenuRow
-    icon={<FileIcon className="size-4 text-foreground/80" />}
+    icon={<FileIcon className="size-4 text-gray-800" />}
     label="Allowed files"
     view="allowed-files"
   />
@@ -1775,11 +1779,11 @@ const AllowedFilesPanel = () => {
               <DropdownMenuItem
                 key={`${category.id}${e.ext}`}
                 closeOnClick={false}
-                className="text-foreground/80"
+                className="text-gray-800"
                 onClick={() => toggleExtension(e.ext)}
               >
                 <span className="min-w-0 flex-1 text-left">{e.ext}</span>
-                {isActive(e.ext) && <CheckIcon className="size-4 shrink-0 text-foreground/80" />}
+                {isActive(e.ext) && <CheckIcon className="size-4 shrink-0 text-gray-800" />}
               </DropdownMenuItem>
             ))}
           </React.Fragment>
@@ -1815,7 +1819,7 @@ const BulkInsertOptions = () => {
     // closeOnClick={false}: the popup stays open and morphs into the bulk-insert panel.
     <DropdownMenuItem
       closeOnClick={false}
-      className="text-foreground/80"
+      className="text-gray-800"
       onClick={actions.openBulkInsert}
     >
       <BulkInsertIcon />
@@ -1885,23 +1889,23 @@ const MenuActions = ({ children }: { children?: React.ReactNode }) => {
       {/* Repeatable sits at the top of the shared actions, just below the essentials divider —
           self-hides for non-scalar fields, so it shows wherever it applies. */}
       <RepeatableToggle />
-      <DropdownMenuItem className="text-foreground/80" onClick={actions.addLogic}>
+      <DropdownMenuItem className="text-gray-800" onClick={actions.addLogic}>
         <ConditionalLogicIcon />
         <span className="flex-1 text-left">Add conditional logic</span>
         <DropdownMenuShortcut>⌘C</DropdownMenuShortcut>
       </DropdownMenuItem>
       {children}
-      <DropdownMenuItem className="text-foreground/80" onClick={actions.duplicateBlock}>
+      <DropdownMenuItem className="text-gray-800" onClick={actions.duplicateBlock}>
         <DuplicateIcon />
         <span className="flex-1 text-left">Duplicate</span>
         <DropdownMenuShortcut>⌘D</DropdownMenuShortcut>
       </DropdownMenuItem>
-      <DropdownMenuItem className="text-foreground/80" onClick={actions.hide}>
+      <DropdownMenuItem className="text-gray-800" onClick={actions.hide}>
         <HideIcon />
         <span className="flex-1 text-left">Hide</span>
         <DropdownMenuShortcut>⌘H</DropdownMenuShortcut>
       </DropdownMenuItem>
-      <DropdownMenuItem className="text-foreground/80" onClick={actions.deleteBlock}>
+      <DropdownMenuItem className="text-gray-800" onClick={actions.deleteBlock}>
         <DeleteIcon />
         <span className="flex-1 text-left">Delete</span>
         <DropdownMenuShortcut>Del</DropdownMenuShortcut>
@@ -1970,7 +1974,7 @@ const Use24HourToggle = () => {
   const { state, actions } = useBlockMenu();
   return (
     <SwitchRow
-      icon={<ClockLineIcon className="text-foreground/80" />}
+      icon={<ClockLineIcon className="text-gray-800" />}
       label="24-hour time"
       ariaLabel="24-hour time"
       checked={Boolean(state.inputNode?.use24Hour)}
@@ -2004,7 +2008,7 @@ const AllowDecimals = () => {
   const { state, actions } = useBlockMenu();
   return (
     <SwitchRow
-      icon={<DecimalsArrowRightIcon className="size-4 text-foreground/80" />}
+      icon={<DecimalsArrowRightIcon className="size-4 text-gray-800" />}
       label="Allow decimals"
       ariaLabel="Allow decimals"
       checked={state.inputNode?.allowDecimals !== false}
@@ -2027,11 +2031,7 @@ const NumberFieldMenu = () => (
 // Linear scale "Scale" panel (Figma 25634-17867): dual-handle slider sets the scale's
 // Start/End within the allowed bounds; the end labels show those bounds (-10 … 10).
 const ScaleRange = () => (
-  <SubmenuRow
-    icon={<IconLinearScale className="text-foreground/80" />}
-    label="Scale"
-    view="scale"
-  />
+  <SubmenuRow icon={<IconLinearScale className="text-gray-800" />} label="Scale" view="scale" />
 );
 
 const ScaleRangePanel = () => {
@@ -2070,7 +2070,7 @@ const ScaleRangePanel = () => {
         }}
       />
       {/* Figma (25634-17867): the end labels show the slider bounds (-10 … 10), not the selection. */}
-      <div className="flex items-center justify-between text-[12px] tracking-[0.24px] text-gray-700 tabular-nums">
+      <div className="flex items-center justify-between text-[12px] tracking-[0.24px] text-gray-700">
         <span>{LINEAR_SCALE_BOUNDS.min}</span>
         <span>{LINEAR_SCALE_BOUNDS.max}</span>
       </div>
@@ -2086,7 +2086,7 @@ const readSliderValue = (value: number | readonly number[]): number =>
 // increment between points.
 const ScaleStep = () => (
   <SubmenuRow
-    icon={<HashIcon className="text-foreground/80" strokeWidth={1} />}
+    icon={<HashIcon className="text-gray-800" strokeWidth={1} />}
     label="Scale step"
     view="scale-step"
   />
@@ -2166,7 +2166,7 @@ const ScaleStepPanel = () => {
             stopKeyEventPropagation(e);
             if (e.key === "Enter") e.currentTarget.blur();
           }}
-          className="w-12 [appearance:textfield] rounded-lg bg-(--color-gray-alpha-100) px-2 py-1.5 text-center text-[14px] font-medium text-foreground tabular-nums outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="w-12 [appearance:textfield] rounded-lg bg-(--color-gray-alpha-100) px-2 py-1.5 text-center text-[14px] font-medium text-foreground outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
       </div>
     </PanelBody>
@@ -2295,7 +2295,7 @@ const StaticFieldMenu = () => <MenuActions />;
 // Rating "Stars count" panel (Figma 25647-15073): a stepper bounded to 1…RATING_MAX_STARS.
 const StarsCount = () => (
   <SubmenuRow
-    icon={<IconRating className="text-foreground/80" />}
+    icon={<IconRating className="text-gray-800" />}
     label="Stars count"
     view="stars-count"
   />

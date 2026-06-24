@@ -17,11 +17,12 @@ import {
   Command,
   CommandDialog,
   CommandEmpty,
+  CommandFooter,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
+  CommandShortcut,
 } from "@/components/ui/command";
 import {
   Dialog,
@@ -35,6 +36,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import {
   ArrowLeftIcon,
   BellIcon,
+  CheckCheckIcon,
   CheckIcon,
   FileTextIcon,
   HelpCircleIcon,
@@ -50,6 +52,8 @@ import {
   UsersIcon,
   XIcon,
 } from "@/components/ui/icons";
+import { FigTilesIcon } from "@/components/dashboard/dashboard-icons";
+import { useRecentFormIds } from "@/lib/recent-forms";
 import { Input } from "@/components/ui/input";
 import Loader from "@/components/ui/loader";
 import { LogoToggle } from "@/components/ui/logo";
@@ -178,7 +182,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { generateOrderedIndexes, getLeadingSortIndex, sortByManualOrder } from "@/lib/sort-utils";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { formatDistanceToNow } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 import type * as React from "react";
 import { Activity, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
@@ -261,10 +265,25 @@ const PersistentSidebars = ({
   );
 };
 
-const formatNotificationTime = (value: string) =>
-  formatDistanceToNow(new Date(value), {
-    addSuffix: true,
-  });
+// Figma 26669:11845 — clock in the notification row (e.g. "2:47 PM").
+const formatNotificationClock = (value: string) => format(new Date(value), "h:mm a");
+
+// Figma 26669:11845 — batch notifications into Today / Yesterday / dated sections by latest activity.
+const groupNotificationsByDay = <T extends { latestSubmissionAt: string }>(items: readonly T[]) => {
+  const buckets = new Map<string, { label: string; order: number; items: T[] }>();
+  for (const item of items) {
+    const date = new Date(item.latestSubmissionAt);
+    const label = isToday(date) ? "Today" : isYesterday(date) ? "Yesterday" : format(date, "MMM d");
+    const bucket = buckets.get(label);
+    if (bucket) {
+      bucket.items.push(item);
+      bucket.order = Math.max(bucket.order, date.getTime());
+    } else {
+      buckets.set(label, { label, order: date.getTime(), items: [item] });
+    }
+  }
+  return [...buckets.values()].sort((a, b) => b.order - a.order);
+};
 
 const initCollectionsOnClient = createClientOnlyFn((queryClient: QueryClient) => {
   if (isCollectionsInitialized()) return;
@@ -508,7 +527,55 @@ const AppSidebar = () => {
   });
   const { data: workspacesData } = useOrgWorkspaces(activeOrg?.id);
   const { data: formsData } = useOrgForms(activeOrg?.id);
+  const submissionCounts = useSubmissionCounts();
+  // Recently-opened forms (localStorage, no DB round-trip) resolved against the live listings; fall
+  // back to most-recently-updated when there's no open history yet. Top 6 feed Recent Searches.
+  const recentFormIds = useRecentFormIds();
+  const formById = useMemo(
+    () => new Map((formsData ?? []).map((form) => [form.id, form])),
+    [formsData],
+  );
+  const recentForms = useMemo(() => {
+    const opened = recentFormIds
+      .map((id) => formById.get(id))
+      .filter((form): form is NonNullable<typeof form> => Boolean(form));
+    return (opened.length > 0 ? opened : (formsData ?? [])).slice(0, 6);
+  }, [recentFormIds, formById, formsData]);
   const { unreadSubmissionCount } = useSubmissionNotifications({ poll: true });
+
+  // Figma 26612:40177 — file-doc + title + right-aligned meta (response count, or "Draft").
+  const renderPaletteForm = (form: NonNullable<typeof formsData>[number]) => {
+    const count = submissionCounts.get(form.id) ?? 0;
+    const meta =
+      form.status === "draft" ? "Draft" : `${count} ${count === 1 ? "response" : "responses"}`;
+    const isPublished = form.status === "published";
+    return (
+      <CommandItem
+        key={form.id}
+        value={`${form.title || "Untitled form"} ${form.id}`}
+        onSelect={() => {
+          setIsPaletteOpen(false);
+          setPaletteSearch("");
+          void router.navigate({
+            to: isPublished
+              ? "/workspace/$workspaceId/form-builder/$formId/submissions"
+              : "/workspace/$workspaceId/form-builder/$formId/edit",
+            params: { workspaceId: form.workspaceId, formId: form.id },
+          });
+        }}
+      >
+        <ThemedFormIcon
+          icon={form.icon}
+          customization={form.customization as Record<string, string> | undefined}
+          monochrome
+          size="16"
+          iconSize="16"
+        />
+        <span className="min-w-0 flex-1 truncate">{form.title || "Untitled form"}</span>
+        <CommandShortcut className="shrink-0">{meta}</CommandShortcut>
+      </CommandItem>
+    );
+  };
   const { data: invitations } = useQuery(auth.organization.listUserInvitations.queryOptions());
   const pendingInvitationCount = useMemo(
     () => (invitations ?? []).filter((inv: { status: string }) => inv.status === "pending").length,
@@ -592,7 +659,7 @@ const AppSidebar = () => {
                         label="Notifications"
                       >
                         {pendingCount > 0 && (
-                          <span className="w-4 shrink-0 rounded-full bg-primary py-0.5 text-center text-[10px] font-semibold text-primary-foreground tabular-nums">
+                          <span className="w-4 shrink-0 rounded-full bg-primary py-0.5 text-center text-[10px] font-semibold text-primary-foreground">
                             <NumberPopIn value={pendingCount} />
                           </span>
                         )}
@@ -603,7 +670,10 @@ const AppSidebar = () => {
               </SidebarGroup>
 
               <div className="mt-[13px] px-2">
-                <SidebarWorkspacesMinimal activeOrgId={activeOrg?.id} />
+                <SidebarWorkspacesMinimal
+                  activeOrgId={activeOrg?.id}
+                  submissionCounts={submissionCounts}
+                />
               </div>
             </SidebarContent>
 
@@ -625,13 +695,27 @@ const AppSidebar = () => {
         >
           <Command>
             <CommandInput
-              placeholder="Search for forms and help articles"
+              placeholder="Search forms..."
               value={paletteSearch}
               onValueChange={setPaletteSearch}
             />
             <CommandList>
               <CommandEmpty>No results found.</CommandEmpty>
-              <CommandGroup heading="Actions">
+              {/* Recent Searches (default) → recent forms with response counts; while searching,
+                  the same rows cover all forms (Figma 26612:40174). */}
+              {paletteSearch.trim().length === 0
+                ? recentForms.length > 0 && (
+                    <CommandGroup heading="Recent Searches">
+                      {recentForms.map(renderPaletteForm)}
+                    </CommandGroup>
+                  )
+                : formsData &&
+                  formsData.length > 0 && (
+                    <CommandGroup heading="Forms">{formsData.map(renderPaletteForm)}</CommandGroup>
+                  )}
+
+              {/* Quick Actions (Figma 26612:40201) */}
+              <CommandGroup heading="Quick Actions">
                 <CommandItem
                   onSelect={async () => {
                     setIsPaletteOpen(false);
@@ -658,7 +742,16 @@ const AppSidebar = () => {
                   }}
                 >
                   <PlusIcon className="size-4" />
-                  <span>New form</span>
+                  <span>Create a new form</span>
+                </CommandItem>
+                <CommandItem
+                  onSelect={() => {
+                    void router.navigate({ to: "/templates" });
+                    setIsPaletteOpen(false);
+                  }}
+                >
+                  <FigTilesIcon className="size-4" />
+                  <span>Browse templates</span>
                 </CommandItem>
                 <CommandItem
                   onSelect={() => {
@@ -689,37 +782,6 @@ const AppSidebar = () => {
                   <span>New workspace</span>
                 </CommandItem>
               </CommandGroup>
-              {paletteSearch.trim().length > 0 && formsData && formsData.length > 0 && (
-                <>
-                  <CommandSeparator />
-                  <CommandGroup heading="Forms">
-                    {formsData.map((form) => (
-                      <CommandItem
-                        key={form.id}
-                        value={`${form.title || "Untitled form"} ${form.id}`}
-                        onSelect={() => {
-                          setIsPaletteOpen(false);
-                          setPaletteSearch("");
-                          void router.navigate({
-                            to: "/workspace/$workspaceId/form-builder/$formId/edit",
-                            params: {
-                              workspaceId: form.workspaceId,
-                              formId: form.id,
-                            },
-                          });
-                        }}
-                      >
-                        <SidebarFormIcon
-                          icon={form.icon}
-                          customization={form.customization as Record<string, string> | undefined}
-                        />
-                        <span>{form.title || "Untitled form"}</span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </>
-              )}
-              <CommandSeparator />
               <CommandGroup heading="Navigation">
                 <CommandItem
                   onSelect={() => {
@@ -759,6 +821,7 @@ const AppSidebar = () => {
                 </CommandItem>
               </CommandGroup>
             </CommandList>
+            <CommandFooter />
           </Command>
         </CommandDialog>
       )}
@@ -968,7 +1031,8 @@ const TrashDialog = ({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="gap-0 border-foreground/10 bg-background p-0 sm:max-w-[500px]"
+        // Anchor in the upper area like the command palette (top ≈ 19.5%), not vertical-center.
+        className="top-[19.5%] translate-y-0 gap-0 border-foreground/10 bg-background p-0 sm:max-w-[500px]"
       >
         <div className="p-1.5 pb-0">
           {/* Matches CommandInput shell — same search affordance as elsewhere. */}
@@ -1286,86 +1350,99 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
       <div className="no-scrollbar flex-1 overflow-y-auto p-2">
         <div className="overflow-hidden px-1">
           {hasNotifications && (
-            <>
-              <div className="mb-3 flex items-center justify-between px-2">
-                <p className="text-[10px] font-bold tracking-widest text-muted-foreground/30 uppercase">
-                  Submissions
-                </p>
-                {readNotificationCount > 0 ? (
+            // -mx-1 cancels the parent px-1 so the list is flush to the p-2 frame (Figma frame edge).
+            <div className="-mx-1">
+              {/* Figma 26669:11834 — section header: "Notifications" + mark-all (double-check). */}
+              <div className="flex items-center justify-between py-2 pr-2 pl-4">
+                <span className="px-0.5 py-1 text-base leading-[1.15] font-[450] tracking-[0.14px] text-gray-800">
+                  Notifications
+                </span>
+                {readNotificationCount > 0 && (
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                    variant="ghost-flat"
+                    size="icon"
+                    className="rounded-[8px] p-1.25 text-gray-800 hover:text-foreground"
                     disabled={isClearingAllRead}
                     onClick={() => void clearAllReadNotifications()}
+                    aria-label="Clear all read"
+                    title="Clear all read"
                   >
-                    {isClearingAllRead ? "Clearing..." : "Clear all read"}
+                    <CheckCheckIcon className="size-4" />
                   </Button>
-                ) : null}
+                )}
               </div>
 
-              <div className="mb-4 flex flex-col gap-px overflow-hidden rounded-lg">
-                {notifications.map((notification) => {
-                  const isUnread = !notification.isRead && notification.unreadCount > 0;
-                  const isBusy =
-                    readingFormId === notification.formId || clearingFormId === notification.formId;
+              {/* Figma 26669:11845 — day-batched notification list. */}
+              <div className="flex flex-col gap-5 pt-1.5 pb-3.5">
+                {groupNotificationsByDay(notifications).map((group) => (
+                  <div key={group.label} className="flex flex-col gap-2">
+                    <p className="pl-4 text-sm leading-[1.15] font-[450] tracking-[0.13px] text-gray-800">
+                      {group.label}
+                    </p>
+                    <div className="flex flex-col">
+                      {group.items.map((notification) => {
+                        const isUnread = !notification.isRead && notification.unreadCount > 0;
+                        const isBusy =
+                          readingFormId === notification.formId ||
+                          clearingFormId === notification.formId;
 
-                  return (
-                    <button
-                      key={notification.id}
-                      type="button"
-                      className="group flex min-h-8.5 w-full items-center gap-3 bg-secondary py-1.75 pr-[6px] pl-2.5 text-left transition-colors hover:bg-muted/80"
-                      onClick={() => void openNotification(notification)}
-                      disabled={readingFormId === notification.formId}
-                    >
-                      <div className="flex size-6 shrink-0 items-center justify-center rounded bg-foreground/5">
-                        <ThemedFormIcon
-                          icon={notification.formIcon}
-                          customization={undefined}
-                          size="14"
-                          iconSize="8"
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-base font-normal">
-                          {notification.formTitle || "Untitled"}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        {isUnread ? (
-                          <span className="text-[11px] text-foreground tabular-nums">
-                            {notification.unreadCount === 1
-                              ? "1 new"
-                              : `${notification.unreadCount} new`}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground/50">
-                            {formatNotificationTime(notification.latestSubmissionAt)}
-                          </span>
-                        )}
-                        {notification.isRead ? (
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            className="size-5 text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
-                            disabled={isBusy}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void clearNotification(notification.formId);
-                            }}
-                            aria-label="Clear notification"
+                        return (
+                          <button
+                            key={notification.id}
+                            type="button"
+                            className="group flex flex-col gap-1.5 border-b border-gray-200 px-2 py-3 text-left transition-colors hover:rounded-[8px] hover:border-transparent hover:bg-gray-100"
+                            onClick={() => void openNotification(notification)}
+                            disabled={readingFormId === notification.formId}
                           >
-                            <XIcon className="size-3" />
-                          </Button>
-                        ) : (
-                          <div className="size-1.5 rounded-full bg-primary" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
+                            {/* Top: category + time — 13px / Medium 450 / gray-550. */}
+                            <div className="flex w-full items-center justify-between">
+                              <span className="flex items-center gap-1.5">
+                                <FileTextIcon className="size-3 shrink-0 text-[var(--color-gray-550)]" />
+                                <span className="text-sm leading-[1.15] font-[450] tracking-[0.13px] text-[var(--color-gray-550)]">
+                                  New submission
+                                </span>
+                              </span>
+                              <span className="text-sm leading-[1.15] font-[450] tracking-[0.13px] text-[var(--color-gray-550)]">
+                                {formatNotificationClock(notification.latestSubmissionAt)}
+                              </span>
+                            </div>
+                            {/* Body: message — 14px / Medium 450 / gray-700 / lh 1.5 — + unread dot or hover-clear. */}
+                            <div className="flex w-full items-end gap-4">
+                              <span className="min-w-0 flex-1 text-base leading-[1.5] font-[450] tracking-[0.14px] text-gray-700">
+                                {notification.formTitle || "Untitled"}
+                              </span>
+                              {isUnread ? (
+                                <span
+                                  className="flex size-4 shrink-0 items-center justify-center"
+                                  aria-label="Unread"
+                                >
+                                  {/* Figma blue/500 #0289f7 — no token exists; matches logic-block-node.tsx precedent. */}
+                                  <span className="size-1.5 rounded-full bg-[#0289f7]" />
+                                </span>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  className="size-4 shrink-0 text-[var(--color-gray-550)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
+                                  disabled={isBusy}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void clearNotification(notification.formId);
+                                  }}
+                                  aria-label="Clear notification"
+                                >
+                                  <XIcon className="size-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </>
+            </div>
           )}
 
           {hasPendingInvitations && (
@@ -1826,7 +1903,13 @@ const useSidebarWorkspaceDialogs = ({
   };
 };
 
-const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => {
+const SidebarWorkspacesMinimal = ({
+  activeOrgId,
+  submissionCounts,
+}: {
+  activeOrgId?: string;
+  submissionCounts: Map<string, number>;
+}) => {
   const router = useRouter();
   const pathname = useLocation({ select: (s) => s.pathname });
   const duplicateForm = useDuplicateForm();
@@ -1851,7 +1934,6 @@ const SidebarWorkspacesMinimal = ({ activeOrgId }: { activeOrgId?: string }) => 
 
   const { data: workspacesData, isLoading: workspacesLoading } = useOrgWorkspaces(activeOrgId);
   const { data: formsData, isLoading: formsLoading } = useOrgForms(activeOrgId);
-  const submissionCounts = useSubmissionCounts();
 
   const favoriteForms = useFavoriteForms(session?.user?.id);
 

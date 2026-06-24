@@ -49,6 +49,7 @@ export const getPublishedFormByShortId = createServerFn({ method: "GET" })
         draftContent: forms.content,
         draftIcon: forms.icon,
         draftCover: forms.cover,
+        previewImageUrl: forms.previewImageUrl,
       })
       .from(forms)
       .innerJoin(workspaces, eq(workspaces.id, forms.workspaceId))
@@ -127,11 +128,14 @@ export const getPublishedFormByShortId = createServerFn({ method: "GET" })
       content: form.draftContent,
       icon: form.draftIcon,
     });
-    const ogImageUrl = buildOgImageUrl({
-      shortId: form.shortId,
-      title: og.title,
-      description: og.description,
-    });
+    // Prefer the generated content thumbnail (Plate render); fall back to the Satori OG card.
+    const ogImageUrl =
+      form.previewImageUrl ??
+      buildOgImageUrl({
+        shortId: form.shortId,
+        title: og.title,
+        description: og.description,
+      });
     const ogDescription = og.description;
 
     if (version) {
