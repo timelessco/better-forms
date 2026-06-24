@@ -26,6 +26,8 @@ export const FormSchema = v.object({
   content: v.optional(v.array(v.any()), []),
   icon: v.nullish(v.string()),
   cover: v.nullish(v.string()),
+  // Generated content thumbnail (Plate render → Blob); card preview + OG image. Set on publish.
+  previewImageUrl: v.nullish(v.string()),
   status: v.optional(v.picklist(["draft", "published", "archived"]), "draft"),
   lastPublishedVersionId: v.nullish(v.string()),
   publishedContentHash: v.nullish(v.string()),

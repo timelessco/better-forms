@@ -653,7 +653,7 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
   return (
     <PlateElement
       attributes={{ ...attributes, "data-bf-input": "true" }}
-      className="relative w-full max-w-116 cursor-text rounded-md caret-current before:top-3.5 before:left-6.5 before:-translate-y-1/2 before:text-sm"
+      className="relative w-full max-w-116 cursor-text rounded-md caret-current before:top-3.5 before:left-6.5 before:-translate-y-1/2 before:text-base"
       element={element}
       {...rest}
     >
@@ -661,7 +661,7 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
         <span contentEditable={false} className="pointer-events-none shrink-0 select-none">
           <OptionIcon variant={variant} index={optionIndex} optionLabel={optionLabel} />
         </span>
-        <span className="min-w-0 flex-1 text-sm outline-none">{children}</span>
+        <span className="min-w-0 flex-1 text-base outline-none">{children}</span>
       </div>
 
       {showImage && (
@@ -681,7 +681,7 @@ export const FormOptionItemElement = ({ children, ...props }: PlateElementProps)
           className="pointer-events-none absolute top-[calc(100%+4px)] right-0 left-0 flex h-[30px] items-center gap-2 pl-0.5 opacity-40 select-none"
         >
           <OptionIcon variant={variant} index={optionIndex + 1} optionLabel={optionLabel} />
-          <span className="text-sm text-muted-foreground">Add option</span>
+          <span className="text-base text-muted-foreground">Add option</span>
         </div>
       )}
       <RequiredBadgeButton

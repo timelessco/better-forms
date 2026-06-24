@@ -417,7 +417,7 @@ const Draggable = (props: PlateElementProps) => {
                 data-plate-prevent-deselect
                 aria-label="Delete block"
               >
-                <BlockDeleteIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
+                <BlockDeleteIcon className="size-4 text-muted-foreground" />
               </Button>
             )}
 
@@ -431,7 +431,7 @@ const Draggable = (props: PlateElementProps) => {
                 data-plate-prevent-deselect
                 aria-label="Add block below"
               >
-                <BlockAddIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
+                <BlockAddIcon className="size-4 text-muted-foreground" />
               </Button>
             )}
 
@@ -662,7 +662,7 @@ const DragHandle = React.memo(function DragHandle({
       {isFormButton ? (
         <SettingsIcon className="text-muted-foreground" />
       ) : (
-        <BlockDragIcon className="size-4 text-[#52525B] dark:text-muted-foreground" />
+        <BlockDragIcon className="size-4 text-muted-foreground" />
       )}
     </button>
   );

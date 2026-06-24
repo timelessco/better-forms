@@ -481,7 +481,7 @@ const WorkspaceFormMinimal = ({
       >
         {/* eslint-disable-next-line react-doctor/rendering-conditional-render -- showCount is a derived boolean (isPublished && submissionCount > 0); cannot render numeric 0 */}
         {showCount && (
-          <span className="shrink-0 font-case text-[11px] tracking-5 text-muted-foreground tabular-nums transition-opacity group-hover/row:opacity-0 group-has-[[data-state=open]]/row:opacity-0">
+          <span className="shrink-0 font-case text-[11px] tracking-5 text-muted-foreground transition-opacity group-hover/row:opacity-0 group-has-[[data-state=open]]/row:opacity-0">
             {submissionCount}
           </span>
         )}

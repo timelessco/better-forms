@@ -25,14 +25,17 @@ type PendingPublish = (opts: PublishOptions) => void;
  * dialog is the honest heads-up). Pro/business plans pass straight through.
  */
 export const useProPublishGate = (formId: string | undefined) => {
-  const { isFree } = useUserPlan();
+  const { isFree, isLoading } = useUserPlan();
   const { data } = useForm(formId);
   const customization = (data?.[0]?.customization ?? {}) as Record<string, string>;
   const proSections = getProCustomizationSections(customization);
   const [pendingPublish, setPendingPublish] = useState<PendingPublish | null>(null);
 
   const guardPublish = (publish: PendingPublish) => {
-    if (isFree && proSections.length > 0) setPendingPublish(() => publish);
+    // Only gate a *confirmed* free plan — never block a paid user while the
+    // subscription query is still loading (planForProductId(undefined) → "free").
+    // Fail open otherwise: the server strips Pro styles for free users anyway.
+    if (!isLoading && isFree && proSections.length > 0) setPendingPublish(() => publish);
     else publish({ stripProStyles: false });
   };
 

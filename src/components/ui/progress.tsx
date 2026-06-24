@@ -52,7 +52,7 @@ export const ProgressLabel = ({ className, ...props }: ProgressPrimitive.Label.P
 
 export const ProgressValue = ({ className, ...props }: ProgressPrimitive.Value.Props) => (
   <ProgressPrimitive.Value
-    className={cn("ms-auto text-sm text-muted-foreground tabular-nums", className)}
+    className={cn("ms-auto text-sm text-muted-foreground", className)}
     data-slot="progress-value"
     {...props}
   />

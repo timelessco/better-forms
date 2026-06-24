@@ -126,7 +126,9 @@ const FILTER_OPTIONS: ReadonlyArray<{ value: FormFilter; label: string }> = [
 ];
 
 // Template-card icons — verbatim Figma glyphs from node 26208:8027.
-const TEMPLATE_ICONS: Record<FormTemplateId, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+const TEMPLATE_ICONS: Partial<
+  Record<FormTemplateId, React.ComponentType<React.SVGProps<SVGSVGElement>>>
+> = {
   blank: FigPlusIcon,
   survey: FigSurveyIcon,
   feedback: FigCommentIcon,
@@ -141,15 +143,8 @@ const greetingFor = (date: Date): string => {
   return "Good evening";
 };
 
-const FILTER_LABEL: Record<FormFilter, string> = {
-  all: "All",
-  favorites: "Favorites",
-  drafts: "Drafts",
-  published: "Published",
-};
-
-// Figma 26208:8074 — gray/100 pill trigger (filter icon + active label + chevron) opening the
-// All/Favorites/Drafts/Published options. Replaces the old filter-pill row.
+// Figma 26208:8074 — gray/100 pill trigger (filter icon + static "Filter" label + chevron); the
+// active option is marked with a tick inside the dropdown, not shown on the trigger.
 const FilterMenu = ({
   currentFilter,
   onChange,
@@ -161,14 +156,14 @@ const FilterMenu = ({
     <DropdownMenuTrigger
       render={
         <Button
-          variant="ghost"
+          variant="ghost-flat"
           size="sm"
           aria-label="Filter forms"
           className="rounded-lg bg-secondary px-2 hover:bg-secondary/80"
         >
           <FigFilterIcon className="size-4 text-gray-800" />
           <span className="font-case text-base font-[450] tracking-[0.14px] text-gray-800">
-            {FILTER_LABEL[currentFilter]}
+            Filter
           </span>
           <FigSmallDownIcon className="size-4 text-gray-800" />
         </Button>
@@ -574,10 +569,13 @@ const DashboardPage = () => {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background text-foreground">
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8 md:px-12 md:py-12 lg:px-20">
+      {/* 1060 cap = Figma 900px content column + lg:px-20 gutters (80×2), so template cards land at 170.4px. */}
+      <main className="mx-auto w-full max-w-[1060px] flex-1 px-6 py-8 md:px-12 md:py-12 lg:px-20">
         <section className="flex flex-col gap-5">
           {/* Greeting */}
-          <h1 className="text-xl leading-[1.15] font-semibold text-gray-950">
+          {/* font-sans re-binds the wght axis so font-semibold actually renders 600 (Figma Semi Bold);
+              without it the inherited font-variation-settings pins wght to 450. */}
+          <h1 className="font-sans text-xl leading-[1.15] font-semibold tracking-normal text-gray-950">
             <TextSwap key={userName}>
               {greetingFor(new Date())}
               {userName ? `, ${userName}` : ""}
@@ -595,7 +593,8 @@ const DashboardPage = () => {
         {/* Recent Forms */}
         <section className="mt-10 space-y-5">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-[15px] leading-[1.15] font-semibold tracking-[0.225px] text-gray-950">
+            {/* font-sans re-binds the wght axis so font-semibold renders 600 (Figma SemiBold), not the pinned 450. */}
+            <h2 className="font-sans text-[15px] leading-[1.15] font-semibold tracking-[0.225px] text-gray-950">
               Recent Forms
             </h2>
             {!isLoading && orgForms.length > 0 && (
@@ -672,12 +671,18 @@ interface QuickCreateTemplatesProps {
   onCreate: (templateId: FormTemplateId) => void;
 }
 
-// Figma node 26208:8027 — row of equal-flex template cards. Blank = dashed gray/300 border;
-// others = solid gray/100 hairline. 24px icon + 14px label.
+// Shared card chrome for the quick-create row.
+const QUICK_CARD_CLASS =
+  "flex flex-1 cursor-pointer flex-col items-center gap-3 rounded-[12px] border bg-gray-50 px-5 py-[18px] transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50";
+const QUICK_CARD_LABEL = "text-base font-[450] tracking-[0.28px] text-gray-950";
+
+// Figma node 26208:8027 — row of equal-flex template cards. Blank + "All templates" = dashed
+// gray/300 border; others = solid gray/100 hairline. 24px icon + 14px label. Only `featured`
+// templates are pinned here; the rest live in the /templates gallery.
 const QuickCreateTemplates = ({ disabled, onCreate }: QuickCreateTemplatesProps) => (
   <div className="flex items-stretch gap-3">
-    {FORM_TEMPLATE_META.map((template) => {
-      const Icon = TEMPLATE_ICONS[template.id];
+    {FORM_TEMPLATE_META.filter((t) => t.featured).map((template) => {
+      const Icon = TEMPLATE_ICONS[template.id] ?? FigPlusIcon;
       const isBlank = template.id === "blank";
       return (
         <button
@@ -686,22 +691,25 @@ const QuickCreateTemplates = ({ disabled, onCreate }: QuickCreateTemplatesProps)
           disabled={disabled}
           onClick={() => onCreate(template.id)}
           className={cn(
-            "flex flex-1 cursor-pointer flex-col items-center gap-3 rounded-[12px] border bg-gray-50 px-5 py-[18px] transition-colors",
-            "hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
-            "disabled:cursor-not-allowed disabled:opacity-50",
+            QUICK_CARD_CLASS,
             isBlank ? "border-dashed border-gray-300" : "border-gray-100",
           )}
           aria-label={`Create ${template.label}`}
         >
-          {/* DEV FLAG: Survey/RSVP/Registration use house-set icon stand-ins, not the verbatim
-              Figma illustration glyphs — verify against Figma node 26208:8027. */}
           <Icon className="size-6 text-gray-950" />
-          <span className="text-base font-[450] tracking-[0.28px] text-gray-950">
-            {template.label}
-          </span>
+          <span className={QUICK_CARD_LABEL}>{template.label}</span>
         </button>
       );
     })}
+    {/* Browse the full gallery instead of creating a form. */}
+    <Link
+      to="/templates"
+      className={cn(QUICK_CARD_CLASS, "border-dashed border-gray-300")}
+      aria-label="Browse all templates"
+    >
+      <FigTilesIcon className="size-6 text-gray-950" />
+      <span className={QUICK_CARD_LABEL}>All templates</span>
+    </Link>
   </div>
 );
 
@@ -716,14 +724,14 @@ const SortMenu = ({
     <DropdownMenuTrigger
       render={
         <Button
-          variant="ghost"
+          variant="ghost-flat"
           size="sm"
           aria-label="Sort forms"
           className="rounded-lg bg-secondary px-2 hover:bg-secondary/80"
         >
           <FigSortIcon className="size-4 text-gray-800" />
           <span className="font-case text-base font-[450] tracking-[0.14px] text-gray-800">
-            {sortBy === "title" ? "Name" : "Recent"}
+            Sort by
           </span>
           <FigSmallDownIcon className="size-4 text-gray-800" />
         </Button>
@@ -792,6 +800,7 @@ type FormCardForm = {
   workspaceId: string;
   updatedAt: string;
   cover?: string | null;
+  previewImageUrl?: string | null;
   customization?: Record<string, unknown> | null;
 };
 
@@ -942,7 +951,11 @@ const FormCard = ({
         preload="intent"
         className="flex flex-col outline-none"
       >
-        <FormCardThumbnail title={form.title ?? "Untitled"} cover={form.cover} />
+        <FormCardThumbnail
+          title={form.title ?? "Untitled"}
+          cover={form.cover}
+          preview={form.previewImageUrl}
+        />
 
         {/* Info block */}
         <div className="mt-3 flex w-full flex-col gap-2">
@@ -1173,7 +1186,11 @@ const FormListRow = ({
           preload="intent"
           className="flex min-w-0 flex-1 items-center gap-2 outline-none"
         >
-          <FormListThumbnail title={form.title ?? "Untitled"} cover={form.cover} />
+          <FormListThumbnail
+            title={form.title ?? "Untitled"}
+            cover={form.cover}
+            preview={form.previewImageUrl}
+          />
           <span className="truncate text-base font-[450] tracking-[0.28px] text-gray-800">
             {form.title || "Untitled"}
           </span>

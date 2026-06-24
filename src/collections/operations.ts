@@ -33,6 +33,7 @@ const formToListing = (
   content: form.content,
   schemaName: form.schemaName,
   cover: form.cover,
+  previewImageUrl: form.previewImageUrl ?? null,
   createdByUserId: form.createdByUserId ?? null,
 });
 

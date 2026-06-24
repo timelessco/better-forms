@@ -18,12 +18,14 @@ import { Route as LoginEmailRouteImport } from './routes/login/email'
 import { Route as FormsShortIdRouteImport } from './routes/forms/$shortId'
 import { Route as FFormIdRouteImport } from './routes/f/$formId'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedTemplatesIndexRouteImport } from './routes/_authenticated/templates/index'
 import { Route as ApiTrackVisitEndRouteImport } from './routes/api/track/visit-end'
 import { Route as ApiIconsNameRouteImport } from './routes/api/icons/$name'
 import { Route as ApiCronPurgeArchivedFormsRouteImport } from './routes/api/cron/purge-archived-forms'
 import { Route as ApiCronAggregateAnalyticsRouteImport } from './routes/api/cron/aggregate-analytics'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiAiFormGenerateRouteImport } from './routes/api/ai/form-generate'
+import { Route as AuthenticatedTemplatesTemplateIdRouteImport } from './routes/_authenticated/templates/$templateId'
 import { Route as AuthenticatedWorkspaceWorkspaceIdRouteRouteImport } from './routes/_authenticated/workspace/$workspaceId/route'
 import { Route as ApiOgShortIdHashRouteImport } from './routes/api/og/$shortId/$hash'
 import { Route as ApiFormsShortIdMetaRouteImport } from './routes/api/forms/$shortId/meta'
@@ -77,6 +79,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedTemplatesIndexRoute =
+  AuthenticatedTemplatesIndexRouteImport.update({
+    id: '/templates/',
+    path: '/templates/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const ApiTrackVisitEndRoute = ApiTrackVisitEndRouteImport.update({
   id: '/api/track/visit-end',
   path: '/api/track/visit-end',
@@ -109,6 +117,12 @@ const ApiAiFormGenerateRoute = ApiAiFormGenerateRouteImport.update({
   path: '/api/ai/form-generate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedTemplatesTemplateIdRoute =
+  AuthenticatedTemplatesTemplateIdRouteImport.update({
+    id: '/templates/$templateId',
+    path: '/templates/$templateId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedWorkspaceWorkspaceIdRouteRoute =
   AuthenticatedWorkspaceWorkspaceIdRouteRouteImport.update({
     id: '/workspace/$workspaceId',
@@ -172,12 +186,14 @@ export interface FileRoutesByFullPath {
   '/login/email': typeof LoginEmailRoute
   '/login/': typeof LoginIndexRoute
   '/workspace/$workspaceId': typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
+  '/templates/$templateId': typeof AuthenticatedTemplatesTemplateIdRoute
   '/api/ai/form-generate': typeof ApiAiFormGenerateRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/api/track/visit-end': typeof ApiTrackVisitEndRoute
+  '/templates/': typeof AuthenticatedTemplatesIndexRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
   '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
   '/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
@@ -196,12 +212,14 @@ export interface FileRoutesByTo {
   '/login/email': typeof LoginEmailRoute
   '/login': typeof LoginIndexRoute
   '/workspace/$workspaceId': typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
+  '/templates/$templateId': typeof AuthenticatedTemplatesTemplateIdRoute
   '/api/ai/form-generate': typeof ApiAiFormGenerateRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/api/track/visit-end': typeof ApiTrackVisitEndRoute
+  '/templates': typeof AuthenticatedTemplatesIndexRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
   '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
   '/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
@@ -222,12 +240,14 @@ export interface FileRoutesById {
   '/login/email': typeof LoginEmailRoute
   '/login/': typeof LoginIndexRoute
   '/_authenticated/workspace/$workspaceId': typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
+  '/_authenticated/templates/$templateId': typeof AuthenticatedTemplatesTemplateIdRoute
   '/api/ai/form-generate': typeof ApiAiFormGenerateRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/aggregate-analytics': typeof ApiCronAggregateAnalyticsRoute
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/api/track/visit-end': typeof ApiTrackVisitEndRoute
+  '/_authenticated/templates/': typeof AuthenticatedTemplatesIndexRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
   '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
   '/_authenticated/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
@@ -248,12 +268,14 @@ export interface FileRouteTypes {
     | '/login/email'
     | '/login/'
     | '/workspace/$workspaceId'
+    | '/templates/$templateId'
     | '/api/ai/form-generate'
     | '/api/auth/$'
     | '/api/cron/aggregate-analytics'
     | '/api/cron/purge-archived-forms'
     | '/api/icons/$name'
     | '/api/track/visit-end'
+    | '/templates/'
     | '/api/forms/$shortId/meta'
     | '/api/og/$shortId/$hash'
     | '/workspace/$workspaceId/form-builder/$formId'
@@ -272,12 +294,14 @@ export interface FileRouteTypes {
     | '/login/email'
     | '/login'
     | '/workspace/$workspaceId'
+    | '/templates/$templateId'
     | '/api/ai/form-generate'
     | '/api/auth/$'
     | '/api/cron/aggregate-analytics'
     | '/api/cron/purge-archived-forms'
     | '/api/icons/$name'
     | '/api/track/visit-end'
+    | '/templates'
     | '/api/forms/$shortId/meta'
     | '/api/og/$shortId/$hash'
     | '/workspace/$workspaceId/form-builder/$formId'
@@ -297,12 +321,14 @@ export interface FileRouteTypes {
     | '/login/email'
     | '/login/'
     | '/_authenticated/workspace/$workspaceId'
+    | '/_authenticated/templates/$templateId'
     | '/api/ai/form-generate'
     | '/api/auth/$'
     | '/api/cron/aggregate-analytics'
     | '/api/cron/purge-archived-forms'
     | '/api/icons/$name'
     | '/api/track/visit-end'
+    | '/_authenticated/templates/'
     | '/api/forms/$shortId/meta'
     | '/api/og/$shortId/$hash'
     | '/_authenticated/workspace/$workspaceId/form-builder/$formId'
@@ -396,6 +422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/templates/': {
+      id: '/_authenticated/templates/'
+      path: '/templates'
+      fullPath: '/templates/'
+      preLoaderRoute: typeof AuthenticatedTemplatesIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/api/track/visit-end': {
       id: '/api/track/visit-end'
       path: '/api/track/visit-end'
@@ -437,6 +470,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/ai/form-generate'
       preLoaderRoute: typeof ApiAiFormGenerateRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/templates/$templateId': {
+      id: '/_authenticated/templates/$templateId'
+      path: '/templates/$templateId'
+      fullPath: '/templates/$templateId'
+      preLoaderRoute: typeof AuthenticatedTemplatesTemplateIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/workspace/$workspaceId': {
       id: '/_authenticated/workspace/$workspaceId'
@@ -539,12 +579,16 @@ const AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren =
 interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedWorkspaceWorkspaceIdRouteRoute: typeof AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren
+  AuthenticatedTemplatesTemplateIdRoute: typeof AuthenticatedTemplatesTemplateIdRoute
+  AuthenticatedTemplatesIndexRoute: typeof AuthenticatedTemplatesIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedWorkspaceWorkspaceIdRouteRoute:
     AuthenticatedWorkspaceWorkspaceIdRouteRouteWithChildren,
+  AuthenticatedTemplatesTemplateIdRoute: AuthenticatedTemplatesTemplateIdRoute,
+  AuthenticatedTemplatesIndexRoute: AuthenticatedTemplatesIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

@@ -220,7 +220,7 @@ export const ChartTooltipContent = ({
                       </span>
                     </div>
                     {item.value && (
-                      <span className="font-mono text-foreground tabular-nums">
+                      <span className="font-mono text-foreground">
                         {item.value.toLocaleString()}
                       </span>
                     )}

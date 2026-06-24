@@ -298,6 +298,7 @@ const EditorAppInner = ({
   return (
     <EditorThemeProvider value={themeCtx}>
       <div
+        data-form-canvas
         className={cn(
           "min-h-full w-full overflow-x-hidden bg-background text-foreground",
           hasCustomization && "bf-themed",

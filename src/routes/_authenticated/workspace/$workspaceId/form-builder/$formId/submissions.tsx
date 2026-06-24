@@ -242,18 +242,16 @@ const SubmissionCell = ({
       );
     case "Date":
       return (
-        <span className="block max-w-[300px] truncate text-[13px] tabular-nums">
+        <span className="block max-w-[300px] truncate text-[13px]">
           {formatDateCellValue(text)}
         </span>
       );
     case "Time":
     case "Phone":
     case "Number":
-      return <span className="block max-w-[300px] truncate text-[13px] tabular-nums">{text}</span>;
+      return <span className="block max-w-[300px] truncate text-[13px]">{text}</span>;
     case "Rating":
-      return (
-        <span className="block max-w-[300px] truncate text-[13px] tabular-nums">{text} ★</span>
-      );
+      return <span className="block max-w-[300px] truncate text-[13px]">{text} ★</span>;
     case "Signature":
       return typeof value === "string" && value.startsWith("data:image") ? (
         <img

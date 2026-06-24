@@ -71,6 +71,7 @@ export const useOrgForms = (_organizationId?: string) =>
         updatedAt: form.updatedAt,
         icon: form.icon,
         cover: form.cover,
+        previewImageUrl: form.previewImageUrl,
         customization: form.customization,
         sortIndex: form.sortIndex,
       }))
