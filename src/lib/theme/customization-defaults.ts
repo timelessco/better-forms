@@ -1,6 +1,6 @@
 export const CUSTOMIZATION_AUTO_DEFAULTS = {
   pageWidth: "700px",
-  coverHeight: "200px",
+  coverHeight: "243px",
   logoWidth: "100px",
   inputWidth: "none",
   baseFontSize: "0.875rem",

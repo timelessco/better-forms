@@ -932,17 +932,19 @@
   position: absolute;
   inset-inline: 0;
   bottom: 0;
-  height: 66%;
+  /* % of height → same dissolve at any --bf-cover-height. MUST equal ::before height so paint +
+     blur are coterminous (else a blurred-but-colorful band reads as two stacked layers). */
+  height: 75%;
   z-index: 2;
   pointer-events: none;
-  /* Fade from --background at 0 alpha (NOT `transparent`=transparent-black, which interpolates
-     through a gray haze = visible banding). Eased + held transparent up top so the cover stays
-     vivid and only the bottom ~quarter dissolves (Figma), not half the image. Smooth in light + dark. */
+  /* Fade to --background at 0 alpha (not `transparent`=transparent-black → gray banding). Whitening
+     ramps from the same top point as the blur and grows with it = Figma's seamless single fade. */
   background: linear-gradient(
     to bottom,
     rgb(from var(--background) r g b / 0) 0%,
-    rgb(from var(--background) r g b / 0) 58%,
-    rgb(from var(--background) r g b / 0.45) 82%,
+    rgb(from var(--background) r g b / 0.08) 30%,
+    rgb(from var(--background) r g b / 0.4) 64%,
+    rgb(from var(--background) r g b / 0.85) 88%,
     var(--background) 100%
   );
 }
@@ -952,15 +954,15 @@
   position: absolute;
   inset-inline: 0;
   bottom: 0;
-  /* Figma 25293-1954: backdrop blur(21px) gated to the lower region, eased in via mask so there's
-     no hard blur edge. The blur (not a white paint) is what makes the dissolve read smooth. */
-  height: 55%;
+  /* Figma 25293-1954: backdrop blur(21px). Same height as ::after; linear mask (0→opaque, no
+     plateau) eases the blur in from the same top point so it never "suddenly appears". */
+  height: 75%;
   z-index: 2;
   pointer-events: none;
   backdrop-filter: blur(21px);
   -webkit-backdrop-filter: blur(21px);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 70%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 70%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 100%);
 }
 
 /* Logo/icon positioning: half overlapping cover, half below.

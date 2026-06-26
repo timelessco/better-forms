@@ -10,6 +10,7 @@ import type { PublicFormTracking, TrackingBase } from "@/contexts/step-form-cont
 import { useTranslation } from "@/contexts/translation-context";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "@/lib/theme/customization-defaults";
 import { extractFormHeader } from "@/lib/editor/transform-plate-to-form";
+import { DEFAULT_COVER_POSITION } from "@/lib/form-schema/form-header-factory";
 import {
   chunkSegmentsForFieldByField,
   transformPlateForPreview,
@@ -97,6 +98,7 @@ const PreviewFormHeader = ({
   icon,
   iconColor,
   cover,
+  coverPosition,
   hideTitle,
   layout,
   customization,
@@ -106,6 +108,7 @@ const PreviewFormHeader = ({
   icon?: string;
   iconColor?: string | null;
   cover?: string;
+  coverPosition?: number | null;
   hideTitle?: boolean;
   layout: "public" | "editor";
   customization?: Record<string, string> | null;
@@ -138,7 +141,7 @@ const PreviewFormHeader = ({
 
   // Full-bleed cover using container-width breakout (matches editor; cqw → nearest data-bf-cover-pane, viewport fallback)
   const coverClass =
-    "relative w-[100cqw] left-[50%] right-[50%] -ml-[50cqw] -mr-[50cqw] h-[120px] sm:h-[200px]";
+    "relative w-[100cqw] left-[50%] right-[50%] -ml-[50cqw] -mr-[50cqw] h-[146px] sm:h-[243px]";
 
   const renderCover = () => {
     if (!cover) return null;
@@ -164,6 +167,8 @@ const PreviewFormHeader = ({
               "size-full object-cover",
               cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
             )}
+            // Honor the reposition customization (coverPosition); default matches editor + Figma.
+            style={{ objectPosition: `center ${coverPosition ?? DEFAULT_COVER_POSITION}%` }}
             onError={handleImageError}
           />
         </div>
@@ -418,6 +423,7 @@ export const FormPreviewFromPlate = ({
   const icon = hasHeaderNode ? (headerFromContent.icon ?? undefined) : legacyIcon;
   const iconColor = hasHeaderNode ? headerFromContent.iconColor : null;
   const cover = hasHeaderNode ? (headerFromContent.cover ?? undefined) : legacyCover;
+  const coverPosition = hasHeaderNode ? headerFromContent.coverPosition : null;
 
   const { steps: rawSteps, thankYouNodes } = useMemo(
     () => transformPlateForPreview(content),
@@ -493,6 +499,7 @@ export const FormPreviewFromPlate = ({
             icon={icon}
             iconColor={iconColor}
             cover={cover}
+            coverPosition={coverPosition}
             hideTitle={hideTitle}
             layout={layout}
             settings={settings}
@@ -607,6 +614,7 @@ interface LayoutProps {
   icon?: string;
   iconColor?: string | null;
   cover?: string;
+  coverPosition?: number | null;
   hideTitle?: boolean;
   layout: "public" | "editor";
   settings?: PublicFormSettings;
@@ -850,6 +858,7 @@ const LinearLayout = ({
   title,
   icon,
   cover,
+  coverPosition,
   hideTitle,
   layout,
   settings,
@@ -874,6 +883,7 @@ const LinearLayout = ({
         title={title}
         icon={icon}
         cover={cover}
+        coverPosition={coverPosition}
         hideTitle={hideTitle}
         layout={layout}
         customization={customization}
@@ -941,6 +951,7 @@ const FormPreviewContent = (props: {
   icon?: string;
   iconColor?: string | null;
   cover?: string;
+  coverPosition?: number | null;
   hideTitle?: boolean;
   layout: "public" | "editor";
   settings?: PublicFormSettings;
@@ -971,6 +982,7 @@ const FormPreviewContent = (props: {
           icon={rest.icon}
           iconColor={rest.iconColor}
           cover={rest.cover}
+          coverPosition={rest.coverPosition}
           hideTitle={rest.hideTitle}
           layout={layout}
           customization={rest.customization}

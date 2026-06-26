@@ -25,6 +25,7 @@ import type {
 } from "@/lib/editor/transform-plate-for-preview";
 import { extractFormHeader } from "@/lib/editor/transform-plate-to-form";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
+import { DEFAULT_COVER_POSITION } from "@/lib/form-schema/form-header-factory";
 import { buildFormLogic } from "@/lib/logic/build-form-logic";
 import { applyFormCacheHeaders } from "@/lib/server-fn/cdn-cache";
 import { getFieldChunkUrls } from "@/lib/server-fn/field-chunk-manifest.server";
@@ -247,6 +248,7 @@ interface PublicFormHeaderData {
   title?: string | null;
   icon?: string | null;
   cover?: string | null;
+  coverPosition?: number | null;
   customization?: Record<string, string> | null;
 }
 
@@ -266,6 +268,7 @@ export const renderHeaderComponent = async ({
   title,
   icon,
   cover,
+  coverPosition,
   customization,
 }: PublicFormHeaderData) => {
   const coverIsHex = !!cover && isHexColor(cover);
@@ -281,7 +284,7 @@ export const renderHeaderComponent = async ({
   const hasIcon = iconIsUrl || iconIsSprite;
 
   const coverClass =
-    "relative w-[100cqw] left-[50%] right-[50%] -ml-[50cqw] -mr-[50cqw] h-[120px] sm:h-[200px]";
+    "relative w-[100cqw] left-[50%] right-[50%] -ml-[50cqw] -mr-[50cqw] h-[146px] sm:h-[243px]";
   const iconWrapClass = cn("relative z-10 mb-1", hasCover ? "-mt-[50px]" : "mt-4 sm:mt-6");
   const tinted = !!cover && cover.includes("tint=true");
 
@@ -314,6 +317,8 @@ export const renderHeaderComponent = async ({
                   "size-full object-cover",
                   tinted && "relative z-0 brightness-60 grayscale",
                 )}
+                // Honor the reposition customization (coverPosition); default matches editor + Figma.
+                style={{ objectPosition: `center ${coverPosition ?? DEFAULT_COVER_POSITION}%` }}
               />
             </div>
           )}
@@ -404,6 +409,8 @@ export const runPublicFormViewRSC = async (data: { shortId: string }) => {
           title: base.form.title,
           icon: base.form.icon,
           cover: base.form.cover,
+          // coverPosition lives in the Plate formHeader node, not the form row — extract it.
+          coverPosition: extractFormHeader(base.form.content as Value)?.coverPosition,
           customization: base.form.customization,
         })
       : Promise.resolve(null),
