@@ -1,5 +1,8 @@
 /** Build a valibot schema from Plate-node validation props for preview-mode validation. */
-import { isValidPhoneNumber } from "react-phone-number-input";
+// Import from libphonenumber-js (pure JS), NOT react-phone-number-input — the latter's entry
+// re-exports the React component, which crashes under server-side eval (Vite SSR `_inherits`
+// TypeError) and 500s every completed submission that runs this validation server-side.
+import { isValidPhoneNumber } from "libphonenumber-js";
 import * as v from "valibot";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 
