@@ -1,6 +1,7 @@
-import { HTMLAttributes, ReactNode, useCallback } from "react";
+import { HTMLAttributes, ReactNode, useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useColumnPinned, useColumnSorted, useDataGrid } from "@/components/ui/data-grid";
 import {
   DropdownMenu,
@@ -39,6 +40,37 @@ interface DataGridColumnHeaderProps<
   filter?: ReactNode;
   visibility?: boolean;
 }
+
+// Column-header label that truncates and, only when actually overflowing, shows the full text
+// in a styled tooltip (Figma 26582-15457). Overflow is measured via a callback ref (no effect).
+const TruncatedLabel = ({ title }: { title: string }) => {
+  const [truncated, setTruncated] = useState(false);
+  // ResizeObserver (not just mount) so truncation re-measures as columns resize/settle.
+  // React 19 ref-cleanup disconnects it — no useEffect needed.
+  const measureRef = useCallback((el: HTMLSpanElement | null) => {
+    if (!el) return;
+    const update = () => setTruncated(el.scrollWidth > el.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // Always wrap in the Tooltip with a STABLE trigger span — the ResizeObserver target never moves
+  // between DOM positions, so it can't remount/oscillate at the overflow threshold. Only the
+  // tooltip *content* is gated on actual overflow.
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span ref={measureRef} className="truncate">
+            {title}
+          </span>
+        }
+      />
+      {truncated && <TooltipContent>{title}</TooltipContent>}
+    </Tooltip>
+  );
+};
 
 export const DataGridColumnHeader = <TData extends RowData, TValue>({
   column,
@@ -93,10 +125,9 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
         "inline-flex h-full min-w-0 items-center gap-1.5 text-[0.8125rem] font-normal text-secondary-foreground/80 [&_svg]:size-3.5 [&_svg]:opacity-60",
         className,
       )}
-      title={title}
     >
       <span className="inline-flex shrink-0">{icon}</span>
-      <span className="truncate">{title}</span>
+      <TruncatedLabel title={title} />
     </div>
   );
 
@@ -149,9 +180,9 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
 
   const headerButtonContent = (
     <>
-      <span className="inline-flex min-w-0 items-center gap-1.5" title={title}>
+      <span className="inline-flex min-w-0 items-center gap-1.5">
         <span className="inline-flex shrink-0">{icon}</span>
-        <span className="truncate">{title}</span>
+        <TruncatedLabel title={title} />
       </span>
       {column.getCanSort() &&
         (sortDirection === "desc" ? (

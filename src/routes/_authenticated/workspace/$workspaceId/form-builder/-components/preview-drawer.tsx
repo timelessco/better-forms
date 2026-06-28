@@ -56,12 +56,19 @@ export const PreviewDrawer = ({ open, onClose, children }: PreviewDrawerProps) =
         <DrawerOverlay />
         <DrawerPrimitive.Content className="preview-zoom-drawer fixed inset-2 z-50 flex flex-col overflow-hidden rounded-[10px] bg-background shadow-[0px_0px_4px_0px_rgba(0,0,0,0.08)] outline-none">
           <DrawerTitle className="sr-only">Form preview</DrawerTitle>
-          <div className="pointer-events-none absolute inset-x-2 top-2 z-30 flex items-center justify-between">
-            {/* Own view-transition groups: tab switches snapshot only "preview-content", keeping the chrome static (no cross-fade flash). */}
+          <div className="min-h-0 flex-1">
+            <Suspense fallback={null}>{children}</Suspense>
+          </div>
+          {/* Chrome renders AFTER the preview so it paints on top via source order (no z-index =
+              no stacking context), which lets the back button's mix-blend-difference blend against
+              the cover/page behind it. Own view-transition groups keep the chrome static on tab switch. */}
+          <div className="pointer-events-none absolute inset-x-2 top-2 flex items-center justify-between">
             <Button
               variant="ghost"
               size="sm"
-              className="pointer-events-auto gap-1.5 rounded-lg px-2 text-[14px] font-medium text-gray-900"
+              // mix-blend-difference + white = legible over any cover AND the white page (inverts
+              // against the backdrop), so the label shows without needing a hover background.
+              className="pointer-events-auto gap-1.5 rounded-lg px-2 text-[14px] font-medium text-white mix-blend-difference hover:bg-transparent"
               style={{ viewTransitionName: "preview-drawer-back" }}
               onClick={onClose}
             >
@@ -87,9 +94,6 @@ export const PreviewDrawer = ({ open, onClose, children }: PreviewDrawerProps) =
                 <TabsIndicator />
               </TabsList>
             </Tabs>
-          </div>
-          <div className="min-h-0 flex-1">
-            <Suspense fallback={null}>{children}</Suspense>
           </div>
         </DrawerPrimitive.Content>
       </DrawerPortal>

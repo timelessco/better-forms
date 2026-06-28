@@ -209,6 +209,23 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     handleDismissSidebars,
   });
 
+  // Preview (▷) is always shown. On /edit it toggles the inline preview drawer; elsewhere
+  // (e.g. submissions) there's no drawer, so it enters preview and navigates into the editor.
+  const handlePreviewForm = () => {
+    if (isEditRoute) {
+      togglePreview();
+      return;
+    }
+    if (workspaceId && formId) {
+      enterPreview();
+      void navigate({
+        to: "/workspace/$workspaceId/form-builder/$formId/edit",
+        params: { workspaceId, formId },
+        search: { force: true },
+      });
+    }
+  };
+
   const menuItems = buildFormBuilderMenuItems({
     isEditRoute,
     hasPublishedVersion,
@@ -338,7 +355,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                 formId={formId}
                 savedDocs={savedDocs}
                 menuItems={menuItems}
-                onTogglePreview={togglePreview}
+                onTogglePreview={handlePreviewForm}
                 onToggleShareSidebar={toggleShareSidebar}
                 onPublish={handlePublish}
                 onSetActiveMenu={setActiveMenu}
@@ -1037,57 +1054,30 @@ const FormBuilderHeaderActions = ({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {isEditRoute ? (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost-flat"
-                size="sm"
-                className={cn(
-                  HEADER_ICON_BUTTON_CLS,
-                  // Share opening enters preview for its inline pane — don't light up the play button for that.
-                  previewMode && !isShareSidebarOpen && "bg-secondary text-foreground",
-                )}
-                onClick={onTogglePreview}
-                aria-label={previewMode && !isShareSidebarOpen ? "Back to Editor" : "Preview Form"}
-              />
-            }
-          >
-            <PlayIcon className="size-[18px]" />
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
-          </TooltipContent>
-        </Tooltip>
-      ) : (
-        workspaceId &&
-        formId && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Link
-                  to="/workspace/$workspaceId/form-builder/$formId/edit"
-                  params={{ workspaceId, formId }}
-                  search={(prev: Record<string, unknown>) => ({ ...prev, force: true })}
-                  preload="intent"
-                  aria-label="Edit form"
-                  className={cn(
-                    buttonVariants({ variant: "ghost-flat", size: "sm" }),
-                    HEADER_ICON_BUTTON_CLS,
-                  )}
-                />
-              }
-            >
-              <PencilIcon className="size-[18px]" />
-            </TooltipTrigger>
-            <TooltipContent side="bottom" align="end">
-              <p>Edit Form</p>
-              <p className="text-xs text-muted-foreground">{formatForDisplay(HOTKEYS.EDIT_FORM)}</p>
-            </TooltipContent>
-          </Tooltip>
-        )
-      )}
+      {/* Preview (▷) — always shown (Figma 26835-9771). On /edit it toggles the inline preview;
+          elsewhere it enters preview and navigates into the editor (handled by onTogglePreview). */}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost-flat"
+              size="sm"
+              className={cn(
+                HEADER_ICON_BUTTON_CLS,
+                // Share opening enters preview for its inline pane — don't light up the play button for that.
+                previewMode && !isShareSidebarOpen && "bg-secondary text-foreground",
+              )}
+              onClick={onTogglePreview}
+              aria-label={previewMode && !isShareSidebarOpen ? "Back to Editor" : "Preview Form"}
+            />
+          }
+        >
+          <PlayIcon className="size-[18px]" />
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="end">
+          <p>{previewMode && !isShareSidebarOpen ? "Back to Editor" : "Preview Form"}</p>
+        </TooltipContent>
+      </Tooltip>
 
       {/* Always shown; disabled until published, and while the Share tab is open (it's a trigger only —
           the tab's own ✕ closes it). */}
@@ -1102,39 +1092,58 @@ const FormBuilderHeaderActions = ({
         Share
       </Button>
 
-      {showPublish && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                size="sm"
-                className={cn(
-                  "rounded-[8px] border-none py-1.5 pr-2 pl-2.5 text-[14px] font-medium shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all",
-                  isUnpublished
-                    ? "bg-neutral-950 text-white hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80",
-                )}
-                onClick={onPublish}
-                disabled={
-                  isPublishing || (!hasUnpublishedChanges && savedDocs?.[0]?.status === "published")
+      {/* Primary CTA: on /edit, Publish. Elsewhere (submissions), an "Edit form" button — you can
+          only publish from inside the editor (Figma 26835-9771). */}
+      {isEditRoute
+        ? showPublish && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="sm"
+                    className={cn(
+                      "rounded-[8px] border-none py-1.5 pr-2 pl-2.5 text-[14px] font-medium shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all",
+                      isUnpublished
+                        ? "bg-neutral-950 text-white hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80",
+                    )}
+                    onClick={onPublish}
+                    disabled={
+                      isPublishing ||
+                      (!hasUnpublishedChanges && savedDocs?.[0]?.status === "published")
+                    }
+                  />
                 }
-              />
-            }
-          >
-            {/* Always "Publish" — the disabled + muted state alone signals already-published. */}
-            {isPublishing ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : (
-              <TextSwap key="Publish">Publish</TextSwap>
-            )}
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            <p className="text-xs text-muted-foreground">
-              {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      )}
+              >
+                {/* Always "Publish" — the disabled + muted state alone signals already-published. */}
+                {isPublishing ? (
+                  <Loader2Icon className="size-4 animate-spin" />
+                ) : (
+                  <TextSwap key="Publish">Publish</TextSwap>
+                )}
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end">
+                <p className="text-xs text-muted-foreground">
+                  {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          )
+        : workspaceId &&
+          formId && (
+            <Link
+              to="/workspace/$workspaceId/form-builder/$formId/edit"
+              params={{ workspaceId, formId }}
+              search={(prev: Record<string, unknown>) => ({ ...prev, force: true })}
+              preload="intent"
+              aria-label="Edit form"
+              // Figma 26835:9809 — gray/950 #141414 pill, px-8/py-6, gap-6, 16px edit icon + 14px/450 white.
+              className="inline-flex items-center gap-1.5 rounded-[8px] bg-gray-950 px-2 py-1.5 font-case text-[14px] font-[450] tracking-[0.14px] text-white transition-colors hover:bg-gray-800 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none dark:bg-white dark:text-black dark:hover:bg-stone-200"
+            >
+              <PencilIcon className="size-4" />
+              Edit form
+            </Link>
+          )}
     </div>
   );
 };

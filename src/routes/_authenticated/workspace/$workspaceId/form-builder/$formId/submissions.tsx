@@ -37,9 +37,32 @@ import { useTanStackTableDevtools } from "@tanstack/react-table-devtools";
 import { createAppColumnHelper, SelectionCheckbox, useAppTable } from "@/components/ui/data-grid";
 import type { DataGridApi, DataGridFeatures } from "@/components/ui/data-grid";
 
-import { ChevronDownIcon, FilterIcon, Trash2Icon, XIcon } from "@/components/ui/icons";
+import {
+  FilterIcon,
+  StarEmptyIcon,
+  StarFilledIcon,
+  Trash2Icon,
+  XIcon,
+} from "@/components/ui/icons";
+import {
+  FigBulletListIcon,
+  FigFilterIcon,
+  FigSmallDownIcon,
+  FigTilesIcon,
+} from "@/components/dashboard/dashboard-icons";
 import { TextSwap } from "@/components/transitions/text-swap";
-import { Columns, Download, ExternalLink, FileText, Paperclip, Search } from "lucide-react";
+import { FormPreviewFromPlate } from "@/components/form-components/form-preview-from-plate";
+import type { PublicFormSettings } from "@/types/form-settings";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  ExternalLink,
+  FileText,
+  MoreHorizontal,
+  Paperclip,
+  Search,
+} from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { Value } from "platejs";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -53,6 +76,7 @@ const EMPTY_LABELS: Record<string, string> = {};
 const RESERVED_COLUMN_IDS = new Set([
   "select",
   "submitted_at",
+  "status",
   "last_step_reached",
   "is_completed",
 ]);
@@ -193,7 +217,7 @@ const SubmissionCell = ({
   };
   const text = formatSubmissionValue(value);
   if (text === "-") {
-    return <span className="text-[13px] text-muted-foreground">-</span>;
+    return <span className="text-[14px] text-muted-foreground">-</span>;
   }
 
   // Repeatable scalar fields land here as arrays — render as chips before
@@ -201,7 +225,7 @@ const SubmissionCell = ({
   // an "Invalid Date" for an array of dates would otherwise be wrong).
   if (Array.isArray(value) && SCALAR_CELL_TYPES.has(fieldType)) {
     const arr = value.filter((v) => v !== "" && v != null);
-    if (arr.length === 0) return <span className="text-[13px] text-muted-foreground">-</span>;
+    if (arr.length === 0) return <span className="text-[14px] text-muted-foreground">-</span>;
     return (
       <div className="flex max-w-[300px] flex-wrap gap-1">
         {arr.map((item, i) => (
@@ -222,7 +246,7 @@ const SubmissionCell = ({
       return (
         <a
           href={`mailto:${text}`}
-          className="block max-w-[300px] truncate text-[13px] text-primary hover:underline"
+          className="block max-w-[300px] truncate text-[14px] text-primary hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
           {text}
@@ -234,7 +258,7 @@ const SubmissionCell = ({
           href={text.startsWith("http") ? text : `https://${text}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="block max-w-[300px] truncate text-[13px] text-primary hover:underline"
+          className="block max-w-[300px] truncate text-[14px] text-primary hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
           {text}
@@ -242,16 +266,30 @@ const SubmissionCell = ({
       );
     case "Date":
       return (
-        <span className="block max-w-[300px] truncate text-[13px]">
+        <span className="block max-w-[300px] truncate text-[14px]">
           {formatDateCellValue(text)}
         </span>
       );
     case "Time":
     case "Phone":
     case "Number":
-      return <span className="block max-w-[300px] truncate text-[13px]">{text}</span>;
-    case "Rating":
-      return <span className="block max-w-[300px] truncate text-[13px]">{text} ★</span>;
+      return <span className="block max-w-[300px] truncate text-[14px]">{text}</span>;
+    case "Rating": {
+      // Figma 26566:46117 — 5 × 20px stars, gap 1px; filled (gold) up to the value, rest empty outline.
+      const rating = Math.max(0, Math.min(5, Math.round(Number(text) || 0)));
+      if (!rating) return <span className="text-[14px] text-muted-foreground">-</span>;
+      return (
+        <div className="flex items-center gap-px" aria-label={`${rating} out of 5`}>
+          {Array.from({ length: 5 }, (_, i) =>
+            i < rating ? (
+              <StarFilledIcon key={i} className="size-5 shrink-0" />
+            ) : (
+              <StarEmptyIcon key={i} className="size-5 shrink-0" />
+            ),
+          )}
+        </div>
+      );
+    }
     case "Signature":
       return typeof value === "string" && value.startsWith("data:image") ? (
         <img
@@ -260,7 +298,7 @@ const SubmissionCell = ({
           className="h-8 max-w-[160px] rounded border border-border bg-white object-contain"
         />
       ) : (
-        <span className="text-[13px] text-muted-foreground">-</span>
+        <span className="text-[14px] text-muted-foreground">-</span>
       );
     case "Checkbox":
     case "MultiChoice":
@@ -268,7 +306,7 @@ const SubmissionCell = ({
     default: {
       const items = Array.isArray(value) ? value : null;
       if (!items) {
-        return <span className="block max-w-[300px] truncate text-[13px]">{labelFor(value)}</span>;
+        return <span className="block max-w-[300px] truncate text-[14px]">{labelFor(value)}</span>;
       }
       const useColors = colorTags && options;
       return (
@@ -296,13 +334,13 @@ const SubmissionCell = ({
       // Legacy: bare string filename from old submissions
       if (typeof value === "string") {
         return (
-          <span className="block max-w-[180px] truncate text-[13px] text-muted-foreground italic">
+          <span className="block max-w-[180px] truncate text-[14px] text-muted-foreground italic">
             {value}
           </span>
         );
       }
       if (!isUploadedFileValue(value)) {
-        return <span className="text-[13px] text-muted-foreground">-</span>;
+        return <span className="text-[14px] text-muted-foreground">-</span>;
       }
       const file = value;
       const isImage = file.type.startsWith("image/");
@@ -327,10 +365,11 @@ const SubmissionCell = ({
               className="h-8 w-auto max-w-[64px] shrink-0 rounded border border-border/40 object-contain"
             />
           ) : (
-            <FileTypeIcon type={file.type} className="size-4 shrink-0" />
+            // Figma 26566:46132 document glyph (exact asset).
+            <img src="/icons/file-doc.svg" alt="" className="h-5 w-auto shrink-0" />
           )}
           {!isImage && (
-            <span className="truncate text-[13px] text-muted-foreground group-hover:text-foreground">
+            <span className="truncate text-[14px] text-gray-700 group-hover:text-foreground">
               {file.name}
             </span>
           )}
@@ -398,14 +437,9 @@ const buildSubmissionColumns = ({
         cell: (info) => (
           <div className="group/row flex min-w-0 items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
-              <span className="min-w-0 truncate text-[13px]">
+              <span className="min-w-0 truncate text-[14px]">
                 {formatSubmittedAt(info.getValue())}
               </span>
-              {!info.row.original.isCompleted && (
-                <span className="shrink-0 rounded-sm border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-amber-700 uppercase dark:text-amber-400">
-                  Drop-off
-                </span>
-              )}
             </div>
             <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
               <Button
@@ -433,6 +467,34 @@ const buildSubmissionColumns = ({
       }),
     ),
     toSubmissionColumn(
+      // Status pill (Figma 26566:46099) — Complete green / Partial yellow.
+      columnHelper.accessor((row) => row.isCompleted, {
+        id: "status",
+        header: ({ column }) => <DataGridColumnHeader column={column} title="Status" />,
+        cell: (info) => {
+          const done = info.getValue();
+          return (
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full px-1.5 py-[3px] text-[12px] font-medium tracking-[0.02em]",
+                // Complete uses the success-soft theme tokens (auto dark-mode flip); Partial has
+                // no theme token, so the amber pair is hardcoded with explicit dark variants.
+                done
+                  ? "bg-[var(--color-success-soft)] text-[var(--color-success-on-soft)]"
+                  : "bg-[#faf8e4] text-[#a68d00] dark:bg-amber-950/50 dark:text-amber-400",
+              )}
+            >
+              {done ? "Complete" : "Partial"}
+            </span>
+          );
+        },
+        enableSorting: false,
+        size: 96,
+        minSize: 84,
+        meta: { headerTitle: "Status" },
+      }),
+    ),
+    toSubmissionColumn(
       // null coerced to undefined — sortUndefined only checks === undefined (createSortedRowModel)
       columnHelper.accessor((row) => row.lastStepReached ?? undefined, {
         id: "last_step_reached",
@@ -440,7 +502,7 @@ const buildSubmissionColumns = ({
         cell: (info) => {
           const step = info.getValue();
           if (step === undefined) return <span className="text-muted-foreground">-</span>;
-          return <span className="text-[13px]">Step {step + 1}</span>;
+          return <span className="text-[14px]">Step {step + 1}</span>;
         },
         sortUndefined: "last",
         size: 120,
@@ -759,13 +821,17 @@ const SubmissionsPage = () => {
     onBulkDelete: handleBulkDelete,
   });
 
+  // Figma 26595-31672: list = the data-grid table; single = one submission rendered read-only.
+  const [view, setView] = useState<"table" | "single">("table");
+
   return (
     <table.AppTable>
       <div className="flex h-full min-h-0 min-w-0 flex-col bg-background">
         <SubmissionsToolbar
           activeTab={activeTab}
           globalFilter={globalFilter}
-          table={table}
+          view={view}
+          onViewChange={setView}
           onSetTabAll={handleSetActiveTabAll}
           onSetTabCompleted={handleSetActiveTabCompleted}
           onSetTabPartial={handleSetActiveTabPartial}
@@ -787,50 +853,71 @@ const SubmissionsPage = () => {
             )}
           </AnimatePresence>
 
-          <table.DataGrid
-            recordCount={totalCount}
-            isLoading={isLoadingSubmissions}
-            tableLayout={{
-              dense: true,
-              columnsResizable: true,
-              columnsPinnable: false,
-              columnsVisibility: true,
-              columnsMovable: true,
-              headerSticky: true,
-              headerBackground: false,
-              headerBorder: true,
-              rowBorder: true,
-            }}
-            emptyMessage={
-              <div className="flex flex-col items-center justify-center gap-y-3 py-16 opacity-50">
-                <div className="rounded-full bg-muted p-3">
-                  <FilterIcon className="size-6" />
+          {view === "single" ? (
+            <SubmissionSingleView
+              rows={table.getRowModel().rows}
+              totalCount={totalCount}
+              form={bootstrapData?.form ?? null}
+              formId={formId}
+              onFetchMore={fetchNextPage}
+              hasMore={hasNextPage}
+              onDelete={handleDelete}
+            />
+          ) : (
+            <table.DataGrid
+              recordCount={totalCount}
+              isLoading={isLoadingSubmissions}
+              tableLayout={{
+                dense: true,
+                columnsResizable: true,
+                columnsPinnable: false,
+                columnsVisibility: true,
+                columnsMovable: true,
+                headerSticky: true,
+                headerBackground: false,
+                headerBorder: true,
+                rowBorder: true,
+              }}
+              // Figma 26566:45584 scoped typography: header labels gray-500/0.02em (descendant
+              // selector out-specificities the shared header color), body cells gray-700.
+              tableClassNames={{
+                // Figma 26582-15016: header labels gray-600 (#7c7c7c), 0.02em, NO column dividers
+                // (the resize handle's resting border line is hidden; drag still works).
+                headerRow: "[&_th_*]:text-muted-foreground [&_th_*]:tracking-[0.02em]",
+                header: "[&_.cursor-col-resize]:before:bg-transparent",
+                bodyRow: "[&>td]:text-gray-700",
+              }}
+              emptyMessage={
+                <div className="flex flex-col items-center justify-center gap-y-3 py-16 opacity-50">
+                  <div className="rounded-full bg-muted p-3">
+                    <FilterIcon className="size-6" />
+                  </div>
+                  <div className="space-y-1 text-center">
+                    <p>No results found</p>
+                    <p className="text-xs text-muted-foreground">
+                      {globalFilter
+                        ? "Try adjusting your search query."
+                        : "When people fill out your form, their responses will appear here."}
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-1 text-center">
-                  <p>No results found</p>
-                  <p className="text-xs text-muted-foreground">
-                    {globalFilter
-                      ? "Try adjusting your search query."
-                      : "When people fill out your form, their responses will appear here."}
-                  </p>
-                </div>
+              }
+            >
+              <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+                <table.DataGridContainer
+                  border={false}
+                  className="min-h-0 flex-1 content-start overflow-x-auto overflow-y-hidden border-b border-border"
+                >
+                  <table.DataGridVirtualTable
+                    onFetchMore={fetchNextPage}
+                    hasMore={hasNextPage}
+                    isFetchingMore={isFetchingNextPage}
+                    fetchMoreOffset={5}
+                  />
+                </table.DataGridContainer>
               </div>
-            }
-          >
-            <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-              <table.DataGridContainer
-                border={false}
-                className="min-h-0 flex-1 content-start overflow-x-auto overflow-y-hidden border-b border-border"
-              >
-                <table.DataGridVirtualTable
-                  onFetchMore={fetchNextPage}
-                  hasMore={hasNextPage}
-                  isFetchingMore={isFetchingNextPage}
-                  fetchMoreOffset={5}
-                />
-              </table.DataGridContainer>
-            </div>
-          </table.DataGrid>
+            </table.DataGrid>
+          )}
         </div>
       </div>
     </table.AppTable>
@@ -960,10 +1047,146 @@ const useSubmissionsHotkeys = ({
   });
 };
 
+// Individual-submission view (Figma 26595-31672): a card with a header (counter, prev/next,
+// status, menu) over the form rendered read-only with this submission's answers. Reuses the
+// preview; the form subtree is `inert` so every field is non-interactive (no per-field disable).
+const SubmissionSingleView = ({
+  rows,
+  totalCount,
+  form,
+  formId,
+  onFetchMore,
+  hasMore,
+  onDelete,
+}: {
+  rows: Row<DataGridFeatures, SerializedSubmission>[];
+  totalCount: number;
+  form: {
+    content: unknown;
+    title: string;
+    icon: string | null;
+    cover: string | null;
+    settings: unknown;
+    customization: Record<string, string>;
+  } | null;
+  formId: string;
+  onFetchMore: () => void;
+  hasMore: boolean;
+  onDelete: (submissionId: string) => Promise<void> | void;
+}) => {
+  const [index, setIndex] = useState(0);
+  const safeIndex = Math.min(index, Math.max(0, rows.length - 1));
+  const submission = rows[safeIndex]?.original;
+
+  // Operate on safeIndex (not raw `index`) so a filter that shrinks `rows` doesn't strand the
+  // cursor; fetch is triggered outside the setState updater (updaters must be pure). Setting
+  // index to rows.length when at the last loaded row lets safeIndex auto-advance once more load.
+  const goPrev = () => setIndex(Math.max(0, safeIndex - 1));
+  const goNext = () => {
+    if (hasMore && safeIndex >= rows.length - 2) onFetchMore();
+    setIndex(Math.min(safeIndex + 1, rows.length));
+  };
+
+  if (!form || !submission) {
+    return (
+      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+        No submission to display
+      </div>
+    );
+  }
+
+  const done = submission.isCompleted;
+  return (
+    <div className="m-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-gray-200">
+      {/* Header bar (Figma 26586:30412) */}
+      <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-muted px-3 py-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[14px] tracking-[0.005em] text-muted-foreground">
+            {safeIndex + 1} of {totalCount}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 rounded-[8px]"
+              onClick={goPrev}
+              disabled={safeIndex === 0}
+              aria-label="Previous submission"
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 rounded-[8px]"
+              onClick={goNext}
+              disabled={safeIndex >= rows.length - 1 && !hasMore}
+              aria-label="Next submission"
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              "inline-flex items-center rounded-full px-1.5 py-[3px] text-[12px] font-medium tracking-[0.02em] text-white",
+              // Solid green badge (Figma 26586:30425); Partial has no theme token → hardcoded amber.
+              done ? "bg-[var(--color-success-on-soft)]" : "bg-[#a68d00]",
+            )}
+          >
+            {done ? "Completed" : "Partial"}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 rounded-[8px]"
+                  aria-label="Submission options"
+                />
+              }
+            >
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={4}>
+              <DropdownMenuItem variant="destructive" onClick={() => void onDelete(submission.id)}>
+                <Trash2Icon className="size-4" />
+                <span className="flex-1 text-left">Delete submission</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Body — read-only preview populated with this submission's values. */}
+      <div className="min-h-0 flex-1 overflow-y-auto bg-background">
+        {/* `inert` (React 19) makes the whole form non-interactive — read-only submission view. */}
+        <div inert>
+          <FormPreviewFromPlate
+            key={submission.id}
+            content={form.content as Value}
+            title={form.title}
+            icon={form.icon ?? undefined}
+            cover={form.cover ?? undefined}
+            settings={(form.settings ?? undefined) as PublicFormSettings | undefined}
+            customization={form.customization}
+            formId={formId}
+            initialFormData={(submission.data ?? {}) as Record<string, unknown>}
+            layout="editor"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface SubmissionsToolbarProps {
   activeTab: "all" | "completed" | "partial";
   globalFilter: string;
-  table: DataGridApi<SerializedSubmission>;
+  view: "table" | "single";
+  onViewChange: (view: "table" | "single") => void;
   onSetTabAll: () => void;
   onSetTabCompleted: () => void;
   onSetTabPartial: () => void;
@@ -974,7 +1197,8 @@ interface SubmissionsToolbarProps {
 const SubmissionsToolbar = ({
   activeTab,
   globalFilter,
-  table,
+  view,
+  onViewChange,
   onSetTabAll,
   onSetTabCompleted,
   onSetTabPartial,
@@ -983,36 +1207,26 @@ const SubmissionsToolbar = ({
 }: SubmissionsToolbarProps) => {
   const activeLabel =
     activeTab === "all" ? "All" : activeTab === "completed" ? "Completed" : "Partial";
+  // Matches the dashboard toolbar (FilterMenu/SortMenu): gray pill, 14px/450, Fig* icons at size-4.
+  const pill =
+    "font-case inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg bg-secondary px-2 text-base font-[450] tracking-[0.14px] text-gray-800 transition-colors hover:bg-secondary/80 [&_svg]:size-4 [&_svg]:text-gray-800";
+  const togglePill = "flex items-center justify-center rounded-[7px] p-[5px] transition-colors";
   return (
     <div className="shrink-0 border-border px-5 pt-2.5 pb-4.5">
-      <div className="flex items-center justify-between">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-2 rounded-lg bg-accent/60 font-normal hover:bg-accent"
-              />
-            }
-          >
-            <TextSwap key={activeLabel}>{activeLabel}</TextSwap>
-            <ChevronDownIcon className="size-2.5 shrink-0 text-muted-foreground" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-36">
-            <DropdownMenuItem onClick={onSetTabAll}>All</DropdownMenuItem>
-            <DropdownMenuItem onClick={onSetTabCompleted}>Completed</DropdownMenuItem>
-            <DropdownMenuItem onClick={onSetTabPartial}>Partial</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="flex items-center gap-3">
+        {/* Figma: section title on the left, controls as gray-100 pills on the right. */}
+        <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-[0.015em] text-gray-950">
+          Submissions
+        </h2>
 
         <div className="flex items-center gap-1.5">
-          <ButtonGroup className="w-[180px] rounded-lg border-none transition-[width] duration-200 ease-out focus-within:w-[240px]">
-            <ButtonGroupText className="h-7 w-full gap-1.5 rounded-lg border border-transparent bg-accent/60 px-2.5 text-[13px]">
-              <Search className="size-4" strokeWidth={2} color="var(--color-gray-alpha-600)" />
+          {/* Search kept (not in Figma, requested). */}
+          <ButtonGroup className="w-[180px] rounded-[8px] border-none transition-[width] duration-200 ease-out focus-within:w-[240px]">
+            <ButtonGroupText className="h-7 w-full gap-1.5 rounded-[8px] border border-transparent bg-muted px-2 text-[14px] text-gray-800">
+              <Search className="size-4 shrink-0" strokeWidth={2} />
               <input
                 placeholder="Search responses..."
-                className="placeholder:text-normal min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] outline-none placeholder:text-[0.8rem] placeholder:text-(--color-gray-alpha-600)"
+                className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] tracking-[0.14px] outline-none placeholder:text-muted-foreground"
                 value={globalFilter}
                 onChange={onGlobalFilterChange}
                 aria-label="Search responses"
@@ -1020,33 +1234,80 @@ const SubmissionsToolbar = ({
               />
             </ButtonGroupText>
           </ButtonGroup>
-          <table.DataGridColumnVisibility
-            trigger={
-              <Button
-                variant="ghost"
-                size="sm"
-                prefix={
-                  <Columns className="size-4" strokeWidth="2" color="var(--color-gray-alpha-600)" />
-                }
-                suffix={<ChevronDownIcon className="size-2.5 shrink-0 text-muted-foreground" />}
-                className="text-normal inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg rounded-md bg-accent/60 px-2.5 text-[0.8rem] text-(--color-gray-alpha-600) transition-colors hover:bg-accent"
-              >
-                Columns
-              </Button>
-            }
-          />
 
-          <Button
-            variant="ghost"
-            size="sm"
-            prefix={
-              <Download strokeWidth={2} color="var(--color-gray-alpha-600)" className="size-4" />
-            }
-            className="text-normal inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg rounded-md bg-accent/60 px-2.5 text-[0.8rem] text-(--color-gray-alpha-600) transition-colors hover:bg-accent"
-            onClick={onDownloadCSV}
-          >
-            Download CSV
-          </Button>
+          {/* Download — Figma pill with chevron; opens the export menu. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  prefix={<Download className="size-4 shrink-0" strokeWidth={2} />}
+                  suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
+                  className={pill}
+                />
+              }
+            >
+              Download
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={onDownloadCSV}>Export as CSV</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Filter (status) — Figma "Filter" pill; shows the active tab. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  prefix={<FigFilterIcon className="size-4 shrink-0" />}
+                  suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
+                  className={pill}
+                />
+              }
+            >
+              <TextSwap key={activeLabel}>{activeLabel}</TextSwap>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem onClick={onSetTabAll}>All</DropdownMenuItem>
+              <DropdownMenuItem onClick={onSetTabCompleted}>Completed</DropdownMenuItem>
+              <DropdownMenuItem onClick={onSetTabPartial}>Partial</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* View toggle (Figma 26586:29914): board | list segmented control. */}
+          <div className="flex h-7 items-center gap-1 rounded-[8px] bg-muted p-px">
+            <button
+              type="button"
+              aria-label="Submission view"
+              aria-pressed={view === "single"}
+              onClick={() => onViewChange("single")}
+              className={cn(
+                togglePill,
+                view === "single"
+                  ? "bg-background text-gray-800 elevation-base"
+                  : "text-muted-foreground hover:text-gray-800",
+              )}
+            >
+              <FigTilesIcon className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Table view"
+              aria-pressed={view === "table"}
+              onClick={() => onViewChange("table")}
+              className={cn(
+                togglePill,
+                view === "table"
+                  ? "bg-background text-gray-800 elevation-base"
+                  : "text-muted-foreground hover:text-gray-800",
+              )}
+            >
+              <FigBulletListIcon className="size-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
