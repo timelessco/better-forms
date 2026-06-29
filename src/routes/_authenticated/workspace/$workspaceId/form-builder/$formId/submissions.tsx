@@ -523,6 +523,7 @@ const buildSubmissionColumns = ({
                   column={column}
                   title={("label" in field ? field.label : "") || field.name}
                   className={HEADER_LABEL_CLS}
+                  searchable
                 />
               ),
               cell: (info) => (
@@ -533,6 +534,12 @@ const buildSubmissionColumns = ({
                   options={"options" in field ? (field.options as FieldOption[]) : undefined}
                 />
               ),
+              // Per-column header search — substring match against the rendered cell text.
+              enableColumnFilter: true,
+              filterFn: (row, columnId, value) =>
+                formatSubmissionValue(row.getValue(columnId))
+                  .toLowerCase()
+                  .includes(String(value).toLowerCase()),
               // sparse column — empties last (numeric default 1 flips with desc putting empties first)
               sortUndefined: "last",
               // object values produce inconsistent comparators

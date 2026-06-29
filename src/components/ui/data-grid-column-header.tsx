@@ -27,6 +27,7 @@ import {
   ArrowRightToLine,
   ArrowUp,
   PinOff,
+  Search,
   Settings2,
 } from "lucide-react";
 
@@ -39,6 +40,8 @@ interface DataGridColumnHeaderProps<
   icon?: ReactNode;
   filter?: ReactNode;
   visibility?: boolean;
+  /** Per-column search: hover reveals a search icon; click swaps the header for a filter input. */
+  searchable?: boolean;
 }
 
 // Column-header label that truncates and, only when actually overflowing, shows the full text
@@ -79,10 +82,16 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
   className,
   filter,
   visibility = false,
+  searchable = false,
 }: DataGridColumnHeaderProps<TData, TValue>) => {
   const { isLoading, table, props, recordCount } = useDataGrid();
   const sortDirection = useColumnSorted(table, column.id);
   const pinDirection = useColumnPinned(table, column.id);
+
+  // Per-column search (Figma 27015:17071/18967): hover → search icon; click → in-header filter input.
+  const [isSearching, setIsSearching] = useState(false);
+  const filterValue = (column.getFilterValue() as string | undefined) ?? "";
+  const canSearch = searchable && column.getCanFilter();
 
   const getFullOrder = () => {
     const stateOrder = table.state.columnOrder;
@@ -326,20 +335,74 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
     </div>
   );
 
+  // In-header filter input (Figma 27015:18967): the column header becomes a search box scoped to
+  // this column. Esc / empty-blur exits; clearing also clears the column filter.
+  const searchInput = (
+    <div className="flex h-full w-full items-center">
+      {/* Figma 27015:18967 — subtle gray rounded pill, gray placeholder + trailing search glyph. */}
+      <div className="flex h-7 w-full items-center gap-1.5 rounded-lg border border-gray-300 bg-background px-2">
+        <input
+          // eslint-disable-next-line jsx-a11y/no-autofocus -- focus lands on the field the user opened
+          autoFocus
+          value={filterValue}
+          onChange={(e) => column.setFilterValue(e.target.value || undefined)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              column.setFilterValue(undefined);
+              setIsSearching(false);
+            }
+          }}
+          onBlur={() => {
+            if (!filterValue) setIsSearching(false);
+          }}
+          placeholder={title}
+          aria-label={`Search ${title}`}
+          className="min-w-0 flex-1 bg-transparent text-[13px] font-normal text-gray-700 outline-none placeholder:text-gray-500"
+        />
+        <Search className="size-3.5 shrink-0 text-gray-500" aria-hidden="true" />
+      </div>
+    </div>
+  );
+
+  // Wrap a header body with the hover search affordance. A block wrapper with right padding shrinks
+  // the body's content box so the title truncates (→ "…") within it; the icon sits absolutely in
+  // that reserved gap, so it never overlaps the label. Padding is always present (no hover shift).
+  const withSearch = (body: ReactNode): ReactNode =>
+    canSearch ? (
+      <div className="group/colsearch relative h-full pr-7">
+        {body}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsSearching(true);
+          }}
+          aria-label={`Search ${title}`}
+          className="absolute end-1.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/colsearch:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100"
+        >
+          <Search className="size-3.5" />
+        </button>
+      </div>
+    ) : (
+      body
+    );
+
+  if (canSearch && isSearching) return searchInput;
+
   if (
     props.tableLayout?.columnsMovable ||
     (props.tableLayout?.columnsVisibility && visibility) ||
     (props.tableLayout?.columnsPinnable && column.getCanPin()) ||
     filter
   ) {
-    return headerControls;
+    return withSearch(headerControls);
   }
 
   if (column.getCanSort() || (props.tableLayout?.columnsResizable && column.getCanResize())) {
-    return <div className="flex h-full items-center">{headerButton}</div>;
+    return withSearch(<div className="flex h-full items-center">{headerButton}</div>);
   }
 
-  return headerLabel;
+  return withSearch(headerLabel);
 };
 
 export { type DataGridColumnHeaderProps };
