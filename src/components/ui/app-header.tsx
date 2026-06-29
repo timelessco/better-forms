@@ -92,6 +92,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   const isEditRoute = pathname.endsWith("/edit");
   const isSettingsRoute = pathname.endsWith("/settings");
   const isSubmissionsRoute = pathname.endsWith("/submissions");
+  const isAnalyticsRoute = pathname.endsWith("/analytics");
   const { data: sessionData } = useSession();
   const session = sessionData;
   const navigate = useNavigate();
@@ -235,7 +236,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     onNavigateInsights: () => {
       if (workspaceId && formId) {
         void navigate({
-          to: "/workspace/$workspaceId/form-builder/$formId/insights",
+          to: "/workspace/$workspaceId/form-builder/$formId/analytics",
           params: { workspaceId, formId },
         });
       }
@@ -314,6 +315,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               isEditRoute={isEditRoute}
               isSettingsRoute={isSettingsRoute}
               isSubmissionsRoute={isSubmissionsRoute}
+              isAnalyticsRoute={isAnalyticsRoute}
             />
           )}
         </div>
@@ -591,6 +593,7 @@ interface HeaderBreadcrumbProps {
   isEditRoute: boolean;
   isSettingsRoute?: boolean;
   isSubmissionsRoute?: boolean;
+  isAnalyticsRoute?: boolean;
 }
 
 const HeaderBreadcrumb = ({
@@ -601,6 +604,7 @@ const HeaderBreadcrumb = ({
   isEditRoute,
   isSettingsRoute,
   isSubmissionsRoute,
+  isAnalyticsRoute,
 }: HeaderBreadcrumbProps) => {
   const titleText = savedDoc.title || "Untitled";
   const linkClassName = cn(
@@ -659,7 +663,7 @@ const HeaderBreadcrumb = ({
           <span className="truncate">{titleText}</span>
         </span>
       )}
-      {(isSettingsRoute || isSubmissionsRoute) && (
+      {(isSettingsRoute || isSubmissionsRoute || isAnalyticsRoute) && (
         <>
           <span
             aria-hidden="true"
@@ -674,7 +678,7 @@ const HeaderBreadcrumb = ({
               "hidden shrink-0 cursor-default px-1.5 text-[14px] font-medium text-gray-800 hover:bg-transparent sm:inline-flex",
             )}
           >
-            {isSettingsRoute ? "Settings" : "Submissions"}
+            {isSettingsRoute ? "Settings" : isSubmissionsRoute ? "Submissions" : "Analytics"}
           </span>
         </>
       )}

@@ -34,6 +34,7 @@ import { Route as AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSubmissionsR
 import { Route as AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRouteImport } from './routes/_authenticated/workspace/$workspaceId/form-builder/$formId/settings'
 import { Route as AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRouteImport } from './routes/_authenticated/workspace/$workspaceId/form-builder/$formId/insights'
 import { Route as AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRouteImport } from './routes/_authenticated/workspace/$workspaceId/form-builder/$formId/edit'
+import { Route as AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdAnalyticsRouteImport } from './routes/_authenticated/workspace/$workspaceId/form-builder/$formId/analytics'
 
 const RscTestRoute = RscTestRouteImport.update({
   id: '/rsc-test',
@@ -175,6 +176,15 @@ const AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute =
     getParentRoute: () =>
       AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRoute,
   } as any)
+const AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdAnalyticsRoute =
+  AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdAnalyticsRouteImport.update(
+    {
+      id: '/analytics',
+      path: '/analytics',
+      getParentRoute: () =>
+        AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRoute,
+    } as any,
+  )
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -197,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
   '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
   '/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
+  '/workspace/$workspaceId/form-builder/$formId/analytics': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdAnalyticsRoute
   '/workspace/$workspaceId/form-builder/$formId/edit': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute
   '/workspace/$workspaceId/form-builder/$formId/insights': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute
   '/workspace/$workspaceId/form-builder/$formId/settings': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRoute
@@ -223,6 +234,7 @@ export interface FileRoutesByTo {
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
   '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
   '/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
+  '/workspace/$workspaceId/form-builder/$formId/analytics': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdAnalyticsRoute
   '/workspace/$workspaceId/form-builder/$formId/edit': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute
   '/workspace/$workspaceId/form-builder/$formId/insights': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute
   '/workspace/$workspaceId/form-builder/$formId/settings': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRoute
@@ -251,6 +263,7 @@ export interface FileRoutesById {
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
   '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
   '/_authenticated/workspace/$workspaceId/form-builder/$formId': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteWithChildren
+  '/_authenticated/workspace/$workspaceId/form-builder/$formId/analytics': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdAnalyticsRoute
   '/_authenticated/workspace/$workspaceId/form-builder/$formId/edit': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute
   '/_authenticated/workspace/$workspaceId/form-builder/$formId/insights': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute
   '/_authenticated/workspace/$workspaceId/form-builder/$formId/settings': typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRoute
@@ -279,6 +292,7 @@ export interface FileRouteTypes {
     | '/api/forms/$shortId/meta'
     | '/api/og/$shortId/$hash'
     | '/workspace/$workspaceId/form-builder/$formId'
+    | '/workspace/$workspaceId/form-builder/$formId/analytics'
     | '/workspace/$workspaceId/form-builder/$formId/edit'
     | '/workspace/$workspaceId/form-builder/$formId/insights'
     | '/workspace/$workspaceId/form-builder/$formId/settings'
@@ -305,6 +319,7 @@ export interface FileRouteTypes {
     | '/api/forms/$shortId/meta'
     | '/api/og/$shortId/$hash'
     | '/workspace/$workspaceId/form-builder/$formId'
+    | '/workspace/$workspaceId/form-builder/$formId/analytics'
     | '/workspace/$workspaceId/form-builder/$formId/edit'
     | '/workspace/$workspaceId/form-builder/$formId/insights'
     | '/workspace/$workspaceId/form-builder/$formId/settings'
@@ -332,6 +347,7 @@ export interface FileRouteTypes {
     | '/api/forms/$shortId/meta'
     | '/api/og/$shortId/$hash'
     | '/_authenticated/workspace/$workspaceId/form-builder/$formId'
+    | '/_authenticated/workspace/$workspaceId/form-builder/$formId/analytics'
     | '/_authenticated/workspace/$workspaceId/form-builder/$formId/edit'
     | '/_authenticated/workspace/$workspaceId/form-builder/$formId/insights'
     | '/_authenticated/workspace/$workspaceId/form-builder/$formId/settings'
@@ -534,10 +550,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRouteImport
       parentRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRoute
     }
+    '/_authenticated/workspace/$workspaceId/form-builder/$formId/analytics': {
+      id: '/_authenticated/workspace/$workspaceId/form-builder/$formId/analytics'
+      path: '/analytics'
+      fullPath: '/workspace/$workspaceId/form-builder/$formId/analytics'
+      preLoaderRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRoute
+    }
   }
 }
 
 interface AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteChildren {
+  AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdAnalyticsRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdAnalyticsRoute
   AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute
   AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute
   AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRoute: typeof AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdSettingsRoute
@@ -546,6 +570,8 @@ interface AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteChildren {
 
 const AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteChildren: AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdRouteRouteChildren =
   {
+    AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdAnalyticsRoute:
+      AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdAnalyticsRoute,
     AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute:
       AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdEditRoute,
     AuthenticatedWorkspaceWorkspaceIdFormBuilderFormIdInsightsRoute:
