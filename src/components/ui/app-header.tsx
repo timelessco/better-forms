@@ -91,6 +91,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   const isFormBuilder = pathname.startsWith("/form-builder") || pathname.includes("/form-builder/");
   const isEditRoute = pathname.endsWith("/edit");
   const isSettingsRoute = pathname.endsWith("/settings");
+  const isSubmissionsRoute = pathname.endsWith("/submissions");
   const { data: sessionData } = useSession();
   const session = sessionData;
   const navigate = useNavigate();
@@ -312,6 +313,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               formId={formId}
               isEditRoute={isEditRoute}
               isSettingsRoute={isSettingsRoute}
+              isSubmissionsRoute={isSubmissionsRoute}
             />
           )}
         </div>
@@ -588,6 +590,7 @@ interface HeaderBreadcrumbProps {
   formId: string | undefined;
   isEditRoute: boolean;
   isSettingsRoute?: boolean;
+  isSubmissionsRoute?: boolean;
 }
 
 const HeaderBreadcrumb = ({
@@ -597,6 +600,7 @@ const HeaderBreadcrumb = ({
   formId,
   isEditRoute,
   isSettingsRoute,
+  isSubmissionsRoute,
 }: HeaderBreadcrumbProps) => {
   const titleText = savedDoc.title || "Untitled";
   const linkClassName = cn(
@@ -655,7 +659,7 @@ const HeaderBreadcrumb = ({
           <span className="truncate">{titleText}</span>
         </span>
       )}
-      {isSettingsRoute && (
+      {(isSettingsRoute || isSubmissionsRoute) && (
         <>
           <span
             aria-hidden="true"
@@ -670,7 +674,7 @@ const HeaderBreadcrumb = ({
               "hidden shrink-0 cursor-default px-1.5 text-[14px] font-medium text-gray-800 hover:bg-transparent sm:inline-flex",
             )}
           >
-            Settings
+            {isSettingsRoute ? "Settings" : "Submissions"}
           </span>
         </>
       )}
