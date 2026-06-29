@@ -60,7 +60,6 @@ import {
   Download,
   ExternalLink,
   FileText,
-  MoreHorizontal,
   Paperclip,
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -851,7 +850,6 @@ const SubmissionsPage = () => {
               index={safeSingleIndex}
               form={bootstrapData?.form ?? null}
               formId={formId}
-              onDelete={handleDelete}
             />
           ) : (
             <table.DataGrid
@@ -1108,7 +1106,6 @@ const SubmissionSingleView = ({
   index,
   form,
   formId,
-  onDelete,
 }: {
   rows: Row<DataGridFeatures, SerializedSubmission>[];
   index: number;
@@ -1121,7 +1118,6 @@ const SubmissionSingleView = ({
     customization: Record<string, string>;
   } | null;
   formId: string;
-  onDelete: (submissionId: string) => Promise<void> | void;
 }) => {
   const safeIndex = Math.min(index, Math.max(0, rows.length - 1));
   const submission = rows[safeIndex]?.original;
@@ -1144,8 +1140,12 @@ const SubmissionSingleView = ({
   const done = submission.isCompleted;
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      {/* Header (Figma 27015:20853): submission date + status badge, bottom rule. */}
-      <div className="mx-auto w-full max-w-[640px] px-6 pt-1">
+      {/* Header (Figma 27015:20853): submission date + status badge, bottom rule. Same container
+          (mx-auto, --bf-page-width) as the form body below so the date aligns with the fields. */}
+      <div
+        className="mx-auto w-full px-8 pt-1 md:px-0"
+        style={{ maxWidth: "var(--bf-page-width, 700px)" }}
+      >
         <div className="flex items-center gap-3 border-b border-gray-200 pb-3">
           <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.28px] text-gray-700">
             {SUBMISSION_DATE_FORMATTER.format(new Date(submission.createdAt))}
@@ -1161,26 +1161,6 @@ const SubmissionSingleView = ({
           >
             {done ? "Completed" : "Partial"}
           </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 rounded-[8px]"
-                  aria-label="Submission options"
-                />
-              }
-            >
-              <MoreHorizontal className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={4}>
-              <DropdownMenuItem variant="destructive" onClick={() => void onDelete(submission.id)}>
-                <Trash2Icon className="size-4" />
-                <span className="flex-1 text-left">Delete submission</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 
