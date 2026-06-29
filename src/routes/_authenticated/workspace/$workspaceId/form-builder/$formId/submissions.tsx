@@ -1,13 +1,14 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Image } from "@/components/ui/image";
-import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EDITABLE_FIELD_TYPES } from "@/lib/editor/transform-plate-for-preview";
@@ -38,6 +39,7 @@ import type { DataGridApi, DataGridFeatures } from "@/components/ui/data-grid";
 
 import {
   CardsViewIcon,
+  CheckIcon,
   FilterIcon,
   ListViewIcon,
   StarEmptyIcon,
@@ -45,8 +47,11 @@ import {
   Trash2Icon,
   XIcon,
 } from "@/components/ui/icons";
-import { FigFilterIcon, FigSmallDownIcon } from "@/components/dashboard/dashboard-icons";
-import { TextSwap } from "@/components/transitions/text-swap";
+import {
+  FigFilterIcon,
+  FigSearchAltIcon,
+  FigSmallDownIcon,
+} from "@/components/dashboard/dashboard-icons";
 import { FormPreviewFromPlate } from "@/components/form-components/form-preview-from-plate";
 import type { PublicFormSettings } from "@/types/form-settings";
 import {
@@ -54,11 +59,9 @@ import {
   ChevronRight,
   Download,
   ExternalLink,
-  FileOutput,
   FileText,
   MoreHorizontal,
   Paperclip,
-  Search,
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { Value } from "platejs";
@@ -1244,8 +1247,6 @@ const SubmissionsToolbar = ({
   onGlobalFilterChange,
   onExport,
 }: SubmissionsToolbarProps) => {
-  const activeLabel =
-    activeTab === "all" ? "All" : activeTab === "completed" ? "Completed" : "Partial";
   // Matches the dashboard toolbar (FilterMenu/SortMenu): gray pill, 14px/450, Fig* icons at size-4.
   const pill =
     "font-case inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg bg-secondary px-2 text-base font-[450] tracking-[0.14px] text-gray-800 transition-colors hover:bg-secondary/80 [&_svg]:size-4 [&_svg]:text-gray-800";
@@ -1262,29 +1263,28 @@ const SubmissionsToolbar = ({
           {/* Search / Download / Filter only apply to the table — hidden in the single record view. */}
           {view === "table" && (
             <>
-              {/* Search kept (not in Figma, requested). */}
-              <ButtonGroup className="w-[180px] rounded-[8px] border-none transition-[width] duration-200 ease-out focus-within:w-[240px]">
-                <ButtonGroupText className="h-7 w-full gap-1.5 rounded-[8px] border border-transparent bg-muted px-2 text-[14px] text-gray-800">
-                  <Search className="size-4 shrink-0" strokeWidth={2} />
-                  <input
-                    placeholder="Search responses..."
-                    className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] tracking-[0.14px] outline-none placeholder:text-muted-foreground"
-                    value={globalFilter}
-                    onChange={onGlobalFilterChange}
-                    aria-label="Search responses"
-                    name="search"
-                  />
-                </ButtonGroupText>
-              </ButtonGroup>
+              {/* Search — matches the dashboard toolbar pill (gray/100 surface, search-alt icon). */}
+              <div className="flex h-7 w-[200px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2 transition-[width] duration-200 ease-out focus-within:w-[260px]">
+                <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
+                <input
+                  type="search"
+                  placeholder="Search responses..."
+                  className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
+                  value={globalFilter}
+                  onChange={onGlobalFilterChange}
+                  aria-label="Search responses"
+                  name="search"
+                />
+              </div>
 
-              {/* Export — Figma pill with chevron; CSV / PDF / Excel. */}
+              {/* Export — pill with chevron; CSV / PDF / Excel (download glyph). */}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
                     <Button
                       variant="ghost"
                       size="sm"
-                      prefix={<FileOutput className="size-4 shrink-0" strokeWidth={2} />}
+                      prefix={<Download className="size-4 shrink-0" strokeWidth={2} />}
                       suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
                       className={pill}
                     />
@@ -1299,7 +1299,8 @@ const SubmissionsToolbar = ({
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Filter (status) — Figma "Filter" pill; shows the active tab. */}
+              {/* Filter (status) — static "Filter" title; the active tab is ticked in the dropdown
+                  (matches the dashboard FilterMenu). */}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
@@ -1312,12 +1313,24 @@ const SubmissionsToolbar = ({
                     />
                   }
                 >
-                  <TextSwap key={activeLabel}>{activeLabel}</TextSwap>
+                  Filter
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-36">
-                  <DropdownMenuItem onClick={onSetTabAll}>All</DropdownMenuItem>
-                  <DropdownMenuItem onClick={onSetTabCompleted}>Completed</DropdownMenuItem>
-                  <DropdownMenuItem onClick={onSetTabPartial}>Partial</DropdownMenuItem>
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Filter</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={onSetTabAll}>
+                      <span className="flex-1 text-left">All</span>
+                      {activeTab === "all" && <CheckIcon className="size-4" />}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onSetTabCompleted}>
+                      <span className="flex-1 text-left">Completed</span>
+                      {activeTab === "completed" && <CheckIcon className="size-4" />}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onSetTabPartial}>
+                      <span className="flex-1 text-left">Partial</span>
+                      {activeTab === "partial" && <CheckIcon className="size-4" />}
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
