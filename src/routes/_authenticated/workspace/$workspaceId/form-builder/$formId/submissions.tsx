@@ -103,6 +103,13 @@ const formatDateCellValue = (text: string): string => {
 
 const formatSubmittedAt = (value: string | Date): string =>
   SUBMITTED_AT_FORMATTER.format(new Date(value));
+
+// Single-view header date (Figma 27015:20854) — "Jun 2, 2026".
+const SUBMISSION_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
 type PaginatedSubmissionsPage = {
   submissions: SerializedSubmission[];
   nextCursor?: SubmissionCursor;
@@ -792,6 +799,17 @@ const SubmissionsPage = () => {
   // Figma 26595-31672: list = the data-grid table; single = one submission rendered read-only.
   const [view, setView] = useState<"table" | "single">("table");
 
+  // Single-view cursor lifted to the page so the toolbar renders prev/next + "X of N" (Figma
+  // 27015:20773); the per-submission nav no longer lives inside the record card.
+  const singleRows = table.getRowModel().rows;
+  const [singleIndex, setSingleIndex] = useState(0);
+  const safeSingleIndex = Math.min(singleIndex, Math.max(0, singleRows.length - 1));
+  const goPrevSubmission = () => setSingleIndex(Math.max(0, safeSingleIndex - 1));
+  const goNextSubmission = () => {
+    if (hasNextPage && safeSingleIndex >= singleRows.length - 2) fetchNextPage();
+    setSingleIndex(Math.min(safeSingleIndex + 1, singleRows.length));
+  };
+
   return (
     <table.AppTable>
       <div className="flex h-full min-h-0 min-w-0 flex-col bg-background pl-5">
@@ -805,6 +823,12 @@ const SubmissionsPage = () => {
           onSetTabPartial={handleSetActiveTabPartial}
           onGlobalFilterChange={handleGlobalFilterChange}
           onExport={handleExport}
+          totalCount={totalCount}
+          singleCurrent={Math.min(safeSingleIndex + 1, totalCount)}
+          onPrevSubmission={goPrevSubmission}
+          onNextSubmission={goNextSubmission}
+          canPrevSubmission={safeSingleIndex > 0}
+          canNextSubmission={safeSingleIndex < singleRows.length - 1 || hasNextPage}
         />
 
         <SubmissionPreviewDialog file={previewFile} onClose={closePreview} />
@@ -823,12 +847,10 @@ const SubmissionsPage = () => {
 
           {view === "single" ? (
             <SubmissionSingleView
-              rows={table.getRowModel().rows}
-              totalCount={totalCount}
+              rows={singleRows}
+              index={safeSingleIndex}
               form={bootstrapData?.form ?? null}
               formId={formId}
-              onFetchMore={fetchNextPage}
-              hasMore={hasNextPage}
               onDelete={handleDelete}
             />
           ) : (
@@ -1078,20 +1100,18 @@ const useSubmissionsHotkeys = ({
   });
 };
 
-// Individual-submission view (Figma 26595-31672): a card with a header (counter, prev/next,
-// status, menu) over the form rendered read-only with this submission's answers. Reuses the
-// preview; the form subtree is `inert` so every field is non-interactive (no per-field disable).
+// Individual-submission view (Figma 27015:20852): borderless record — a date + status-badge
+// header rule over the form rendered read-only with this submission's answers. Per-submission
+// nav lives in the toolbar now. The form subtree is `inert` so every field is non-interactive.
 const SubmissionSingleView = ({
   rows,
-  totalCount,
+  index,
   form,
   formId,
-  onFetchMore,
-  hasMore,
   onDelete,
 }: {
   rows: Row<DataGridFeatures, SerializedSubmission>[];
-  totalCount: number;
+  index: number;
   form: {
     content: unknown;
     title: string;
@@ -1101,29 +1121,17 @@ const SubmissionSingleView = ({
     customization: Record<string, string>;
   } | null;
   formId: string;
-  onFetchMore: () => void;
-  hasMore: boolean;
   onDelete: (submissionId: string) => Promise<void> | void;
 }) => {
-  const [index, setIndex] = useState(0);
   const safeIndex = Math.min(index, Math.max(0, rows.length - 1));
   const submission = rows[safeIndex]?.original;
 
-  // Single-submission view shows only the answered fields (Figma 26595:31672) — strip the
-  // formHeader node (cover/icon/title) so the card opens straight on the first field.
+  // Single-submission view shows only the answered fields (Figma 27015:20852) — strip the
+  // formHeader node (cover/icon/title) so the record opens straight on the first field.
   const bodyContent = useMemo(
     () => ((form?.content as Value | undefined) ?? []).filter((node) => node.type !== "formHeader"),
     [form],
   );
-
-  // Operate on safeIndex (not raw `index`) so a filter that shrinks `rows` doesn't strand the
-  // cursor; fetch is triggered outside the setState updater (updaters must be pure). Setting
-  // index to rows.length when at the last loaded row lets safeIndex auto-advance once more load.
-  const goPrev = () => setIndex(Math.max(0, safeIndex - 1));
-  const goNext = () => {
-    if (hasMore && safeIndex >= rows.length - 2) onFetchMore();
-    setIndex(Math.min(safeIndex + 1, rows.length));
-  };
 
   if (!form || !submission) {
     return (
@@ -1135,42 +1143,20 @@ const SubmissionSingleView = ({
 
   const done = submission.isCompleted;
   return (
-    <div className="m-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-gray-200">
-      {/* Header bar (Figma 26586:30412) */}
-      <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-muted px-3 py-2">
-        <div className="flex items-center gap-2">
-          <span className="text-[14px] tracking-[0.005em] text-muted-foreground">
-            {safeIndex + 1} of {totalCount}
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      {/* Header (Figma 27015:20853): submission date + status badge, bottom rule. */}
+      <div className="mx-auto w-full max-w-[640px] px-6 pt-1">
+        <div className="flex items-center gap-3 border-b border-gray-200 pb-3">
+          <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.28px] text-gray-700">
+            {SUBMISSION_DATE_FORMATTER.format(new Date(submission.createdAt))}
           </span>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7 rounded-[8px]"
-              onClick={goPrev}
-              disabled={safeIndex === 0}
-              aria-label="Previous submission"
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7 rounded-[8px]"
-              onClick={goNext}
-              disabled={safeIndex >= rows.length - 1 && !hasMore}
-              aria-label="Next submission"
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
           <span
             className={cn(
-              "inline-flex items-center rounded-full px-1.5 py-[3px] text-[12px] font-medium tracking-[0.02em] text-white",
-              // Solid green badge (Figma 26586:30425); Partial has no theme token → hardcoded amber.
-              done ? "bg-[var(--color-success-on-soft)]" : "bg-[#a68d00]",
+              "inline-flex items-center rounded-full px-1.5 py-[3px] text-[12px] font-medium tracking-[0.02em]",
+              // Figma 27015:20855 — Completed green-soft pair; Partial amber pair (#fff7d3/#b35309).
+              done
+                ? "bg-[var(--color-success-soft)] text-[var(--color-success-on-soft)]"
+                : "bg-[#fff7d3] text-[#b35309] dark:bg-amber-950/40 dark:text-amber-400",
             )}
           >
             {done ? "Completed" : "Partial"}
@@ -1199,7 +1185,7 @@ const SubmissionSingleView = ({
       </div>
 
       {/* Body — read-only preview populated with this submission's values. */}
-      <div className="min-h-0 flex-1 overflow-y-auto bg-background">
+      <div className="min-h-0 flex-1">
         {/* `inert` (React 19) makes the whole form non-interactive — read-only submission view. */}
         <div inert>
           <FormPreviewFromPlate
@@ -1234,6 +1220,14 @@ interface SubmissionsToolbarProps {
   onSetTabPartial: () => void;
   onGlobalFilterChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onExport: (format: "csv" | "pdf" | "excel") => void;
+  /** Total submissions — shown as a count badge beside the title. */
+  totalCount: number;
+  /** Single-view cursor (1-based) + nav — rendered as a "X of N" pill in single view. */
+  singleCurrent: number;
+  onPrevSubmission: () => void;
+  onNextSubmission: () => void;
+  canPrevSubmission: boolean;
+  canNextSubmission: boolean;
 }
 
 const SubmissionsToolbar = ({
@@ -1246,6 +1240,12 @@ const SubmissionsToolbar = ({
   onSetTabPartial,
   onGlobalFilterChange,
   onExport,
+  totalCount,
+  singleCurrent,
+  onPrevSubmission,
+  onNextSubmission,
+  canPrevSubmission,
+  canNextSubmission,
 }: SubmissionsToolbarProps) => {
   // Matches the dashboard toolbar (FilterMenu/SortMenu): gray pill, 14px/450, Fig* icons at size-4.
   const pill =
@@ -1254,10 +1254,19 @@ const SubmissionsToolbar = ({
   return (
     <div className="shrink-0 border-border pt-8 pr-6 pb-5">
       <div className="flex items-center gap-3">
-        {/* Figma: section title on the left, controls as gray-100 pills on the right. */}
-        <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-[0.015em] text-gray-950">
-          Submissions
-        </h2>
+        {/* Figma 27015:20774: title + total-count badge on the left, controls on the right. */}
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <h2 className="truncate text-[15px] font-semibold tracking-[0.015em] text-gray-950">
+            Submissions
+          </h2>
+          {totalCount > 0 && (
+            // Inverted chip (Figma gray/950 + white): bg-foreground/text-background stays a dark
+            // pill with light text in light mode and flips legibly in dark mode.
+            <span className="inline-flex shrink-0 items-center rounded-full bg-foreground px-[5px] py-px text-[12px] text-background tabular-nums">
+              {totalCount}
+            </span>
+          )}
+        </div>
 
         <div className="flex items-center gap-1.5">
           {/* Search / Download / Filter only apply to the table — hidden in the single record view. */}
@@ -1277,7 +1286,7 @@ const SubmissionsToolbar = ({
                 />
               </div>
 
-              {/* Export — pill with chevron; CSV / PDF / Excel (download glyph). */}
+              {/* Download (Figma 27015:21450) — pill with chevron; CSV / PDF / Excel. */}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
@@ -1290,7 +1299,7 @@ const SubmissionsToolbar = ({
                     />
                   }
                 >
-                  Export
+                  Download
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
                   <DropdownMenuItem onClick={() => onExport("csv")}>CSV</DropdownMenuItem>
@@ -1334,6 +1343,33 @@ const SubmissionsToolbar = ({
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
+          )}
+
+          {/* Per-submission pager (Figma 27015:20788) — single view only; nav moved out of the card. */}
+          {view === "single" && (
+            <div className="flex h-7 items-center gap-1.5 rounded-lg bg-secondary pr-1.5 pl-1">
+              <button
+                type="button"
+                onClick={onPrevSubmission}
+                disabled={!canPrevSubmission}
+                aria-label="Previous submission"
+                className="flex size-5 items-center justify-center rounded-md text-gray-800 transition-colors hover:bg-background/60 disabled:opacity-40 disabled:hover:bg-transparent"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+              <span className="font-case text-base font-[450] tracking-[0.14px] text-gray-800 tabular-nums">
+                {singleCurrent} of {totalCount}
+              </span>
+              <button
+                type="button"
+                onClick={onNextSubmission}
+                disabled={!canNextSubmission}
+                aria-label="Next submission"
+                className="flex size-5 items-center justify-center rounded-md text-gray-800 transition-colors hover:bg-background/60 disabled:opacity-40 disabled:hover:bg-transparent"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
           )}
 
           {/* View toggle (Figma 26586:29914): board | list segmented control. */}
