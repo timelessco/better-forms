@@ -59,7 +59,7 @@ import { useGlimm } from "glimm/react";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { LogoToggle } from "./logo";
 import { useSidebarSafe } from "./sidebar";
@@ -823,28 +823,6 @@ const DashboardHeaderActions = () => {
   const hasMultipleWorkspaces = orderedWorkspaces.length > 1;
   const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
 
-  const search = useSearch({ strict: false }) as { q?: string };
-  const [input, setInput] = useState(search.q ?? "");
-
-  // Sync local input when the URL param changes externally (back/forward, clear).
-  useEffect(() => {
-    setInput(search.q ?? "");
-  }, [search.q]);
-
-  // Debounce keystrokes → URL ?q= so the dashboard list re-filters.
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      const next = input.trim() || undefined;
-      if ((search.q ?? undefined) === next) return;
-      void navigate({
-        to: "/dashboard",
-        search: (prev: Record<string, unknown>) => ({ ...prev, q: next }),
-        replace: true,
-      });
-    }, 200);
-    return () => clearTimeout(handle);
-  }, [input, search.q, navigate]);
-
   const handleCreateForm = (workspaceId?: string) => {
     const targetId = workspaceId ?? topWorkspace?.id;
     if (!targetId) return;
@@ -871,21 +849,8 @@ const DashboardHeaderActions = () => {
 
   return (
     <div className="flex items-center gap-2">
-      {/* Search — gray/100 surface, 200px, search-alt icon + placeholder */}
-      <div className="flex h-7 w-[200px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2">
-        <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
-        <input
-          type="search"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Search"
-          aria-label="Search forms"
-          className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
-        />
-      </div>
-
       {/* New Form — Figma 26247:7573 (dark primary #141414, add-sm icon, 28px tall, 8px/10px padding,
-          8px radius to match the search field). */}
+          8px radius). Search moved into the All Forms toolbar (dashboard route). */}
       <Button
         size="sm"
         prefix={<FigAddSmIcon className="size-4" />}

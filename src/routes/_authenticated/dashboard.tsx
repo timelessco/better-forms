@@ -40,6 +40,7 @@ import {
   FigPlusIcon,
   FigRegistrationIcon,
   FigRsvpIcon,
+  FigSearchAltIcon,
   FigSmallDownIcon,
   FigSortIcon,
   FigSurveyIcon,
@@ -145,6 +146,47 @@ const greetingFor = (date: Date): string => {
 
 // Figma 26208:8074 — gray/100 pill trigger (filter icon + static "Filter" label + chevron); the
 // active option is marked with a tick inside the dropdown, not shown on the trigger.
+// Search moved out of the app header into the All Forms toolbar (Figma 26835:10024):
+// gray/100 pill, 170px, search-alt icon, "Search" placeholder. Writes ?q= (debounced).
+const DashboardSearch = () => {
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as { q?: string };
+  const [input, setInput] = useState(search.q ?? "");
+
+  // Sync local input when the URL param changes externally (back/forward, clear).
+  useEffect(() => {
+    setInput(search.q ?? "");
+  }, [search.q]);
+
+  // Debounce keystrokes → URL ?q= so the dashboard list re-filters.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const next = input.trim() || undefined;
+      if ((search.q ?? undefined) === next) return;
+      void navigate({
+        to: "/dashboard",
+        search: (prev: Record<string, unknown>) => ({ ...prev, q: next }),
+        replace: true,
+      });
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [input, search.q, navigate]);
+
+  return (
+    <div className="flex h-7 w-[170px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2">
+      <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
+      <input
+        type="search"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder="Search"
+        aria-label="Search forms"
+        className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
+      />
+    </div>
+  );
+};
+
 const FilterMenu = ({
   currentFilter,
   onChange,
@@ -599,6 +641,7 @@ const DashboardPage = () => {
             </h2>
             {!isLoading && orgForms.length > 0 && (
               <div className="flex items-center gap-2">
+                <DashboardSearch />
                 <FilterMenu currentFilter={currentFilter} onChange={handleFilterChange} />
                 <SortMenu sortBy={sortBy} onChange={setSortBy} />
                 <ViewToggle mode={viewMode} onChange={setViewMode} />
