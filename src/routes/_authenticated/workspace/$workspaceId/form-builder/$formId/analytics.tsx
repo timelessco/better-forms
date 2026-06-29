@@ -1,18 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import {
-  ArrowUpRight,
-  ChevronDown,
-  CircleCheck,
-  Download,
-  Globe,
-  Monitor,
-  MousePointerClick,
-  Smartphone,
-  Tablet,
-  TrendingDown,
-} from "lucide-react";
+import { ArrowUpRight, ChevronDown, Globe, Monitor, Smartphone, Tablet } from "lucide-react";
 import { toast } from "sonner";
 
 import { EvilAreaChart } from "@/components/evilcharts/charts/area-chart";
@@ -203,11 +192,57 @@ const StatCard = ({
   );
 };
 
+// Tab icons — exact Figma glyphs (26844:12431 / :12407 / :12419), currentColor so they follow the
+// tab text color (active gray-900 / inactive gray-600) in both light + dark.
+const iconProps = { width: 16, height: 16, viewBox: "0 0 16 16", fill: "none" as const };
+const TabVisitsIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...iconProps} xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path
+      d="M7.80303 5.92203H11.3485C13.089 5.92203 14.5 7.33301 14.5 9.07351V9.52985C14.5 12.6501 11.9705 15.1796 8.85028 15.1796C6.75269 15.1796 4.82773 14.0174 3.85078 12.1612L1.5 7.69472L2.09139 6.95545C2.63504 6.27592 3.62665 6.16574 4.30622 6.7094L5.04545 7.30078V2.17957C5.04545 1.41808 5.66276 0.800781 6.42424 0.800781C7.18573 0.800781 7.80303 1.41808 7.80303 2.17957V5.92203Z"
+      fill="currentColor"
+      fillOpacity="0.12"
+      stroke="currentColor"
+      strokeLinecap="square"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+const TabAnswersIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...iconProps} xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path
+      d="M8 15C11.866 15 15 11.866 15 8C15 4.13401 11.866 1 8 1C4.13401 1 1 4.13401 1 8C1 11.866 4.13401 15 8 15Z"
+      fill="currentColor"
+      fillOpacity="0.12"
+    />
+    <path
+      d="M10.2703 6.10811L6.86487 10.2703L5.35135 8.75676M15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1C11.866 1 15 4.13401 15 8Z"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+const TabDropoffsIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...iconProps} xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path
+      d="M2 5.2C2 4.0799 2 3.51984 2.21799 3.09202C2.40973 2.71569 2.71569 2.40973 3.09202 2.21799C3.51984 2 4.0799 2 5.2 2H10.8C11.9201 2 12.4802 2 12.908 2.21799C13.2843 2.40973 13.5903 2.71569 13.782 3.09202C14 3.51984 14 4.0799 14 5.2V10.8C14 11.9201 14 12.4802 13.782 12.908C13.5903 13.2843 13.2843 13.5903 12.908 13.782C12.4802 14 11.9201 14 10.8 14H5.2C4.0799 14 3.51984 14 3.09202 13.782C2.71569 13.5903 2.40973 13.2843 2.21799 12.908C2 12.4802 2 11.9201 2 10.8V5.2Z"
+      fill="currentColor"
+      fillOpacity="0.12"
+    />
+    <path
+      d="M11.3333 10L7.71046 6.37712C7.57845 6.24512 7.51245 6.17912 7.43634 6.15439C7.36939 6.13263 7.29728 6.13263 7.23033 6.15439C7.15422 6.17912 7.08822 6.24512 6.95621 6.37712L5.71046 7.62288C5.57845 7.75488 5.51245 7.82088 5.43634 7.84561C5.36939 7.86737 5.29728 7.86737 5.23033 7.84561C5.15422 7.82088 5.08822 7.75488 4.95621 7.62288L2 4.66667M11.3333 7.33333V10H8.66667M5.2 14H10.8C11.9201 14 12.4802 14 12.908 13.782C13.2843 13.5903 13.5903 13.2843 13.782 12.908C14 12.4802 14 11.9201 14 10.8V5.2C14 4.0799 14 3.51984 13.782 3.09202C13.5903 2.71569 13.2843 2.40973 12.908 2.21799C12.4802 2 11.9201 2 10.8 2H5.2C4.0799 2 3.51984 2 3.09202 2.21799C2.71569 2.40973 2.40973 2.71569 2.21799 3.09202C2 3.51984 2 4.0799 2 5.2V10.8C2 11.9201 2 12.4802 2.21799 12.908C2.40973 13.2843 2.71569 13.5903 3.09202 13.782C3.51984 14 4.0799 14 5.2 14Z"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 type AnalyticsTab = "visits" | "answers" | "dropoffs";
 const TABS: { id: AnalyticsTab; label: string; icon: React.ReactNode }[] = [
-  { id: "visits", label: "Visits", icon: <MousePointerClick className="size-4" /> },
-  { id: "answers", label: "Answers", icon: <CircleCheck className="size-4" /> },
-  { id: "dropoffs", label: "Dropoffs", icon: <TrendingDown className="size-4" /> },
+  { id: "visits", label: "Visits", icon: <TabVisitsIcon className="size-4" /> },
+  { id: "answers", label: "Answers", icon: <TabAnswersIcon className="size-4" /> },
+  { id: "dropoffs", label: "Dropoffs", icon: <TabDropoffsIcon className="size-4" /> },
 ];
 
 const AnalyticsPage = () => {
@@ -266,11 +301,15 @@ const AnalyticsPage = () => {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
       <div className="mx-auto w-full max-w-[760px] px-6 py-6">
-        {/* Title */}
-        <h1 className="text-[18px] font-semibold text-foreground">Analytics</h1>
+        {/* Title (Figma 26835:12210) — 18px SemiBold gray-950. font-sans re-binds the wght axis so
+            font-semibold actually renders 600 (the inherited fvs wght otherwise pins it to ~450). */}
+        <h1 className="font-sans text-[18px] leading-[1.15] font-semibold text-gray-950">
+          Analytics
+        </h1>
 
-        {/* Tabs (Figma 26835:12130) — 16px icon + label, active underline */}
-        <div className="mt-4 flex items-center gap-6 border-b border-border">
+        {/* Tabs (Figma 26835:12159) — 24px gap, gray/200 baseline rule; active = gray-900 underline +
+            text, inactive = gray-600. 16px Figma icons (currentColor). pt-0.5 pb-1.5 within h-8. */}
+        <div className="mt-5 flex h-8 items-center gap-6 border-b border-[var(--color-gray-200)]">
           {TABS.map((t) => {
             const active = tab === t.id;
             return (
@@ -279,10 +318,10 @@ const AnalyticsPage = () => {
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  "-mb-px flex items-center gap-1.5 border-b-2 pb-2.5 text-[14px] transition-colors",
+                  "-mb-px flex h-full items-center justify-center gap-2 border-b pt-0.5 pb-1.5 text-[14px] font-[420] tracking-[0.02em] transition-colors [&_svg]:size-4",
                   active
-                    ? "border-foreground text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
+                    ? "border-foreground text-gray-950"
+                    : "border-transparent text-gray-600 hover:text-gray-800",
                 )}
               >
                 {t.icon}
@@ -299,7 +338,7 @@ const AnalyticsPage = () => {
         ) : (
           <>
             {/* Sub-toolbar: section label + range + export */}
-            <div className="mt-5 flex items-center justify-between gap-3">
+            <div className="mt-6 flex items-center justify-between gap-3">
               <span className="text-[15px] font-semibold text-foreground">Visits</span>
               <div className="flex items-center gap-2">
                 <DropdownMenu>
@@ -328,7 +367,6 @@ const AnalyticsPage = () => {
                     render={
                       <Button
                         size="sm"
-                        prefix={<Download className="size-4 shrink-0" strokeWidth={2} />}
                         suffix={<ChevronDown className="size-4 shrink-0" />}
                         className="h-7 rounded-lg font-case text-base tracking-[0.14px]"
                       />
@@ -346,7 +384,7 @@ const AnalyticsPage = () => {
             </div>
 
             {/* Metric cards */}
-            <div className="mt-4 flex gap-3">
+            <div className="mt-5 flex gap-3">
               <MetricCard label="Visits" value={numberFmt.format(metrics?.totalVisits ?? 0)} />
               <MetricCard
                 label="Submissions"
