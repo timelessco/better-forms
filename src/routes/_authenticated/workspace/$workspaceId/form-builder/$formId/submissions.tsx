@@ -1269,81 +1269,20 @@ const SubmissionsToolbar = ({
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Search / Download / Filter only apply to the table — hidden in the single record view. */}
-          {view === "table" && (
-            <>
-              {/* Search — matches the dashboard toolbar pill (gray/100 surface, search-alt icon). */}
-              <div className="flex h-7 w-[200px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2 transition-[width] duration-200 ease-out focus-within:w-[260px]">
-                <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
-                <input
-                  type="search"
-                  placeholder="Search responses..."
-                  className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
-                  value={globalFilter}
-                  onChange={onGlobalFilterChange}
-                  aria-label="Search responses"
-                  name="search"
-                />
-              </div>
-
-              {/* Download (Figma 27015:21450) — pill with chevron; CSV / PDF / Excel. */}
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      prefix={<Download className="size-4 shrink-0" strokeWidth={2} />}
-                      suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
-                      className={pill}
-                    />
-                  }
-                >
-                  Download
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuItem onClick={() => onExport("csv")}>CSV</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onExport("pdf")}>PDF</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onExport("excel")}>Excel</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Filter (status) — static "Filter" title; the active tab is ticked in the dropdown
-                  (matches the dashboard FilterMenu). */}
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      prefix={<FigFilterIcon className="size-4 shrink-0" />}
-                      suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
-                      className={pill}
-                    />
-                  }
-                >
-                  Filter
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-36">
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>Filter</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={onSetTabAll}>
-                      <span className="flex-1 text-left">All</span>
-                      {activeTab === "all" && <CheckIcon className="size-4" />}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onSetTabCompleted}>
-                      <span className="flex-1 text-left">Completed</span>
-                      {activeTab === "completed" && <CheckIcon className="size-4" />}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onSetTabPartial}>
-                      <span className="flex-1 text-left">Partial</span>
-                      {activeTab === "partial" && <CheckIcon className="size-4" />}
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          )}
+          {/* Search / pager / Download / Filter all show in both views (Figma 27015:20773). */}
+          {/* Search — matches the dashboard toolbar pill (gray/100 surface, search-alt icon). */}
+          <div className="flex h-7 w-[200px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2 transition-[width] duration-200 ease-out focus-within:w-[260px]">
+            <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
+            <input
+              type="search"
+              placeholder="Search responses..."
+              className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
+              value={globalFilter}
+              onChange={onGlobalFilterChange}
+              aria-label="Search responses"
+              name="search"
+            />
+          </div>
 
           {/* Per-submission pager (Figma 27015:20788) — single view only; nav moved out of the card. */}
           {view === "single" && (
@@ -1371,6 +1310,63 @@ const SubmissionsToolbar = ({
               </button>
             </div>
           )}
+
+          {/* Download (Figma 27015:21450) — pill with chevron; CSV / PDF / Excel. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  prefix={<Download className="size-4 shrink-0" strokeWidth={2} />}
+                  suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
+                  className={pill}
+                />
+              }
+            >
+              Download
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => onExport("csv")}>CSV</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport("pdf")}>PDF</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport("excel")}>Excel</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Filter (status) — static "Filter" title; the active tab is ticked in the dropdown
+              (matches the dashboard FilterMenu). */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  prefix={<FigFilterIcon className="size-4 shrink-0" />}
+                  suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
+                  className={pill}
+                />
+              }
+            >
+              Filter
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Filter</DropdownMenuLabel>
+                <DropdownMenuItem onClick={onSetTabAll}>
+                  <span className="flex-1 text-left">All</span>
+                  {activeTab === "all" && <CheckIcon className="size-4" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onSetTabCompleted}>
+                  <span className="flex-1 text-left">Completed</span>
+                  {activeTab === "completed" && <CheckIcon className="size-4" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onSetTabPartial}>
+                  <span className="flex-1 text-left">Partial</span>
+                  {activeTab === "partial" && <CheckIcon className="size-4" />}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* View toggle (Figma 26586:29914): board | list segmented control. */}
           <div className="flex h-7 items-center gap-1 rounded-[8px] bg-muted p-px">
