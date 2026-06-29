@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { MULTI_SELECT_COLORS } from "@/components/ui/form-option-item-constants";
 import { Button } from "@/components/ui/button";
 import { Image } from "@/components/ui/image";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
@@ -202,14 +201,11 @@ const SubmissionCell = ({
   fieldType,
   onPreview,
   options,
-  colorTags,
 }: {
   value: unknown;
   fieldType: string;
   onPreview?: (file: UploadedFileValue) => void;
   options?: FieldOption[];
-  /** Checkbox shown as multi-select dropdown — render answers as its colored tags. */
-  colorTags?: boolean;
 }) => {
   const labelFor = (raw: unknown): string => {
     const s = String(raw);
@@ -222,25 +218,16 @@ const SubmissionCell = ({
     return <span className="text-[14px] text-muted-foreground">-</span>;
   }
 
-  // Repeatable scalar fields land here as arrays — render as chips before
-  // hitting the per-type renderers below (a single mailto: for two emails or
+  // Repeatable scalar fields land here as arrays — flatten to comma-separated text
+  // (Figma) before the per-type renderers below (a single mailto: for two emails or
   // an "Invalid Date" for an array of dates would otherwise be wrong).
   if (Array.isArray(value) && SCALAR_CELL_TYPES.has(fieldType)) {
     const arr = value.filter((v) => v !== "" && v != null);
     if (arr.length === 0) return <span className="text-[14px] text-muted-foreground">-</span>;
-    return (
-      <div className="flex max-w-[300px] flex-wrap gap-1">
-        {arr.map((item, i) => (
-          <span
-            // eslint-disable-next-line @eslint-react/no-array-index-key
-            key={i}
-            className="inline-flex items-center rounded-md bg-secondary px-1.5 py-0.5 text-[11px] text-secondary-foreground"
-          >
-            {labelFor(item)}
-          </span>
-        ))}
-      </div>
-    );
+    const joined = arr
+      .map((item) => (fieldType === "Date" ? formatDateCellValue(String(item)) : labelFor(item)))
+      .join(", ");
+    return <span className="block max-w-[300px] truncate text-[14px]">{joined}</span>;
   }
 
   switch (fieldType) {
@@ -306,31 +293,10 @@ const SubmissionCell = ({
     case "MultiChoice":
     case "Ranking":
     default: {
+      // Multi-value answers render as comma-separated text (Figma), not pill chips.
       const items = Array.isArray(value) ? value : null;
-      if (!items) {
-        return <span className="block max-w-[300px] truncate text-[14px]">{labelFor(value)}</span>;
-      }
-      const useColors = colorTags && options;
-      return (
-        <div className="flex max-w-[300px] flex-wrap gap-1">
-          {items.map((item) => {
-            const colorIdx = useColors ? options.findIndex((o) => o.value === String(item)) : -1;
-            const color =
-              colorIdx >= 0 ? MULTI_SELECT_COLORS[colorIdx % MULTI_SELECT_COLORS.length] : null;
-            return (
-              <span
-                key={String(item)}
-                className={cn(
-                  "inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px]",
-                  color ? cn(color.bg, color.text) : "bg-secondary text-secondary-foreground",
-                )}
-              >
-                {labelFor(item)}
-              </span>
-            );
-          })}
-        </div>
-      );
+      const display = items ? items.map((item) => labelFor(item)).join(", ") : labelFor(value);
+      return <span className="block max-w-[300px] truncate text-[14px]">{display}</span>;
     }
     case "FileUpload": {
       // Legacy: bare string filename from old submissions
@@ -555,11 +521,6 @@ const buildSubmissionColumns = ({
                   fieldType={field.fieldType}
                   onPreview={onPreview}
                   options={"options" in field ? (field.options as FieldOption[]) : undefined}
-                  colorTags={
-                    field.fieldType === "Checkbox" &&
-                    "showAsDropdown" in field &&
-                    field.showAsDropdown === true
-                  }
                 />
               ),
               // sparse column — empties last (numeric default 1 flips with desc putting empties first)
@@ -830,7 +791,7 @@ const SubmissionsPage = () => {
 
   return (
     <table.AppTable>
-      <div className="flex h-full min-h-0 min-w-0 flex-col bg-background">
+      <div className="flex h-full min-h-0 min-w-0 flex-col bg-background pl-5">
         <SubmissionsToolbar
           activeTab={activeTab}
           globalFilter={globalFilter}
@@ -870,6 +831,7 @@ const SubmissionsPage = () => {
           ) : (
             <table.DataGrid
               recordCount={totalCount}
+              className=""
               isLoading={isLoadingSubmissions}
               tableLayout={{
                 dense: true,
@@ -914,7 +876,7 @@ const SubmissionsPage = () => {
               <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
                 <table.DataGridContainer
                   border={false}
-                  className="min-h-0 flex-1 content-start overflow-x-auto overflow-y-hidden border-b border-border"
+                  className="min-h-0 flex-1 content-start overflow-x-auto overflow-y-hidden border-b border-border pr-6"
                 >
                   <table.DataGridVirtualTable
                     onFetchMore={fetchNextPage}
@@ -1231,7 +1193,7 @@ const SubmissionsToolbar = ({
     "font-case inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg bg-secondary px-2 text-base font-[450] tracking-[0.14px] text-gray-800 transition-colors hover:bg-secondary/80 [&_svg]:size-4 [&_svg]:text-gray-800";
   const togglePill = "flex items-center justify-center rounded-[7px] p-[5px] transition-colors";
   return (
-    <div className="shrink-0 border-border px-5 pt-2.5 pb-4.5">
+    <div className="shrink-0 border-border pt-8 pr-6 pb-5">
       <div className="flex items-center gap-3">
         {/* Figma: section title on the left, controls as gray-100 pills on the right. */}
         <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-[0.015em] text-gray-950">
