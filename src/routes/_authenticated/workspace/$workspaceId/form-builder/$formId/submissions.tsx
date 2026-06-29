@@ -38,18 +38,15 @@ import { createAppColumnHelper, SelectionCheckbox, useAppTable } from "@/compone
 import type { DataGridApi, DataGridFeatures } from "@/components/ui/data-grid";
 
 import {
+  CardsViewIcon,
   FilterIcon,
+  ListViewIcon,
   StarEmptyIcon,
   StarFilledIcon,
   Trash2Icon,
   XIcon,
 } from "@/components/ui/icons";
-import {
-  FigBulletListIcon,
-  FigFilterIcon,
-  FigSmallDownIcon,
-  FigTilesIcon,
-} from "@/components/dashboard/dashboard-icons";
+import { FigFilterIcon, FigSmallDownIcon } from "@/components/dashboard/dashboard-icons";
 import { TextSwap } from "@/components/transitions/text-swap";
 import { FormPreviewFromPlate } from "@/components/form-components/form-preview-from-plate";
 import type { PublicFormSettings } from "@/types/form-settings";
@@ -80,6 +77,11 @@ const RESERVED_COLUMN_IDS = new Set([
   "last_step_reached",
   "is_completed",
 ]);
+
+// Header labels: gray-600 (Figma) for normal fields; deleted/orphaned fields go red so removed
+// fields read clearly (replaces the old green/red status dots).
+const HEADER_LABEL_CLS = "text-muted-foreground tracking-[0.02em]";
+const HEADER_LABEL_DELETED_CLS = "text-destructive tracking-[0.02em]";
 
 const SUBMITTED_AT_FORMATTER = new Intl.DateTimeFormat(undefined, {
   month: "short",
@@ -433,7 +435,9 @@ const buildSubmissionColumns = ({
     }),
     toSubmissionColumn(
       columnHelper.accessor("createdAt", {
-        header: ({ column }) => <DataGridColumnHeader column={column} title="Submitted at" />,
+        header: ({ column }) => (
+          <DataGridColumnHeader column={column} title="Submitted at" className={HEADER_LABEL_CLS} />
+        ),
         cell: (info) => (
           <div className="group/row flex min-w-0 items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
@@ -470,7 +474,9 @@ const buildSubmissionColumns = ({
       // Status pill (Figma 26566:46099) — Complete green / Partial yellow.
       columnHelper.accessor((row) => row.isCompleted, {
         id: "status",
-        header: ({ column }) => <DataGridColumnHeader column={column} title="Status" />,
+        header: ({ column }) => (
+          <DataGridColumnHeader column={column} title="Status" className={HEADER_LABEL_CLS} />
+        ),
         cell: (info) => {
           const done = info.getValue();
           return (
@@ -498,7 +504,9 @@ const buildSubmissionColumns = ({
       // null coerced to undefined — sortUndefined only checks === undefined (createSortedRowModel)
       columnHelper.accessor((row) => row.lastStepReached ?? undefined, {
         id: "last_step_reached",
-        header: ({ column }) => <DataGridColumnHeader column={column} title="Last step" />,
+        header: ({ column }) => (
+          <DataGridColumnHeader column={column} title="Last step" className={HEADER_LABEL_CLS} />
+        ),
         cell: (info) => {
           const step = info.getValue();
           if (step === undefined) return <span className="text-muted-foreground">-</span>;
@@ -538,9 +546,7 @@ const buildSubmissionColumns = ({
                 <DataGridColumnHeader
                   column={column}
                   title={("label" in field ? field.label : "") || field.name}
-                  icon={
-                    <span className="block size-2.5 rounded-full border-[1.5px] border-emerald-500" />
-                  }
+                  className={HEADER_LABEL_CLS}
                 />
               ),
               cell: (info) => (
@@ -585,9 +591,7 @@ const buildSubmissionColumns = ({
               <DataGridColumnHeader
                 column={column}
                 title={resolvedLabel}
-                icon={
-                  <span className="block size-2.5 rounded-full border-[1.5px] border-red-500" />
-                }
+                className={HEADER_LABEL_DELETED_CLS}
               />
             ),
             cell: (info) => (
@@ -881,11 +885,15 @@ const SubmissionsPage = () => {
               // Figma 26566:45584 scoped typography: header labels gray-500/0.02em (descendant
               // selector out-specificities the shared header color), body cells gray-700.
               tableClassNames={{
-                // Figma 26582-15016: header labels gray-600 (#7c7c7c), 0.02em, NO column dividers
-                // (the resize handle's resting border line is hidden; drag still works).
-                headerRow: "[&_th_*]:text-muted-foreground [&_th_*]:tracking-[0.02em]",
+                // Header divider = gray-100 (Figma 26566:46076 border-b gray/100); resize handle
+                // line hidden so there are no column dividers. Label colors are set per-header.
+                headerRow: "[&>th]:border-[var(--color-gray-100)]",
                 header: "[&_.cursor-col-resize]:before:bg-transparent",
-                bodyRow: "[&>td]:text-gray-700",
+                // Row = exactly 44px (Figma): the height-adding border-b is removed and the divider
+                // is drawn as a zero-height inset shadow in gray-100 (matches Figma's border-b
+                // gray/100, 1px). Body text gray-700.
+                bodyRow:
+                  "[&>td]:text-gray-700 [&:not(:last-child)>td]:border-b-0! [&:not(:last-child)>td]:shadow-[inset_0_-1px_0_var(--color-gray-100)]",
               }}
               emptyMessage={
                 <div className="flex flex-col items-center justify-center gap-y-3 py-16 opacity-50">
@@ -1078,6 +1086,13 @@ const SubmissionSingleView = ({
   const safeIndex = Math.min(index, Math.max(0, rows.length - 1));
   const submission = rows[safeIndex]?.original;
 
+  // Single-submission view shows only the answered fields (Figma 26595:31672) — strip the
+  // formHeader node (cover/icon/title) so the card opens straight on the first field.
+  const bodyContent = useMemo(
+    () => ((form?.content as Value | undefined) ?? []).filter((node) => node.type !== "formHeader"),
+    [form],
+  );
+
   // Operate on safeIndex (not raw `index`) so a filter that shrinks `rows` doesn't strand the
   // cursor; fetch is triggered outside the setState updater (updaters must be pure). Setting
   // index to rows.length when at the last loaded row lets safeIndex auto-advance once more load.
@@ -1166,15 +1181,13 @@ const SubmissionSingleView = ({
         <div inert>
           <FormPreviewFromPlate
             key={submission.id}
-            content={form.content as Value}
-            title={form.title}
-            icon={form.icon ?? undefined}
-            cover={form.cover ?? undefined}
+            content={bodyContent}
             settings={(form.settings ?? undefined) as PublicFormSettings | undefined}
             customization={form.customization}
             formId={formId}
             initialFormData={(submission.data ?? {}) as Record<string, unknown>}
             layout="editor"
+            hideTitle
           />
         </div>
       </div>
@@ -1291,7 +1304,7 @@ const SubmissionsToolbar = ({
                   : "text-muted-foreground hover:text-gray-800",
               )}
             >
-              <FigTilesIcon className="size-4" />
+              <CardsViewIcon className="size-4" />
             </button>
             <button
               type="button"
@@ -1305,7 +1318,7 @@ const SubmissionsToolbar = ({
                   : "text-muted-foreground hover:text-gray-800",
               )}
             >
-              <FigBulletListIcon className="size-4" />
+              <ListViewIcon className="size-4" />
             </button>
           </div>
         </div>
