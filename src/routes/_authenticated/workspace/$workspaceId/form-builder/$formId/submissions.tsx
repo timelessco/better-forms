@@ -1182,12 +1182,18 @@ const SubmissionSingleView = ({
           <FormPreviewFromPlate
             key={submission.id}
             content={bodyContent}
-            settings={(form.settings ?? undefined) as PublicFormSettings | undefined}
+            // Force card presentation: a submission record reads as one flat scroll, never
+            // field-by-field. readOnly stacks all steps and hides nav + repeatable add/remove.
+            settings={{
+              ...((form.settings ?? {}) as PublicFormSettings),
+              presentationMode: "card",
+            }}
             customization={form.customization}
             formId={formId}
             initialFormData={(submission.data ?? {}) as Record<string, unknown>}
             layout="editor"
             hideTitle
+            readOnly
           />
         </div>
       </div>

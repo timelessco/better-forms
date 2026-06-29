@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { EmailVerificationContext } from "@/components/form-components/email-verification-context";
 import type { EmailVerificationStore } from "@/components/form-components/email-verification-context";
-import { StepFormProvider, useStepForm } from "@/contexts/step-form-context";
+import {
+  FormPreviewReadOnlyContext,
+  StepFormProvider,
+  useStepForm,
+} from "@/contexts/step-form-context";
 import type { PublicFormTracking, TrackingBase } from "@/contexts/step-form-context";
 import { useTranslation } from "@/contexts/translation-context";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "@/lib/theme/customization-defaults";
@@ -27,7 +31,7 @@ import { IconPickerPreview } from "@/components/icon-picker";
 import { SuccessCheck } from "@/components/transitions/success-check";
 import { AnimatePresence, domAnimation, LazyMotion, m, useReducedMotion } from "motion/react";
 import type { Value } from "platejs";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 
 const NoContentPlaceholderIcon = (
   <svg
@@ -85,6 +89,9 @@ interface FormPreviewFromPlateProps {
   /** "Verify email" runtime store. Live public route passes mode:"live" (real OTP emails +
    * tokens sent on submit); undefined ⇒ mock (toast shows the code, nothing emailed). */
   emailVerification?: EmailVerificationStore;
+  /** Read-only record view (submission single-view): stacks all steps, hides nav +
+   * repeatable add/remove. Pair with an `inert` wrapper to fully disable interaction. */
+  readOnly?: boolean;
 }
 
 const PAGE_MAX_WIDTH = {
@@ -415,6 +422,7 @@ export const FormPreviewFromPlate = ({
   boundToParent = false,
   trackingBase,
   emailVerification,
+  readOnly = false,
 }: FormPreviewFromPlateProps) => {
   const headerFromContent = useMemo(() => extractFormHeader(content), [content]);
   const hasHeaderNode = headerFromContent !== null;
@@ -479,37 +487,39 @@ export const FormPreviewFromPlate = ({
       : null;
 
   return (
-    <EmailVerificationContext.Provider value={emailVerification ?? null}>
-      <StepFormProvider
-        totalSteps={steps.length}
-        onSubmit={onSubmit}
-        formId={formId}
-        saveAnswersForLater={settings?.saveAnswersForLater}
-        initialFormData={initialFormData}
-        initialCurrentStep={initialCurrentStep}
-        tracking={tracking}
-      >
-        <FormLogicProvider value={formLogic}>
-          <FormPreviewContent
-            shortId={shortId}
-            steps={steps}
-            stepQuestions={stepQuestions}
-            thankYouNodes={thankYouNodes}
-            title={title}
-            icon={icon}
-            iconColor={iconColor}
-            cover={cover}
-            coverPosition={coverPosition}
-            hideTitle={hideTitle}
-            layout={layout}
-            settings={settings}
-            customization={customization}
-            isPopup={isPopup}
-            boundToParent={boundToParent}
-          />
-        </FormLogicProvider>
-      </StepFormProvider>
-    </EmailVerificationContext.Provider>
+    <FormPreviewReadOnlyContext.Provider value={readOnly}>
+      <EmailVerificationContext.Provider value={emailVerification ?? null}>
+        <StepFormProvider
+          totalSteps={steps.length}
+          onSubmit={onSubmit}
+          formId={formId}
+          saveAnswersForLater={settings?.saveAnswersForLater}
+          initialFormData={initialFormData}
+          initialCurrentStep={initialCurrentStep}
+          tracking={tracking}
+        >
+          <FormLogicProvider value={formLogic}>
+            <FormPreviewContent
+              shortId={shortId}
+              steps={steps}
+              stepQuestions={stepQuestions}
+              thankYouNodes={thankYouNodes}
+              title={title}
+              icon={icon}
+              iconColor={iconColor}
+              cover={cover}
+              coverPosition={coverPosition}
+              hideTitle={hideTitle}
+              layout={layout}
+              settings={settings}
+              customization={customization}
+              isPopup={isPopup}
+              boundToParent={boundToParent}
+            />
+          </FormLogicProvider>
+        </StepFormProvider>
+      </EmailVerificationContext.Provider>
+    </FormPreviewReadOnlyContext.Provider>
   );
 };
 
@@ -866,6 +876,9 @@ const LinearLayout = ({
   isPopup,
 }: LayoutProps) => {
   const { currentStep, totalSteps, direction } = useStepForm();
+  // Read-only record view (submission single-view): stack every step, drop the
+  // step animation + nav so all answers render in one scroll.
+  const readOnly = use(FormPreviewReadOnlyContext);
   const isLastStep = currentStep === steps.length - 1;
   const currentStepSegments = steps[currentStep] || [];
   const currentStepQuestions = stepQuestions[currentStep] || [];
@@ -910,33 +923,49 @@ const LinearLayout = ({
         }}
         data-bf-form-container
       >
-        <LazyMotion features={domAnimation} strict>
-          <AnimatePresence mode="wait" custom={direction}>
-            <m.div
-              key={currentStep}
-              custom={direction}
-              variants={stepVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{
-                x: { type: "spring", stiffness: 300, damping: 30 },
-                opacity: { duration: 0.2 },
-              }}
-              className="w-full"
-            >
+        {readOnly ? (
+          <div className="flex w-full flex-col gap-8">
+            {steps.map((segments, idx) => (
               <StepForm
-                key={`${currentStep}:${segmentsKey}`}
-                stepIndex={currentStep}
-                segments={currentStepSegments}
-                questions={currentStepQuestions}
-                isLastStep={isLastStep}
-                // Popup uses the full-width footer bar below instead of the inline submit-row badge.
-                branding={Boolean(settings?.branding) && !isPopup}
+                // eslint-disable-next-line @eslint-react/no-array-index-key
+                key={idx}
+                stepIndex={idx}
+                segments={segments}
+                questions={stepQuestions[idx] || []}
+                isLastStep={idx === steps.length - 1}
+                branding={false}
               />
-            </m.div>
-          </AnimatePresence>
-        </LazyMotion>
+            ))}
+          </div>
+        ) : (
+          <LazyMotion features={domAnimation} strict>
+            <AnimatePresence mode="wait" custom={direction}>
+              <m.div
+                key={currentStep}
+                custom={direction}
+                variants={stepVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  x: { type: "spring", stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.2 },
+                }}
+                className="w-full"
+              >
+                <StepForm
+                  key={`${currentStep}:${segmentsKey}`}
+                  stepIndex={currentStep}
+                  segments={currentStepSegments}
+                  questions={currentStepQuestions}
+                  isLastStep={isLastStep}
+                  // Popup uses the full-width footer bar below instead of the inline submit-row badge.
+                  branding={Boolean(settings?.branding) && !isPopup}
+                />
+              </m.div>
+            </AnimatePresence>
+          </LazyMotion>
+        )}
       </div>
       {isPopup && settings?.branding && <PopupBrandingBar />}
     </div>
