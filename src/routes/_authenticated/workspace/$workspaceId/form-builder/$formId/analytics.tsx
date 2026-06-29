@@ -3,9 +3,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowUpRight, ChevronDown, Globe, Monitor, Smartphone, Tablet } from "lucide-react";
 import { toast } from "sonner";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
-import { EvilAreaChart } from "@/components/evilcharts/charts/area-chart";
-import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -114,21 +121,83 @@ const formatWeekday = (value: string): string => {
   return Number.isNaN(parsed.getTime()) ? value : weekdayFmt.format(parsed);
 };
 
-// ── Chart config (fixed mid-luminance colors — hold brightness across themes) ──
-const activityChartConfig = {
-  visits: {
-    label: "Visits",
-    colors: { light: ["oklch(0.62 0.18 250)"], dark: ["oklch(0.62 0.18 250)"] },
-  },
-  submissions: {
-    label: "Submissions",
-    colors: { light: ["oklch(0.7 0.18 145)"], dark: ["oklch(0.7 0.18 145)"] },
-  },
-  partial: {
-    label: "Partial",
-    colors: { light: ["oklch(0.78 0.16 85)"], dark: ["oklch(0.78 0.16 85)"] },
-  },
-} satisfies ChartConfig;
+// ── Activity chart (custom recharts multi-line, Figma 26835:11656) ───────────
+// Mid-luminance brand colors hold their brightness on both light and dark surfaces.
+type ActivityPoint = { date: string; visits: number; submissions: number; partial: number };
+const ACTIVITY_SERIES = [
+  { key: "visits", label: "Visits", color: "#3b82f6" },
+  { key: "submissions", label: "Submissions", color: "#22c55e" },
+  { key: "partial", label: "Partial", color: "#eab308" },
+] as const;
+
+const ActivityLegend = () => (
+  <div className="flex items-center gap-4">
+    {ACTIVITY_SERIES.map((s) => (
+      <div key={s.key} className="flex items-center gap-1.5">
+        <span className="size-2.5 rounded-[3px]" style={{ background: s.color }} />
+        <span className="text-[13px] text-muted-foreground">{s.label}</span>
+      </div>
+    ))}
+  </div>
+);
+
+const ActivityTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: { dataKey?: string; value?: number }[];
+}) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-[10px] border border-border bg-popover px-2.5 py-2 shadow-md">
+      {ACTIVITY_SERIES.map((s) => {
+        const v = payload.find((p) => p.dataKey === s.key)?.value ?? 0;
+        return (
+          <div key={s.key} className="flex items-center gap-2 py-0.5 text-[13px]">
+            <span className="size-2.5 rounded-full" style={{ background: s.color }} />
+            <span className="flex-1 pr-4 text-muted-foreground">{s.label}</span>
+            <span className="font-medium text-foreground tabular-nums">{v}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const FormActivityChart = ({ data }: { data: ActivityPoint[] }) => (
+  <ResponsiveContainer width="100%" height={180}>
+    <LineChart data={data} margin={{ top: 8, right: 4, bottom: 4, left: 4 }}>
+      <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--color-border)" />
+      <XAxis
+        dataKey="date"
+        tickFormatter={formatWeekday}
+        tickLine={false}
+        axisLine={false}
+        tickMargin={12}
+        minTickGap={8}
+        tick={{ fill: "var(--color-muted-foreground)", fontSize: 13 }}
+      />
+      <YAxis hide domain={[0, "auto"]} />
+      <Tooltip
+        content={<ActivityTooltip />}
+        cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }}
+      />
+      {ACTIVITY_SERIES.map((s) => (
+        <Line
+          key={s.key}
+          type="monotone"
+          dataKey={s.key}
+          stroke={s.color}
+          strokeWidth={2}
+          dot={false}
+          activeDot={{ r: 3, strokeWidth: 0 }}
+          isAnimationActive={false}
+        />
+      ))}
+    </LineChart>
+  </ResponsiveContainer>
+);
 
 // ── Card chrome (rounded-12 border, light/dark via tokens) ──────────────────
 const cardClass = "rounded-[12px] border border-border bg-card";
@@ -397,26 +466,22 @@ const AnalyticsPage = () => {
               />
             </div>
 
-            {/* Activity chart */}
+            {/* Activity chart (Figma 26835:11656): title left, legend right, multi-line below. */}
             <div className={cn(cardClass, "mt-3 p-3.5")}>
-              <h3 className="px-2 text-[14px] font-semibold text-foreground">
-                Form activity over time
-              </h3>
+              <div className="flex items-center justify-between px-2">
+                <h3 className="text-[14px] font-semibold text-foreground">
+                  Form activity over time
+                </h3>
+                <ActivityLegend />
+              </div>
               {chartData.length === 0 ? (
-                <div className="flex h-[200px] items-center justify-center text-[14px] text-muted-foreground">
+                <div className="flex h-[180px] items-center justify-center text-[14px] text-muted-foreground">
                   {isLoading ? "Loading…" : "No activity for this range"}
                 </div>
               ) : (
-                <EvilAreaChart
-                  className="h-[200px] w-full"
-                  chartConfig={activityChartConfig}
-                  data={chartData}
-                  xDataKey="date"
-                  curveType="monotone"
-                  areaVariant="gradient"
-                  strokeVariant="solid"
-                  xAxisProps={{ tickFormatter: formatWeekday }}
-                />
+                <div className="mt-3">
+                  <FormActivityChart data={chartData} />
+                </div>
               )}
             </div>
 
