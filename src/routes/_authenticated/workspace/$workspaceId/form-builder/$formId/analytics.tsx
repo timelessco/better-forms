@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ArrowUpRight, ChevronDown, Globe, Monitor, Smartphone, Tablet } from "lucide-react";
+import { ChevronDown, Globe } from "lucide-react";
 import { toast } from "sonner";
 import {
   CartesianGrid,
@@ -21,9 +21,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import {
+  AppleLineIcon,
+  ChromeOsIcon,
+  DesktopLineIcon,
+  DirectArrowIcon,
+  LinuxIcon,
+  MobileLineIcon,
+  TabAnswersIcon,
+  TabDropoffsIcon,
+  TabletLineIcon,
+  TabVisitsIcon,
+  WindowsIcon,
+} from "@/components/ui/icons";
 import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
+import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getFormInsights } from "@/lib/server-fn/analytics";
+import { numberFormatter } from "@/lib/analytics/format";
 import type { CountBreakdown, FormInsightsMetrics, TimeRangeFilter } from "@/types/analytics";
 import { cn } from "@/lib/utils";
 
@@ -34,17 +49,26 @@ const RANGE_OPTIONS: { value: Extract<TimeRangeFilter, `last_${string}`>; label:
   { value: "last_90_days", label: "Last 90 days" },
 ];
 
+// City → country (for flag emoji on the Cities breakdown; cities carry no ISO code).
+const CITY_COUNTRY: Record<string, string> = {
+  Hamburg: "DE",
+  "New Delhi": "IN",
+  Chennai: "IN",
+  Brisbane: "AU",
+  Shanghai: "CN",
+  Geelong: "AU",
+  "Xi'an": "CN",
+  Toronto: "CA",
+  Paris: "FR",
+};
+
 // ── Icon resolution (browser/OS/source brand glyphs from Figma; flags via emoji) ──
+// Raster brand logos (Figma image fills; SVG export is blank) — kept as <img>, not SVG components.
 const BRAND_ICON: Record<string, string> = {
   chrome: "/icons/analytics/chrome.png",
   brave: "/icons/analytics/brave.png",
   arc: "/icons/analytics/arc.png",
   opera: "/icons/analytics/opera.png",
-  macos: "/icons/analytics/apple.svg",
-  ios: "/icons/analytics/apple.svg",
-  windows: "/icons/analytics/windows.svg",
-  linux: "/icons/analytics/linux.svg",
-  chromeos: "/icons/analytics/chromeos.svg",
   linkedin: "/icons/analytics/linkedin.png",
   notion: "/icons/analytics/notion.png",
 };
@@ -77,35 +101,45 @@ const countryLabel = (code: string): string => {
 
 type StatKind = "sources" | "devices" | "browsers" | "os" | "countries" | "cities";
 
+const lineCls = "size-4 shrink-0 text-muted-foreground";
+
 const resolveIcon = (kind: StatKind, key: string): React.ReactNode => {
   const k = key.toLowerCase();
-  if (kind === "countries" || kind === "cities") {
+  if (kind === "countries") {
     return <span className="text-[14px] leading-none">{flagEmoji(key)}</span>;
   }
+  if (kind === "cities") {
+    const cc = CITY_COUNTRY[key];
+    return <span className="text-[14px] leading-none">{cc ? flagEmoji(cc) : flagEmoji(key)}</span>;
+  }
   if (kind === "devices") {
-    const cls = "size-4 shrink-0 text-muted-foreground";
-    if (k.includes("mobile")) return <Smartphone className={cls} />;
-    if (k.includes("tablet")) return <Tablet className={cls} />;
-    return <Monitor className={cls} />;
+    if (k.includes("mobile")) return <MobileLineIcon className={lineCls} />;
+    if (k.includes("tablet")) return <TabletLineIcon className={lineCls} />;
+    return <DesktopLineIcon className={lineCls} />;
   }
   if (kind === "sources") {
     if (k.includes("linkedin")) return brandImg(BRAND_ICON.linkedin, "LinkedIn");
     if (k.includes("notion")) return brandImg(BRAND_ICON.notion, "Notion");
-    if (k.includes("direct"))
-      return <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />;
-    return <Globe className="size-4 shrink-0 text-muted-foreground" />;
+    if (k.includes("direct")) return <DirectArrowIcon className={lineCls} />;
+    return <Globe className={lineCls} />;
   }
-  // browsers + os: match a brand glyph by substring, else a globe.
+  // OS rows use vector brand glyphs (from icons.tsx); Apple is currentColor (no baked bg).
+  if (kind === "os") {
+    if (k.includes("mac") || k === "ios") return <AppleLineIcon className={lineCls} />;
+    if (k.includes("windows")) return <WindowsIcon className={lineCls} />;
+    if (k.includes("chrome")) return <ChromeOsIcon className={lineCls} />;
+    if (k.includes("linux")) return <LinuxIcon className={lineCls} />;
+  }
+  // Other browsers match a raster brand image.
   const match = Object.keys(BRAND_ICON).find((brand) => k.includes(brand));
   if (match) return brandImg(BRAND_ICON[match], key);
-  return <Globe className="size-4 shrink-0 text-muted-foreground" />;
+  return <Globe className={lineCls} />;
 };
 
 const labelFor = (kind: StatKind, key: string): string =>
-  kind === "countries" || kind === "cities" ? countryLabel(key) : key;
+  kind === "countries" ? countryLabel(key) : key;
 
 // ── Formatting ──────────────────────────────────────────────────────────────
-const numberFmt = new Intl.NumberFormat("en-US");
 
 const formatDuration = (ms: number): string => {
   if (!ms || ms < 0) return "0s";
@@ -129,17 +163,6 @@ const ACTIVITY_SERIES = [
   { key: "submissions", label: "Submissions", color: "#22c55e" },
   { key: "partial", label: "Partial", color: "#eab308" },
 ] as const;
-
-const ActivityLegend = () => (
-  <div className="flex items-center gap-4">
-    {ACTIVITY_SERIES.map((s) => (
-      <div key={s.key} className="flex items-center gap-1.5">
-        <span className="size-2.5 rounded-[3px]" style={{ background: s.color }} />
-        <span className="text-[13px] text-muted-foreground">{s.label}</span>
-      </div>
-    ))}
-  </div>
-);
 
 const ActivityTooltip = ({
   active,
@@ -166,27 +189,29 @@ const ActivityTooltip = ({
 };
 
 const FormActivityChart = ({ data }: { data: ActivityPoint[] }) => (
-  <ResponsiveContainer width="100%" height={180}>
-    <LineChart data={data} margin={{ top: 8, right: 4, bottom: 4, left: 4 }}>
-      <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--color-border)" />
+  <ResponsiveContainer width="100%" height="100%">
+    <LineChart data={data} margin={{ top: 4, right: 16, bottom: 0, left: 16 }}>
+      {/* Faint dashed horizontal gridlines (Figma gray/100). */}
+      <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--color-gray-100)" />
       <XAxis
         dataKey="date"
         tickFormatter={formatWeekday}
         tickLine={false}
         axisLine={false}
-        tickMargin={12}
-        minTickGap={8}
-        tick={{ fill: "var(--color-muted-foreground)", fontSize: 13 }}
+        tickMargin={10}
+        interval={0}
+        padding={{ left: 14, right: 14 }}
+        tick={{ fill: "var(--color-gray-550, #8c8c8c)", fontSize: 12 }}
       />
       <YAxis hide domain={[0, "auto"]} />
       <Tooltip
         content={<ActivityTooltip />}
-        cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }}
+        cursor={{ stroke: "var(--color-gray-300)", strokeWidth: 1, strokeDasharray: "4 4" }}
       />
       {ACTIVITY_SERIES.map((s) => (
         <Line
           key={s.key}
-          type="monotone"
+          type="linear"
           dataKey={s.key}
           stroke={s.color}
           strokeWidth={2}
@@ -200,7 +225,10 @@ const FormActivityChart = ({ data }: { data: ActivityPoint[] }) => (
 );
 
 // ── Card chrome (rounded-12 border, light/dark via tokens) ──────────────────
-const cardClass = "rounded-[12px] border border-border bg-card";
+// Card surface (Figma light + dark): white in light; in dark a slightly-elevated #1c1c1c over the
+// #131313 page (not bg-card #292929 = too light, not gray-0 #131313 = full black) + gray/100 border.
+const cardClass =
+  "rounded-[12px] border border-[var(--color-gray-100)] bg-gray-0 dark:bg-[#1c1c1c]";
 
 const MetricCard = ({ label, value }: { label: string; value: string }) => (
   <div className={cn(cardClass, "flex h-21 flex-1 flex-col justify-between p-3")}>
@@ -215,97 +243,71 @@ const StatCard = ({
   title,
   kind,
   data,
+  scrollable = false,
 }: {
   title: string;
   kind: StatKind;
   data: CountBreakdown;
+  /** Countries/Cities (Figma 26835:11865): cap at 250px, scroll the list, fade the bottom edge. */
+  scrollable?: boolean;
 }) => {
   const rows = useMemo(() => {
     const entries = Object.entries(data ?? {}).filter(([, v]) => v > 0);
     entries.sort((a, b) => b[1] - a[1]);
     const max = entries[0]?.[1] ?? 1;
-    return entries.map(([key, value]) => ({ key, value, pct: Math.max(4, (value / max) * 100) }));
+    return entries.map(([key, value]) => ({ key, value, pct: Math.max(12, (value / max) * 100) }));
   }, [data]);
 
   return (
-    <div className={cn(cardClass, "flex flex-col p-3.5")}>
-      <h3 className="px-2 pb-2 text-[14px] font-semibold text-foreground">{title}</h3>
+    // Figma 26835:11709 / :11865: gray/100 border, gap-14 title→list, pt-14 pb-2 px-1.5.
+    <div
+      className={cn(
+        "bg-gray-0 relative flex flex-col gap-[14px] overflow-hidden rounded-[12px] border border-[var(--color-gray-100)] px-1.5 pt-[14px] pb-2 dark:bg-[#1c1c1c]",
+        scrollable && "h-[250px]",
+      )}
+    >
+      <h3 className="px-2 text-[15px] font-medium tracking-[0.02em] text-gray-800">{title}</h3>
       {rows.length === 0 ? (
-        <p className="px-2 py-3 text-[13px] text-muted-foreground">No data yet</p>
+        <p className="px-2 pb-3 text-[13px] text-muted-foreground">No data yet</p>
       ) : (
-        <ul className="flex flex-col">
+        // 3px gap between rows (Figma); when capped, the list scrolls (scrollbar hidden).
+        <ul
+          className={cn(
+            "flex flex-col gap-[3px]",
+            scrollable &&
+              "min-h-0 flex-1 [scrollbar-width:none] overflow-y-auto pb-1 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+          )}
+        >
           {rows.map((row) => (
-            <li key={row.key} className="relative flex h-7 items-center">
-              {/* Proportional bar (Figma Rectangle 41927) */}
+            <li key={row.key} className="relative flex h-7 shrink-0 items-center rounded-lg">
+              {/* Proportional bar (Figma Rectangle 41927) — gray/100, rounded-8. */}
               <span
                 aria-hidden
-                className="absolute inset-y-0 left-0 rounded-md bg-secondary"
+                className="absolute inset-y-0 left-0 rounded-lg bg-[var(--color-gray-100)]"
                 style={{ width: `${row.pct}%` }}
               />
               <div className="relative flex w-full items-center gap-2 px-2">
                 <span className="flex size-4 shrink-0 items-center justify-center">
                   {resolveIcon(kind, row.key)}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">
+                <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.02em] text-gray-600">
                   {labelFor(kind, row.key)}
                 </span>
-                <span className="shrink-0 text-[14px] text-muted-foreground tabular-nums">
-                  {numberFmt.format(row.value)}
+                <span className="shrink-0 text-[14px] tracking-[0.02em] text-gray-800 tabular-nums">
+                  {numberFormatter.format(row.value)}
                 </span>
               </div>
             </li>
           ))}
         </ul>
       )}
+      {/* Bottom fade/blur (Figma 26835:11928) — hints at scrollable overflow below. */}
+      {scrollable && rows.length > 0 && (
+        <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 h-8 rounded-b-[10px] bg-gradient-to-t from-card to-transparent [mask-image:linear-gradient(to_top,black,transparent)] backdrop-blur-[0.5px]" />
+      )}
     </div>
   );
 };
-
-// Tab icons — exact Figma glyphs (26844:12431 / :12407 / :12419), currentColor so they follow the
-// tab text color (active gray-900 / inactive gray-600) in both light + dark.
-const iconProps = { width: 16, height: 16, viewBox: "0 0 16 16", fill: "none" as const };
-const TabVisitsIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg {...iconProps} xmlns="http://www.w3.org/2000/svg" {...props}>
-    <path
-      d="M7.80303 5.92203H11.3485C13.089 5.92203 14.5 7.33301 14.5 9.07351V9.52985C14.5 12.6501 11.9705 15.1796 8.85028 15.1796C6.75269 15.1796 4.82773 14.0174 3.85078 12.1612L1.5 7.69472L2.09139 6.95545C2.63504 6.27592 3.62665 6.16574 4.30622 6.7094L5.04545 7.30078V2.17957C5.04545 1.41808 5.66276 0.800781 6.42424 0.800781C7.18573 0.800781 7.80303 1.41808 7.80303 2.17957V5.92203Z"
-      fill="currentColor"
-      fillOpacity="0.12"
-      stroke="currentColor"
-      strokeLinecap="square"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-const TabAnswersIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg {...iconProps} xmlns="http://www.w3.org/2000/svg" {...props}>
-    <path
-      d="M8 15C11.866 15 15 11.866 15 8C15 4.13401 11.866 1 8 1C4.13401 1 1 4.13401 1 8C1 11.866 4.13401 15 8 15Z"
-      fill="currentColor"
-      fillOpacity="0.12"
-    />
-    <path
-      d="M10.2703 6.10811L6.86487 10.2703L5.35135 8.75676M15 8C15 11.866 11.866 15 8 15C4.13401 15 1 11.866 1 8C1 4.13401 4.13401 1 8 1C11.866 1 15 4.13401 15 8Z"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-const TabDropoffsIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg {...iconProps} xmlns="http://www.w3.org/2000/svg" {...props}>
-    <path
-      d="M2 5.2C2 4.0799 2 3.51984 2.21799 3.09202C2.40973 2.71569 2.71569 2.40973 3.09202 2.21799C3.51984 2 4.0799 2 5.2 2H10.8C11.9201 2 12.4802 2 12.908 2.21799C13.2843 2.40973 13.5903 2.71569 13.782 3.09202C14 3.51984 14 4.0799 14 5.2V10.8C14 11.9201 14 12.4802 13.782 12.908C13.5903 13.2843 13.2843 13.5903 12.908 13.782C12.4802 14 11.9201 14 10.8 14H5.2C4.0799 14 3.51984 14 3.09202 13.782C2.71569 13.5903 2.40973 13.2843 2.21799 12.908C2 12.4802 2 11.9201 2 10.8V5.2Z"
-      fill="currentColor"
-      fillOpacity="0.12"
-    />
-    <path
-      d="M11.3333 10L7.71046 6.37712C7.57845 6.24512 7.51245 6.17912 7.43634 6.15439C7.36939 6.13263 7.29728 6.13263 7.23033 6.15439C7.15422 6.17912 7.08822 6.24512 6.95621 6.37712L5.71046 7.62288C5.57845 7.75488 5.51245 7.82088 5.43634 7.84561C5.36939 7.86737 5.29728 7.86737 5.23033 7.84561C5.15422 7.82088 5.08822 7.75488 4.95621 7.62288L2 4.66667M11.3333 7.33333V10H8.66667M5.2 14H10.8C11.9201 14 12.4802 14 12.908 13.782C13.2843 13.5903 13.5903 13.2843 13.782 12.908C14 12.4802 14 11.9201 14 10.8V5.2C14 4.0799 14 3.51984 13.782 3.09202C13.5903 2.71569 13.2843 2.40973 12.908 2.21799C12.4802 2 11.9201 2 10.8 2H5.2C4.0799 2 3.51984 2 3.09202 2.21799C2.71569 2.40973 2.40973 2.71569 2.21799 3.09202C2 3.51984 2 4.0799 2 5.2V10.8C2 11.9201 2 12.4802 2.21799 12.908C2.40973 13.2843 2.71569 13.5903 3.09202 13.782C3.51984 14 4.0799 14 5.2 14Z"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
 
 type AnalyticsTab = "visits" | "answers" | "dropoffs";
 const TABS: { id: AnalyticsTab; label: string; icon: React.ReactNode }[] = [
@@ -343,6 +345,15 @@ const AnalyticsPage = () => {
       ? Math.round((metrics.totalSubmissions / metrics.totalVisits) * 100)
       : 0;
 
+  const breakdowns = {
+    sources: metrics?.sources ?? {},
+    devices: metrics?.devices ?? {},
+    browsers: metrics?.browsers ?? {},
+    operatingSystems: metrics?.operatingSystems ?? {},
+    countries: metrics?.countries ?? {},
+    cities: metrics?.cities ?? {},
+  };
+
   const rangeLabel = RANGE_OPTIONS.find((r) => r.value === range)?.label ?? "Last 7 days";
 
   const handleExport = (format: "csv" | "pdf" | "excel") => {
@@ -376,29 +387,27 @@ const AnalyticsPage = () => {
           Analytics
         </h1>
 
-        {/* Tabs (Figma 26835:12159) — 24px gap, gray/200 baseline rule; active = gray-900 underline +
-            text, inactive = gray-600. 16px Figma icons (currentColor). pt-0.5 pb-1.5 within h-8. */}
-        <div className="mt-5 flex h-8 items-center gap-6 border-b border-[var(--color-gray-200)]">
-          {TABS.map((t) => {
-            const active = tab === t.id;
-            return (
-              <button
+        {/* Tabs (Figma 26835:12159) — shared line-variant Tabs: Base UI slides the indicator between
+            tabs (same component + animation as the settings page). gray/200 rail, gray/900 active. */}
+        <Tabs value={tab} onValueChange={(value) => setTab(value as AnalyticsTab)} className="mt-5">
+          <TabsList
+            variant="line"
+            size="default"
+            className="h-auto! w-full justify-start gap-6 border-gray-200! p-0!"
+          >
+            {TABS.map((t) => (
+              <TabsTrigger
                 key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  "-mb-px flex h-full items-center justify-center gap-2 border-b pt-0.5 pb-1.5 text-[14px] font-[420] tracking-[0.02em] transition-colors [&_svg]:size-4",
-                  active
-                    ? "border-foreground text-gray-950"
-                    : "border-transparent text-gray-600 hover:text-gray-800",
-                )}
+                value={t.id}
+                className="h-8! flex-none gap-2 px-0! font-[420]! tracking-[0.02em] text-gray-600 hover:text-gray-800 data-active:text-gray-950 [&_svg]:size-4"
               >
                 {t.icon}
                 {t.label}
-              </button>
-            );
-          })}
-        </div>
+              </TabsTrigger>
+            ))}
+            <TabsIndicator className="bg-gray-950!" />
+          </TabsList>
+        </Tabs>
 
         {tab !== "visits" ? (
           <div className="flex h-60 items-center justify-center text-[14px] text-muted-foreground">
@@ -454,10 +463,13 @@ const AnalyticsPage = () => {
 
             {/* Metric cards */}
             <div className="mt-5 flex gap-3">
-              <MetricCard label="Visits" value={numberFmt.format(metrics?.totalVisits ?? 0)} />
+              <MetricCard
+                label="Visits"
+                value={numberFormatter.format(metrics?.totalVisits ?? 0)}
+              />
               <MetricCard
                 label="Submissions"
-                value={numberFmt.format(metrics?.totalSubmissions ?? 0)}
+                value={numberFormatter.format(metrics?.totalSubmissions ?? 0)}
               />
               <MetricCard label="Completion rate" value={`${completionRate}%`} />
               <MetricCard
@@ -466,20 +478,18 @@ const AnalyticsPage = () => {
               />
             </div>
 
-            {/* Activity chart (Figma 26835:11656): title left, legend right, multi-line below. */}
-            <div className={cn(cardClass, "mt-3 p-3.5")}>
-              <div className="flex items-center justify-between px-2">
-                <h3 className="text-[14px] font-semibold text-foreground">
-                  Form activity over time
-                </h3>
-                <ActivityLegend />
-              </div>
+            {/* Activity chart (Figma 26835:11656) — fixed 200px card, gray/100 border. Title 15px
+                medium; the series legend lives only in the hover tooltip (no header legend). */}
+            <div className="bg-gray-0 mt-3 flex h-[200px] flex-col overflow-hidden rounded-[12px] border border-[var(--color-gray-100)] dark:bg-[#1c1c1c]">
+              <h3 className="px-[13px] pt-[13px] text-[15px] font-medium tracking-[0.02em] text-gray-900">
+                Form activity over time
+              </h3>
               {chartData.length === 0 ? (
-                <div className="flex h-[180px] items-center justify-center text-[14px] text-muted-foreground">
+                <div className="flex flex-1 items-center justify-center text-[14px] text-muted-foreground">
                   {isLoading ? "Loading…" : "No activity for this range"}
                 </div>
               ) : (
-                <div className="mt-3">
+                <div className="min-h-0 flex-1 pt-2 [&_.recharts-surface]:outline-none [&_.recharts-wrapper]:outline-none [&_.recharts-wrapper:focus-visible]:outline-none">
                   <FormActivityChart data={chartData} />
                 </div>
               )}
@@ -487,16 +497,12 @@ const AnalyticsPage = () => {
 
             {/* Breakdown grid */}
             <div className="mt-5 grid grid-cols-2 gap-5">
-              <StatCard title="Sources" kind="sources" data={metrics?.sources ?? {}} />
-              <StatCard title="Devices" kind="devices" data={metrics?.devices ?? {}} />
-              <StatCard title="Browsers" kind="browsers" data={metrics?.browsers ?? {}} />
-              <StatCard
-                title="Operating systems"
-                kind="os"
-                data={metrics?.operatingSystems ?? {}}
-              />
-              <StatCard title="Countries" kind="countries" data={metrics?.countries ?? {}} />
-              <StatCard title="Cities" kind="cities" data={metrics?.cities ?? {}} />
+              <StatCard title="Sources" kind="sources" data={breakdowns.sources} />
+              <StatCard title="Devices" kind="devices" data={breakdowns.devices} />
+              <StatCard title="Browsers" kind="browsers" data={breakdowns.browsers} />
+              <StatCard title="Operating systems" kind="os" data={breakdowns.operatingSystems} />
+              <StatCard title="Countries" kind="countries" data={breakdowns.countries} scrollable />
+              <StatCard title="Cities" kind="cities" data={breakdowns.cities} scrollable />
             </div>
           </>
         )}
