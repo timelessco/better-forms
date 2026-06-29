@@ -339,8 +339,8 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
   // this column. Esc / empty-blur exits; clearing also clears the column filter.
   const searchInput = (
     <div className="flex h-full w-full items-center">
-      {/* Figma 27015:18967 — subtle gray rounded pill, gray placeholder + trailing search glyph. */}
-      <div className="flex h-7 w-full items-center gap-1.5 rounded-lg border border-gray-300 bg-background px-2">
+      {/* Figma 27015:18967 — borderless gray-filled rounded pill, gray placeholder + search glyph. */}
+      <div className="flex h-7 w-full items-center gap-1.5 rounded-lg bg-secondary px-2 shadow-sm">
         <input
           // eslint-disable-next-line jsx-a11y/no-autofocus -- focus lands on the field the user opened
           autoFocus
