@@ -14,7 +14,11 @@ import {
   workspaces,
 } from "@/db/schema";
 import { buildDailyAnalyticsRows, buildDailyDropoffRows } from "@/lib/analytics/aggregate-utils";
-import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
+import {
+  EDITABLE_FIELD_TYPES,
+  getFieldsFromSegments,
+  transformPlateForPreview,
+} from "@/lib/editor/transform-plate-for-preview";
 import type { Value } from "platejs";
 import { isBotUserAgent } from "@/lib/analytics/bot-filter";
 import { PER_QUESTION_ANALYTICS_CUT_TS } from "@/lib/analytics/cut-date";
@@ -28,8 +32,10 @@ import { authForm } from "@/lib/server-fn/auth-helpers.server";
 import { isServerPlan } from "@/lib/server-fn/plan-helpers";
 import { getOrgPlanWithPolarSync } from "@/lib/server-fn/plan-helpers.server";
 import type {
+  FormAnswerMetrics,
   FormInsightsMetrics,
   FormVitalsMetrics,
+  QuestionAnswerSummary,
   QuestionDropoffMetrics,
 } from "@/types/analytics";
 
@@ -594,6 +600,127 @@ export const getFormDropoffImpl = async (
     todayProgressRows,
     labelMap,
   });
+};
+
+const ANSWER_SUBMISSION_CAP = 25_000;
+
+// Categorical fields cap the distribution at 6 + an "Others" bucket; everything else
+// (text, Number, Date, …) shows top 8. Must stay aligned with the client's DONUT_TYPES.
+const ANSWER_CHOICE_TYPES = new Set([
+  "MultiChoice",
+  "Checkbox",
+  "Ranking",
+  "Rating",
+  "LinearScale",
+]);
+
+// Flatten a stored answer (string | number | string[] | matrix record) to present string values.
+const normalizeAnswer = (raw: unknown): string[] => {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw.filter((x) => String(x ?? "").trim() !== "").map(String);
+  if (typeof raw === "object") {
+    const out: string[] = [];
+    for (const v of Object.values(raw as Record<string, unknown>)) {
+      if (Array.isArray(v)) out.push(...v.filter((x) => String(x ?? "").trim() !== "").map(String));
+      else if (String(v ?? "").trim() !== "") out.push(String(v));
+    }
+    return out;
+  }
+  const s = String(raw).trim();
+  return s === "" ? [] : [s];
+};
+
+export const getFormAnswersImpl = async (
+  data: InsightsFilterInput,
+  context: { session: { user: { id: string } } },
+  orgId: string,
+): Promise<FormAnswerMetrics> => {
+  await authForm(data.formId, context.session.user.id, orgId);
+
+  const now = new Date();
+  const range = resolveTimeRange(
+    { filter: data.filter, startDate: data.startDate, endDate: data.endDate },
+    now,
+  );
+
+  const [formRow] = await db
+    .select({ content: forms.content })
+    .from(forms)
+    .where(eq(forms.id, data.formId));
+
+  // Canonical answerable fields (shared taxonomy), in order.
+  const fields =
+    formRow?.content != null
+      ? getFieldsFromSegments(
+          transformPlateForPreview(formRow.content as Value).steps.flat(),
+        ).filter((f) => EDITABLE_FIELD_TYPES.has(f.fieldType))
+      : [];
+
+  // Aggregated in JS; cap as an OOM backstop (counts approximate past the cap on huge forms).
+  const rows = await db
+    .select({ data: submissions.data })
+    .from(submissions)
+    .where(
+      and(
+        eq(submissions.formId, data.formId),
+        eq(submissions.isCompleted, true),
+        gte(submissions.createdAt, range.start),
+        lte(submissions.createdAt, range.end),
+      ),
+    )
+    .limit(ANSWER_SUBMISSION_CAP);
+
+  const datas = rows.map((r) => (r.data ?? {}) as Record<string, unknown>);
+
+  const questions: QuestionAnswerSummary[] = fields.map((field, index) => {
+    const options = "options" in field ? field.options : undefined;
+    const optionLabel = (value: string): string =>
+      options?.find((o) => o.value === value)?.label ?? value;
+
+    const counts = new Map<string, number>();
+    let answered = 0;
+    for (const d of datas) {
+      const values = normalizeAnswer(d[field.name]);
+      if (values.length > 0) answered += 1;
+      for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+
+    const sorted = [...counts.entries()]
+      .map(([value, count]) => ({ label: optionLabel(value), value: count }))
+      .sort((a, b) => b.value - a.value);
+
+    const isChoice = ANSWER_CHOICE_TYPES.has(field.fieldType);
+    let distribution = sorted;
+    if (isChoice && sorted.length > 6) {
+      const head = sorted.slice(0, 6);
+      const others = sorted.slice(6).reduce((sum, e) => sum + e.value, 0);
+      if (others > 0) head.push({ label: "Others", value: others });
+      distribution = head;
+    } else if (!isChoice) {
+      distribution = sorted.slice(0, 8);
+    }
+
+    return {
+      id: field.id,
+      questionIndex: index,
+      label: ("label" in field ? field.label : undefined)?.trim() || field.name,
+      fieldType: field.fieldType,
+      answered,
+      distribution,
+    };
+  });
+
+  const submissionCount = datas.length;
+  const totalAnswered = questions.reduce((sum, q) => sum + q.answered, 0);
+
+  return {
+    startDate: data.startDate ?? toDateKey(range.start),
+    endDate: data.endDate ?? toDateKey(range.end),
+    submissions: submissionCount,
+    totalQuestions: questions.length,
+    avgAnswered: submissionCount > 0 ? totalAnswered / submissionCount : 0,
+    questions,
+  };
 };
 
 export interface InsightsAvailability {

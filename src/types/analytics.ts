@@ -165,6 +165,36 @@ export interface QuestionDropoffMetrics {
   overallCompletionRate: number;
 }
 
+/** One bucket in a question's answer distribution (option/value → count). */
+export interface AnswerDistributionItem {
+  label: string;
+  value: number;
+}
+
+/** Aggregated answers for one question across submissions. */
+export interface QuestionAnswerSummary {
+  id: string;
+  questionIndex: number;
+  label: string;
+  fieldType: string;
+  /** # submissions that answered this question (non-empty). */
+  answered: number;
+  /** Option/value → count, sorted desc; choice fields may bucket the tail into "Others". */
+  distribution: AnswerDistributionItem[];
+}
+
+export interface FormAnswerMetrics {
+  startDate: string;
+  endDate: string;
+  /** Completed submissions in range. */
+  submissions: number;
+  /** Editable, non-Button fields. */
+  totalQuestions: number;
+  /** Avg # of questions answered per submission. */
+  avgAnswered: number;
+  questions: QuestionAnswerSummary[];
+}
+
 /** Per-metric Core Web Vitals summary over a time range. */
 export interface VitalMetricSummary {
   /** 75th-percentile value (ms for lcp/inp, unitless for cls), null if no samples. */

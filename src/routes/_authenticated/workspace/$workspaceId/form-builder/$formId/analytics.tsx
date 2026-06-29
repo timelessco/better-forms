@@ -3,16 +3,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ChevronDown, Globe } from "lucide-react";
 import { toast } from "sonner";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
+import {
+  AnswerDonut,
+  DropoffFunnelChart,
+  FormActivityChart,
+} from "@/components/form-builder/analytics/charts";
+import type { DonutDatum, FunnelPoint } from "@/components/form-builder/analytics/charts";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -37,9 +34,16 @@ import {
 import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
 import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getFormInsights } from "@/lib/server-fn/analytics";
+import { getFormAnswers, getFormDropoff, getFormInsights } from "@/lib/server-fn/analytics";
 import { numberFormatter } from "@/lib/analytics/format";
-import type { CountBreakdown, FormInsightsMetrics, TimeRangeFilter } from "@/types/analytics";
+import type {
+  CountBreakdown,
+  FormAnswerMetrics,
+  FormInsightsMetrics,
+  QuestionAnswerSummary,
+  QuestionDropoffMetrics,
+  TimeRangeFilter,
+} from "@/types/analytics";
 import { cn } from "@/lib/utils";
 
 // ── Range options (Figma "Last 7 days" dropdown) ───────────────────────────
@@ -149,95 +153,67 @@ const formatDuration = (ms: number): string => {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 };
 
-const weekdayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" });
-const formatWeekday = (value: string): string => {
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return Number.isNaN(parsed.getTime()) ? value : weekdayFmt.format(parsed);
-};
-
-// ── Activity chart (custom recharts multi-line, Figma 26835:11656) ───────────
-// Mid-luminance brand colors hold their brightness on both light and dark surfaces.
-type ActivityPoint = { date: string; visits: number; submissions: number; partial: number };
-const ACTIVITY_SERIES = [
-  { key: "visits", label: "Visits", color: "#3b82f6" },
-  { key: "submissions", label: "Submissions", color: "#22c55e" },
-  { key: "partial", label: "Partial", color: "#eab308" },
-] as const;
-
-const ActivityTooltip = ({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: { dataKey?: string; value?: number }[];
-}) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-[10px] border border-border bg-popover px-2.5 py-2 shadow-md">
-      {ACTIVITY_SERIES.map((s) => {
-        const v = payload.find((p) => p.dataKey === s.key)?.value ?? 0;
-        return (
-          <div key={s.key} className="flex items-center gap-2 py-0.5 text-[13px]">
-            <span className="size-2.5 rounded-full" style={{ background: s.color }} />
-            <span className="flex-1 pr-4 text-muted-foreground">{s.label}</span>
-            <span className="font-medium text-foreground tabular-nums">{v}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-const FormActivityChart = ({ data }: { data: ActivityPoint[] }) => (
-  <ResponsiveContainer width="100%" height="100%">
-    <LineChart data={data} margin={{ top: 4, right: 16, bottom: 0, left: 16 }}>
-      {/* Faint dashed horizontal gridlines (Figma gray/100). */}
-      <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--color-gray-100)" />
-      <XAxis
-        dataKey="date"
-        tickFormatter={formatWeekday}
-        tickLine={false}
-        axisLine={false}
-        tickMargin={10}
-        interval={0}
-        padding={{ left: 14, right: 14 }}
-        tick={{ fill: "var(--color-gray-550, #8c8c8c)", fontSize: 12 }}
-      />
-      <YAxis hide domain={[0, "auto"]} />
-      <Tooltip
-        content={<ActivityTooltip />}
-        cursor={{ stroke: "var(--color-gray-300)", strokeWidth: 1, strokeDasharray: "4 4" }}
-      />
-      {ACTIVITY_SERIES.map((s) => (
-        <Line
-          key={s.key}
-          type="linear"
-          dataKey={s.key}
-          stroke={s.color}
-          strokeWidth={2}
-          dot={false}
-          activeDot={{ r: 3, strokeWidth: 0 }}
-          isAnimationActive={false}
-        />
-      ))}
-    </LineChart>
-  </ResponsiveContainer>
-);
-
 // ── Card chrome (rounded-12 border, light/dark via tokens) ──────────────────
 // Card surface (Figma light + dark): white in light; in dark a slightly-elevated #1c1c1c over the
 // #131313 page (not bg-card #292929 = too light, not gray-0 #131313 = full black) + gray/100 border.
 const cardClass =
   "rounded-[12px] border border-[var(--color-gray-100)] bg-gray-0 dark:bg-[#1c1c1c]";
 
-const MetricCard = ({ label, value }: { label: string; value: string }) => (
+// Bottom fade that dissolves the last scrollable row into the card surface (Figma 27015:12198).
+const ScrollFade = () => (
+  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent backdrop-blur-[0.5px] dark:from-[#1c1c1c]" />
+);
+
+const MetricCard = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
   <div className={cn(cardClass, "flex h-21 flex-1 flex-col justify-between p-3")}>
     <span className="text-[13px] text-muted-foreground">{label}</span>
-    <span className="text-[18px] font-semibold tracking-[-0.01em] text-foreground tabular-nums">
-      {value}
+    <span className="flex items-baseline gap-2">
+      <span className="text-[18px] font-semibold tracking-[-0.01em] text-foreground tabular-nums">
+        {value}
+      </span>
+      {hint ? <span className="text-[13px] text-muted-foreground">{hint}</span> : null}
     </span>
   </div>
 );
+
+// ── Dropoff per question panel (Figma 26992:11281) ──────────────────────────
+// Same proportional-bar rows as StatCard, but value is a % and there's no leading
+// icon. Capped height + bottom fade hint at the scrollable overflow.
+type DropoffRow = { label: string; rate: number };
+const DropoffQuestionsCard = ({ rows }: { rows: DropoffRow[] }) => {
+  const max = Math.max(1, ...rows.map((r) => r.rate));
+  return (
+    <div className="bg-gray-0 relative flex h-[210px] flex-col gap-[14px] overflow-hidden rounded-[12px] border border-[var(--color-gray-100)] px-1.5 pt-[14px] pb-2 dark:bg-[#1c1c1c]">
+      <h3 className="px-2 text-[15px] font-medium tracking-[0.02em] text-gray-800">
+        Dropoff per question
+      </h3>
+      {rows.length === 0 ? (
+        <p className="px-2 pb-3 text-[13px] text-muted-foreground">No data yet</p>
+      ) : (
+        <ul className="flex min-h-0 flex-1 [scrollbar-width:none] flex-col gap-[3px] overflow-y-auto pb-1 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          {rows.map((row, i) => (
+            <li key={i} className="relative flex h-7 shrink-0 items-center rounded-lg">
+              <span
+                aria-hidden
+                className="absolute inset-y-0 left-0 rounded-lg bg-[var(--color-gray-100)]"
+                style={{ width: `${Math.max(12, (row.rate / max) * 100)}%` }}
+              />
+              <div className="relative flex w-full items-center gap-2 px-2">
+                <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.02em] text-gray-600">
+                  {row.label}
+                </span>
+                <span className="shrink-0 text-[14px] tracking-[0.02em] text-gray-800 tabular-nums">
+                  {Math.round(row.rate)}%
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {rows.length > 0 && <ScrollFade />}
+    </div>
+  );
+};
 
 const StatCard = ({
   title,
@@ -302,9 +278,67 @@ const StatCard = ({
         </ul>
       )}
       {/* Bottom fade/blur (Figma 26835:11928) — hints at scrollable overflow below. */}
-      {scrollable && rows.length > 0 && (
-        <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 h-8 rounded-b-[10px] bg-gradient-to-t from-card to-transparent [mask-image:linear-gradient(to_top,black,transparent)] backdrop-blur-[0.5px]" />
-      )}
+      {scrollable && rows.length > 0 && <ScrollFade />}
+    </div>
+  );
+};
+
+// ── Answer cards (Answers tab, Figma 26844:15323) ───────────────────────────
+const answerCardClass = cn(cardClass, "p-[14px]");
+// Choice/rating questions render a donut; everything else a top-answers bar list.
+const DONUT_TYPES = new Set(["MultiChoice", "Checkbox", "Ranking", "Rating", "LinearScale"]);
+const RATING_TYPES = new Set(["Rating", "LinearScale"]);
+const GOLD_PALETTE = ["#fcca3f", "#f2b202", "#d99800", "#b18202", "#8a6500"];
+
+const AnswerDonutCard = ({ q }: { q: QuestionAnswerSummary }) => (
+  <div className={cn(answerCardClass, "flex flex-col items-center gap-[14px]")}>
+    <h3 className="w-full truncate text-[14px] font-medium tracking-[0.14px] text-gray-900">
+      {q.label}
+    </h3>
+    <AnswerDonut
+      data={q.distribution as DonutDatum[]}
+      total={q.answered}
+      unit="answers"
+      palette={RATING_TYPES.has(q.fieldType) ? GOLD_PALETTE : undefined}
+    />
+  </div>
+);
+
+const AnswerBarCard = ({ q, unit }: { q: QuestionAnswerSummary; unit: string }) => {
+  const sum = q.distribution.reduce((acc, d) => acc + d.value, 0) || 1;
+  return (
+    <div className={cn(answerCardClass, "relative flex flex-col gap-3 overflow-hidden")}>
+      <div className="flex flex-col gap-1">
+        <h3 className="truncate text-[14px] font-medium tracking-[0.14px] text-gray-900">
+          {q.label}
+        </h3>
+        <p className="text-[13px] text-gray-500">
+          {numberFormatter.format(q.answered)} {unit}
+        </p>
+      </div>
+      <ul className="flex max-h-[120px] [scrollbar-width:none] flex-col gap-[3px] overflow-y-auto pb-1 [&::-webkit-scrollbar]:hidden">
+        {q.distribution.map((d, i) => {
+          const pct = Math.round((d.value / sum) * 100);
+          return (
+            <li key={i} className="relative flex h-7 shrink-0 items-center rounded-lg">
+              <span
+                aria-hidden
+                className="absolute inset-y-0 left-0 rounded-lg bg-[var(--color-gray-100)]"
+                style={{ width: `${Math.max(8, pct)}%` }}
+              />
+              <div className="relative flex w-full items-center gap-2 px-2">
+                <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.02em] text-gray-600">
+                  {d.label}
+                </span>
+                <span className="shrink-0 text-[14px] tracking-[0.02em] text-gray-800 tabular-nums">
+                  {pct}%
+                </span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {q.distribution.length > 4 && <ScrollFade />}
     </div>
   );
 };
@@ -315,6 +349,64 @@ const TABS: { id: AnalyticsTab; label: string; icon: React.ReactNode }[] = [
   { id: "answers", label: "Answers", icon: <TabAnswersIcon className="size-4" /> },
   { id: "dropoffs", label: "Dropoffs", icon: <TabDropoffsIcon className="size-4" /> },
 ];
+
+// Section label + range dropdown + export menu — shared by the Visits & Dropoffs tabs.
+const SectionToolbar = ({
+  label,
+  rangeLabel,
+  onSelectRange,
+  onExport,
+}: {
+  label: string;
+  rangeLabel: string;
+  onSelectRange: (value: RangeValue) => void;
+  onExport: (format: "csv" | "pdf" | "excel") => void;
+}) => (
+  <div className="mt-6 flex items-center justify-between gap-3">
+    <span className="text-[15px] font-semibold text-foreground">{label}</span>
+    <div className="flex items-center gap-2">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              suffix={<ChevronDown className="size-4 shrink-0" />}
+              className="h-7 rounded-lg bg-secondary px-2 font-case text-base font-[450] tracking-[0.14px] text-gray-800 hover:bg-secondary/80"
+            />
+          }
+        >
+          {rangeLabel}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-36">
+          {RANGE_OPTIONS.map((r) => (
+            <DropdownMenuItem key={r.value} onClick={() => onSelectRange(r.value)}>
+              {r.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              size="sm"
+              suffix={<ChevronDown className="size-4 shrink-0" />}
+              className="h-7 rounded-lg font-case text-base tracking-[0.14px]"
+            />
+          }
+        >
+          Export
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-36">
+          <DropdownMenuItem onClick={() => onExport("csv")}>CSV</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onExport("pdf")}>PDF</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onExport("excel")}>Excel</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  </div>
+);
 
 const AnalyticsPage = () => {
   const { formId } = Route.useParams();
@@ -353,6 +445,75 @@ const AnalyticsPage = () => {
     countries: metrics?.countries ?? {},
     cities: metrics?.cities ?? {},
   };
+
+  // Dropoff data (Dropoffs tab) — fetched only when that tab is active.
+  const { data: dropoffData, isLoading: dropoffLoading } = useQuery({
+    queryKey: ["analytics-dropoff", formId, range],
+    queryFn: () => getFormDropoff({ data: { formId, filter: range } }),
+    staleTime: 30_000,
+    enabled: tab === "dropoffs",
+  });
+  const dropoff: QuestionDropoffMetrics | undefined = dropoffData;
+
+  const questionLabel = (q: QuestionDropoffMetrics["questions"][number]): string =>
+    q.questionLabel?.trim() || `Q${q.questionIndex + 1}`;
+
+  // Funnel across questions in order: height = respondents still answering (startCount),
+  // descending = drop-off. Retention/drop power the hover tooltip (same model as insights).
+  const funnelData = useMemo<FunnelPoint[]>(() => {
+    const sorted = [...(dropoff?.questions ?? [])].sort(
+      (a, b) => a.questionIndex - b.questionIndex,
+    );
+    const first = sorted[0]?.startCount ?? 0;
+    return sorted.map((q, i) => {
+      const count = q.startCount;
+      const prev = i === 0 ? null : sorted[i - 1].startCount;
+      return {
+        label: `Q${q.questionIndex + 1}`,
+        title: questionLabel(q),
+        count,
+        retention: first > 0 ? count / first : 0,
+        stepDrop: prev == null || prev === 0 ? null : Math.max(0, 1 - count / prev),
+      };
+    });
+  }, [dropoff?.questions]);
+
+  // Per-question drop-off rates, highest first (Figma list order). `qLabel` is the short
+  // Q-number (for the Biggest drop-off stat card); `label` is the full name (for the panel).
+  const dropoffRows = useMemo(
+    () =>
+      [...(dropoff?.questions ?? [])]
+        .map((q) => ({
+          label: questionLabel(q),
+          qLabel: `Q${q.questionIndex + 1}`,
+          rate: q.dropoffRate,
+        }))
+        .sort((a, b) => b.rate - a.rate),
+    [dropoff?.questions],
+  );
+
+  const totalDropoffs = dropoff ? dropoff.totalStarted - dropoff.totalCompleted : 0;
+  const biggestDropoff = dropoffRows[0];
+
+  // Answers data (Answers tab) — fetched only when that tab is active.
+  const { data: answersData, isLoading: answersLoading } = useQuery({
+    queryKey: ["analytics-answers", formId, range],
+    queryFn: () => getFormAnswers({ data: { formId, filter: range } }),
+    staleTime: 30_000,
+    enabled: tab === "answers",
+  });
+  const answers: FormAnswerMetrics | undefined = answersData;
+  const answerQuestions = answers?.questions ?? [];
+
+  // Most-skipped = least-answered question → Q-number + skip rate.
+  const mostSkipped = useMemo(() => {
+    if (!answers || answers.submissions === 0 || answers.questions.length === 0) return null;
+    const q = [...answers.questions].sort((a, b) => a.answered - b.answered)[0];
+    return {
+      qLabel: `Q${q.questionIndex + 1}`,
+      skip: Math.round((1 - q.answered / answers.submissions) * 100),
+    };
+  }, [answers]);
 
   const rangeLabel = RANGE_OPTIONS.find((r) => r.value === range)?.label ?? "Last 7 days";
 
@@ -409,57 +570,14 @@ const AnalyticsPage = () => {
           </TabsList>
         </Tabs>
 
-        {tab !== "visits" ? (
-          <div className="flex h-60 items-center justify-center text-[14px] text-muted-foreground">
-            Coming soon
-          </div>
-        ) : (
+        {tab === "visits" && (
           <>
-            {/* Sub-toolbar: section label + range + export */}
-            <div className="mt-6 flex items-center justify-between gap-3">
-              <span className="text-[15px] font-semibold text-foreground">Visits</span>
-              <div className="flex items-center gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        suffix={<ChevronDown className="size-4 shrink-0" />}
-                        className="h-7 rounded-lg bg-secondary px-2 font-case text-base font-[450] tracking-[0.14px] text-gray-800 hover:bg-secondary/80"
-                      />
-                    }
-                  >
-                    {rangeLabel}
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-36">
-                    {RANGE_OPTIONS.map((r) => (
-                      <DropdownMenuItem key={r.value} onClick={() => setRange(r.value)}>
-                        {r.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        size="sm"
-                        suffix={<ChevronDown className="size-4 shrink-0" />}
-                        className="h-7 rounded-lg font-case text-base tracking-[0.14px]"
-                      />
-                    }
-                  >
-                    Export
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-36">
-                    <DropdownMenuItem onClick={() => handleExport("csv")}>CSV</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExport("pdf")}>PDF</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExport("excel")}>Excel</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
+            <SectionToolbar
+              label="Visits"
+              rangeLabel={rangeLabel}
+              onSelectRange={setRange}
+              onExport={handleExport}
+            />
 
             {/* Metric cards */}
             <div className="mt-5 flex gap-3">
@@ -504,6 +622,114 @@ const AnalyticsPage = () => {
               <StatCard title="Countries" kind="countries" data={breakdowns.countries} scrollable />
               <StatCard title="Cities" kind="cities" data={breakdowns.cities} scrollable />
             </div>
+          </>
+        )}
+
+        {tab === "dropoffs" && (
+          <>
+            <SectionToolbar
+              label="Dropoffs"
+              rangeLabel={rangeLabel}
+              onSelectRange={setRange}
+              onExport={handleExport}
+            />
+
+            {/* Stat cards (Figma 26889:17288) — deltas omitted (no prior-period source). */}
+            <div className="mt-5 flex gap-3">
+              <MetricCard label="Total dropoffs" value={numberFormatter.format(totalDropoffs)} />
+              <MetricCard
+                label="Biggest drop-off"
+                value={biggestDropoff?.qLabel ?? "—"}
+                hint={biggestDropoff ? `${Math.round(biggestDropoff.rate)}% skip rate` : undefined}
+              />
+              <MetricCard
+                label="Submissions"
+                value={numberFormatter.format(dropoff?.totalCompleted ?? 0)}
+              />
+              <MetricCard
+                label="Avg. time"
+                value={formatDuration(metrics?.avgVisitDurationMs ?? 0)}
+              />
+            </div>
+
+            {/* Funnel chart (Figma 26989:10813) — fixed 300px card; stepped descending area. */}
+            <div className="bg-gray-0 mt-3 flex h-[300px] flex-col overflow-hidden rounded-[12px] border border-[var(--color-gray-100)] dark:bg-[#1c1c1c]">
+              <h3 className="px-[13px] pt-[13px] text-[15px] font-medium tracking-[0.02em] text-gray-900">
+                Dropoff funnel over time
+              </h3>
+              {funnelData.some((d) => d.count > 0) ? (
+                <div className="min-h-0 flex-1 [&_.recharts-surface]:outline-none [&_.recharts-wrapper]:outline-none [&_.recharts-wrapper:focus-visible]:outline-none">
+                  <DropoffFunnelChart data={funnelData} />
+                </div>
+              ) : (
+                <div className="flex flex-1 items-center justify-center text-[14px] text-muted-foreground">
+                  {dropoffLoading ? "Loading…" : "No drop-off data for this range"}
+                </div>
+              )}
+            </div>
+
+            {/* Per-question drop-off (Time-per-question panel omitted — no per-question timing). */}
+            <div className="mt-5">
+              <DropoffQuestionsCard rows={dropoffRows} />
+            </div>
+          </>
+        )}
+
+        {tab === "answers" && (
+          <>
+            <SectionToolbar
+              label="Answers"
+              rangeLabel={rangeLabel}
+              onSelectRange={setRange}
+              onExport={handleExport}
+            />
+
+            {/* Stat cards (Figma 26844:15300) — deltas omitted (no prior-period source). */}
+            <div className="mt-5 flex gap-3">
+              <MetricCard
+                label="Submissions"
+                value={numberFormatter.format(answers?.submissions ?? 0)}
+              />
+              <MetricCard
+                label="Most skipped"
+                value={mostSkipped?.qLabel ?? "—"}
+                hint={mostSkipped ? `${mostSkipped.skip}% skip rate` : undefined}
+              />
+              <MetricCard
+                label="Avg. answered"
+                value={String(Math.round(answers?.avgAnswered ?? 0))}
+                hint={
+                  answers && answers.totalQuestions > 0
+                    ? `${Math.round((answers.avgAnswered / answers.totalQuestions) * 100)}% fill rate`
+                    : undefined
+                }
+              />
+              <MetricCard
+                label="Avg. time"
+                value={formatDuration(metrics?.avgVisitDurationMs ?? 0)}
+              />
+            </div>
+
+            {/* Per-question answer cards — donut (choice/rating) or top-answers bar list. */}
+            {answerQuestions.length === 0 ? (
+              <div className="mt-5 flex h-40 items-center justify-center text-[14px] text-muted-foreground">
+                {answersLoading ? "Loading…" : "No answers for this range"}
+              </div>
+            ) : (
+              <div className="mt-5 grid grid-cols-2 gap-5">
+                {answerQuestions.map((q) =>
+                  DONUT_TYPES.has(q.fieldType) ? (
+                    <AnswerDonutCard key={q.id} q={q} />
+                  ) : (
+                    <AnswerBarCard
+                      key={q.id}
+                      q={q}
+                      unit={q.fieldType === "FileUpload" ? "uploads" : "responses"}
+                    />
+                  ),
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
