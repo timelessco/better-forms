@@ -65,6 +65,7 @@ import {
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { Value } from "platejs";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import { HOTKEYS, formatForDisplay } from "@/lib/hotkeys";
@@ -810,10 +811,30 @@ const SubmissionsPage = () => {
   const singleRows = table.getRowModel().rows;
   const [singleIndex, setSingleIndex] = useState(0);
   const safeSingleIndex = Math.min(singleIndex, Math.max(0, singleRows.length - 1));
-  const goPrevSubmission = () => setSingleIndex(Math.max(0, safeSingleIndex - 1));
+  // Slide between submissions via the View Transitions API: it snapshots the record and animates
+  // on the compositor, so the swap stays smooth even though the heavy form fully remounts. dir
+  // drives the slide direction in CSS (styles.css [data-bf-subnav]); falls back to instant.
+  const runSubmissionNav = (dir: "prev" | "next", apply: () => void) => {
+    const doc = document as Document & {
+      startViewTransition?: (cb: () => void) => { finished: Promise<void> };
+    };
+    if (typeof doc.startViewTransition !== "function") {
+      apply();
+      return;
+    }
+    doc.documentElement.dataset.bfSubnav = dir;
+    const transition = doc.startViewTransition(() => flushSync(apply));
+    void transition.finished.finally(() => {
+      delete doc.documentElement.dataset.bfSubnav;
+    });
+  };
+  const goPrevSubmission = () =>
+    runSubmissionNav("prev", () => setSingleIndex(Math.max(0, safeSingleIndex - 1)));
   const goNextSubmission = () => {
     if (hasNextPage && safeSingleIndex >= singleRows.length - 2) fetchNextPage();
-    setSingleIndex(Math.min(safeSingleIndex + 1, singleRows.length));
+    runSubmissionNav("next", () =>
+      setSingleIndex(Math.min(safeSingleIndex + 1, singleRows.length)),
+    );
   };
 
   return (
@@ -1147,32 +1168,35 @@ const SubmissionSingleView = ({
   const done = submission.isCompleted;
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      {/* Header (Figma 27015:20853): submission date + status badge, bottom rule. Same container
-          (mx-auto, --bf-page-width) as the form body below so the date aligns with the fields. */}
-      <div
-        className="mx-auto w-full px-8 pt-1 md:px-0"
-        style={{ maxWidth: "var(--bf-page-width, 700px)" }}
-      >
-        <div className="flex items-center gap-3 border-b border-gray-200 pb-3">
-          <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.28px] text-gray-700">
-            {SUBMISSION_DATE_FORMATTER.format(new Date(submission.createdAt))}
-          </span>
-          <span
-            className={cn(
-              "inline-flex items-center rounded-full px-1.5 py-[3px] text-[12px] font-medium tracking-[0.02em]",
-              // Figma 27015:20855 — Completed green-soft pair; Partial amber pair (#fff7d3/#b35309).
-              done
-                ? "bg-[var(--color-success-soft)] text-[var(--color-success-on-soft)]"
-                : "bg-[#fff7d3] text-[#b35309] dark:bg-amber-950/40 dark:text-amber-400",
-            )}
-          >
-            {done ? "Completed" : "Partial"}
-          </span>
+      {/* The record (header + form) carries a view-transition-name so prev/next slides it as a GPU
+          snapshot — smooth across the heavy form remount (the page wraps the index change in a
+          document view transition; see goPrev/goNextSubmission). */}
+      <div className="flex flex-col" style={{ viewTransitionName: "bf-submission-record" }}>
+        {/* Header (Figma 27015:20853): submission date + status badge, bottom rule. Same container
+            (mx-auto, --bf-page-width) as the form body below so the date aligns with the fields. */}
+        <div
+          className="mx-auto w-full px-8 pt-1 md:px-0"
+          style={{ maxWidth: "var(--bf-page-width, 700px)" }}
+        >
+          <div className="flex items-center gap-3 border-b border-gray-200 pb-3">
+            <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.28px] text-gray-700">
+              {SUBMISSION_DATE_FORMATTER.format(new Date(submission.createdAt))}
+            </span>
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full px-1.5 py-[3px] text-[12px] font-medium tracking-[0.02em]",
+                // Figma 27015:20855 — Completed green-soft pair; Partial amber pair (#fff7d3/#b35309).
+                done
+                  ? "bg-[var(--color-success-soft)] text-[var(--color-success-on-soft)]"
+                  : "bg-[#fff7d3] text-[#b35309] dark:bg-amber-950/40 dark:text-amber-400",
+              )}
+            >
+              {done ? "Completed" : "Partial"}
+            </span>
+          </div>
         </div>
-      </div>
 
-      {/* Body — read-only preview populated with this submission's values. */}
-      <div className="min-h-0 flex-1">
+        {/* Body — read-only preview populated with this submission's values. */}
         {/* `inert` (React 19) makes the whole form non-interactive — read-only submission view. */}
         <div inert>
           <FormPreviewFromPlate

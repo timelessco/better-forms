@@ -1393,3 +1393,59 @@
     0 4.5px 18px 0 rgba(0, 0, 0, 0.02),
     0 2px 9.5px 0 rgba(0, 0, 0, 0.01);
 }
+/* Submissions single-view: slide the record on prev/next (View Transitions API).
+   Scoped to [data-bf-subnav] so other view transitions keep their default cross-fade. */
+@keyframes bf-subnav-in-from-right {
+  from {
+    transform: translateX(28px);
+    opacity: 0;
+  }
+}
+@keyframes bf-subnav-out-to-left {
+  to {
+    transform: translateX(-28px);
+    opacity: 0;
+  }
+}
+@keyframes bf-subnav-in-from-left {
+  from {
+    transform: translateX(-28px);
+    opacity: 0;
+  }
+}
+@keyframes bf-subnav-out-to-right {
+  to {
+    transform: translateX(28px);
+    opacity: 0;
+  }
+}
+
+/* The record slides; the rest of the page (toolbar count/pager) snaps — no root cross-fade. */
+html[data-bf-subnav]::view-transition-old(root),
+html[data-bf-subnav]::view-transition-new(root) {
+  animation: none;
+}
+html[data-bf-subnav]::view-transition-old(bf-submission-record),
+html[data-bf-subnav]::view-transition-new(bf-submission-record) {
+  animation-duration: 0.26s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+html[data-bf-subnav="next"]::view-transition-old(bf-submission-record) {
+  animation-name: bf-subnav-out-to-left;
+}
+html[data-bf-subnav="next"]::view-transition-new(bf-submission-record) {
+  animation-name: bf-subnav-in-from-right;
+}
+html[data-bf-subnav="prev"]::view-transition-old(bf-submission-record) {
+  animation-name: bf-subnav-out-to-right;
+}
+html[data-bf-subnav="prev"]::view-transition-new(bf-submission-record) {
+  animation-name: bf-subnav-in-from-left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-bf-subnav]::view-transition-old(bf-submission-record),
+  html[data-bf-subnav]::view-transition-new(bf-submission-record) {
+    animation: none;
+  }
+}
