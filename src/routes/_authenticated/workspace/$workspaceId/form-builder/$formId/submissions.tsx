@@ -54,6 +54,7 @@ import {
   ChevronRight,
   Download,
   ExternalLink,
+  FileOutput,
   FileText,
   MoreHorizontal,
   Paperclip,
@@ -770,13 +771,12 @@ const SubmissionsPage = () => {
   // Registers the table with TanStack Devtools; no-op when no devtools listening.
   useTanStackTableDevtools(table);
 
-  const { handleBulkDelete, handleExportSelected, handleDownloadCSV } =
-    useSubmissionExportAndDelete({
-      formId,
-      queryClient,
-      table,
-      setRowSelection,
-    });
+  const { handleBulkDelete, handleExportSelected, handleExport } = useSubmissionExportAndDelete({
+    formId,
+    queryClient,
+    table,
+    setRowSelection,
+  });
 
   useSubmissionsHotkeys({
     table,
@@ -801,7 +801,7 @@ const SubmissionsPage = () => {
           onSetTabCompleted={handleSetActiveTabCompleted}
           onSetTabPartial={handleSetActiveTabPartial}
           onGlobalFilterChange={handleGlobalFilterChange}
-          onDownloadCSV={handleDownloadCSV}
+          onExport={handleExport}
         />
 
         <SubmissionPreviewDialog file={previewFile} onClose={closePreview} />
@@ -924,51 +924,109 @@ const useSubmissionExportAndDelete = ({
     setRowSelection({});
   }, [formId, queryClient, table, setRowSelection]);
 
+  // Headers + string cells from the same visible-column source — no header/cell drift.
+  const getExportData = useCallback(
+    (rows: Row<DataGridFeatures, SerializedSubmission>[]) => {
+      const exportColumns = table.getVisibleLeafColumns().filter((c) => c.id !== "select");
+      const headers = exportColumns.map(
+        (c) =>
+          c.columnDef.meta?.headerTitle ??
+          (typeof c.columnDef.header === "string" ? c.columnDef.header : c.id),
+      );
+      const data = rows.map((row) => exportColumns.map((c) => csvFormat(row.getValue(c.id))));
+      return { headers, data };
+    },
+    [table],
+  );
+
+  const triggerDownload = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.setAttribute("hidden", "");
+    a.setAttribute("href", url);
+    a.setAttribute("download", filename);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   const downloadCSV = useCallback(
     (rows: Row<DataGridFeatures, SerializedSubmission>[], filename: string) => {
       if (rows.length === 0) return;
-
-      // headers AND cells from the same visible-column source — no drift
-      const exportColumns = table.getVisibleLeafColumns().filter((c) => c.id !== "select");
+      const { headers, data } = getExportData(rows);
       const escapeCSV = (s: string) => `"${s.replaceAll('"', '""')}"`;
-
-      const headers = exportColumns
-        .map((c) =>
-          escapeCSV(
-            c.columnDef.meta?.headerTitle ??
-              (typeof c.columnDef.header === "string" ? c.columnDef.header : c.id),
-          ),
-        )
-        .join(",");
-
-      const csvRows = rows
-        .map((row) => exportColumns.map((c) => escapeCSV(csvFormat(row.getValue(c.id)))).join(","))
-        .join("\n");
-
-      const csv = `${headers}\n${csvRows}`;
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.setAttribute("hidden", "");
-      a.setAttribute("href", url);
-      a.setAttribute("download", filename);
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      const csv = [headers, ...data].map((r) => r.map(escapeCSV).join(",")).join("\n");
+      triggerDownload(new Blob([csv], { type: "text/csv" }), filename);
     },
-    [table],
+    [getExportData],
+  );
+
+  // Excel: HTML table with the .xls/ms-excel mime — opens natively, no dependency.
+  const downloadExcel = useCallback(
+    (rows: Row<DataGridFeatures, SerializedSubmission>[], filename: string) => {
+      if (rows.length === 0) return;
+      const { headers, data } = getExportData(rows);
+      const esc = (s: string) =>
+        s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+      const thead = `<tr>${headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>`;
+      const tbody = data
+        .map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`)
+        .join("");
+      const html = `﻿<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"/></head><body><table border="1">${thead}${tbody}</table></body></html>`;
+      triggerDownload(new Blob([html], { type: "application/vnd.ms-excel" }), filename);
+    },
+    [getExportData],
+  );
+
+  // PDF: print window with a styled table — the browser's "Save as PDF" handles the file.
+  // Built via DOM + textContent (no document.write / innerHTML) so cell values are inert.
+  const printPDF = useCallback(
+    (rows: Row<DataGridFeatures, SerializedSubmission>[]) => {
+      if (rows.length === 0) return;
+      const { headers, data } = getExportData(rows);
+      const win = window.open("", "_blank");
+      if (!win) return;
+      const doc = win.document;
+      doc.title = "Submissions";
+      const style = doc.createElement("style");
+      style.textContent =
+        "body{font-family:system-ui,sans-serif;padding:24px;color:#141414}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #e0e0e0;padding:6px 8px;text-align:left}th{background:#f5f5f5;font-weight:600}";
+      doc.head.appendChild(style);
+      const table = doc.createElement("table");
+      const addRow = (cells: string[], tag: "th" | "td") => {
+        const tr = doc.createElement("tr");
+        for (const cell of cells) {
+          const el = doc.createElement(tag);
+          el.textContent = cell;
+          tr.appendChild(el);
+        }
+        table.appendChild(tr);
+      };
+      addRow(headers, "th");
+      for (const row of data) addRow(row, "td");
+      doc.body.appendChild(table);
+      win.focus();
+      win.print();
+    },
+    [getExportData],
   );
 
   const handleExportSelected = useCallback(() => {
     downloadCSV(table.getSelectedRowModel().rows, `submissions-selected-${formId}.csv`);
   }, [downloadCSV, formId, table]);
 
-  const handleDownloadCSV = useCallback(() => {
-    downloadCSV(table.getRowModel().rows, `submissions-${formId}.csv`);
-  }, [downloadCSV, formId, table]);
+  const handleExport = useCallback(
+    (format: "csv" | "pdf" | "excel") => {
+      const rows = table.getRowModel().rows;
+      if (format === "excel") downloadExcel(rows, `submissions-${formId}.xls`);
+      else if (format === "pdf") printPDF(rows);
+      else downloadCSV(rows, `submissions-${formId}.csv`);
+    },
+    [downloadCSV, downloadExcel, printPDF, formId, table],
+  );
 
-  return { handleBulkDelete, handleExportSelected, handleDownloadCSV };
+  return { handleBulkDelete, handleExportSelected, handleExport };
 };
 
 interface UseSubmissionsHotkeysOptions {
@@ -1172,7 +1230,7 @@ interface SubmissionsToolbarProps {
   onSetTabCompleted: () => void;
   onSetTabPartial: () => void;
   onGlobalFilterChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onDownloadCSV: () => void;
+  onExport: (format: "csv" | "pdf" | "excel") => void;
 }
 
 const SubmissionsToolbar = ({
@@ -1184,7 +1242,7 @@ const SubmissionsToolbar = ({
   onSetTabCompleted,
   onSetTabPartial,
   onGlobalFilterChange,
-  onDownloadCSV,
+  onExport,
 }: SubmissionsToolbarProps) => {
   const activeLabel =
     activeTab === "all" ? "All" : activeTab === "completed" ? "Completed" : "Partial";
@@ -1219,23 +1277,25 @@ const SubmissionsToolbar = ({
                 </ButtonGroupText>
               </ButtonGroup>
 
-              {/* Download — Figma pill with chevron; opens the export menu. */}
+              {/* Export — Figma pill with chevron; CSV / PDF / Excel. */}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
                     <Button
                       variant="ghost"
                       size="sm"
-                      prefix={<Download className="size-4 shrink-0" strokeWidth={2} />}
+                      prefix={<FileOutput className="size-4 shrink-0" strokeWidth={2} />}
                       suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
                       className={pill}
                     />
                   }
                 >
-                  Download
+                  Export
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuItem onClick={onDownloadCSV}>Export as CSV</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onExport("csv")}>CSV</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onExport("pdf")}>PDF</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onExport("excel")}>Excel</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
