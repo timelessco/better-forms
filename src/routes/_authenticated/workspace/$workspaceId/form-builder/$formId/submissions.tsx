@@ -1239,62 +1239,67 @@ const SubmissionsToolbar = ({
         </h2>
 
         <div className="flex items-center gap-1.5">
-          {/* Search kept (not in Figma, requested). */}
-          <ButtonGroup className="w-[180px] rounded-[8px] border-none transition-[width] duration-200 ease-out focus-within:w-[240px]">
-            <ButtonGroupText className="h-7 w-full gap-1.5 rounded-[8px] border border-transparent bg-muted px-2 text-[14px] text-gray-800">
-              <Search className="size-4 shrink-0" strokeWidth={2} />
-              <input
-                placeholder="Search responses..."
-                className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] tracking-[0.14px] outline-none placeholder:text-muted-foreground"
-                value={globalFilter}
-                onChange={onGlobalFilterChange}
-                aria-label="Search responses"
-                name="search"
-              />
-            </ButtonGroupText>
-          </ButtonGroup>
+          {/* Search / Download / Filter only apply to the table — hidden in the single record view. */}
+          {view === "table" && (
+            <>
+              {/* Search kept (not in Figma, requested). */}
+              <ButtonGroup className="w-[180px] rounded-[8px] border-none transition-[width] duration-200 ease-out focus-within:w-[240px]">
+                <ButtonGroupText className="h-7 w-full gap-1.5 rounded-[8px] border border-transparent bg-muted px-2 text-[14px] text-gray-800">
+                  <Search className="size-4 shrink-0" strokeWidth={2} />
+                  <input
+                    placeholder="Search responses..."
+                    className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] tracking-[0.14px] outline-none placeholder:text-muted-foreground"
+                    value={globalFilter}
+                    onChange={onGlobalFilterChange}
+                    aria-label="Search responses"
+                    name="search"
+                  />
+                </ButtonGroupText>
+              </ButtonGroup>
 
-          {/* Download — Figma pill with chevron; opens the export menu. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  prefix={<Download className="size-4 shrink-0" strokeWidth={2} />}
-                  suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
-                  className={pill}
-                />
-              }
-            >
-              Download
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={onDownloadCSV}>Export as CSV</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              {/* Download — Figma pill with chevron; opens the export menu. */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      prefix={<Download className="size-4 shrink-0" strokeWidth={2} />}
+                      suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
+                      className={pill}
+                    />
+                  }
+                >
+                  Download
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem onClick={onDownloadCSV}>Export as CSV</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-          {/* Filter (status) — Figma "Filter" pill; shows the active tab. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  prefix={<FigFilterIcon className="size-4 shrink-0" />}
-                  suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
-                  className={pill}
-                />
-              }
-            >
-              <TextSwap key={activeLabel}>{activeLabel}</TextSwap>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36">
-              <DropdownMenuItem onClick={onSetTabAll}>All</DropdownMenuItem>
-              <DropdownMenuItem onClick={onSetTabCompleted}>Completed</DropdownMenuItem>
-              <DropdownMenuItem onClick={onSetTabPartial}>Partial</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              {/* Filter (status) — Figma "Filter" pill; shows the active tab. */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      prefix={<FigFilterIcon className="size-4 shrink-0" />}
+                      suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
+                      className={pill}
+                    />
+                  }
+                >
+                  <TextSwap key={activeLabel}>{activeLabel}</TextSwap>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-36">
+                  <DropdownMenuItem onClick={onSetTabAll}>All</DropdownMenuItem>
+                  <DropdownMenuItem onClick={onSetTabCompleted}>Completed</DropdownMenuItem>
+                  <DropdownMenuItem onClick={onSetTabPartial}>Partial</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
 
           {/* View toggle (Figma 26586:29914): board | list segmented control. */}
           <div className="flex h-7 items-center gap-1 rounded-[8px] bg-muted p-px">
