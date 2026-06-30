@@ -8,7 +8,8 @@ export const LinkElementStatic = (props: SlateElementProps<TLinkElement>) => (
   <SlateElement
     {...props}
     as="a"
-    className="text-blue-600 underline decoration-blue-600 underline-offset-4 dark:text-blue-400 dark:decoration-blue-400"
+    // Inherit the body text color (themed forms set --bf-foreground); underline uses currentColor.
+    className="text-inherit underline underline-offset-4"
     attributes={{
       ...props.attributes,
       ...getLinkAttributes(props.editor, props.element),
