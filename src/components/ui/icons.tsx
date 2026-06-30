@@ -683,6 +683,27 @@ export const EditLineIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+/** Figma icon/line/edit at 16² (node 27015:16981) — header Edit-form CTA. Same filled-pencil
+ *  glyph as EditLineIcon (18²); 13.1048 artwork inset 7.96%/10.13% into a 16 box. */
+export const EditLineSmIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
+    {...props}
+  >
+    <g transform="translate(1.2736 1.6208)">
+      <path
+        d="M8.34528 0.585674C9.12628 -0.195269 10.3924 -0.19518 11.1734 0.585674L12.5191 1.93138C13.2999 2.71243 13.3 3.97852 12.5191 4.7595L5.12751 12.1511C4.91824 12.3602 4.65101 12.5032 4.36091 12.5613L1.79548 13.0749C0.746193 13.2845 -0.179698 12.3586 0.0298543 11.3093L0.543526 8.74388C0.601614 8.45378 0.744551 8.18654 0.953682 7.97728L8.34528 0.585674ZM1.66071 8.68431C1.59114 8.75402 1.54334 8.84359 1.52399 8.94017L1.01032 11.5056C0.940715 11.8552 1.24962 12.1641 1.59919 12.0945L4.16462 11.5808C4.2612 11.5614 4.35077 11.5136 4.42048 11.4441L10.3531 5.51145L7.59333 2.75169L1.66071 8.68431ZM10.4664 1.2927C10.0759 0.902374 9.44278 0.902287 9.05232 1.2927L8.30036 2.04466L11.0601 4.80442L11.8121 4.05247C12.2025 3.66202 12.2024 3.02893 11.8121 2.63841L10.4664 1.2927Z"
+        fill="currentColor"
+      />
+    </g>
+  </svg>
+);
+
 /** Figma icon/line/small-select — up+down double chevron (number-stepper affordance). 16². */
 export const SmallSelectIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg

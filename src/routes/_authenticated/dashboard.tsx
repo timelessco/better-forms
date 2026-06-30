@@ -71,10 +71,11 @@ import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-r
 import { orgDataForLayoutQueryOptions } from "@/lib/server-fn/org";
 import { parseError } from "@/lib/errors/parse";
 import { formatDistanceToNow } from "date-fns";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import * as v from "valibot";
 import { IconSwap } from "@/components/transitions/icon-swap";
 import { TextSwap } from "@/components/transitions/text-swap";
+import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 // Fallback page size before the viewport is measured (SSR / first paint).
@@ -153,10 +154,13 @@ const DashboardSearch = () => {
   const search = useSearch({ strict: false }) as { q?: string };
   const [input, setInput] = useState(search.q ?? "");
 
-  // Sync local input when the URL param changes externally (back/forward, clear).
-  useEffect(() => {
+  // Sync local input when the URL param changes externally (back/forward, clear). Adjusted during
+  // render (the "store info from a previous render" pattern), not via a setState-in-effect.
+  const [lastSearchQ, setLastSearchQ] = useState(search.q);
+  if (lastSearchQ !== search.q) {
+    setLastSearchQ(search.q);
     setInput(search.q ?? "");
-  }, [search.q]);
+  }
 
   // Debounce keystrokes → URL ?q= so the dashboard list re-filters.
   useEffect(() => {
@@ -563,24 +567,25 @@ const DashboardPage = () => {
   }
 
   // Grow the window when the sentinel scrolls into view. No useEffect — ref-callback + observer
-  // (same pattern as useViewportPageSize); refs keep the observer's closure reading fresh values.
-  const totalFormsRef = useRef(visibleForms.length);
-  totalFormsRef.current = visibleForms.length;
-  const batchRef = useRef(formsPerPage);
-  batchRef.current = formsPerPage;
-  const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
-    if (!node) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setVisibleCount((c) => Math.min(c + batchRef.current, totalFormsRef.current));
-        }
-      },
-      { rootMargin: "300px" },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+  // (same pattern as useViewportPageSize). The callback ref re-runs (re-observes) when the batch
+  // size or total changes, so the observer's closure always reads current values.
+  const totalForms = visibleForms.length;
+  const loadMoreRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node) return;
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0]?.isIntersecting) {
+            setVisibleCount((c) => Math.min(c + formsPerPage, totalForms));
+          }
+        },
+        { rootMargin: "300px" },
+      );
+      observer.observe(node);
+      return () => observer.disconnect();
+    },
+    [formsPerPage, totalForms],
+  );
 
   const handleFilterChange = useCallback((next: FormFilter) => {
     setCurrentFilter(next);
@@ -796,7 +801,11 @@ const SortMenu = ({
   </DropdownMenu>
 );
 
-// Figma "tabs" (26208:8090) — gray/100 track with an active white pill + shadow. tiles/bullet-list icons.
+// Figma "tabs" (26208:8090) — gray/100 track with a sliding active pill. Uses the shared animated
+// Tabs (TabsIndicator) so the highlight slides between options, matching the share-sidebar tabs.
+// Square icon-only triggers: w-[26px] (sm trigger is already h-6.5), flex-none + px-0! drop the
+// stretch/padding the text-tab variant applies.
+const VIEW_TAB = "w-[26px] flex-none px-0! text-muted-foreground";
 const ViewToggle = ({
   mode,
   onChange,
@@ -804,36 +813,17 @@ const ViewToggle = ({
   mode: FormViewMode;
   onChange: (next: FormViewMode) => void;
 }) => (
-  <div className="flex h-7 items-center gap-1 rounded-lg bg-secondary p-px">
-    <button
-      type="button"
-      aria-label="Grid view"
-      aria-pressed={mode === "grid"}
-      onClick={() => onChange("grid")}
-      className={cn(
-        "flex size-[26px] items-center justify-center rounded-[7px] transition-all",
-        mode === "grid"
-          ? "bg-surface shadow-[0px_0px_1.5px_0px_rgba(0,0,0,0.16),0px_2px_5px_0px_rgba(0,0,0,0.14)]"
-          : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <FigTilesIcon className="size-4" />
-    </button>
-    <button
-      type="button"
-      aria-label="List view"
-      aria-pressed={mode === "list"}
-      onClick={() => onChange("list")}
-      className={cn(
-        "flex size-[26px] items-center justify-center rounded-[7px] transition-all",
-        mode === "list"
-          ? "bg-surface shadow-[0px_0px_1.5px_0px_rgba(0,0,0,0.16),0px_2px_5px_0px_rgba(0,0,0,0.14)]"
-          : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <FigBulletListIcon className="size-4" />
-    </button>
-  </div>
+  <Tabs value={mode} onValueChange={(value) => onChange(value as FormViewMode)}>
+    <TabsList className="gap-1 rounded-lg">
+      <TabsTrigger value="grid" aria-label="Grid view" className={VIEW_TAB}>
+        <FigTilesIcon className="size-4" />
+      </TabsTrigger>
+      <TabsTrigger value="list" aria-label="List view" className={VIEW_TAB}>
+        <FigBulletListIcon className="size-4" />
+      </TabsTrigger>
+      <TabsIndicator />
+    </TabsList>
+  </Tabs>
 );
 
 type FormCardForm = {

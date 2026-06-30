@@ -4,6 +4,7 @@ import type {
   formQuestionProgress,
   formVisits,
 } from "@/db/schema";
+import { cappedDurationMs } from "./duration";
 import { resolveSource } from "./source";
 import { buildHistogram } from "./vitals";
 
@@ -97,7 +98,8 @@ export const buildDailyAnalyticsRows = (
       }
 
       if (visit.durationMs !== null && visit.durationMs !== undefined) {
-        durations.push(visit.durationMs);
+        // Cap so an abandoned/backgrounded tab (hours of open time) can't skew the day's avg/median.
+        durations.push(cappedDurationMs(visit.durationMs));
       }
 
       if (visit.lcpMs !== null && visit.lcpMs !== undefined) {

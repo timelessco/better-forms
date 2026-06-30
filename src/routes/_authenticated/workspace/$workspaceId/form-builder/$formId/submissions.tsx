@@ -64,11 +64,12 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { Value } from "platejs";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import { HOTKEYS, formatForDisplay } from "@/lib/hotkeys";
+import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type FieldStatus = "current" | "deleted";
 const EMPTY_LABELS: Record<string, string> = {};
@@ -242,11 +243,14 @@ const SubmissionCell = ({
   }
 
   switch (fieldType) {
+    // Email/Link stay clickable (mailto / new-tab) but inherit the same cell color as every other
+    // type — Figma renders all answer values in one uniform color (no link tint). Underline on hover
+    // is the only affordance.
     case "Email":
       return (
         <a
           href={`mailto:${text}`}
-          className="block max-w-[300px] truncate text-[14px] text-primary hover:underline"
+          className="block max-w-[300px] truncate text-[14px] hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
           {text}
@@ -258,7 +262,7 @@ const SubmissionCell = ({
           href={text.startsWith("http") ? text : `https://${text}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="block max-w-[300px] truncate text-[14px] text-primary hover:underline"
+          className="block max-w-[300px] truncate text-[14px] hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
           {text}
@@ -459,12 +463,12 @@ const buildSubmissionColumns = ({
           return (
             <span
               className={cn(
-                "inline-flex items-center rounded-full px-1.5 py-[3px] text-[12px] font-medium tracking-[0.02em]",
-                // Complete uses the success-soft theme tokens (auto dark-mode flip); Partial has
-                // no theme token, so the amber pair is hardcoded with explicit dark variants.
-                done
-                  ? "bg-[var(--color-success-soft)] text-[var(--color-success-on-soft)]"
-                  : "bg-[#faf8e4] text-[#a68d00] dark:bg-amber-950/50 dark:text-amber-400",
+                // Figma 27015:17561/17488 (light) + 27015:17706/17633 (dark): 12px / Medium(450) /
+                // 0.24px (0.02em) / lh1.15, 6×3 pad, pill. Figma keeps the SAME pill colors in both
+                // themes (no flip) — soft pastel bg + saturated text reads fine on dark too, so the
+                // hexes are pinned (NOT the auto-flipping success tokens).
+                "inline-flex items-center rounded-full px-1.5 py-[3px] text-[12px] leading-[1.15] font-[450] tracking-[0.02em]",
+                done ? "bg-[#e4faeb] text-[#137949]" : "bg-[#fff7d3] text-[#b35309]",
               )}
             >
               {done ? "Complete" : "Partial"}
@@ -683,9 +687,9 @@ const SubmissionsPage = () => {
     return transformPlateStateToFormElements(publishedContent as Value);
   }, [publishedContent]);
 
-  // Stable orphaned field names — prevents column rebuild on submission-data ref change.
-  const orphanedFieldNamesRef = useRef<Set<string>>(new Set());
-  const orphanedFieldNames = useMemo(() => {
+  // Stable orphaned field names — keyed on a sorted join so identity only changes when the SET's
+  // contents change, not on every submissions ref change (avoids needless column rebuilds).
+  const orphanedKey = useMemo(() => {
     const currentFieldNames = new Set<string>();
     if (formElements) {
       const editableFields = getEditableFields(formElements);
@@ -708,14 +712,14 @@ const SubmissionsPage = () => {
       }
     });
 
-    // Only update ref if the set actually changed
-    const prevKeys = [...orphanedFieldNamesRef.current].toSorted().join(",");
-    const nextKeys = [...orphaned].toSorted().join(",");
-    if (prevKeys !== nextKeys) {
-      orphanedFieldNamesRef.current = orphaned;
-    }
-    return orphanedFieldNamesRef.current;
+    return [...orphaned].toSorted().join(",");
   }, [allSubmissions, formElements]);
+
+  // New Set only when the sorted key changes → stable identity for the columns memo below.
+  const orphanedFieldNames = useMemo(
+    () => new Set(orphanedKey ? orphanedKey.split(",") : []),
+    [orphanedKey],
+  );
 
   // Derive Columns from PUBLISHED Form Content (not draft)
   const { columns } = useMemo(
@@ -831,7 +835,7 @@ const SubmissionsPage = () => {
   const goPrevSubmission = () =>
     runSubmissionNav("prev", () => setSingleIndex(Math.max(0, safeSingleIndex - 1)));
   const goNextSubmission = () => {
-    if (hasNextPage && safeSingleIndex >= singleRows.length - 2) fetchNextPage();
+    if (hasNextPage && safeSingleIndex >= singleRows.length - 2) void fetchNextPage();
     runSubmissionNav("next", () =>
       setSingleIndex(Math.min(safeSingleIndex + 1, singleRows.length)),
     );
@@ -1241,6 +1245,10 @@ interface SubmissionsToolbarProps {
   canNextSubmission: boolean;
 }
 
+// Square icon-only trigger for the shared animated Tabs: w-[26px] (sm trigger is already h-6.5),
+// flex-none + px-0! drop the stretch/padding the text-tab variant applies.
+const VIEW_TAB = "w-[26px] flex-none px-0! text-muted-foreground";
+
 const SubmissionsToolbar = ({
   activeTab,
   globalFilter,
@@ -1261,7 +1269,6 @@ const SubmissionsToolbar = ({
   // Matches the dashboard toolbar (FilterMenu/SortMenu): gray pill, 14px/450, Fig* icons at size-4.
   const pill =
     "font-case inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg bg-secondary px-2 text-base font-[450] tracking-[0.14px] text-gray-800 transition-colors hover:bg-secondary/80 [&_svg]:size-4 [&_svg]:text-gray-800";
-  const togglePill = "flex items-center justify-center rounded-[7px] p-[5px] transition-colors";
   return (
     <div className="shrink-0 border-border pt-8 pr-6 pb-5">
       <div className="flex items-center gap-3">
@@ -1282,11 +1289,12 @@ const SubmissionsToolbar = ({
         <div className="flex items-center gap-1.5">
           {/* Search / pager / Download / Filter all show in both views (Figma 27015:20773). */}
           {/* Search — matches the dashboard toolbar pill (gray/100 surface, search-alt icon). */}
-          <div className="flex h-7 w-[200px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2 transition-[width] duration-200 ease-out focus-within:w-[260px]">
+          {/* Figma 27015:16994 — 170×28, gray/100, pl-8 pr-10 gap-6, 8px radius. */}
+          <div className="flex h-7 w-[170px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2 transition-[width] duration-200 ease-out focus-within:w-[260px]">
             <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
             <input
               type="search"
-              placeholder="Search responses..."
+              placeholder="Search"
               className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
               value={globalFilter}
               onChange={onGlobalFilterChange}
@@ -1379,37 +1387,19 @@ const SubmissionsToolbar = ({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* View toggle (Figma 26586:29914): board | list segmented control. */}
-          <div className="flex h-7 items-center gap-1 rounded-[8px] bg-muted p-px">
-            <button
-              type="button"
-              aria-label="Submission view"
-              aria-pressed={view === "single"}
-              onClick={() => onViewChange("single")}
-              className={cn(
-                togglePill,
-                view === "single"
-                  ? "bg-background text-gray-800 elevation-base"
-                  : "text-muted-foreground hover:text-gray-800",
-              )}
-            >
-              <CardsViewIcon className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label="Table view"
-              aria-pressed={view === "table"}
-              onClick={() => onViewChange("table")}
-              className={cn(
-                togglePill,
-                view === "table"
-                  ? "bg-background text-gray-800 elevation-base"
-                  : "text-muted-foreground hover:text-gray-800",
-              )}
-            >
-              <ListViewIcon className="size-4" />
-            </button>
-          </div>
+          {/* View toggle (Figma 26586:29914): list | board segmented control. Shared animated Tabs
+              (TabsIndicator) so the active pill slides, matching the share-sidebar tabs. */}
+          <Tabs value={view} onValueChange={(value) => onViewChange(value as "table" | "single")}>
+            <TabsList className="gap-1 rounded-[8px] bg-muted">
+              <TabsTrigger value="table" aria-label="Table view" className={VIEW_TAB}>
+                <ListViewIcon className="size-4" />
+              </TabsTrigger>
+              <TabsTrigger value="single" aria-label="Submission view" className={VIEW_TAB}>
+                <CardsViewIcon className="size-4" />
+              </TabsTrigger>
+              <TabsIndicator />
+            </TabsList>
+          </Tabs>
         </div>
       </div>
     </div>

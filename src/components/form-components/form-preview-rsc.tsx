@@ -622,7 +622,7 @@ const ColoredSpriteIcon = ({
       }}
     >
       <svg height={iconSize} style={{ color: "currentColor" }} viewBox="0 0 18 18" width={iconSize}>
-        <use href={`/api/icons/${iconName}.svg#${iconName}`} />
+        <use href={`/api/icons/${iconName}#${iconName}`} />
       </svg>
     </div>
   );

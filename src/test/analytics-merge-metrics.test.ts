@@ -18,7 +18,9 @@ const makeDaily = (overrides: Partial<DailyRow> & { date: string }): DailyRow =>
     totalSubmissions: 0,
     uniqueSubmitters: 0,
     avgDurationMs: null,
-    medianDurationMs: null,
+    // Duration is now median-based; mirror any avgDurationMs an override passes so existing fixtures
+    // (which only set avgDurationMs) still drive the weighted-median assertions.
+    medianDurationMs: overrides.avgDurationMs ?? null,
     deviceBreakdown: {},
     browserBreakdown: {},
     osBreakdown: {},
@@ -223,8 +225,14 @@ describe("mergeInsightsMetrics", () => {
       totalVisits: 0,
       uniqueVisitors: 0,
       totalSubmissions: 0,
+      // Proxy defaults; the real values are filled in by getFormInsightsImpl (a second query), not merge.
+      completedSubmissions: 0,
       uniqueRespondents: 0,
       avgVisitDurationMs: 0,
+      visitsDeltaPct: null,
+      submissionsDeltaPct: null,
+      completionRateDeltaPts: null,
+      avgDurationDeltaMs: null,
       sources: {},
       devices: {},
       countries: {},

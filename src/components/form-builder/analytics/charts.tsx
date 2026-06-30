@@ -19,11 +19,21 @@ import { numberFormatter } from "@/lib/analytics/format";
 import { cn } from "@/lib/utils";
 
 // ── Shared date formatting ───────────────────────────────────────────────────
+// ≤7 points → weekday (Mon, Tue); longer ranges → month/day (Jun 30) so labels don't
+// collapse into an overlapping smear.
 const weekdayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" });
-const formatWeekday = (value: string): string => {
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return Number.isNaN(parsed.getTime()) ? value : weekdayFmt.format(parsed);
-};
+const monthDayFmt = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+const makeDateFormatter =
+  (count: number) =>
+  (value: string): string => {
+    const parsed = new Date(`${value}T00:00:00.000Z`);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return (count <= 7 ? weekdayFmt : monthDayFmt).format(parsed);
+  };
 
 // ── Activity chart (Visits tab, Figma 26835:11656) — multi-line over the range ──
 // Mid-luminance brand colors hold their brightness on both light and dark surfaces.
@@ -58,41 +68,52 @@ const ActivityTooltip = ({
   );
 };
 
-export const FormActivityChart = ({ data }: { data: ActivityPoint[] }) => (
-  <ResponsiveContainer width="100%" height="100%">
-    <LineChart data={data} margin={{ top: 4, right: 16, bottom: 0, left: 16 }}>
-      {/* Faint dashed horizontal gridlines (Figma gray/100). */}
-      <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--color-gray-100)" />
-      <XAxis
-        dataKey="date"
-        tickFormatter={formatWeekday}
-        tickLine={false}
-        axisLine={false}
-        tickMargin={10}
-        interval={0}
-        padding={{ left: 14, right: 14 }}
-        tick={{ fill: "var(--color-gray-550, #8c8c8c)", fontSize: 12 }}
-      />
-      <YAxis hide domain={[0, "auto"]} />
-      <Tooltip
-        content={<ActivityTooltip />}
-        cursor={{ stroke: "var(--color-gray-300)", strokeWidth: 1, strokeDasharray: "4 4" }}
-      />
-      {ACTIVITY_SERIES.map((s) => (
-        <Line
-          key={s.key}
-          type="linear"
-          dataKey={s.key}
-          stroke={s.color}
-          strokeWidth={2}
-          dot={false}
-          activeDot={{ r: 3, strokeWidth: 0 }}
-          isAnimationActive={false}
+export const FormActivityChart = ({ data }: { data: ActivityPoint[] }) => {
+  // ≤7 days: weekday labels, show every tick. Longer ranges: month/day labels, thinned
+  // to ~8 evenly-spaced ticks (+ start/end) so they never overlap.
+  const tickFormatter = makeDateFormatter(data.length);
+  const interval = data.length <= 8 ? 0 : Math.floor(data.length / 8);
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart
+        accessibilityLayer={false}
+        data={data}
+        margin={{ top: 4, right: 16, bottom: 0, left: 16 }}
+      >
+        {/* Faint dashed horizontal gridlines (Figma gray/100). */}
+        <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--color-gray-100)" />
+        <XAxis
+          dataKey="date"
+          tickFormatter={tickFormatter}
+          tickLine={false}
+          axisLine={false}
+          tickMargin={10}
+          interval={interval}
+          minTickGap={16}
+          padding={{ left: 14, right: 14 }}
+          tick={{ fill: "var(--color-gray-550, #8c8c8c)", fontSize: 12 }}
         />
-      ))}
-    </LineChart>
-  </ResponsiveContainer>
-);
+        <YAxis hide domain={[0, "auto"]} />
+        <Tooltip
+          content={<ActivityTooltip />}
+          cursor={{ stroke: "var(--color-gray-300)", strokeWidth: 1, strokeDasharray: "4 4" }}
+        />
+        {ACTIVITY_SERIES.map((s) => (
+          <Line
+            key={s.key}
+            type="linear"
+            dataKey={s.key}
+            stroke={s.color}
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 3, strokeWidth: 0 }}
+            isAnimationActive={false}
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+};
 
 // ── Dropoff funnel chart (Dropoffs tab, Figma 26989:10813 / dark 27015:12148) ──
 // Funnel across questions: each column = one question, height = respondents still
@@ -314,6 +335,7 @@ export const DropoffFunnelChart = ({ data }: { data: FunnelPoint[] }) => {
           </div>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
+              accessibilityLayer={false}
               data={rows}
               margin={{ top: TOP_PADDING, right: 0, bottom: 0, left: 0 }}
               onMouseMove={(state: { activeTooltipIndex?: number | string | null }) => {
@@ -401,19 +423,27 @@ export const AnswerDonut = ({
   }));
   return (
     <div className="flex flex-col items-center gap-[14px]">
-      <div className="relative h-[88px] w-[166px]">
+      {/* Half-gauge (Figma 26844:15378): outer Ø ~164, thin 14px ring (inner/outer ≈ 0.83). The
+          6px gap (box 88 − outer 82) keeps the arc top off the card title. recharts makes its
+          wrapper/surface focusable — kill the tab focus ring (decorative chart, not interactive). */}
+      <div className="relative h-[88px] w-[166px] [&_.recharts-surface]:outline-none [&_.recharts-wrapper]:outline-none [&_.recharts-wrapper:focus-visible]:outline-none">
         <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
+          {/* accessibilityLayer off: decorative gauge, not keyboard-interactive — otherwise recharts
+              gives the <svg> tabIndex=0 and tabbing draws a focus box around the chart. */}
+          <PieChart accessibilityLayer={false}>
             <Pie
               data={slices}
               dataKey="value"
               nameKey="label"
+              // recharts defaults the <g.recharts-pie> to tabIndex 0 (separate from accessibilityLayer),
+              // so the gauge group itself is tab-focusable and draws a ring — opt out.
+              rootTabIndex={-1}
               cx="50%"
               cy="100%"
               startAngle={180}
               endAngle={0}
-              innerRadius={58}
-              outerRadius={84}
+              innerRadius={68}
+              outerRadius={82}
               paddingAngle={2}
               cornerRadius={3}
               strokeWidth={0}

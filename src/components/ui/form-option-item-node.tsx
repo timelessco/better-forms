@@ -39,11 +39,11 @@ type OptionVariant = "checkbox" | "multiChoice" | "ranking";
 import { getOptionOrdinal } from "@/components/ui/form-option-item-constants";
 import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
 
-// Letters/Numbers labels: an ordinal badge in a gray box (Figma nodes 25578:9710 / 25578:9688) —
-// gray-100 fill, dark gray-900 text @ 12px Medium, flat (no shadow). Pin gray-100 (not the form's
-// --form-input-bg, which themed forms remap to white → invisible badge).
+// Letters/Numbers labels: an ordinal badge (Figma nodes 25578:9710 / 25578:9688), 12px Medium, flat.
+// Themed: secondary fill/text (→ --bf-secondary in .bf-themed) so the badge follows form customization
+// while staying contrast-paired — unlike --form-input-bg, which themed forms remap toward white.
 const OptionLabelBadge = ({ text }: { text: string }) => (
-  <span className="flex size-4 min-w-4 shrink-0 items-center justify-center rounded-[4px] bg-gray-100 px-0.5 text-[12px] font-medium text-gray-900">
+  <span className="flex size-4 min-w-4 shrink-0 items-center justify-center rounded-[4px] bg-secondary px-0.5 text-[12px] font-medium text-secondary-foreground">
     {text}
   </span>
 );
@@ -413,9 +413,9 @@ const OptionChipsRow = ({ children, ...props }: PlateElementProps) => {
         onMouseDown={(e) => e.stopPropagation()}
       >
         {chips.map((chip, chipIdx) => {
-          // Neutral chips for both dropdown kinds; the trailing icon (double-tick vs chevron)
-          // is what tells multi-select apart from single-select now.
-          const color = { bg: "bg-gray-100", text: "text-gray-900" };
+          // Themed chips for both dropdown kinds (secondary → --bf-secondary, follows form
+          // customization); the trailing icon (double-tick vs chevron) tells the kinds apart.
+          const color = { bg: "bg-secondary", text: "text-secondary-foreground" };
           const isChipFocused = focusedChipIndex === chipIdx;
           return (
             <span

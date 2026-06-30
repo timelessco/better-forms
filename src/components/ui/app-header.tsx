@@ -19,10 +19,10 @@ import {
 import {
   CheckIcon,
   ChevronRightIcon,
+  EditLineSmIcon,
   FolderIcon,
   Loader2Icon,
   MoreHorizontalIcon,
-  PencilIcon,
   PlayIcon,
 } from "@/components/ui/icons";
 import { FigAddSmIcon, FigSearchAltIcon } from "@/components/dashboard/dashboard-icons";
@@ -1113,7 +1113,7 @@ const FormBuilderHeaderActions = ({
               // Figma 26835:9809 — gray/950 #141414 pill, px-8/py-6, gap-6, 16px edit icon + 14px/450 white.
               className="inline-flex items-center gap-1.5 rounded-[8px] bg-gray-950 px-2 py-1.5 font-case text-[14px] font-[450] tracking-[0.14px] text-white transition-colors hover:bg-gray-800 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none dark:bg-white dark:text-black dark:hover:bg-stone-200"
             >
-              <PencilIcon className="size-4" />
+              <EditLineSmIcon className="size-4" />
               Edit form
             </Link>
           )}

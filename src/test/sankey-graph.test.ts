@@ -27,6 +27,9 @@ const makeMetrics = (questions: QuestionDropoffRow[]): QuestionDropoffMetrics =>
   totalStarted: 0,
   totalCompleted: 0,
   overallCompletionRate: 0,
+  completedSubmissions: 0,
+  totalDropoffsDeltaPct: null,
+  timePerQuestion: [],
 });
 
 describe("buildSankeyGraph", () => {

@@ -164,29 +164,78 @@ const ScrollFade = () => (
   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent backdrop-blur-[0.5px] dark:from-[#1c1c1c]" />
 );
 
-const MetricCard = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
+// `hint` is a muted note (e.g. "49% skip rate"); `trend` is a colored vs-prior delta (Figma:
+// green = good, red = bad). Only one is shown — trend takes precedence when present.
+type Trend = { text: string; tone: "good" | "bad" };
+const MetricCard = ({
+  label,
+  value,
+  hint,
+  trend,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  trend?: Trend;
+}) => (
   <div className={cn(cardClass, "flex h-21 flex-1 flex-col justify-between p-3")}>
     <span className="text-[13px] text-muted-foreground">{label}</span>
     <span className="flex items-baseline gap-2">
-      <span className="text-[18px] font-semibold tracking-[-0.01em] text-foreground tabular-nums">
+      {/* Figma value style (uniform across cards): Inter 18px / wght 540 / lh1.15 / +0.36px /
+          gray-900. font-sans rebinds the weight axis so font-[540] actually renders. */}
+      <span className="font-sans text-[18px] leading-[1.15] font-[540] tracking-[0.36px] text-gray-900 tabular-nums">
         {value}
       </span>
-      {hint ? <span className="text-[13px] text-muted-foreground">{hint}</span> : null}
+      {trend ? (
+        <span
+          className={cn(
+            "text-[13px] tabular-nums",
+            trend.tone === "good" ? "text-emerald-600" : "text-red-500",
+          )}
+        >
+          {trend.text}
+        </span>
+      ) : hint ? (
+        <span className="text-[13px] text-muted-foreground">{hint}</span>
+      ) : null}
     </span>
   </div>
 );
 
-// ── Dropoff per question panel (Figma 26992:11281) ──────────────────────────
-// Same proportional-bar rows as StatCard, but value is a % and there's no leading
-// icon. Capped height + bottom fade hint at the scrollable overflow.
-type DropoffRow = { label: string; rate: number };
-const DropoffQuestionsCard = ({ rows }: { rows: DropoffRow[] }) => {
-  const max = Math.max(1, ...rows.map((r) => r.rate));
+// Build a signed "+4.2%" / "−3%" trend. `goodWhenUp` flips the color semantics (more submissions =
+// good/green; more dropoffs = bad/red). null delta → no hint.
+const pctTrend = (delta: number | null, goodWhenUp: boolean): Trend | undefined => {
+  if (delta == null) return undefined;
+  const up = delta > 0;
+  return { text: `${up ? "+" : ""}${delta}%`, tone: up === goodWhenUp ? "good" : "bad" };
+};
+
+// Avg-time delta (ms): negative = faster = good (Figma "18s faster"). 0 / null → no hint.
+const durationTrend = (deltaMs: number | null): Trend | undefined => {
+  if (deltaMs == null || deltaMs === 0) return undefined;
+  const seconds = Math.round(Math.abs(deltaMs) / 1000);
+  if (seconds === 0) return undefined;
+  const faster = deltaMs < 0;
+  return { text: `${seconds}s ${faster ? "faster" : "slower"}`, tone: faster ? "good" : "bad" };
+};
+
+// ── Per-question bar panels (Figma 26992:11281) ─────────────────────────────
+// Proportional-bar rows (no leading icon), bar width = value / max. Used by both "Dropoff per
+// question" (% value) and "Time per question" (seconds). Capped height + bottom fade for overflow.
+type QuestionBarRow = { label: string; value: number };
+const QuestionBarListCard = ({
+  title,
+  rows,
+  format,
+}: {
+  title: string;
+  rows: QuestionBarRow[];
+  format: (value: number) => string;
+}) => {
+  const max = Math.max(1, ...rows.map((r) => r.value));
   return (
     <div className="bg-gray-0 relative flex h-[210px] flex-col gap-[14px] overflow-hidden rounded-[12px] border border-[var(--color-gray-100)] px-1.5 pt-[14px] pb-2 dark:bg-[#1c1c1c]">
-      <h3 className="px-2 text-[15px] font-medium tracking-[0.02em] text-gray-800">
-        Dropoff per question
-      </h3>
+      <h3 className="px-2 text-[15px] font-medium tracking-[0.02em] text-gray-800">{title}</h3>
       {rows.length === 0 ? (
         <p className="px-2 pb-3 text-[13px] text-muted-foreground">No data yet</p>
       ) : (
@@ -196,14 +245,14 @@ const DropoffQuestionsCard = ({ rows }: { rows: DropoffRow[] }) => {
               <span
                 aria-hidden
                 className="absolute inset-y-0 left-0 rounded-lg bg-[var(--color-gray-100)]"
-                style={{ width: `${Math.max(12, (row.rate / max) * 100)}%` }}
+                style={{ width: `${Math.max(12, (row.value / max) * 100)}%` }}
               />
               <div className="relative flex w-full items-center gap-2 px-2">
                 <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.02em] text-gray-600">
                   {row.label}
                 </span>
                 <span className="shrink-0 text-[14px] tracking-[0.02em] text-gray-800 tabular-nums">
-                  {Math.round(row.rate)}%
+                  {format(row.value)}
                 </span>
               </div>
             </li>
@@ -285,8 +334,8 @@ const StatCard = ({
 
 // ── Answer cards (Answers tab, Figma 26844:15323) ───────────────────────────
 const answerCardClass = cn(cardClass, "p-[14px]");
-// Choice/rating questions render a donut; everything else a top-answers bar list.
-const DONUT_TYPES = new Set(["MultiChoice", "Checkbox", "Ranking", "Rating", "LinearScale"]);
+// Render shape comes from the server's `analysis` discriminator: `choice` → donut, everything
+// else (domain/length/presence/raw) → bar list. Rating/scale donuts use the gold palette.
 const RATING_TYPES = new Set(["Rating", "LinearScale"]);
 const GOLD_PALETTE = ["#fcca3f", "#f2b202", "#d99800", "#b18202", "#8a6500"];
 
@@ -369,7 +418,9 @@ const SectionToolbar = ({
         <DropdownMenuTrigger
           render={
             <Button
-              variant="ghost"
+              // ghost-flat (not ghost): ghost keeps the base 1px transparent border + bg-clip-padding,
+              // which insets its filled bg ~2px vs the border-none Export button → height mismatch.
+              variant="ghost-flat"
               size="sm"
               suffix={<ChevronDown className="size-4 shrink-0" />}
               className="h-7 rounded-lg bg-secondary px-2 font-case text-base font-[450] tracking-[0.14px] text-gray-800 hover:bg-secondary/80"
@@ -432,9 +483,11 @@ const AnalyticsPage = () => {
     [metrics?.dailyData],
   );
 
+  // Completion rate uses the authoritative submission count; cap at 100% (untracked submissions can
+  // exceed tracked visits in a range).
   const completionRate =
     metrics && metrics.totalVisits > 0
-      ? Math.round((metrics.totalSubmissions / metrics.totalVisits) * 100)
+      ? Math.min(100, Math.round((metrics.completedSubmissions / metrics.totalVisits) * 100))
       : 0;
 
   const breakdowns = {
@@ -503,7 +556,21 @@ const AnalyticsPage = () => {
     enabled: tab === "answers",
   });
   const answers: FormAnswerMetrics | undefined = answersData;
-  const answerQuestions = answers?.questions ?? [];
+  // Only render questions with a meaningful chart/list: choice fields (donut), Email (domain
+  // list), and Matrix. Free-text length, presence (upload/signature), URL, Number/Date/Time/Phone
+  // are intentionally hidden — a per-answer bar there is noise. Skip empty cards (no answers yet),
+  // then group all donuts first and all lists after (Figma layout).
+  const answerQuestions = useMemo(() => {
+    const visible = (answers?.questions ?? []).filter(
+      (q) =>
+        (q.analysis === "choice" || q.fieldType === "Email" || q.fieldType === "Matrix") &&
+        q.answered > 0 &&
+        q.distribution.length > 0,
+    );
+    const charts = visible.filter((q) => q.analysis === "choice");
+    const lists = visible.filter((q) => q.analysis !== "choice");
+    return [...charts, ...lists];
+  }, [answers?.questions]);
 
   // Most-skipped = least-answered question → Q-number + skip rate.
   const mostSkipped = useMemo(() => {
@@ -579,20 +646,27 @@ const AnalyticsPage = () => {
               onExport={handleExport}
             />
 
-            {/* Metric cards */}
+            {/* Metric cards — values + "vs previous period" trends. */}
             <div className="mt-5 flex gap-3">
               <MetricCard
                 label="Visits"
                 value={numberFormatter.format(metrics?.totalVisits ?? 0)}
+                trend={pctTrend(metrics?.visitsDeltaPct ?? null, true)}
               />
               <MetricCard
                 label="Submissions"
-                value={numberFormatter.format(metrics?.totalSubmissions ?? 0)}
+                value={numberFormatter.format(metrics?.completedSubmissions ?? 0)}
+                trend={pctTrend(metrics?.submissionsDeltaPct ?? null, true)}
               />
-              <MetricCard label="Completion rate" value={`${completionRate}%`} />
+              <MetricCard
+                label="Completion rate"
+                value={`${completionRate}%`}
+                trend={pctTrend(metrics?.completionRateDeltaPts ?? null, true)}
+              />
               <MetricCard
                 label="Avg. time"
                 value={formatDuration(metrics?.avgVisitDurationMs ?? 0)}
+                trend={durationTrend(metrics?.avgDurationDeltaMs ?? null)}
               />
             </div>
 
@@ -634,21 +708,34 @@ const AnalyticsPage = () => {
               onExport={handleExport}
             />
 
-            {/* Stat cards (Figma 26889:17288) — deltas omitted (no prior-period source). */}
+            {/* Stat cards (Figma 26889:17288) — values + "vs previous period" trends. */}
             <div className="mt-5 flex gap-3">
-              <MetricCard label="Total dropoffs" value={numberFormatter.format(totalDropoffs)} />
+              <MetricCard
+                label="Total dropoffs"
+                value={numberFormatter.format(totalDropoffs)}
+                trend={pctTrend(dropoff?.totalDropoffsDeltaPct ?? null, false)}
+              />
               <MetricCard
                 label="Biggest drop-off"
                 value={biggestDropoff?.qLabel ?? "—"}
-                hint={biggestDropoff ? `${Math.round(biggestDropoff.rate)}% skip rate` : undefined}
+                // Skip rate is a loss metric (Figma shows it red). Red once there's an actual rate;
+                // 0% stays muted (no dropoffs to flag).
+                hint={biggestDropoff && biggestDropoff.rate <= 0 ? "0% skip rate" : undefined}
+                trend={
+                  biggestDropoff && biggestDropoff.rate > 0
+                    ? { text: `${Math.round(biggestDropoff.rate)}% skip rate`, tone: "bad" }
+                    : undefined
+                }
               />
               <MetricCard
                 label="Submissions"
-                value={numberFormatter.format(dropoff?.totalCompleted ?? 0)}
+                value={numberFormatter.format(dropoff?.completedSubmissions ?? 0)}
+                trend={pctTrend(metrics?.submissionsDeltaPct ?? null, true)}
               />
               <MetricCard
                 label="Avg. time"
                 value={formatDuration(metrics?.avgVisitDurationMs ?? 0)}
+                trend={durationTrend(metrics?.avgDurationDeltaMs ?? null)}
               />
             </div>
 
@@ -668,9 +755,21 @@ const AnalyticsPage = () => {
               )}
             </div>
 
-            {/* Per-question drop-off (Time-per-question panel omitted — no per-question timing). */}
-            <div className="mt-5">
-              <DropoffQuestionsCard rows={dropoffRows} />
+            {/* Per-question panels (Figma 26992:11281) — drop-off % and avg time, side by side. */}
+            <div className="mt-5 grid grid-cols-2 gap-5">
+              <QuestionBarListCard
+                title="Dropoff per question"
+                rows={dropoffRows.map((r) => ({ label: r.label, value: r.rate }))}
+                format={(v) => `${Math.round(v)}%`}
+              />
+              <QuestionBarListCard
+                title="Time per question"
+                rows={(dropoff?.timePerQuestion ?? []).map((q) => ({
+                  label: q.label,
+                  value: q.avgMs,
+                }))}
+                format={(ms) => `${Math.round(ms / 1000)}s`}
+              />
             </div>
           </>
         )}
@@ -684,29 +783,43 @@ const AnalyticsPage = () => {
               onExport={handleExport}
             />
 
-            {/* Stat cards (Figma 26844:15300) — deltas omitted (no prior-period source). */}
+            {/* Stat cards (Figma 26844:15300) — values + "vs previous period" trends. */}
             <div className="mt-5 flex gap-3">
               <MetricCard
                 label="Submissions"
                 value={numberFormatter.format(answers?.submissions ?? 0)}
+                trend={pctTrend(metrics?.submissionsDeltaPct ?? null, true)}
               />
               <MetricCard
                 label="Most skipped"
                 value={mostSkipped?.qLabel ?? "—"}
-                hint={mostSkipped ? `${mostSkipped.skip}% skip rate` : undefined}
+                // Skip rate is a loss metric (Figma red); red once there's a rate, 0% stays muted.
+                hint={mostSkipped && mostSkipped.skip <= 0 ? "0% skip rate" : undefined}
+                trend={
+                  mostSkipped && mostSkipped.skip > 0
+                    ? { text: `${mostSkipped.skip}% skip rate`, tone: "bad" }
+                    : undefined
+                }
               />
               <MetricCard
                 label="Avg. answered"
                 value={String(Math.round(answers?.avgAnswered ?? 0))}
-                hint={
+                // Fill rate (avg answered / total questions): green ≥ 50%, red below.
+                trend={
                   answers && answers.totalQuestions > 0
-                    ? `${Math.round((answers.avgAnswered / answers.totalQuestions) * 100)}% fill rate`
+                    ? (() => {
+                        const fill = Math.round(
+                          (answers.avgAnswered / answers.totalQuestions) * 100,
+                        );
+                        return { text: `${fill}% fill rate`, tone: fill >= 50 ? "good" : "bad" };
+                      })()
                     : undefined
                 }
               />
               <MetricCard
                 label="Avg. time"
                 value={formatDuration(metrics?.avgVisitDurationMs ?? 0)}
+                trend={durationTrend(metrics?.avgDurationDeltaMs ?? null)}
               />
             </div>
 
@@ -718,7 +831,7 @@ const AnalyticsPage = () => {
             ) : (
               <div className="mt-5 grid grid-cols-2 gap-5">
                 {answerQuestions.map((q) =>
-                  DONUT_TYPES.has(q.fieldType) ? (
+                  q.analysis === "choice" ? (
                     <AnswerDonutCard key={q.id} q={q} />
                   ) : (
                     <AnswerBarCard

@@ -132,11 +132,12 @@ export const OptionOrdinalBadge = ({
 }) => (
   <span
     className={cn(
-      // Match the editor badge (form-option-item-node): dark gray-900 text @ 12px Medium, flat.
-      // Pinned grays (not --form-input-bg, which themed forms remap to white). Selected flips to a
-      // white badge on the gray-200 row pill (Figma 25578:9719/9720); default is a gray-100 fill.
-      "flex size-4 shrink-0 items-center justify-center rounded-[4px] text-[12px]! leading-none font-medium text-gray-900",
-      selected ? "bg-white" : "bg-gray-100",
+      // Match the editor badge (form-option-item-node): 12px Medium, flat. Default uses the themed
+      // secondary fill/text (→ --bf-secondary) so the badge follows form customization while staying
+      // contrast-paired. Selected flips to a neutral white highlight on the selected row pill (Figma
+      // 25578:9719/9720) — kept pinned so the "lit" state stays legible on any theme.
+      "flex size-4 shrink-0 items-center justify-center rounded-[4px] text-[12px]! leading-none font-medium",
+      selected ? "bg-white text-gray-900" : "bg-secondary text-secondary-foreground",
       hasErrors && !selected && "ring-1 ring-destructive",
     )}
   >

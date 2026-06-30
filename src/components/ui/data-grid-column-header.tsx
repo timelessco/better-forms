@@ -1,4 +1,11 @@
-import { HTMLAttributes, ReactNode, useCallback, useState } from "react";
+import {
+  HTMLAttributes,
+  ReactNode,
+  useCallback,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -27,9 +34,9 @@ import {
   ArrowRightToLine,
   ArrowUp,
   PinOff,
-  Search,
   Settings2,
 } from "lucide-react";
+import { FigSearchAltIcon } from "@/components/dashboard/dashboard-icons";
 
 interface DataGridColumnHeaderProps<
   TData extends RowData,
@@ -75,6 +82,82 @@ const TruncatedLabel = ({ title }: { title: string }) => {
   );
 };
 
+// Which column currently shows its in-header search input. Kept in a MODULE-LEVEL store (not
+// component state) so the flag survives a header remount: committing a column filter re-renders
+// the data grid and remounts the header cell, which would reset a local `useState(false)` and
+// snap the cell back to its label — losing the input and its focus. Only one column searches at a
+// time, which is the desired behavior. Reading goes through useSyncExternalStore (no useEffect).
+const colSearchStore = {
+  current: null as string | null,
+  listeners: new Set<() => void>(),
+  subscribe: (listener: () => void) => {
+    colSearchStore.listeners.add(listener);
+    return () => colSearchStore.listeners.delete(listener);
+  },
+  get: (): string | null => colSearchStore.current,
+  set: (id: string | null) => {
+    if (colSearchStore.current === id) return;
+    colSearchStore.current = id;
+    colSearchStore.listeners.forEach((listener) => listener());
+  },
+};
+
+// Per-column search input (Figma 27015:18967). The value lives in LOCAL state and the commit to
+// column.setFilterValue is debounced, so typing never re-renders the table mid-keystroke — the
+// input can't remount or lose focus. This is the TanStack "DebouncedInput" filter pattern
+// (https://github.com/tanstack/table .../examples/react/filters), done without useEffect.
+const ColumnSearchInput = <TData extends RowData, TValue>({
+  column,
+  title,
+  onExit,
+}: {
+  column: Column<DataGridFeatures, TData, TValue>;
+  title: string;
+  onExit: () => void;
+}) => {
+  const [value, setValue] = useState((column.getFilterValue() as string | undefined) ?? "");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const commit = useCallback(
+    (next: string) => {
+      setValue(next);
+      clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => column.setFilterValue(next || undefined), 250);
+    },
+    [column],
+  );
+
+  return (
+    <div className="flex h-full w-full items-center">
+      {/* Figma 27015:18967 — gray/100 fill, 7px radius, px-8/py-6, no icon, gray-600 13px/420 text. */}
+      <div className="flex h-7 w-full items-center rounded-[7px] bg-secondary px-2">
+        <input
+          // eslint-disable-next-line jsx-a11y/no-autofocus -- focus lands on the field the user opened
+          autoFocus
+          value={value}
+          onChange={(e) => commit(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              clearTimeout(debounceRef.current);
+              column.setFilterValue(undefined);
+              onExit();
+            }
+          }}
+          onBlur={() => {
+            // flush the pending debounce; exit back to the header only when left empty
+            clearTimeout(debounceRef.current);
+            column.setFilterValue(value || undefined);
+            if (!value) onExit();
+          }}
+          placeholder={title}
+          aria-label={`Search ${title}`}
+          className="min-w-0 flex-1 bg-transparent text-[13px] font-[420] tracking-[0.26px] text-gray-600 outline-none placeholder:text-gray-500"
+        />
+      </div>
+    </div>
+  );
+};
+
 export const DataGridColumnHeader = <TData extends RowData, TValue>({
   column,
   title = "",
@@ -89,9 +172,16 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
   const pinDirection = useColumnPinned(table, column.id);
 
   // Per-column search (Figma 27015:17071/18967): hover → search icon; click → in-header filter input.
-  const [isSearching, setIsSearching] = useState(false);
-  const filterValue = (column.getFilterValue() as string | undefined) ?? "";
+  // isSearching reads a module store (not useState) so it survives the header remount on filter commit.
+  const searchingColumnId = useSyncExternalStore(
+    colSearchStore.subscribe,
+    colSearchStore.get,
+    colSearchStore.get,
+  );
+  const isSearching = searchingColumnId === column.id;
   const canSearch = searchable && column.getCanFilter();
+  const openSearch = useCallback(() => colSearchStore.set(column.id), [column.id]);
+  const exitSearch = useCallback(() => colSearchStore.set(null), []);
 
   const getFullOrder = () => {
     const stateOrder = table.state.columnOrder;
@@ -335,35 +425,6 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
     </div>
   );
 
-  // In-header filter input (Figma 27015:18967): the column header becomes a search box scoped to
-  // this column. Esc / empty-blur exits; clearing also clears the column filter.
-  const searchInput = (
-    <div className="flex h-full w-full items-center">
-      {/* Figma 27015:18967 — borderless gray-filled rounded pill, gray placeholder + search glyph. */}
-      <div className="flex h-7 w-full items-center gap-1.5 rounded-lg bg-secondary px-2 shadow-sm">
-        <input
-          // eslint-disable-next-line jsx-a11y/no-autofocus -- focus lands on the field the user opened
-          autoFocus
-          value={filterValue}
-          onChange={(e) => column.setFilterValue(e.target.value || undefined)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              column.setFilterValue(undefined);
-              setIsSearching(false);
-            }
-          }}
-          onBlur={() => {
-            if (!filterValue) setIsSearching(false);
-          }}
-          placeholder={title}
-          aria-label={`Search ${title}`}
-          className="min-w-0 flex-1 bg-transparent text-[13px] font-normal text-gray-700 outline-none placeholder:text-gray-500"
-        />
-        <Search className="size-3.5 shrink-0 text-gray-500" aria-hidden="true" />
-      </div>
-    </div>
-  );
-
   // Wrap a header body with the hover search affordance. A block wrapper with right padding shrinks
   // the body's content box so the title truncates (→ "…") within it; the icon sits absolutely in
   // that reserved gap, so it never overlaps the label. Padding is always present (no hover shift).
@@ -375,19 +436,21 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            setIsSearching(true);
+            openSearch();
           }}
           aria-label={`Search ${title}`}
-          className="absolute end-1.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/colsearch:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100"
+          // Figma 27015:17071 — revealed icon only, no background pill; darkens on direct hover.
+          className="absolute end-1.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center text-muted-foreground opacity-0 transition-[opacity,color] group-hover/colsearch:opacity-100 hover:text-gray-800 focus-visible:opacity-100"
         >
-          <Search className="size-3.5" />
+          <FigSearchAltIcon className="size-4" />
         </button>
       </div>
     ) : (
       body
     );
 
-  if (canSearch && isSearching) return searchInput;
+  if (canSearch && isSearching)
+    return <ColumnSearchInput column={column} title={title} onExit={exitSearch} />;
 
   if (
     props.tableLayout?.columnsMovable ||
