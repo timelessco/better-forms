@@ -81,6 +81,9 @@ describe("mergeDropoffMetrics", () => {
       totalStarted: 0,
       totalCompleted: 0,
       overallCompletionRate: 0,
+      completedSubmissions: 0,
+      totalDropoffsDeltaPct: null,
+      timePerQuestion: [],
     });
   });
 
