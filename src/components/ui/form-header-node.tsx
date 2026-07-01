@@ -16,6 +16,7 @@ import {
   ImageCropApply,
   ImageCropReset,
 } from "@/components/ui/image-crop";
+import { DEFAULT_COVER_POSITION } from "@/lib/form-schema/form-header-factory";
 import type { FormHeaderElementData } from "@/lib/form-schema/form-header-factory";
 import { THEME_COLORS } from "@/lib/theme/theme-presets";
 import { DEFAULT_ICON } from "@/lib/config/app-config";
@@ -521,7 +522,7 @@ export const FormHeaderElement = (props: PlateElementProps) => {
     [handleCoverChange],
   );
 
-  const coverPosition = (element.coverPosition as number | undefined) ?? 50;
+  const coverPosition = (element.coverPosition as number | undefined) ?? DEFAULT_COVER_POSITION;
   const handleCoverPositionChange = useCallback(
     (pos: number) => updateHeader({ coverPosition: pos }),
     [updateHeader],
@@ -942,7 +943,7 @@ const HeaderCoverSection = ({
       <div
         ref={coverRef}
         className={cn(
-          "group/cover relative right-[50%] left-[50%] -mr-[50cqw] -ml-[50cqw] h-[120px] w-[100cqw] bg-muted/20 sm:h-[200px]",
+          "group/cover relative right-[50%] left-[50%] -mr-[50cqw] -ml-[50cqw] h-[146px] w-[100cqw] bg-muted/20 sm:h-[243px]",
           repositioning && "cursor-grab touch-none active:cursor-grabbing",
         )}
         data-bf-cover

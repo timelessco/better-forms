@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as v from "valibot";
 import { CheckIcon } from "@/components/ui/icons";
 import {
   FigBulletListIcon,
   FigFilterIcon,
+  FigSearchAltIcon,
   FigSmallDownIcon,
   FigTilesIcon,
 } from "@/components/dashboard/dashboard-icons";
@@ -129,7 +130,12 @@ const TemplateCard = ({ template }: { template: FormTemplateMeta }) => (
     preload="intent"
     className="group bg-gray-0 relative flex flex-col rounded-[12px] border border-gray-100 px-1.5 pt-1.5 pb-2 transition-[background-color,box-shadow] duration-200 outline-none hover:elevation-card focus-visible:ring-2 focus-visible:elevation-card focus-visible:ring-ring/50"
   >
-    <FormCardThumbnail title={template.label} cover={template.cover} />
+    <FormCardThumbnail
+      title={template.label}
+      cover={template.cover}
+      preview={template.thumbnail}
+      previewDark={template.thumbnailDark}
+    />
     <div className="mt-3 flex w-full flex-col gap-1.5 px-1">
       <p className="truncate text-base font-medium tracking-[0.28px] text-foreground">
         {template.label}
@@ -154,7 +160,12 @@ const TemplateListRow = ({ template }: { template: FormTemplateMeta }) => (
     className="group flex h-11 items-center gap-8 rounded-lg border-b border-gray-100 px-1 transition-colors outline-none hover:bg-secondary focus-visible:bg-secondary"
   >
     <div className="flex min-w-0 flex-1 items-center gap-2 pl-1">
-      <FormListThumbnail title={template.label} cover={template.cover} />
+      <FormListThumbnail
+        title={template.label}
+        cover={template.cover}
+        preview={template.thumbnail}
+        previewDark={template.thumbnailDark}
+      />
       <span className="shrink-0 truncate text-base font-[450] tracking-[0.28px] text-gray-800">
         {template.label}
       </span>
@@ -170,6 +181,51 @@ const TemplateListRow = ({ template }: { template: FormTemplateMeta }) => (
     </span>
   </Link>
 );
+
+// Inline gallery search — matches the dashboard's search pill (gray/100, 170px, search-alt icon,
+// "Search" placeholder). Writes ?q= (debounced); the gallery reads it.
+const TemplatesSearch = () => {
+  const navigate = useNavigate();
+  const { q = "" } = Route.useSearch();
+  const [input, setInput] = useState(q);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Reconcile local input with the URL param when it changes externally (back/forward, clear) —
+  // render-time adjustment, not an effect, so in-flight keystrokes are never dropped.
+  const [prevQ, setPrevQ] = useState(q);
+  if (prevQ !== q) {
+    setPrevQ(q);
+    setInput(q);
+  }
+
+  const handleChange = (value: string) => {
+    setInput(value);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const next = value.trim() || undefined;
+      if ((q || undefined) === next) return; // skip redundant navigation when the query is unchanged
+      void navigate({
+        to: "/templates",
+        search: (prev) => ({ ...prev, q: next }),
+        replace: true,
+      });
+    }, 200);
+  };
+
+  return (
+    <div className="flex h-7 w-[170px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2">
+      <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
+      <input
+        type="search"
+        value={input}
+        onChange={(e) => handleChange(e.target.value)}
+        placeholder="Search"
+        aria-label="Search templates"
+        className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
+      />
+    </div>
+  );
+};
 
 const TemplatesGalleryPage = () => {
   const navigate = useNavigate();
@@ -194,9 +250,17 @@ const TemplatesGalleryPage = () => {
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background text-foreground">
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8 md:px-12 md:py-12 lg:px-20">
         <section className="flex flex-col gap-5">
-          <div className="flex items-center justify-end gap-2">
-            <CategoryFilter current={category} onChange={setCategory} />
-            <ViewToggle mode={viewMode} onChange={setViewMode} />
+          <div className="flex items-center justify-between gap-3">
+            {/* Section title — matches the dashboard's "Recent Forms" heading (font-sans rebinds the
+                wght axis so font-semibold renders 600, not the pinned 450). */}
+            <h2 className="font-sans text-[15px] leading-[1.15] font-semibold tracking-[0.225px] text-gray-950">
+              Templates
+            </h2>
+            <div className="flex items-center gap-2">
+              <TemplatesSearch />
+              <CategoryFilter current={category} onChange={setCategory} />
+              <ViewToggle mode={viewMode} onChange={setViewMode} />
+            </div>
           </div>
 
           {visibleTemplates.length === 0 ? (

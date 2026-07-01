@@ -1,3 +1,4 @@
+import { Image } from "@/components/ui/image";
 import { isHexColor, isValidUrl, cn } from "@/lib/utils";
 
 // Default cover from Figma (saved locally in /public) — same asset the editor's "Add cover" applies.
@@ -15,12 +16,63 @@ const resolveThumbnail = (cover?: string | null, preview?: string | null) => {
   return { coverColor: null, coverImage };
 };
 
+// One thumbnail image, or a light/dark pair when a dark variant exists (template previews carry both;
+// the pair swaps on the `.dark` class so the screenshot matches the app theme — no JS, no flicker).
+const ThumbnailImage = ({
+  src,
+  dark,
+  width,
+  height,
+  sizes,
+}: {
+  src: string;
+  dark: string | null;
+  width: number;
+  height: number;
+  sizes?: string;
+}) => {
+  if (!dark) {
+    return (
+      <Image
+        src={src}
+        alt=""
+        width={width}
+        height={height}
+        sizes={sizes}
+        className="size-full object-cover"
+      />
+    );
+  }
+  return (
+    <>
+      <Image
+        src={src}
+        alt=""
+        width={width}
+        height={height}
+        sizes={sizes}
+        className="size-full object-cover dark:hidden"
+      />
+      <Image
+        src={dark}
+        alt=""
+        width={width}
+        height={height}
+        sizes={sizes}
+        className="hidden size-full object-cover dark:block"
+      />
+    </>
+  );
+};
+
 type FormCardThumbnailProps = {
   title: string;
   /** Form cover — image URL or hex color. Falls back to the default cover image when unset. */
   cover?: string | null;
   /** Generated content thumbnail (Plate render). Takes precedence over `cover`. */
   preview?: string | null;
+  /** Dark-mode variant of `preview` (template previews only); shown under `.dark`. */
+  previewDark?: string | null;
   className?: string;
 };
 
@@ -30,9 +82,16 @@ type FormCardThumbnailProps = {
  * Prefers the generated content thumbnail; otherwise shows the form's cover (image URL or solid hex
  * color), falling back to the default cover image so every card reads as a real form thumbnail.
  */
-export const FormCardThumbnail = ({ title, cover, preview, className }: FormCardThumbnailProps) => {
+export const FormCardThumbnail = ({
+  title,
+  cover,
+  preview,
+  previewDark,
+  className,
+}: FormCardThumbnailProps) => {
   const { coverColor, coverImage } = resolveThumbnail(cover, preview);
   const displayTitle = title?.trim() || "Untitled";
+  const darkImage = previewDark && isValidUrl(previewDark) ? previewDark : null;
 
   return (
     <div
@@ -40,7 +99,15 @@ export const FormCardThumbnail = ({ title, cover, preview, className }: FormCard
       style={coverColor ? { backgroundColor: coverColor } : undefined}
       aria-hidden
     >
-      {coverImage && <img src={coverImage} alt="" className="size-full object-cover" />}
+      {coverImage && (
+        <ThumbnailImage
+          src={coverImage}
+          dark={darkImage}
+          width={400}
+          height={90}
+          sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+        />
+      )}
       <span className="sr-only">{displayTitle}</span>
     </div>
   );
@@ -52,12 +119,21 @@ type FormListThumbnailProps = {
   cover?: string | null;
   /** Generated content thumbnail (Plate render). Takes precedence over `cover`. */
   preview?: string | null;
+  /** Dark-mode variant of `preview` (template previews only); shown under `.dark`. */
+  previewDark?: string | null;
   className?: string;
 };
 
 /** Compact 36×20 landscape cover thumbnail for the dashboard's table/list rows (Figma 26235:8804). */
-export const FormListThumbnail = ({ title, cover, preview, className }: FormListThumbnailProps) => {
+export const FormListThumbnail = ({
+  title,
+  cover,
+  preview,
+  previewDark,
+  className,
+}: FormListThumbnailProps) => {
   const { coverColor, coverImage } = resolveThumbnail(cover, preview);
+  const darkImage = previewDark && isValidUrl(previewDark) ? previewDark : null;
 
   return (
     <div
@@ -68,7 +144,10 @@ export const FormListThumbnail = ({ title, cover, preview, className }: FormList
       style={coverColor ? { backgroundColor: coverColor } : undefined}
       aria-hidden
     >
-      {coverImage && <img src={coverImage} alt="" className="size-full object-cover" />}
+      {/* 36×20 CSS box; sizes matches so 2× displays fetch the 72w variant, not 144w. */}
+      {coverImage && (
+        <ThumbnailImage src={coverImage} dark={darkImage} width={72} height={40} sizes="36px" />
+      )}
       <span className="sr-only">{title?.trim() || "Untitled"}</span>
     </div>
   );

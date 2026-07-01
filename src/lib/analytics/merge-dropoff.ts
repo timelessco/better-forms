@@ -159,5 +159,11 @@ export const mergeDropoffMetrics = (args: MergeDropoffArgs): QuestionDropoffMetr
     totalStarted,
     totalCompleted,
     overallCompletionRate,
+    // Proxy default; getFormDropoffImpl overrides with the authoritative submissions-table count.
+    completedSubmissions: totalCompleted,
+    // Prior-period delta needs a second query; getFormDropoffImpl fills this in.
+    totalDropoffsDeltaPct: null,
+    // Per-question timing comes from raw progress rows; getFormDropoffImpl fills this in.
+    timePerQuestion: [],
   };
 };

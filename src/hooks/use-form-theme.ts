@@ -43,6 +43,23 @@ export const useReanchorThemeProps = (
   const { themeVars, hasCustomization } = useEditorTheme();
   return {
     className: cn(baseClassName, hasCustomization && "bf-themed") || undefined,
-    style: hasCustomization ? themeVars : undefined,
+    // Inside the popup, text contrasts with the popover SURFACE, not the body bg: remap
+    // --foreground/--muted-foreground to the popover ink so items that hardcode text-foreground /
+    // text-muted-foreground (country list, dropdown options) stay readable. Inline so it beats the
+    // body --foreground that themeVars also carries. --popover-foreground is derived in the theme
+    // engine (color-contrast) and rides along in themeVars.
+    style: hasCustomization
+      ? ({
+          ...themeVars,
+          // Base text color: set inline so it beats the `.bf-themed { color: var(--bf-foreground) }`
+          // root rule (which would otherwise paint popup text with the body color).
+          color: "var(--popover-foreground)",
+          "--foreground": "var(--popover-foreground)",
+          "--color-foreground": "var(--popover-foreground)",
+          "--muted-foreground": "color-mix(in srgb, var(--popover-foreground) 62%, var(--popover))",
+          "--color-muted-foreground":
+            "color-mix(in srgb, var(--popover-foreground) 62%, var(--popover))",
+        } as CSSProperties)
+      : undefined,
   };
 };

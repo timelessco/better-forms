@@ -92,6 +92,10 @@ export const stepFormReducer = (state: StepFormState, action: StepFormAction): S
 
 const StepFormContext = React.createContext<StepFormContextValue | null>(null);
 
+// Submission single-view renders the form read-only: hides interactive affordances
+// (repeatable add/remove, step nav) so it reads as a record, not an editable form.
+export const FormPreviewReadOnlyContext = React.createContext(false);
+
 export const useStepForm = () => {
   const context = React.use(StepFormContext);
   if (!context) {

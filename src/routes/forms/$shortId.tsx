@@ -208,8 +208,10 @@ export const Route = createFileRoute("/forms/$shortId")({
       ],
       scripts: [
         {
-          // Apply theme before paint — viewer override > creator default > system
-          children: `(function(){try{var d=document.documentElement;var override=null;try{override=window.localStorage.getItem("bf-form-theme:${shortId}");}catch(e){}var def=${JSON.stringify(defaultMode)};var pick=override||def;var m=pick==="system"?(window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"):pick;d.classList.remove("light","dark");d.classList.add(m);d.style.colorScheme=m;}catch(e){}})();`,
+          // Apply theme before paint — viewer override > creator default > system. Also paint the
+          // resolved background on <html> pre-paint (CSS is already inlined above, so the var
+          // resolves immediately) so there's no white flash before the body bg applies post-hydration.
+          children: `(function(){try{var d=document.documentElement;var override=null;try{override=window.localStorage.getItem("bf-form-theme:${shortId}");}catch(e){}var def=${JSON.stringify(defaultMode)};var pick=override||def;var m=pick==="system"?(window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"):pick;d.classList.remove("light","dark");d.classList.add(m);d.style.colorScheme=m;d.style.backgroundColor="var(--color-background)";}catch(e){}})();`,
         },
 
         {

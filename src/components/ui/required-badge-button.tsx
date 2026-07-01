@@ -48,6 +48,10 @@ const RequiredBadge = ({
             )}
             contentEditable={false}
             data-bf-drag-ignore="true"
+            // Keep the editor's selection on click: mousedown fires first and would collapse the
+            // Slate DOM selection (often to the doc start), so the subsequent setNodes triggers
+            // scrollSelectionIntoView → the page jumps to the top. preventDefault stops that.
+            onMouseDown={(e) => e.preventDefault()}
             onClick={onToggle}
             type="button"
           >

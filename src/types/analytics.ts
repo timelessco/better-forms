@@ -120,8 +120,21 @@ export interface FormInsightsMetrics {
   totalVisits: number;
   uniqueVisitors: number;
   totalSubmissions: number;
+  /** Authoritative completed-submission count from the `submissions` table (range-filtered) —
+   * the same number the Answers/Submissions views show. Use this for the "Submissions" stat and
+   * completion rate so every tab agrees; `totalSubmissions` is the visit-attributed proxy. */
+  completedSubmissions: number;
   uniqueRespondents: number;
   avgVisitDurationMs: number;
+
+  /** "vs previous equal-length period" trends, shared by every tab's stat cards. null when the
+   * prior window has no comparable data (no chip shown). Pct = round((cur − prev) / prev × 100). */
+  visitsDeltaPct: number | null;
+  submissionsDeltaPct: number | null;
+  /** Completion-rate change in percentage POINTS (current − prior), not a ratio. */
+  completionRateDeltaPts: number | null;
+  /** Avg-visit-duration change vs prior window, ms (current − prior). Negative = faster. */
+  avgDurationDeltaMs: number | null;
 
   sources: CountBreakdown;
   devices: CountBreakdown;
@@ -163,6 +176,54 @@ export interface QuestionDropoffMetrics {
   totalStarted: number;
   totalCompleted: number;
   overallCompletionRate: number;
+  /** Authoritative completed-submission count from the `submissions` table (range-filtered), so the
+   * Dropoffs "Submissions" stat matches the Visits/Answers tabs; `totalCompleted` is the funnel proxy. */
+  completedSubmissions: number;
+  /** Dropoffs-specific "vs previous period" trend (submissions/avg-time deltas live on insights).
+   * null when the prior window has no dropoffs. Pct = round((cur − prev) / prev × 100). */
+  totalDropoffsDeltaPct: number | null;
+  /** Avg time spent per question (completedAt − startedAt from progress events), ms, desc by time. */
+  timePerQuestion: { questionIndex: number; label: string; avgMs: number }[];
+}
+
+/** One bucket in a question's answer distribution (option/value → count). */
+export interface AnswerDistributionItem {
+  label: string;
+  value: number;
+}
+
+/** How a question's free-form answers were aggregated into buckets — drives the render shape.
+ * - `choice`: finite option set (single/multi-select, ranking, rating, scale) → donut.
+ * - `domain`: email/URL answers reduced to their domain (gmail.com, behance.net) → bar list.
+ * - `length`: free text bucketed by response length (Very short…Detailed) → bar list.
+ * - `presence`: provided-or-not (file upload, signature) → Yes/No bar list.
+ * - `raw`: top distinct values for low-cardinality types (Number, Date, Time, Phone) → bar list. */
+export type AnswerAnalysis = "choice" | "domain" | "length" | "presence" | "raw";
+
+/** Aggregated answers for one question across submissions. */
+export interface QuestionAnswerSummary {
+  id: string;
+  questionIndex: number;
+  label: string;
+  fieldType: string;
+  /** How the distribution was aggregated; `choice` renders a donut, everything else a bar list. */
+  analysis: AnswerAnalysis;
+  /** # submissions that answered this question (non-empty). */
+  answered: number;
+  /** Bucket → count, sorted desc (or canonical order for length/presence); tail may roll into "Others". */
+  distribution: AnswerDistributionItem[];
+}
+
+export interface FormAnswerMetrics {
+  startDate: string;
+  endDate: string;
+  /** Completed submissions in range. */
+  submissions: number;
+  /** Editable, non-Button fields. */
+  totalQuestions: number;
+  /** Avg # of questions answered per submission. */
+  avgAnswered: number;
+  questions: QuestionAnswerSummary[];
 }
 
 /** Per-metric Core Web Vitals summary over a time range. */

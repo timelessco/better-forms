@@ -32,6 +32,7 @@ type FormHeaderData = {
   icon: string | null;
   iconColor: string | null;
   cover: string | null;
+  coverPosition: number | null;
 };
 
 export const extractFormHeader = (value: Value): FormHeaderData | null => {
@@ -42,6 +43,7 @@ export const extractFormHeader = (value: Value): FormHeaderData | null => {
       icon: (node.icon as string | null) || null,
       iconColor: (node.iconColor as string | null) || null,
       cover: (node.cover as string | null) || null,
+      coverPosition: (node.coverPosition as number | undefined) ?? null,
     };
   }
   return null;

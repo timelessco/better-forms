@@ -14,7 +14,12 @@ import {
   workspaces,
 } from "@/db/schema";
 import { buildDailyAnalyticsRows, buildDailyDropoffRows } from "@/lib/analytics/aggregate-utils";
-import { transformPlateForPreview } from "@/lib/editor/transform-plate-for-preview";
+import { cappedDurationMs } from "@/lib/analytics/duration";
+import {
+  EDITABLE_FIELD_TYPES,
+  getFieldsFromSegments,
+  transformPlateForPreview,
+} from "@/lib/editor/transform-plate-for-preview";
 import type { Value } from "platejs";
 import { isBotUserAgent } from "@/lib/analytics/bot-filter";
 import { PER_QUESTION_ANALYTICS_CUT_TS } from "@/lib/analytics/cut-date";
@@ -28,8 +33,12 @@ import { authForm } from "@/lib/server-fn/auth-helpers.server";
 import { isServerPlan } from "@/lib/server-fn/plan-helpers";
 import { getOrgPlanWithPolarSync } from "@/lib/server-fn/plan-helpers.server";
 import type {
+  AnswerAnalysis,
+  AnswerDistributionItem,
+  FormAnswerMetrics,
   FormInsightsMetrics,
   FormVitalsMetrics,
+  QuestionAnswerSummary,
   QuestionDropoffMetrics,
 } from "@/types/analytics";
 
@@ -363,6 +372,61 @@ export const recordQuestionProgressBatchImpl = async (
   return { ok: true, processed: data.items.length };
 };
 
+// Authoritative completed-submission count for a range, straight from the `submissions` table —
+// the same source the Answers/Submissions views use. Visits/Dropoffs show this so every tab agrees
+// (their visit/progress event tables are best-effort proxies that under- or over-count).
+const countCompletedSubmissions = async (
+  formId: string,
+  start: Date,
+  end: Date,
+): Promise<number> => {
+  const [row] = await db
+    .select({ value: count() })
+    .from(submissions)
+    .where(
+      and(
+        eq(submissions.formId, formId),
+        eq(submissions.isCompleted, true),
+        gte(submissions.createdAt, start),
+        lte(submissions.createdAt, end),
+      ),
+    );
+  return row?.value ?? 0;
+};
+
+// % change vs the prior equal-length window; null when prior is empty (can't divide → no hint).
+const pctChange = (current: number, prior: number): number | null =>
+  prior > 0 ? Math.round(((current - prior) / prior) * 100) : null;
+
+// Visit-weighted MEDIAN duration (ms) across daily rows — matches mergeInsightsMetrics (median, not
+// mean, so abandoned-tab outliers don't blow up the value). null when no day has a duration sample.
+const weightedMedianDurationMs = (
+  rows: readonly { medianDurationMs: number | null; totalVisits: number }[],
+): number | null => {
+  let weightedSum = 0;
+  let visits = 0;
+  for (const r of rows) {
+    if (r.medianDurationMs !== null && r.totalVisits > 0) {
+      weightedSum += cappedDurationMs(r.medianDurationMs) * r.totalVisits;
+      visits += r.totalVisits;
+    }
+  }
+  return visits > 0 ? Math.round(weightedSum / visits) : null;
+};
+
+const durationRowsForDays = async (formId: string, dayKeys: string[]) =>
+  dayKeys.length > 0
+    ? await db
+        .select({
+          medianDurationMs: formAnalyticsDaily.medianDurationMs,
+          totalVisits: formAnalyticsDaily.totalVisits,
+        })
+        .from(formAnalyticsDaily)
+        .where(
+          and(eq(formAnalyticsDaily.formId, formId), inArray(formAnalyticsDaily.date, dayKeys)),
+        )
+    : [];
+
 export const getFormInsightsImpl = async (
   data: InsightsFilterInput,
   context: { session: { user: { id: string } } },
@@ -405,7 +469,7 @@ export const getFormInsightsImpl = async (
           )
       : [];
 
-  return mergeInsightsMetrics({
+  const metrics = mergeInsightsMetrics({
     dailyRows,
     todayRawRows,
     startDate: data.startDate ?? toDateKey(range.start),
@@ -413,6 +477,35 @@ export const getFormInsightsImpl = async (
     days: range.days,
     todayKey: split.todayStart ? toDateKey(split.todayStart) : null,
   });
+
+  // "vs previous equal-length period" trends (shared by all tabs). Prior window is fully past →
+  // reads daily rollups + submissions table only.
+  const priorDays = priorDayKeys(range.days);
+  const priorStart = priorDays[0] ? new Date(`${priorDays[0]}T00:00:00.000Z`) : range.start;
+  const priorEnd = priorDays.at(-1) ? new Date(`${priorDays.at(-1)}T23:59:59.999Z`) : range.start;
+  const [completedSubmissions, priorSubmissions, curDurRows, priorDurRows] = await Promise.all([
+    countCompletedSubmissions(data.formId, range.start, range.end),
+    countCompletedSubmissions(data.formId, priorStart, priorEnd),
+    durationRowsForDays(data.formId, split.pastDays),
+    durationRowsForDays(data.formId, priorDays),
+  ]);
+  const priorVisits = priorDurRows.reduce((sum, r) => sum + r.totalVisits, 0);
+  const curAvg = weightedMedianDurationMs(curDurRows);
+  const priorAvg = weightedMedianDurationMs(priorDurRows);
+  const rate = (subs: number, visits: number): number =>
+    visits > 0 ? Math.min(100, Math.round((subs / visits) * 100)) : 0;
+
+  return {
+    ...metrics,
+    completedSubmissions,
+    visitsDeltaPct: pctChange(metrics.totalVisits, priorVisits),
+    submissionsDeltaPct: pctChange(completedSubmissions, priorSubmissions),
+    completionRateDeltaPts:
+      priorVisits > 0
+        ? rate(completedSubmissions, metrics.totalVisits) - rate(priorSubmissions, priorVisits)
+        : null,
+    avgDurationDeltaMs: curAvg !== null && priorAvg !== null ? curAvg - priorAvg : null,
+  };
 };
 
 /** Day keys for the period immediately before rangeDays (same length), for "vs prior" deltas.
@@ -586,7 +679,7 @@ export const getFormDropoffImpl = async (
     }
   }
 
-  return mergeDropoffMetrics({
+  const metrics = mergeDropoffMetrics({
     formId: data.formId,
     startDate: data.startDate ?? toDateKey(range.start),
     endDate: data.endDate ?? toDateKey(range.end),
@@ -594,6 +687,304 @@ export const getFormDropoffImpl = async (
     todayProgressRows,
     labelMap,
   });
+
+  // Total-dropoffs trend vs the prior equal-length window (submissions/avg-time deltas come from
+  // insights). Prior window is fully past → reads daily rollups only.
+  const priorDays = priorDayKeys(range.days);
+  const priorDropoffDailyRows =
+    enabled && priorDays.length > 0
+      ? await db
+          .select()
+          .from(formDropoffDaily)
+          .where(
+            and(
+              eq(formDropoffDaily.formId, data.formId),
+              inArray(formDropoffDaily.date, priorDays),
+              gte(formDropoffDaily.date, cutDateKey),
+            ),
+          )
+      : [];
+  const priorMetrics = mergeDropoffMetrics({
+    formId: data.formId,
+    startDate: priorDays[0] ?? "",
+    endDate: priorDays.at(-1) ?? "",
+    dailyRows: priorDropoffDailyRows,
+    todayProgressRows: [],
+    labelMap,
+  });
+
+  const totalDropoffs = metrics.totalStarted - metrics.totalCompleted;
+  const priorDropoffs = priorMetrics.totalStarted - priorMetrics.totalCompleted;
+
+  // Time per question = avg(completedAt − startedAt) over progress rows in range (timing isn't in
+  // the daily rollups, so read raw — retained 90d = max range). Cut-date gated like the rest.
+  const timingRows = enabled
+    ? await db
+        .select({
+          questionId: formQuestionProgress.questionId,
+          questionIndex: formQuestionProgress.questionIndex,
+          startedAt: formQuestionProgress.startedAt,
+          completedAt: formQuestionProgress.completedAt,
+        })
+        .from(formQuestionProgress)
+        .where(
+          and(
+            eq(formQuestionProgress.formId, data.formId),
+            gte(formQuestionProgress.viewedAt, range.start),
+            lte(formQuestionProgress.viewedAt, range.end),
+            gte(formQuestionProgress.viewedAt, cutDate),
+          ),
+        )
+    : [];
+
+  const timeAgg = new Map<string, { index: number; sum: number; n: number }>();
+  for (const r of timingRows) {
+    if (!r.startedAt || !r.completedAt) continue;
+    const ms = r.completedAt.getTime() - r.startedAt.getTime();
+    if (ms <= 0) continue; // guard clock skew / instant rows
+    const prev = timeAgg.get(r.questionId) ?? { index: r.questionIndex, sum: 0, n: 0 };
+    prev.sum += ms;
+    prev.n += 1;
+    timeAgg.set(r.questionId, prev);
+  }
+  const timePerQuestion = [...timeAgg.entries()]
+    .map(([questionId, { index, sum, n }]) => ({
+      questionIndex: index,
+      label: labelMap.get(questionId) ?? `Q${index + 1}`,
+      avgMs: Math.round(sum / n),
+    }))
+    .sort((a, b) => b.avgMs - a.avgMs);
+
+  return {
+    ...metrics,
+    completedSubmissions: await countCompletedSubmissions(data.formId, range.start, range.end),
+    totalDropoffsDeltaPct: pctChange(totalDropoffs, priorDropoffs),
+    timePerQuestion,
+  };
+};
+
+const ANSWER_SUBMISSION_CAP = 25_000;
+
+// Categorical fields → donut (capped at 6 + an "Others" bucket). Fields carrying an explicit
+// option set are also treated as choice regardless of fieldType (e.g. dropdowns, country pickers).
+const ANSWER_CHOICE_TYPES = new Set([
+  "MultiChoice",
+  "Checkbox",
+  "Ranking",
+  "Rating",
+  "LinearScale",
+]);
+
+// Free-text → domain extraction (gmail.com, behance.net): list, not chart.
+const ANSWER_DOMAIN_TYPES = new Set(["Email", "Link"]);
+// Free-text with no extractable structure → bucket by response length.
+const ANSWER_LENGTH_TYPES = new Set(["Input", "Textarea"]);
+// Provided-or-not → Yes/No.
+const ANSWER_PRESENCE_TYPES = new Set(["FileUpload", "Signature"]);
+
+// Pick how a field's raw answers collapse into a meaningful distribution. Listing every distinct
+// free-text answer (8 unique emails, each count 1) is noise — so emails/URLs reduce to domains,
+// prose buckets by length, uploads/signatures to Yes/No. Categorical stays a donut.
+const resolveAnalysis = (fieldType: string, hasOptions: boolean): AnswerAnalysis => {
+  if (hasOptions || ANSWER_CHOICE_TYPES.has(fieldType)) return "choice";
+  if (ANSWER_DOMAIN_TYPES.has(fieldType)) return "domain";
+  if (ANSWER_LENGTH_TYPES.has(fieldType)) return "length";
+  if (ANSWER_PRESENCE_TYPES.has(fieldType)) return "presence";
+  return "raw"; // Number, Date, Time, Phone, Matrix — low-cardinality top-N values
+};
+
+// Length buckets (char count of the trimmed answer), short→long, matching the Figma labels.
+const LENGTH_BUCKETS: { label: string; max: number }[] = [
+  { label: "Very short", max: 20 },
+  { label: "Short", max: 60 },
+  { label: "Medium", max: 160 },
+  { label: "Detailed", max: Number.POSITIVE_INFINITY },
+];
+const lengthBucket = (len: number): string =>
+  LENGTH_BUCKETS.find((b) => len <= b.max)?.label ?? "Detailed";
+
+const emailDomain = (raw: string): string => {
+  const at = raw.lastIndexOf("@");
+  const domain =
+    at >= 0
+      ? raw
+          .slice(at + 1)
+          .trim()
+          .toLowerCase()
+      : "";
+  return domain || "other";
+};
+
+const urlDomain = (raw: string): string => {
+  const trimmed = raw.trim();
+  try {
+    const u = new URL(/^[a-z][\w+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+    return u.hostname.replace(/^www\./, "").toLowerCase() || "other";
+  } catch {
+    return trimmed.toLowerCase() || "other";
+  }
+};
+
+// Cap a desc-sorted distribution at `cap`, rolling the tail into an "Others" bucket.
+const capWithOthers = (sorted: AnswerDistributionItem[], cap: number): AnswerDistributionItem[] => {
+  if (sorted.length <= cap) return sorted;
+  const head = sorted.slice(0, cap);
+  const others = sorted.slice(cap).reduce((sum, e) => sum + e.value, 0);
+  if (others > 0) head.push({ label: "Others", value: others });
+  return head;
+};
+
+const bump = (counts: Map<string, number>, key: string): void => {
+  counts.set(key, (counts.get(key) ?? 0) + 1);
+};
+
+// Shape the tallied counts into the final distribution per analysis kind:
+// length → fixed buckets in short→long order; presence → Yes/No vs submissions;
+// choice/domain → desc + "Others" tail; raw → top 8 distinct values.
+const buildAnswerDistribution = ({
+  analysis,
+  counts,
+  answered,
+  submissionCount,
+  optionLabel,
+}: {
+  analysis: AnswerAnalysis;
+  counts: Map<string, number>;
+  answered: number;
+  submissionCount: number;
+  optionLabel: (value: string) => string;
+}): AnswerDistributionItem[] => {
+  if (analysis === "length") {
+    return LENGTH_BUCKETS.map((b) => ({ label: b.label, value: counts.get(b.label) ?? 0 })).filter(
+      (e) => e.value > 0,
+    );
+  }
+  if (analysis === "presence") {
+    return [
+      { label: "Yes", value: answered },
+      { label: "No", value: Math.max(0, submissionCount - answered) },
+    ].filter((e) => e.value > 0);
+  }
+  const sorted = [...counts.entries()]
+    .map(([value, count]) => ({
+      label: analysis === "choice" ? optionLabel(value) : value,
+      value: count,
+    }))
+    .sort((a, b) => b.value - a.value);
+  return analysis === "raw" ? sorted.slice(0, 8) : capWithOthers(sorted, 6);
+};
+
+// Flatten a stored answer (string | number | string[] | matrix record) to present string values.
+const normalizeAnswer = (raw: unknown): string[] => {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw.filter((x) => String(x ?? "").trim() !== "").map(String);
+  if (typeof raw === "object") {
+    const out: string[] = [];
+    for (const v of Object.values(raw as Record<string, unknown>)) {
+      if (Array.isArray(v)) out.push(...v.filter((x) => String(x ?? "").trim() !== "").map(String));
+      else if (String(v ?? "").trim() !== "") out.push(String(v));
+    }
+    return out;
+  }
+  const s = String(raw).trim();
+  return s === "" ? [] : [s];
+};
+
+export const getFormAnswersImpl = async (
+  data: InsightsFilterInput,
+  context: { session: { user: { id: string } } },
+  orgId: string,
+): Promise<FormAnswerMetrics> => {
+  await authForm(data.formId, context.session.user.id, orgId);
+
+  const now = new Date();
+  const range = resolveTimeRange(
+    { filter: data.filter, startDate: data.startDate, endDate: data.endDate },
+    now,
+  );
+
+  const [formRow] = await db
+    .select({ content: forms.content })
+    .from(forms)
+    .where(eq(forms.id, data.formId));
+
+  // Canonical answerable fields (shared taxonomy), in order.
+  const fields =
+    formRow?.content != null
+      ? getFieldsFromSegments(
+          transformPlateForPreview(formRow.content as Value).steps.flat(),
+        ).filter((f) => EDITABLE_FIELD_TYPES.has(f.fieldType))
+      : [];
+
+  // Aggregated in JS; cap as an OOM backstop (counts approximate past the cap on huge forms).
+  const rows = await db
+    .select({ data: submissions.data })
+    .from(submissions)
+    .where(
+      and(
+        eq(submissions.formId, data.formId),
+        eq(submissions.isCompleted, true),
+        gte(submissions.createdAt, range.start),
+        lte(submissions.createdAt, range.end),
+      ),
+    )
+    .limit(ANSWER_SUBMISSION_CAP);
+
+  const datas = rows.map((r) => (r.data ?? {}) as Record<string, unknown>);
+  const submissionCount = datas.length;
+
+  const questions: QuestionAnswerSummary[] = fields.map((field, index) => {
+    const options = "options" in field ? field.options : undefined;
+    const optionLabel = (value: string): string =>
+      options?.find((o) => o.value === value)?.label ?? value;
+    const analysis = resolveAnalysis(field.fieldType, (options?.length ?? 0) > 0);
+
+    // Tally each submission into the bucket(s) appropriate for this field's analysis kind.
+    const counts = new Map<string, number>();
+    let answered = 0;
+    for (const d of datas) {
+      const values = normalizeAnswer(d[field.name]);
+      if (values.length === 0) continue;
+      answered += 1;
+      if (analysis === "length") {
+        bump(counts, lengthBucket(values.join(" ").trim().length));
+      } else if (analysis === "domain") {
+        for (const v of values)
+          bump(counts, field.fieldType === "Email" ? emailDomain(v) : urlDomain(v));
+      } else if (analysis !== "presence") {
+        for (const v of values) bump(counts, v); // choice / raw — count each value
+      }
+    }
+
+    const distribution = buildAnswerDistribution({
+      analysis,
+      counts,
+      answered,
+      submissionCount,
+      optionLabel,
+    });
+
+    return {
+      id: field.id,
+      questionIndex: index,
+      label: ("label" in field ? field.label : undefined)?.trim() || field.name,
+      fieldType: field.fieldType,
+      analysis,
+      answered,
+      distribution,
+    };
+  });
+
+  const totalAnswered = questions.reduce((sum, q) => sum + q.answered, 0);
+
+  return {
+    startDate: data.startDate ?? toDateKey(range.start),
+    endDate: data.endDate ?? toDateKey(range.end),
+    submissions: submissionCount,
+    totalQuestions: questions.length,
+    avgAnswered: submissionCount > 0 ? totalAnswered / submissionCount : 0,
+    questions,
+  };
 };
 
 export interface InsightsAvailability {

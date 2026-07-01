@@ -1,6 +1,7 @@
-import { Suspense, useEffect } from "react";
+import { Suspense, use, useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FormPreviewReadOnlyContext } from "@/contexts/step-form-context";
 import type { AppForm } from "@/hooks/use-form-builder";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 import { cn } from "@/lib/utils";
@@ -61,6 +62,8 @@ const RepeatableFieldBody = ({
   const rawValue = arrayField.state.value;
   const items = Array.isArray(rawValue) ? rawValue : [];
   const itemCount = items.length;
+  // Read-only submission view: render value rows only, no add/remove affordances.
+  const readOnly = use(FormPreviewReadOnlyContext);
 
   // Editor-configured row floor. The first `lockedRows` rows ALWAYS render and
   // cannot be removed by the Respondent (creator's contract — "always collect
@@ -115,7 +118,7 @@ const RepeatableFieldBody = ({
               />
             </Suspense>
           </div>
-          {i >= lockedRows && (
+          {!readOnly && i >= lockedRows && (
             <button
               type="button"
               aria-label="Remove item"
@@ -138,16 +141,18 @@ const RepeatableFieldBody = ({
           )}
         </div>
       ))}
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        onClick={() => arrayField.pushValue(seed)}
-        className="mt-1 w-fit"
-        prefix={<span aria-hidden="true">+</span>}
-      >
-        {addLabel}
-      </Button>
+      {!readOnly && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => arrayField.pushValue(seed)}
+          className="mt-1 w-fit"
+          prefix={<span aria-hidden="true">+</span>}
+        >
+          {addLabel}
+        </Button>
+      )}
       {arrayErrorMessage && (
         <p className="mt-1.5 text-sm text-destructive" role="alert">
           {arrayErrorMessage}

@@ -416,4 +416,10 @@ export const EDITABLE_FIELD_TYPES = new Set([
   "Checkbox",
   "MultiChoice",
   "Ranking",
+  // Answerable fields that were missing → submissions treated them as deleted/orphaned (red dot)
+  // and rendered them via the FileUpload fallback (e.g. Rating showed raw "4" instead of stars).
+  "Rating",
+  "Signature",
+  "LinearScale",
+  "Matrix",
 ]);

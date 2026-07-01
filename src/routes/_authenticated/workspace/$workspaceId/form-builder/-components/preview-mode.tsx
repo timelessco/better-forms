@@ -9,6 +9,8 @@ import { extractFormHeader } from "@/lib/editor/transform-plate-to-form";
 import { RenderStepPreviewInputEager } from "@/components/form-components/render-step-preview-input-eager";
 import { PreviewRendererContext } from "@/components/form-components/render-step-preview-input";
 import { Button } from "@/components/ui/button";
+import { Image } from "@/components/ui/image";
+import { COVER_SRCSET_WIDTHS } from "@/lib/vercel-image";
 import type { EmbedType } from "@/hooks/use-editor-sidebar";
 import { useEditorColorMode } from "@/hooks/use-editor-color-mode";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
@@ -598,9 +600,14 @@ const FieldByFieldCoverBackground = ({ cover }: { cover: string }) => {
   return (
     <>
       {isImage ? (
-        <img
+        <Image
           src={cover}
           alt=""
+          width={1200}
+          height={400}
+          priority
+          sizes="100vw"
+          srcSetWidths={[...COVER_SRCSET_WIDTHS]}
           aria-hidden="true"
           className={cn(
             "pointer-events-none absolute inset-0 z-0 size-full object-cover",

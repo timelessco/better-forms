@@ -1,5 +1,8 @@
 /** Build a valibot schema from Plate-node validation props for preview-mode validation. */
-import { isValidPhoneNumber } from "react-phone-number-input";
+// Import from libphonenumber-js (pure JS), NOT react-phone-number-input — the latter's entry
+// re-exports the React component, which crashes under server-side eval (Vite SSR `_inherits`
+// TypeError) and 500s every completed submission that runs this validation server-side.
+import { isValidPhoneNumber } from "libphonenumber-js";
 import * as v from "valibot";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 
@@ -280,9 +283,14 @@ export const generateZodSchemaFromFields = (
           type: v.string(),
         });
         fieldSchema = field.required
-          ? v.pipe(
-              uploadedFileSchema,
-              v.check((val) => Boolean(val?.url && val.url.length > 0), "Please upload a file"),
+          ? // Empty is stored as "" (a string), so accept "" | object first, then require an
+            // uploaded file — else v.object rejects "" with the raw "Expected Object" type error.
+            v.pipe(
+              v.union([v.literal(""), uploadedFileSchema]),
+              v.check(
+                (val) => typeof val === "object" && Boolean(val.url && val.url.length > 0),
+                "Please upload a file",
+              ),
             )
           : v.optional(v.union([v.literal(""), uploadedFileSchema]));
         if (!field.required) isAlreadyOptional = true;

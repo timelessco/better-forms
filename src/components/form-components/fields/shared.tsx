@@ -132,11 +132,14 @@ export const OptionOrdinalBadge = ({
 }) => (
   <span
     className={cn(
-      // Match the editor badge (form-option-item-node): dark gray-900 text @ 12px Medium, flat.
-      // Pinned grays (not --form-input-bg, which themed forms remap to white). Selected flips to a
-      // white badge on the gray-200 row pill (Figma 25578:9719/9720); default is a gray-100 fill.
-      "flex size-4 shrink-0 items-center justify-center rounded-[4px] text-[12px]! leading-none font-medium text-gray-900",
-      selected ? "bg-white" : "bg-gray-100",
+      // Match the editor badge (form-option-item-node): 12px Medium, flat. Default fill/ink is derived
+      // from the Input color (--bf-badge/-foreground, auto-contrast; falls back to secondary) so the
+      // badge follows form customization and stays legible. Selected flips to a neutral white highlight
+      // on the selected row pill (Figma 25578:9719/9720) — kept pinned so the "lit" state always reads.
+      "flex size-4 shrink-0 items-center justify-center rounded-[4px] text-[12px]! leading-none font-medium",
+      selected
+        ? "bg-white text-gray-900"
+        : "bg-[var(--bf-badge,var(--color-secondary))] text-[var(--bf-badge-foreground,var(--color-secondary-foreground))]",
       hasErrors && !selected && "ring-1 ring-destructive",
     )}
   >
@@ -381,7 +384,7 @@ export const FieldLabelText = ({
     return (
       <span
         id={labelId}
-        className="flex w-full items-center gap-1 py-2.5 text-sm text-gray-800 select-none"
+        className="flex w-full items-center gap-1 py-2.5 text-sm text-[var(--bf-foreground,var(--color-gray-800))] select-none"
         data-bf-field-label
       >
         <span>{body}</span>
@@ -394,7 +397,7 @@ export const FieldLabelText = ({
     <Label
       htmlFor={htmlFor}
       id={labelId}
-      className="w-full gap-1 text-gray-800"
+      className="w-full gap-1 text-[var(--bf-foreground,var(--color-gray-800))]"
       data-bf-field-label
     >
       <span>{body}</span>

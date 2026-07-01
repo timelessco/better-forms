@@ -39,11 +39,11 @@ type OptionVariant = "checkbox" | "multiChoice" | "ranking";
 import { getOptionOrdinal } from "@/components/ui/form-option-item-constants";
 import type { OptionLabelStyle } from "@/components/ui/form-option-item-constants";
 
-// Letters/Numbers labels: an ordinal badge in a gray box (Figma nodes 25578:9710 / 25578:9688) —
-// gray-100 fill, dark gray-900 text @ 12px Medium, flat (no shadow). Pin gray-100 (not the form's
-// --form-input-bg, which themed forms remap to white → invisible badge).
+// Letters/Numbers labels: an ordinal badge (Figma nodes 25578:9710 / 25578:9688), 12px Medium, flat.
+// Fill/ink derived from the Input color (--bf-badge/-foreground, auto-contrast; falls back to
+// secondary) so the badge follows form customization and stays legible on any input color.
 const OptionLabelBadge = ({ text }: { text: string }) => (
-  <span className="flex size-4 min-w-4 shrink-0 items-center justify-center rounded-[4px] bg-gray-100 px-0.5 text-[12px] font-medium text-gray-900">
+  <span className="flex size-4 min-w-4 shrink-0 items-center justify-center rounded-[4px] bg-[var(--bf-badge,var(--color-secondary))] px-0.5 text-[12px] font-medium text-[var(--bf-badge-foreground,var(--color-secondary-foreground))]">
     {text}
   </span>
 );
@@ -71,8 +71,10 @@ const OptionIcon = ({
       );
     case "ranking":
       // Reorder handle (Figma 26153-13884): "=" two-bar drag glyph left of each rankable option.
+      // Figma default is gray/500; themed forms derive a muted foreground from customization
+      // (--bf-muted-foreground). NOT --bf-input — that's the input BG, so it vanished on dark forms.
       return (
-        <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground">
+        <span className="flex size-4 shrink-0 items-center justify-center text-[var(--bf-muted-foreground,var(--color-gray-500))]">
           <RankDragHandleIcon className="size-4" />
         </span>
       );
@@ -413,9 +415,12 @@ const OptionChipsRow = ({ children, ...props }: PlateElementProps) => {
         onMouseDown={(e) => e.stopPropagation()}
       >
         {chips.map((chip, chipIdx) => {
-          // Neutral chips for both dropdown kinds; the trailing icon (double-tick vs chevron)
-          // is what tells multi-select apart from single-select now.
-          const color = { bg: "bg-gray-100", text: "text-gray-900" };
+          // Chips derive fill/ink from the Input color (--bf-badge/-foreground, auto-contrast; falls
+          // back to secondary); the trailing icon (double-tick vs chevron) tells the kinds apart.
+          const color = {
+            bg: "bg-[var(--bf-badge,var(--color-secondary))]",
+            text: "text-[var(--bf-badge-foreground,var(--color-secondary-foreground))]",
+          };
           const isChipFocused = focusedChipIndex === chipIdx;
           return (
             <span

@@ -33,7 +33,7 @@ const SignatureBox = ({
     <div
       className={cn(
         "relative h-40 w-full overflow-hidden rounded-[8px] bg-[var(--form-input-bg,var(--color-gray-50))] elevation-sm",
-        invalid && "ring-1 ring-destructive",
+        invalid && "form-input-error",
       )}
     >
       {!hasInk && (

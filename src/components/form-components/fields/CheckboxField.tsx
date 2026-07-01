@@ -34,7 +34,7 @@ const CheckboxField = ({ element, form }: FieldRendererProps<"Checkbox">) => {
                 onChange={(val) => f.handleChange(val)}
                 aria-invalid={hasErrors}
                 aria-labelledby={getAriaLabelledBy(element)}
-                className={cn(hasErrors && "ring-1 ring-destructive")}
+                className={cn(hasErrors && "form-input-error")}
               />
               <f.FieldError />
             </>
@@ -91,10 +91,7 @@ const CheckboxField = ({ element, form }: FieldRendererProps<"Checkbox">) => {
                   return (
                     <label
                       key={option.value}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-2",
-                        hasErrors && "text-destructive",
-                      )}
+                      className={cn("flex cursor-pointer items-center gap-2")}
                     >
                       <Checkbox
                         checked={isSelected}
@@ -122,7 +119,6 @@ const CheckboxField = ({ element, form }: FieldRendererProps<"Checkbox">) => {
                       // focus-visible on click); a subtle gray-100 bg marks keyboard focus instead.
                       "flex cursor-pointer flex-col items-start gap-1.5 rounded-lg px-2 py-1.5 text-left text-base transition-colors outline-none",
                       isSelected ? "bg-gray-200" : "focus-visible:bg-gray-100",
-                      hasErrors && "text-destructive",
                     )}
                   >
                     <span className="flex items-center gap-1.5">

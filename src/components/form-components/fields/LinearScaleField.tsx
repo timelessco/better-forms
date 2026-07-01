@@ -41,7 +41,7 @@ const LinearScaleField = ({ element, form }: FieldRendererProps<"LinearScale">) 
                         isSelected
                           ? "bg-primary text-primary-foreground"
                           : "bg-[var(--form-input-bg,var(--color-gray-50))] text-foreground hover:bg-secondary",
-                        hasErrors && !isSelected && "ring-1 ring-destructive",
+                        hasErrors && !isSelected && "form-input-error",
                       )}
                     >
                       {stringValue}

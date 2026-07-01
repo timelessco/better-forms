@@ -19,13 +19,13 @@ import {
 import {
   CheckIcon,
   ChevronRightIcon,
+  EditLineSmIcon,
   FolderIcon,
   Loader2Icon,
   MoreHorizontalIcon,
-  PencilIcon,
   PlayIcon,
 } from "@/components/ui/icons";
-import { FigAddSmIcon, FigSearchAltIcon } from "@/components/dashboard/dashboard-icons";
+import { FigAddSmIcon } from "@/components/dashboard/dashboard-icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,8 +58,8 @@ import { log } from "evlog";
 import { useGlimm } from "glimm/react";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { LogoToggle } from "./logo";
 import { useSidebarSafe } from "./sidebar";
@@ -86,11 +86,12 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   const pathname = useLocation({ select: (s) => s.pathname });
   const isDashboard = pathname === "/dashboard";
   const isTemplatesRoute = pathname === "/templates" || pathname.startsWith("/templates/");
-  const isTemplatesGallery = pathname === "/templates";
   const isLandingPage = pathname === "/";
   const isFormBuilder = pathname.startsWith("/form-builder") || pathname.includes("/form-builder/");
   const isEditRoute = pathname.endsWith("/edit");
   const isSettingsRoute = pathname.endsWith("/settings");
+  const isSubmissionsRoute = pathname.endsWith("/submissions");
+  const isAnalyticsRoute = pathname.endsWith("/analytics");
   const { data: sessionData } = useSession();
   const session = sessionData;
   const navigate = useNavigate();
@@ -209,6 +210,23 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     handleDismissSidebars,
   });
 
+  // Preview (▷) is always shown. On /edit it toggles the inline preview drawer; elsewhere
+  // (e.g. submissions) there's no drawer, so it enters preview and navigates into the editor.
+  const handlePreviewForm = () => {
+    if (isEditRoute) {
+      togglePreview();
+      return;
+    }
+    if (workspaceId && formId) {
+      enterPreview();
+      void navigate({
+        to: "/workspace/$workspaceId/form-builder/$formId/edit",
+        params: { workspaceId, formId },
+        search: { force: true },
+      });
+    }
+  };
+
   const menuItems = buildFormBuilderMenuItems({
     isEditRoute,
     hasPublishedVersion,
@@ -217,7 +235,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
     onNavigateInsights: () => {
       if (workspaceId && formId) {
         void navigate({
-          to: "/workspace/$workspaceId/form-builder/$formId/insights",
+          to: "/workspace/$workspaceId/form-builder/$formId/analytics",
           params: { workspaceId, formId },
         });
       }
@@ -295,6 +313,8 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               formId={formId}
               isEditRoute={isEditRoute}
               isSettingsRoute={isSettingsRoute}
+              isSubmissionsRoute={isSubmissionsRoute}
+              isAnalyticsRoute={isAnalyticsRoute}
             />
           )}
         </div>
@@ -303,8 +323,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
             Share sidebar no longer collapses it to a "Preview" label or hides actions. */}
         <div className="flex shrink-0 items-center gap-2">
           {isDashboard && <DashboardHeaderActions />}
-
-          {isTemplatesGallery && <TemplatesHeaderActions />}
 
           {isLandingPage && (
             <LandingPageActions
@@ -338,7 +356,7 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
                 formId={formId}
                 savedDocs={savedDocs}
                 menuItems={menuItems}
-                onTogglePreview={togglePreview}
+                onTogglePreview={handlePreviewForm}
                 onToggleShareSidebar={toggleShareSidebar}
                 onPublish={handlePublish}
                 onSetActiveMenu={setActiveMenu}
@@ -571,6 +589,8 @@ interface HeaderBreadcrumbProps {
   formId: string | undefined;
   isEditRoute: boolean;
   isSettingsRoute?: boolean;
+  isSubmissionsRoute?: boolean;
+  isAnalyticsRoute?: boolean;
 }
 
 const HeaderBreadcrumb = ({
@@ -580,6 +600,8 @@ const HeaderBreadcrumb = ({
   formId,
   isEditRoute,
   isSettingsRoute,
+  isSubmissionsRoute,
+  isAnalyticsRoute,
 }: HeaderBreadcrumbProps) => {
   const titleText = savedDoc.title || "Untitled";
   const linkClassName = cn(
@@ -638,7 +660,7 @@ const HeaderBreadcrumb = ({
           <span className="truncate">{titleText}</span>
         </span>
       )}
-      {isSettingsRoute && (
+      {(isSettingsRoute || isSubmissionsRoute || isAnalyticsRoute) && (
         <>
           <span
             aria-hidden="true"
@@ -653,7 +675,7 @@ const HeaderBreadcrumb = ({
               "hidden shrink-0 cursor-default px-1.5 text-[14px] font-medium text-gray-800 hover:bg-transparent sm:inline-flex",
             )}
           >
-            Settings
+            {isSettingsRoute ? "Settings" : isSubmissionsRoute ? "Submissions" : "Analytics"}
           </span>
         </>
       )}
@@ -806,28 +828,6 @@ const DashboardHeaderActions = () => {
   const hasMultipleWorkspaces = orderedWorkspaces.length > 1;
   const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
 
-  const search = useSearch({ strict: false }) as { q?: string };
-  const [input, setInput] = useState(search.q ?? "");
-
-  // Sync local input when the URL param changes externally (back/forward, clear).
-  useEffect(() => {
-    setInput(search.q ?? "");
-  }, [search.q]);
-
-  // Debounce keystrokes → URL ?q= so the dashboard list re-filters.
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      const next = input.trim() || undefined;
-      if ((search.q ?? undefined) === next) return;
-      void navigate({
-        to: "/dashboard",
-        search: (prev: Record<string, unknown>) => ({ ...prev, q: next }),
-        replace: true,
-      });
-    }, 200);
-    return () => clearTimeout(handle);
-  }, [input, search.q, navigate]);
-
   const handleCreateForm = (workspaceId?: string) => {
     const targetId = workspaceId ?? topWorkspace?.id;
     if (!targetId) return;
@@ -854,21 +854,8 @@ const DashboardHeaderActions = () => {
 
   return (
     <div className="flex items-center gap-2">
-      {/* Search — gray/100 surface, 200px, search-alt icon + placeholder */}
-      <div className="flex h-7 w-[200px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2">
-        <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
-        <input
-          type="search"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Search"
-          aria-label="Search forms"
-          className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
-        />
-      </div>
-
       {/* New Form — Figma 26247:7573 (dark primary #141414, add-sm icon, 28px tall, 8px/10px padding,
-          8px radius to match the search field). */}
+          8px radius). Search moved into the All Forms toolbar (dashboard route). */}
       <Button
         size="sm"
         prefix={<FigAddSmIcon className="size-4" />}
@@ -902,51 +889,6 @@ const DashboardHeaderActions = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-};
-
-// Templates gallery header: search field only. Writes ?q= on /templates; the gallery reads it.
-const TemplatesHeaderActions = () => {
-  const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { q?: string };
-  const [input, setInput] = useState(search.q ?? "");
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  // Reconcile local input with the URL param when it changes externally (back/forward, clear) —
-  // render-time adjustment instead of an effect, so in-flight keystrokes are never dropped.
-  const [prevQ, setPrevQ] = useState(search.q);
-  if (search.q !== prevQ) {
-    setPrevQ(search.q);
-    setInput(search.q ?? "");
-  }
-
-  // Debounce keystrokes → URL ?q= so the gallery re-filters (event-driven, not effect-driven).
-  const handleChange = (value: string) => {
-    setInput(value);
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      const next = value.trim() || undefined;
-      if ((search.q ?? undefined) === next) return;
-      void navigate({
-        to: "/templates",
-        search: (prev: Record<string, unknown>) => ({ ...prev, q: next }),
-        replace: true,
-      });
-    }, 200);
-  };
-
-  return (
-    <div className="flex h-7 w-[200px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2">
-      <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
-      <input
-        type="search"
-        value={input}
-        onChange={(e) => handleChange(e.target.value)}
-        placeholder="Search templates"
-        aria-label="Search templates"
-        className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
-      />
     </div>
   );
 };
@@ -1037,57 +979,30 @@ const FormBuilderHeaderActions = ({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {isEditRoute ? (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost-flat"
-                size="sm"
-                className={cn(
-                  HEADER_ICON_BUTTON_CLS,
-                  // Share opening enters preview for its inline pane — don't light up the play button for that.
-                  previewMode && !isShareSidebarOpen && "bg-secondary text-foreground",
-                )}
-                onClick={onTogglePreview}
-                aria-label={previewMode && !isShareSidebarOpen ? "Back to Editor" : "Preview Form"}
-              />
-            }
-          >
-            <PlayIcon className="size-[18px]" />
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            <p>{previewMode ? "Back to Editor" : "Preview Form"}</p>
-          </TooltipContent>
-        </Tooltip>
-      ) : (
-        workspaceId &&
-        formId && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Link
-                  to="/workspace/$workspaceId/form-builder/$formId/edit"
-                  params={{ workspaceId, formId }}
-                  search={(prev: Record<string, unknown>) => ({ ...prev, force: true })}
-                  preload="intent"
-                  aria-label="Edit form"
-                  className={cn(
-                    buttonVariants({ variant: "ghost-flat", size: "sm" }),
-                    HEADER_ICON_BUTTON_CLS,
-                  )}
-                />
-              }
-            >
-              <PencilIcon className="size-[18px]" />
-            </TooltipTrigger>
-            <TooltipContent side="bottom" align="end">
-              <p>Edit Form</p>
-              <p className="text-xs text-muted-foreground">{formatForDisplay(HOTKEYS.EDIT_FORM)}</p>
-            </TooltipContent>
-          </Tooltip>
-        )
-      )}
+      {/* Preview (▷) — always shown (Figma 26835-9771). On /edit it toggles the inline preview;
+          elsewhere it enters preview and navigates into the editor (handled by onTogglePreview). */}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost-flat"
+              size="sm"
+              className={cn(
+                HEADER_ICON_BUTTON_CLS,
+                // Share opening enters preview for its inline pane — don't light up the play button for that.
+                previewMode && !isShareSidebarOpen && "bg-secondary text-foreground",
+              )}
+              onClick={onTogglePreview}
+              aria-label={previewMode && !isShareSidebarOpen ? "Back to Editor" : "Preview Form"}
+            />
+          }
+        >
+          <PlayIcon className="size-[18px]" />
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="end">
+          <p>{previewMode && !isShareSidebarOpen ? "Back to Editor" : "Preview Form"}</p>
+        </TooltipContent>
+      </Tooltip>
 
       {/* Always shown; disabled until published, and while the Share tab is open (it's a trigger only —
           the tab's own ✕ closes it). */}
@@ -1102,39 +1017,58 @@ const FormBuilderHeaderActions = ({
         Share
       </Button>
 
-      {showPublish && (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                size="sm"
-                className={cn(
-                  "rounded-[8px] border-none py-1.5 pr-2 pl-2.5 text-[14px] font-medium shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all",
-                  isUnpublished
-                    ? "bg-neutral-950 text-white hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80",
-                )}
-                onClick={onPublish}
-                disabled={
-                  isPublishing || (!hasUnpublishedChanges && savedDocs?.[0]?.status === "published")
+      {/* Primary CTA: on /edit, Publish. Elsewhere (submissions), an "Edit form" button — you can
+          only publish from inside the editor (Figma 26835-9771). */}
+      {isEditRoute
+        ? showPublish && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="sm"
+                    className={cn(
+                      "rounded-[8px] border-none py-1.5 pr-2 pl-2.5 text-[14px] font-medium shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all",
+                      isUnpublished
+                        ? "bg-neutral-950 text-white hover:bg-stone-800 dark:bg-white dark:text-black dark:hover:bg-stone-200"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80",
+                    )}
+                    onClick={onPublish}
+                    disabled={
+                      isPublishing ||
+                      (!hasUnpublishedChanges && savedDocs?.[0]?.status === "published")
+                    }
+                  />
                 }
-              />
-            }
-          >
-            {/* Always "Publish" — the disabled + muted state alone signals already-published. */}
-            {isPublishing ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : (
-              <TextSwap key="Publish">Publish</TextSwap>
-            )}
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            <p className="text-xs text-muted-foreground">
-              {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      )}
+              >
+                {/* Always "Publish" — the disabled + muted state alone signals already-published. */}
+                {isPublishing ? (
+                  <Loader2Icon className="size-4 animate-spin" />
+                ) : (
+                  <TextSwap key="Publish">Publish</TextSwap>
+                )}
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end">
+                <p className="text-xs text-muted-foreground">
+                  {formatForDisplay(HOTKEYS.PUBLISH_FORM)}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          )
+        : workspaceId &&
+          formId && (
+            <Link
+              to="/workspace/$workspaceId/form-builder/$formId/edit"
+              params={{ workspaceId, formId }}
+              search={(prev: Record<string, unknown>) => ({ ...prev, force: true })}
+              preload="intent"
+              aria-label="Edit form"
+              // Figma 26835:9809 — gray/950 #141414 pill, px-8/py-6, gap-6, 16px edit icon + 14px/450 white.
+              className="inline-flex items-center gap-1.5 rounded-[8px] bg-gray-950 px-2 py-1.5 font-case text-[14px] font-[450] tracking-[0.14px] text-white transition-colors hover:bg-gray-800 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none dark:bg-white dark:text-black dark:hover:bg-stone-200"
+            >
+              <EditLineSmIcon className="size-4" />
+              Edit form
+            </Link>
+          )}
     </div>
   );
 };

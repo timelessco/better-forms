@@ -34,6 +34,7 @@ import {
   IconTime,
   IconVideo,
   IconWallet,
+  SmileIcon,
 } from "@/components/ui/icons";
 import type { TComboboxInputElement } from "platejs";
 import { KEYS } from "platejs";
@@ -64,6 +65,7 @@ import {
   Heading3Preview,
   NewPagePreview,
   TextPreview,
+  ThankYouPagePreview,
 } from "./slash-preview-mockups";
 
 import {
@@ -245,6 +247,13 @@ const groups: Group[] = [
         value: "pageBreak",
       },
       {
+        description: "Add a thank you confirmation",
+        icon: <SmileIcon className="size-4" />,
+        keywords: ["thankyou", "thank", "confirmation", "completion", "success"],
+        label: "'Thank you' page",
+        value: "pageBreakThankYou",
+      },
+      {
         description: "Start writing with plain text",
         icon: <IconText />,
         keywords: ["paragraph", "text"],
@@ -399,6 +408,7 @@ const previewMap: Record<string, () => ReactNode> = {
   [KEYS.h2]: Heading2Preview,
   [KEYS.h3]: Heading3Preview,
   pageBreak: NewPagePreview,
+  pageBreakThankYou: ThankYouPagePreview,
   formInput: FormTextInputPreview,
   formTextarea: FormTextAreaPreview,
   formEmail: FormEmailPreview,

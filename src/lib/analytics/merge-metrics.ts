@@ -1,4 +1,5 @@
 import { bumpKey } from "@/lib/analytics/aggregate-utils";
+import { cappedDurationMs } from "@/lib/analytics/duration";
 import { resolveSource } from "@/lib/analytics/source";
 import type { formAnalyticsDaily, formVisits } from "@/db/schema";
 import type { CountBreakdown, FormInsightsMetrics } from "@/types/analytics";
@@ -71,6 +72,14 @@ const emptyAggregate = (): DailyAggregate => ({
   operatingSystems: {},
 });
 
+// Median of a number list (0 for empty). Outlier-resistant central value for visit durations.
+const medianOf = (values: number[]): number => {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+};
+
 const aggregateDailyRows = (rows: DailyRow[]): DailyAggregate => {
   const agg = emptyAggregate();
   for (const row of rows) {
@@ -80,8 +89,11 @@ const aggregateDailyRows = (rows: DailyRow[]): DailyAggregate => {
     agg.totalSubmissions += row.totalSubmissions;
     agg.uniqueRespondents += row.uniqueSubmitters;
 
-    if (row.avgDurationMs !== null && row.totalVisits > 0) {
-      agg.durationSumWeighted += row.avgDurationMs * row.totalVisits;
+    // Use the per-day MEDIAN, not the mean: a single abandoned tab left open for hours makes the
+    // mean visit duration meaningless (e.g. 6h+ outliers → "405m" avg). Median is the typical time.
+    if (row.medianDurationMs !== null && row.totalVisits > 0) {
+      // Cap stored medians too (older rows were aggregated before the record-time cap existed).
+      agg.durationSumWeighted += cappedDurationMs(row.medianDurationMs) * row.totalVisits;
       agg.durationVisitsWeight += row.totalVisits;
     }
 
@@ -108,8 +120,7 @@ const aggregateRawRows = (rows: RawVisitRow[]): RawAggregate => {
   const respondentHashes = new Set<string>();
   let totalVisits = 0;
   let totalSubmissions = 0;
-  let durationSum = 0;
-  let durationCount = 0;
+  const durations: number[] = [];
   const sources: CountBreakdown = {};
   const devices: CountBreakdown = {};
   const countries: CountBreakdown = {};
@@ -125,8 +136,8 @@ const aggregateRawRows = (rows: RawVisitRow[]): RawAggregate => {
       respondentHashes.add(row.visitorHash);
     }
     if (row.durationMs !== null && row.durationMs !== undefined) {
-      durationSum += row.durationMs;
-      durationCount += 1;
+      // Cap abandoned-tab outliers (durationMs is tab-open wall-clock time) before the median.
+      durations.push(cappedDurationMs(row.durationMs));
     }
 
     bumpKey(devices, row.deviceType);
@@ -137,6 +148,11 @@ const aggregateRawRows = (rows: RawVisitRow[]): RawAggregate => {
     bumpKey(operatingSystems, bucketOs(row.os));
   }
 
+  // Today's typical duration = median of today's visits (outlier-resistant), weighted by count so it
+  // blends with the daily medians in the same visit-weighted average.
+  const durationCount = durations.length;
+  const median = medianOf(durations);
+  const durationSum = median * durationCount;
   return {
     totalVisits,
     uniqueVisitors: visitorHashes.size,
@@ -222,8 +238,15 @@ export const mergeInsightsMetrics = (args: MergeArgs): FormInsightsMetrics => {
     totalVisits,
     uniqueVisitors,
     totalSubmissions,
+    // Proxy default; getFormInsightsImpl overrides with the authoritative submissions-table count.
+    completedSubmissions: totalSubmissions,
     uniqueRespondents,
     avgVisitDurationMs,
+    // Prior-period deltas need a second query; getFormInsightsImpl fills these in.
+    visitsDeltaPct: null,
+    submissionsDeltaPct: null,
+    completionRateDeltaPts: null,
+    avgDurationDeltaMs: null,
     sources,
     devices,
     countries,

@@ -4,6 +4,7 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { getActiveOrgId } from "@/lib/server-fn/auth-helpers";
 import {
   aggregateAnalyticsDailyImpl,
+  getFormAnswersImpl,
   getFormDropoffImpl,
   getFormInsightsImpl,
   getFormVitalsImpl,
@@ -18,6 +19,7 @@ import type {
   RecordQuestionProgressBatchInput,
 } from "@/lib/server-fn/analytics.server";
 import type {
+  FormAnswerMetrics,
   FormInsightsMetrics,
   FormVitalsMetrics,
   QuestionDropoffMetrics,
@@ -127,6 +129,14 @@ export const getFormDropoff = createServerFn({ method: "POST" })
   .handler(
     async ({ data, context }): Promise<QuestionDropoffMetrics> =>
       getFormDropoffImpl(data, context, getActiveOrgId(context.session)),
+  );
+
+export const getFormAnswers = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .inputValidator(insightsFilterInputSchema)
+  .handler(
+    async ({ data, context }): Promise<FormAnswerMetrics> =>
+      getFormAnswersImpl(data, context, getActiveOrgId(context.session)),
   );
 
 export const getFormVitals = createServerFn({ method: "POST" })

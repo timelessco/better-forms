@@ -5,7 +5,7 @@ import { use, useMemo, useRef, useState } from "react";
 import { useFocusFirstField } from "@/hooks/use-focus-first-field";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { Button } from "@/components/ui/button";
-import { useStepForm } from "@/contexts/step-form-context";
+import { FormPreviewReadOnlyContext, useStepForm } from "@/contexts/step-form-context";
 import { useTranslation } from "@/contexts/translation-context";
 import { useStepPreviewForm } from "@/hooks/use-preview-form";
 import { enqueueQuestionProgress } from "@/lib/analytics/track-client";
@@ -37,6 +37,9 @@ export const StepForm = ({
 }: StepFormProps) => {
   const { totalSteps, goToPrevStep, canGoBack, isSubmitting, tracking } = useStepForm();
   const { t } = useTranslation();
+  // Read-only submission view: suppress every nav/action affordance (button groups,
+  // authored Buttons, auto Next/Submit) so stacked steps read as a flat record.
+  const readOnly = use(FormPreviewReadOnlyContext);
   const Renderer = use(PreviewRendererContext) ?? RenderStepPreviewInput;
   const fields = useMemo(() => getFieldsFromSegments(segments), [segments]);
   const stepQuestions = useMemo<QuestionRef[]>(() => questions ?? [], [questions]);
@@ -157,6 +160,7 @@ export const StepForm = ({
       >
         {groupedItems.map((item) => {
           if (item.type === "buttonGroup") {
+            if (readOnly) return null;
             const prevButton = item.buttons.find((b) => b.buttonRole === "previous");
             const actionButton = item.buttons.find(
               (b) => b.buttonRole === "next" || b.buttonRole === "submit",
@@ -223,6 +227,7 @@ export const StepForm = ({
             }
 
             if (field.fieldType === "Button") {
+              if (readOnly) return null;
               return (
                 <RenderStepButton
                   key={field.id}
@@ -259,13 +264,14 @@ export const StepForm = ({
           return null;
         })}
 
-        {showAutoActionButton && !(hideSubmit && isLastStep) && (
+        {!readOnly && showAutoActionButton && !(hideSubmit && isLastStep) && (
           <div
             className="flex w-full items-center gap-3 pt-2"
             style={{ maxWidth: "var(--bf-input-width)" }}
           >
             <Button
               type="submit"
+              data-bf-button=""
               style={{ fontSize: "13px" }}
               className="h-9 gap-1.5 rounded-lg px-4"
               disabled={isSubmitting}

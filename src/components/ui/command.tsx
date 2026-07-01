@@ -44,9 +44,7 @@ export const CommandDialog = ({
     </DialogHeader>
     <DialogContent
       className={cn(
-        // Figma 26612:40171 — modal anchored in the upper area (200px / 1024 ≈ 19.5% from top),
-        // horizontally centered (handled by DialogContent). NOT vertical-center.
-        "top-[19.5%] translate-y-0 overflow-hidden rounded-lg p-0 sm:max-w-[600px]",
+        "top-[19.5%] translate-y-0 overflow-hidden rounded-4xl p-0 sm:max-w-[600px]",
         className,
       )}
       showCloseButton={showCloseButton}

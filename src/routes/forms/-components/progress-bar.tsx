@@ -17,8 +17,11 @@ export const ProgressBar = ({ currentStep, totalSteps }: ProgressBarProps) => {
       aria-label="Form progress"
     >
       <div
-        className="h-full bg-primary transition-[width] duration-300 ease-out"
-        style={{ width: `${percentage}%` }}
+        className="h-full transition-[width] duration-300 ease-out"
+        // Always a colored bar: use the form's accent (--bf-primary, set inside .bf-themed) and fall
+        // back to the brand blue when the form has no theme — instead of bg-primary, which collapses
+        // to the app's monochrome primary (black in light / white in dark) on unthemed forms.
+        style={{ width: `${percentage}%`, backgroundColor: "var(--bf-primary, #2563eb)" }}
       />
     </div>
   );

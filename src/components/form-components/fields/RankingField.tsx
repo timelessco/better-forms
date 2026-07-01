@@ -42,6 +42,7 @@ const SortableRankRow = ({
     <button
       ref={setNodeRef}
       type="button"
+      aria-invalid={hasErrors}
       onClick={() => onRankClick(option.value)}
       // Inline sortable transition overrides the colors-only class while items animate.
       // Translate-only (no CSS.Transform): with mixed-height rows (image options) the sortable
@@ -54,16 +55,18 @@ const SortableRankRow = ({
         // image rows top-align so the handle/badge stays on the label line
         option.image ? "items-start" : "items-center",
         isDragging && "relative z-10 cursor-grabbing opacity-80",
-        hasErrors && "text-destructive",
       )}
       {...attributes}
       {...listeners}
     >
-      {/* "=" drag glyph on every row (Figma 26153-13884) — no rank-number badge. */}
+      {/* "=" drag glyph on every row (Figma 26153-13884) — no rank-number badge. Figma default is
+          gray/500; themed forms derive a muted foreground (--bf-muted-foreground) from customization.
+          NOT --bf-input — that's the input BG, so the handle vanished on dark-themed forms. */}
       <span
         className={cn(
-          "flex size-4 shrink-0 items-center justify-center text-muted-foreground",
+          "flex size-4 shrink-0 items-center justify-center text-[var(--bf-muted-foreground,var(--color-gray-500))]",
           option.image && "mt-0.5",
+          // Invalid → only the drag glyph reddens (like the checkbox/radio control), not the row.
           hasErrors && "text-destructive",
         )}
       >
