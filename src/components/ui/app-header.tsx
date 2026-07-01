@@ -25,7 +25,7 @@ import {
   MoreHorizontalIcon,
   PlayIcon,
 } from "@/components/ui/icons";
-import { FigAddSmIcon, FigSearchAltIcon } from "@/components/dashboard/dashboard-icons";
+import { FigAddSmIcon } from "@/components/dashboard/dashboard-icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,8 +58,8 @@ import { log } from "evlog";
 import { useGlimm } from "glimm/react";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { LogoToggle } from "./logo";
 import { useSidebarSafe } from "./sidebar";
@@ -86,7 +86,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   const pathname = useLocation({ select: (s) => s.pathname });
   const isDashboard = pathname === "/dashboard";
   const isTemplatesRoute = pathname === "/templates" || pathname.startsWith("/templates/");
-  const isTemplatesGallery = pathname === "/templates";
   const isLandingPage = pathname === "/";
   const isFormBuilder = pathname.startsWith("/form-builder") || pathname.includes("/form-builder/");
   const isEditRoute = pathname.endsWith("/edit");
@@ -324,8 +323,6 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
             Share sidebar no longer collapses it to a "Preview" label or hides actions. */}
         <div className="flex shrink-0 items-center gap-2">
           {isDashboard && <DashboardHeaderActions />}
-
-          {isTemplatesGallery && <TemplatesHeaderActions />}
 
           {isLandingPage && (
             <LandingPageActions
@@ -892,51 +889,6 @@ const DashboardHeaderActions = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-};
-
-// Templates gallery header: search field only. Writes ?q= on /templates; the gallery reads it.
-const TemplatesHeaderActions = () => {
-  const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { q?: string };
-  const [input, setInput] = useState(search.q ?? "");
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  // Reconcile local input with the URL param when it changes externally (back/forward, clear) —
-  // render-time adjustment instead of an effect, so in-flight keystrokes are never dropped.
-  const [prevQ, setPrevQ] = useState(search.q);
-  if (search.q !== prevQ) {
-    setPrevQ(search.q);
-    setInput(search.q ?? "");
-  }
-
-  // Debounce keystrokes → URL ?q= so the gallery re-filters (event-driven, not effect-driven).
-  const handleChange = (value: string) => {
-    setInput(value);
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      const next = value.trim() || undefined;
-      if ((search.q ?? undefined) === next) return;
-      void navigate({
-        to: "/templates",
-        search: (prev: Record<string, unknown>) => ({ ...prev, q: next }),
-        replace: true,
-      });
-    }, 200);
-  };
-
-  return (
-    <div className="flex h-7 w-[200px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2">
-      <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
-      <input
-        type="search"
-        value={input}
-        onChange={(e) => handleChange(e.target.value)}
-        placeholder="Search templates"
-        aria-label="Search templates"
-        className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
-      />
     </div>
   );
 };

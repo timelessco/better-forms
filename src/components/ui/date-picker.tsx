@@ -65,11 +65,12 @@ export const DatePicker = ({
             aria-labelledby={ariaLabelledBy}
             aria-invalid={ariaInvalid}
             data-empty={!date}
+            data-bf-input-fill
             className={cn(
               "inline-flex h-[30px] w-full items-center justify-start rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] pr-1.5 pl-2.5 text-left text-sm font-normal elevation-sm",
-              // Foreground (not muted token) so custom themes can't drop placeholder below WCAG AA;
-              // 70% of gray-950 ≈ gray-700, ~7:1 on gray-50.
-              !date && "text-foreground/70",
+              // Value text/icon color comes from the data-bf-input-fill rule (auto-contrast with the
+              // Input bg). Empty = dim it to a placeholder tone via opacity (keeps the contrast ink).
+              !date && "opacity-70",
               className,
             )}
           >

@@ -36,6 +36,11 @@ export type FormTemplateMeta = {
   tags: readonly string[];
   /** Card cover — image URL or hex color. null falls back to the default cover image. */
   cover: string | null;
+  /** Gallery-card thumbnail: a pre-rendered preview of the seeded form (public/template-previews/).
+   *  Takes precedence over `cover` on the card; `cover` still drives the detail-page form cover. */
+  thumbnail?: string | null;
+  /** Dark-mode variant of `thumbnail`; the card swaps to it under `.dark`. */
+  thumbnailDark?: string | null;
   /** Author shown on the card. All built-ins are authored by Reform for now. */
   creator: string;
   /** When true, also pinned in the dashboard quick-create row. */
@@ -82,6 +87,8 @@ export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
     category: "feedback",
     tags: ["survey", "nps", "csat", "research"],
     cover: COVER.feedback,
+    thumbnail: "/template-previews/survey.png",
+    thumbnailDark: "/template-previews/survey-dark.png",
     creator: "Reform",
     featured: true,
   },
@@ -92,6 +99,8 @@ export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
     category: "feedback",
     tags: ["feedback", "rating", "reviews"],
     cover: COVER.feedback,
+    thumbnail: "/template-previews/feedback.png",
+    thumbnailDark: "/template-previews/feedback-dark.png",
     creator: "Reform",
     featured: true,
   },
@@ -102,6 +111,8 @@ export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
     category: "events",
     tags: ["rsvp", "event", "invite", "attendance"],
     cover: COVER.events,
+    thumbnail: "/template-previews/eventRsvp.png",
+    thumbnailDark: "/template-previews/eventRsvp-dark.png",
     creator: "Reform",
     featured: true,
   },
@@ -112,6 +123,8 @@ export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
     category: "registration",
     tags: ["registration", "signup", "sessions"],
     cover: COVER.registration,
+    thumbnail: "/template-previews/registration.png",
+    thumbnailDark: "/template-previews/registration-dark.png",
     creator: "Reform",
   },
   {
@@ -121,6 +134,8 @@ export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
     category: "sales",
     tags: ["contact", "support", "inquiry"],
     cover: COVER.sales,
+    thumbnail: "/template-previews/contact.png",
+    thumbnailDark: "/template-previews/contact-dark.png",
     creator: "Reform",
   },
   {
@@ -130,6 +145,8 @@ export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
     category: "hr",
     tags: ["job", "hiring", "application", "resume"],
     cover: COVER.hr,
+    thumbnail: "/template-previews/jobApplication.png",
+    thumbnailDark: "/template-previews/jobApplication-dark.png",
     creator: "Reform",
   },
   {
@@ -139,6 +156,8 @@ export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
     category: "sales",
     tags: ["newsletter", "email", "subscribe", "marketing"],
     cover: COVER.sales,
+    thumbnail: "/template-previews/newsletter.png",
+    thumbnailDark: "/template-previews/newsletter-dark.png",
     creator: "Reform",
   },
   {
@@ -148,6 +167,8 @@ export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
     category: "feedback",
     tags: ["bug", "report", "issue", "support"],
     cover: COVER.feedback,
+    thumbnail: "/template-previews/bugReport.png",
+    thumbnailDark: "/template-previews/bugReport-dark.png",
     creator: "Reform",
   },
   {
@@ -157,6 +178,8 @@ export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
     category: "sales",
     tags: ["order", "ecommerce", "purchase", "checkout"],
     cover: COVER.sales,
+    thumbnail: "/template-previews/orderForm.png",
+    thumbnailDark: "/template-previews/orderForm-dark.png",
     creator: "Reform",
   },
   {
@@ -166,6 +189,8 @@ export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
     category: "education",
     tags: ["course", "enrollment", "education", "students"],
     cover: COVER.education,
+    thumbnail: "/template-previews/courseEnrollment.png",
+    thumbnailDark: "/template-previews/courseEnrollment-dark.png",
     creator: "Reform",
   },
   {
@@ -175,6 +200,8 @@ export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
     category: "sales",
     tags: ["lead", "sales", "b2b", "qualify"],
     cover: COVER.sales,
+    thumbnail: "/template-previews/leadGen.png",
+    thumbnailDark: "/template-previews/leadGen-dark.png",
     creator: "Reform",
   },
 ];

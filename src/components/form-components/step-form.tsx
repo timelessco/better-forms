@@ -271,6 +271,7 @@ export const StepForm = ({
           >
             <Button
               type="submit"
+              data-bf-button=""
               style={{ fontSize: "13px" }}
               className="h-9 gap-1.5 rounded-lg px-4"
               disabled={isSubmitting}

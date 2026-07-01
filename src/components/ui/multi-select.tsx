@@ -86,6 +86,7 @@ export const MultiSelect = ({
             role="button"
             id={id}
             tabIndex={0}
+            data-bf-input-fill
             aria-haspopup="listbox"
             aria-expanded={open}
             aria-labelledby={ariaLabelledBy}
@@ -118,7 +119,7 @@ export const MultiSelect = ({
                   </span>
                 ))
               ) : (
-                <span className="text-foreground/70">{placeholder}</span>
+                <span className="opacity-70">{placeholder}</span>
               )}
             </div>
             {/* Double-tick marks this as a multi-select (vs a single-pick dropdown). */}

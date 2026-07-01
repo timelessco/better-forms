@@ -3,6 +3,8 @@ import { StepForm } from "@/components/form-components/step-form";
 import { ProgressBar } from "@/routes/forms/-components/progress-bar";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
+import { Image } from "@/components/ui/image";
+import { COVER_SRCSET_WIDTHS } from "@/lib/vercel-image";
 import { EmailVerificationContext } from "@/components/form-components/email-verification-context";
 import type { EmailVerificationStore } from "@/components/form-components/email-verification-context";
 import {
@@ -161,15 +163,26 @@ const PreviewFormHeader = ({
       return (
         <div className={cn(coverClass, "overflow-hidden bg-muted")} data-bf-cover>
           {/* Ambient glow: blurred copy behind the card (Fit-only, gated by --bf-cover-glow). */}
-          <img src={cover} alt="" aria-hidden draggable={false} data-bf-cover-glow />
+          <Image
+            src={cover}
+            alt=""
+            width={640}
+            height={200}
+            aria-hidden
+            draggable={false}
+            data-bf-cover-glow
+          />
           {cover.includes("tint=true") && (
             <div className="pointer-events-none absolute inset-0 z-1 bg-primary opacity-50 mix-blend-color" />
           )}
-          <img
+          <Image
             src={cover}
             alt="Form cover"
             width={1200}
             height={200}
+            priority
+            sizes="100vw"
+            srcSetWidths={[...COVER_SRCSET_WIDTHS]}
             className={cn(
               "size-full object-cover",
               cover.includes("tint=true") && "relative z-0 brightness-60 grayscale",
@@ -209,7 +222,7 @@ const PreviewFormHeader = ({
     if (isValidUrl(icon) && !iconError) {
       return (
         <div className={iconWrapClass} data-bf-logo-container={hasCover ? "true" : undefined}>
-          <img
+          <Image
             src={icon}
             alt="Form icon"
             width={120}
@@ -660,7 +673,7 @@ const FieldByFieldHeaderIcon = ({
 
   if (isValidUrl(icon)) {
     return (
-      <img
+      <Image
         src={icon}
         alt=""
         width={80}

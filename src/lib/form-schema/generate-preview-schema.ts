@@ -283,9 +283,14 @@ export const generateZodSchemaFromFields = (
           type: v.string(),
         });
         fieldSchema = field.required
-          ? v.pipe(
-              uploadedFileSchema,
-              v.check((val) => Boolean(val?.url && val.url.length > 0), "Please upload a file"),
+          ? // Empty is stored as "" (a string), so accept "" | object first, then require an
+            // uploaded file — else v.object rejects "" with the raw "Expected Object" type error.
+            v.pipe(
+              v.union([v.literal(""), uploadedFileSchema]),
+              v.check(
+                (val) => typeof val === "object" && Boolean(val.url && val.url.length > 0),
+                "Please upload a file",
+              ),
             )
           : v.optional(v.union([v.literal(""), uploadedFileSchema]));
         if (!field.required) isAlreadyOptional = true;

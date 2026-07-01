@@ -83,8 +83,10 @@ function PhoneInput({
           phoneInputSize === "sm" && "[&]:min-h-7",
           phoneInputSize === "lg" && "[&]:min-h-9",
           phoneInputSize === "default" && "[&]:min-h-8",
-          props["aria-invalid"] &&
-            "**:data-[slot=input-group]:ring-1 **:data-[slot=input-group]:ring-destructive",
+          // form-input-error (!important red ring) on the WRAPPER itself — the previous ring on the
+          // inner [data-slot=input-group] was clipped by this element's overflow-hidden, so it never
+          // showed. The wrapper's own box-shadow renders outside and isn't clipped.
+          props["aria-invalid"] && "form-input-error",
           className,
         )}
         countrySelectComponent={CountrySelect}

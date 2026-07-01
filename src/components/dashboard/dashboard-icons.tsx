@@ -189,3 +189,14 @@ export const FigRegistrationIcon = (props: IconProps) => (
     <path d="M15.25 15.75V16.25" />
   </svg>
 );
+
+// "All templates" quick-create card. Stroked 2×2 grid in the same lucide-style 24 box as the
+// sibling template glyphs (FigTilesIcon is a heavier fill glyph reserved for the view toggle).
+export const FigAllTemplatesIcon = (props: IconProps) => (
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden {...stroked} {...props}>
+    <rect x="3.75" y="3.75" width="7" height="7" rx="1.5" />
+    <rect x="13.25" y="3.75" width="7" height="7" rx="1.5" />
+    <rect x="3.75" y="13.25" width="7" height="7" rx="1.5" />
+    <rect x="13.25" y="13.25" width="7" height="7" rx="1.5" />
+  </svg>
+);

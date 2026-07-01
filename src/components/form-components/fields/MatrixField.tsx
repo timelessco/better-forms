@@ -61,7 +61,7 @@ const MatrixField = ({ element, form }: FieldRendererProps<"Matrix">) => {
                 // Shadow-as-border to match the other inputs (border-0 + elevation-sm); hard
                 // border only in dark mode, like input.tsx.
                 "w-full overflow-hidden rounded-lg bg-background elevation-sm dark:border dark:border-border dark:shadow-none",
-                hasErrors && "ring-1 ring-destructive",
+                hasErrors && "form-input-error",
               )}
             >
               {/* Horizontal scroll so narrow embeds/popups don't overlap headers. */}

@@ -22,7 +22,7 @@ const DateField = ({ element, form, name }: FieldRendererProps<"Date">) => {
               aria-labelledby={
                 isArrayItem ? fieldLabelId(element.name) : getAriaLabelledBy(element)
               }
-              className={cn(hasErrors && "ring-1 ring-destructive")}
+              className={cn(hasErrors && "form-input-error")}
             />
             <f.FieldError />
           </>

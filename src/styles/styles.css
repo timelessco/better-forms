@@ -761,7 +761,10 @@
    binds it to --bf-input so the customize-sidebar Input token actually
    reaches every input widget. */
 @utility form-input {
-  @apply w-full text-foreground placeholder:text-muted-foreground/50;
+  @apply w-full placeholder:text-muted-foreground/50;
+  /* Typed text auto-contrasts with the Input bg (--bf-input-foreground), not blind body text —
+     so a dark Input + dark body text stays readable. Falls back to foreground when uncustomized. */
+  color: var(--bf-input-foreground, var(--color-foreground));
   background-color: var(--form-input-bg, var(--color-gray-50)) !important;
   border-radius: 8px !important;
   box-shadow: 0 0 1px rgba(0, 0, 0, 0.54), 0 1px 1px rgba(0, 0, 0, 0.06) !important;
@@ -769,7 +772,12 @@
 }
 
 @utility form-input-error {
-  @apply ring-1 ring-destructive;
+  /* form-input's border box-shadow is !important, so the invalid ring must also be an !important
+     box-shadow (a red 1px ring + the input's subtle drop shadow) to actually show — a plain
+     `ring-1` loses to it and the box never turns red. Uses the Error color (--destructive). */
+  box-shadow:
+    0 0 0 1px var(--destructive),
+    0 1px 1px rgba(0, 0, 0, 0.06) !important;
 }
 
 @layer utilities {
@@ -1054,14 +1062,18 @@
   width: var(--bf-button-width, auto);
   height: var(--bf-button-height, 32px);
   border-radius: var(--bf-button-radius, 8px);
+  /* Label auto-contrasts with the Buttons color (--bf-button-foreground = pickInk(--bf-primary)), so
+     it stays visible on any button color; falls back to primary-foreground when uncustomized.
+     Cascades to the label + icons via currentColor. */
+  color: var(--bf-button-foreground, var(--color-primary-foreground));
 }
 
-/* Popup surfaces inside themed forms — date-picker calendar, multi-select
-   dropdown, etc. — bypass `--bf-popover` (which derives from the base
-   preset, typically white) and route through `--bf-input` so popups feel
-   like an extension of the input/trigger they expand from. The
-   `--color-popover` override is needed for Tailwind v4's bg-popover utility,
-   which resolves through the @theme color scale rather than the raw token. */
+/* Popup surfaces (date/calendar, multi-select, phone country list, block/context menus) route
+   through --bf-input so the popover matches the input family (white for a light input, dark for a
+   dark one) — the app-default look, NOT a tinted grey. --popover-foreground stays the preset
+   (readable on either), and the reanchor hook remaps --foreground/--muted-foreground to it so
+   items that hardcode text-foreground contrast. --color-popover mirror is needed for Tailwind v4's
+   bg-popover utility, which resolves through the @theme color scale. */
 .bf-themed {
   --popover: var(--bf-input);
   --color-popover: var(--bf-input);
@@ -1091,11 +1103,42 @@
 .bf-themed input::placeholder,
 .bf-themed textarea::placeholder,
 .bf-themed [data-slate-placeholder] {
-  color: var(--color-gray-600);
+  /* Auto-contrast ink for the Input bg @ 50% = a muted-but-legible placeholder derived from the
+     theme; falls back to gray-600 when uncustomized (unchanged default). */
+  color: var(--bf-input-foreground, var(--color-gray-600));
   opacity: 0.5;
   font-size: 14px;
   font-variation-settings: var(--font-variation-regular);
   letter-spacing: 0.28px;
+}
+
+/* Title textarea placeholder must match the TITLE (48px/thin/-1.44px), not the 14px field default
+   the rule above pins. Scoped to the editor header title textarea; more specific, so it wins. */
+.bf-themed [data-bf-header] textarea::placeholder {
+  font-size: inherit;
+  font-variation-settings: normal;
+  letter-spacing: inherit;
+}
+
+/* UNIFORM field-value color: every native input/textarea value (and the value-bearing icons next
+   to it) auto-contrasts with the Input bg via --bf-input-foreground — so text/email/number/phone/
+   date/textarea all match, instead of some inheriting Body text (black) and some the form-input
+   ink. Scoped to the preview/live field list; placeholders keep their own 50% rule above. */
+.bf-themed [data-bf-field-list] input,
+.bf-themed [data-bf-field-list] textarea,
+.bf-themed [data-bf-field-list] [data-bf-input-fill] {
+  color: var(--bf-input-foreground, var(--color-foreground));
+}
+/* Trailing field icons (chevrons, @, phone, #) sit on the Input bg too — same ink, slightly muted. */
+.bf-themed [data-bf-field-list] [data-bf-input-fill] svg {
+  color: color-mix(in srgb, var(--bf-input-foreground, var(--color-muted-foreground)) 70%, transparent);
+}
+
+/* Invalid field → its label turns red (the Error color), uniformly across input & option fields:
+   any control with aria-invalid inside the field wrapper reddens that field's label. Pairs with the
+   control's red ring + the error message; answer/option text stays neutral (shadcn/TanStack pattern). */
+.bf-themed [data-bf-input]:has([aria-invalid="true"]) [data-bf-field-label] {
+  color: var(--destructive);
 }
 /* Editor field placeholders are author-editable spans (they carry a caret) — match weight/size/
    tracking only; the span keeps its own muted-foreground/50 color (no element opacity → caret stays crisp). */
@@ -1103,6 +1146,16 @@
   font-size: 14px;
   font-variation-settings: var(--font-variation-regular);
   letter-spacing: 0.28px;
+}
+/* Field-INPUT placeholders auto-contrast with the Input bg (--bf-input-foreground), matching the
+   real ::placeholder; scoped to the input wrapper so page-bg placeholders (labels/options) keep
+   muted-foreground. color-mix gives the 50% mute without element opacity so the caret stays crisp. */
+.bf-themed [data-bf-input-fill] [data-bf-placeholder] {
+  color: color-mix(
+    in srgb,
+    var(--bf-input-foreground, var(--color-muted-foreground)) 50%,
+    transparent
+  );
 }
 
 /* Upload field text (editor node + preview/live) — Figma node 25687:11155, both Regular (wght 420,

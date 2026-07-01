@@ -33,6 +33,7 @@ import {
 import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
 import {
+  FigAllTemplatesIcon,
   FigBulletListIcon,
   FigCommentIcon,
   FigFilterIcon,
@@ -755,7 +756,7 @@ const QuickCreateTemplates = ({ disabled, onCreate }: QuickCreateTemplatesProps)
       className={cn(QUICK_CARD_CLASS, "border-dashed border-gray-300")}
       aria-label="Browse all templates"
     >
-      <FigTilesIcon className="size-6 text-gray-950" />
+      <FigAllTemplatesIcon className="size-6 text-gray-950" />
       <span className={QUICK_CARD_LABEL}>All templates</span>
     </Link>
   </div>

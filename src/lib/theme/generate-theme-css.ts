@@ -12,6 +12,7 @@ import {
 import { FONT_MAP, getGoogleFontUrl } from "./font-registry";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "./customization-defaults";
 import { migrateCustomization } from "./customization-migrate";
+import { deriveContrastTokens } from "./color-contrast";
 
 /**
  * Effective color mode the form renders in. Precedence:
@@ -191,6 +192,10 @@ const buildColorTokenEntries = (tokens: Record<string, string>): [string, string
   // title-color emits only --bf-title-color (no shadcn var); mode-dependent, kept here for dual-mode css
   if (tokens["title-color"]) {
     entries.push(["--bf-title-color", tokens["title-color"]]);
+  }
+  // Derived auto-contrast tokens (input ink, badge surface+ink) — mode-dependent since input is.
+  for (const [prop, val] of Object.entries(deriveContrastTokens(tokens))) {
+    entries.push([prop, val]);
   }
   return entries;
 };

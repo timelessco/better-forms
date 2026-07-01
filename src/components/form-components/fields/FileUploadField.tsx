@@ -199,7 +199,7 @@ const FileUploadField = ({ element, form }: FieldRendererProps<"FileUpload">) =>
               aria-invalid={showError}
               className={cn(
                 "relative flex min-h-[100px] w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[8px] border-0 bg-[var(--form-input-bg,var(--color-gray-50))] p-4 elevation-sm transition-colors hover:bg-accent/50",
-                showError && "ring-1 ring-destructive",
+                showError && "form-input-error",
               )}
               onClick={!hasFile ? openFileDialog : undefined}
               onDragEnter={handleDragEnter}

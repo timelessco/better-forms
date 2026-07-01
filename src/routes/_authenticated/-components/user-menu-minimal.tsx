@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/icons";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Image } from "@/components/ui/image";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { formatForDisplay, HOTKEYS } from "@/lib/hotkeys";
 
@@ -114,7 +115,13 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
         >
           <div className="bg-sidebar-active flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold">
             {session?.user?.image ? (
-              <img src={session.user.image} alt={displayName} className="size-full object-cover" />
+              <Image
+                src={session.user.image}
+                alt={displayName}
+                width={24}
+                height={24}
+                className="size-full object-cover"
+              />
             ) : (
               getInitials(displayName)
             )}
@@ -142,9 +149,11 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
           <div className="flex items-start gap-2.5 px-2 py-1.5">
             <div className="bg-sidebar-active flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg text-sm font-bold">
               {session?.user?.image ? (
-                <img
+                <Image
                   src={session.user.image}
                   alt={displayName}
+                  width={32}
+                  height={32}
                   className="size-full object-cover"
                 />
               ) : (

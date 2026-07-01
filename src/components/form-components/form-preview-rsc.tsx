@@ -9,6 +9,7 @@ import {
 import { ServerFormIcon } from "@/components/form-components/server-form-icon";
 import { SuccessCheck } from "@/components/transitions/success-check";
 import { Button } from "@/components/ui/button";
+import { Image } from "@/components/ui/image";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import { ProgressBar } from "@/routes/forms/-components/progress-bar";
 import { EmailVerificationContext } from "@/components/form-components/email-verification-context";
@@ -649,7 +650,7 @@ const FieldByFieldHeaderIconRSC = ({
 
   if (isValidUrl(icon)) {
     return (
-      <img
+      <Image
         src={icon}
         alt=""
         width={80}

@@ -132,12 +132,14 @@ export const OptionOrdinalBadge = ({
 }) => (
   <span
     className={cn(
-      // Match the editor badge (form-option-item-node): 12px Medium, flat. Default uses the themed
-      // secondary fill/text (→ --bf-secondary) so the badge follows form customization while staying
-      // contrast-paired. Selected flips to a neutral white highlight on the selected row pill (Figma
-      // 25578:9719/9720) — kept pinned so the "lit" state stays legible on any theme.
+      // Match the editor badge (form-option-item-node): 12px Medium, flat. Default fill/ink is derived
+      // from the Input color (--bf-badge/-foreground, auto-contrast; falls back to secondary) so the
+      // badge follows form customization and stays legible. Selected flips to a neutral white highlight
+      // on the selected row pill (Figma 25578:9719/9720) — kept pinned so the "lit" state always reads.
       "flex size-4 shrink-0 items-center justify-center rounded-[4px] text-[12px]! leading-none font-medium",
-      selected ? "bg-white text-gray-900" : "bg-secondary text-secondary-foreground",
+      selected
+        ? "bg-white text-gray-900"
+        : "bg-[var(--bf-badge,var(--color-secondary))] text-[var(--bf-badge-foreground,var(--color-secondary-foreground))]",
       hasErrors && !selected && "ring-1 ring-destructive",
     )}
   >
@@ -382,7 +384,7 @@ export const FieldLabelText = ({
     return (
       <span
         id={labelId}
-        className="flex w-full items-center gap-1 py-2.5 text-sm text-gray-800 select-none"
+        className="flex w-full items-center gap-1 py-2.5 text-sm text-[var(--bf-foreground,var(--color-gray-800))] select-none"
         data-bf-field-label
       >
         <span>{body}</span>
@@ -395,7 +397,7 @@ export const FieldLabelText = ({
     <Label
       htmlFor={htmlFor}
       id={labelId}
-      className="w-full gap-1 text-gray-800"
+      className="w-full gap-1 text-[var(--bf-foreground,var(--color-gray-800))]"
       data-bf-field-label
     >
       <span>{body}</span>

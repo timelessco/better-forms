@@ -23,6 +23,12 @@ type TimeParts = { hour12: number; minute: number; period: Period };
 
 const DEFAULT_PARTS: TimeParts = { hour12: 12, minute: 0, period: "AM" };
 
+// Each box carries the same subtle border shadow as the other form inputs (elevation-sm). On the
+// invalid group EVERY box shows its OWN red ring (group-aria-invalid) — not one ring wrapping the
+// whole group. Mirrors form-input-error's red-ring + drop-shadow so it matches the other fields.
+const BOX_BORDER =
+  "elevation-sm group-aria-invalid:shadow-[0_0_0_1px_var(--destructive),0_1px_1px_rgba(0,0,0,0.06)]";
+
 // "HH:MM" (24h) → 12h parts. Returns null for empty/malformed so segments fall back to defaults.
 const parse = (value: string | undefined): TimeParts | null => {
   if (!value) return null;
@@ -76,7 +82,12 @@ const TimeSegment = ({ value, min, max, ariaLabel, inputId, unset, onCommit }: S
   };
 
   return (
-    <div className="flex min-w-px flex-[1_0_0] items-center gap-2 rounded-lg bg-(--color-gray-alpha-100) px-2 py-1.5">
+    <div
+      className={cn(
+        "flex min-w-px flex-[1_0_0] items-center gap-2 rounded-lg bg-[var(--form-input-bg,var(--color-gray-100))] px-2 py-1.5",
+        BOX_BORDER,
+      )}
+    >
       <input
         id={inputId}
         type="text"
@@ -100,10 +111,10 @@ const TimeSegment = ({ value, min, max, ariaLabel, inputId, unset, onCommit }: S
             step(-1);
           }
         }}
-        className="min-w-0 flex-1 [appearance:textfield] bg-transparent text-base tracking-[0.28px] text-foreground outline-none placeholder:text-foreground/70 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="min-w-0 flex-1 [appearance:textfield] bg-transparent text-base tracking-[0.28px] text-[var(--bf-input-foreground,var(--color-gray-800))] outline-none placeholder:text-[var(--bf-input-foreground,var(--color-gray-800))]/70 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       {/* Single Figma icon/line/select glyph; transparent top/bottom halves drive ±1. */}
-      <div className="relative flex h-4 w-3 shrink-0 flex-col text-muted-foreground">
+      <div className="relative flex h-4 w-3 shrink-0 flex-col text-[var(--bf-input-foreground,var(--color-muted-foreground))]">
         <ChevronSelectIcon className="pointer-events-none absolute inset-0 m-auto size-3" />
         <button
           type="button"
@@ -158,7 +169,7 @@ export const TimePicker = ({
       aria-invalid={ariaInvalid}
       onBlur={handleGroupBlur}
       data-name={name}
-      className={cn("flex items-center gap-2 rounded-lg aria-invalid:form-input-error", className)}
+      className={cn("group flex items-center gap-2", className)}
     >
       {use24Hour ? (
         <TimeSegment
@@ -197,8 +208,11 @@ export const TimePicker = ({
           aria-label="Toggle AM or PM"
           onClick={() => emit({ period: view.period === "AM" ? "PM" : "AM" })}
           className={cn(
-            "flex shrink-0 items-center rounded-lg bg-(--color-gray-alpha-100) px-2.5 py-1.5 text-base tracking-[0.28px]",
-            parts ? "text-foreground" : "text-foreground/70",
+            "flex shrink-0 items-center rounded-lg bg-[var(--form-input-bg,var(--color-gray-100))] px-2.5 py-1.5 text-base tracking-[0.28px]",
+            BOX_BORDER,
+            parts
+              ? "text-[var(--bf-input-foreground,var(--color-gray-800))]"
+              : "text-[var(--bf-input-foreground,var(--color-gray-800))]/70",
           )}
         >
           {view.period}

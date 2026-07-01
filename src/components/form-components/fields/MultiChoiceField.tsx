@@ -39,7 +39,7 @@ const MultiChoiceField = ({ element, form }: FieldRendererProps<"MultiChoice">) 
                 onChange={(val) => f.handleChange(val)}
                 aria-invalid={hasErrors}
                 aria-labelledby={getAriaLabelledBy(element)}
-                className={cn(hasErrors && "ring-1 ring-destructive")}
+                className={cn(hasErrors && "form-input-error")}
               />
               <f.FieldError />
             </>
@@ -96,12 +96,14 @@ const MultiChoiceField = ({ element, form }: FieldRendererProps<"MultiChoice">) 
                     onClick={() => f.handleChange(isSelected ? "" : option.value)}
                     aria-invalid={hasErrors}
                     className={cn(
-                      // Figma selected state: gray-200 rounded row pill (badge flips to white). No
-                      // focus ring (the keyboard handler programmatically focuses, which would show
-                      // focus-visible on click); a subtle gray-100 bg marks keyboard focus instead.
+                      // Selected = a filled row pill. Themed: the Input color with auto-contrast ink
+                      // (so the label stays readable on a dark pill); falls back to the Figma gray-200
+                      // pill + body text when uncustomized. No focus ring (the keyboard handler
+                      // programmatically focuses); a subtle gray-100 bg marks keyboard focus instead.
                       "flex cursor-pointer flex-col items-start gap-1.5 rounded-lg px-2 py-1.5 text-left text-base transition-colors outline-none",
-                      isSelected ? "bg-gray-200" : "focus-visible:bg-gray-100",
-                      hasErrors && "text-destructive",
+                      isSelected
+                        ? "bg-[var(--bf-input,var(--color-gray-200))] text-[var(--bf-input-foreground,var(--color-foreground))]"
+                        : "focus-visible:bg-gray-100",
                     )}
                   >
                     <span className="flex items-center gap-1.5">
