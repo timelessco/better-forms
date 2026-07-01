@@ -638,12 +638,12 @@ const DashboardPage = () => {
           />
         </section>
 
-        {/* Recent Forms */}
+        {/* All Forms */}
         <section className="mt-10 space-y-5">
           <div className="flex items-center justify-between gap-3">
             {/* font-sans re-binds the wght axis so font-semibold renders 600 (Figma SemiBold), not the pinned 450. */}
             <h2 className="font-sans text-[15px] leading-[1.15] font-semibold tracking-[0.225px] text-gray-950">
-              Recent Forms
+              All Forms
             </h2>
             {!isLoading && orgForms.length > 0 && (
               <div className="flex items-center gap-2">

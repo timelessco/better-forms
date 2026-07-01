@@ -1376,7 +1376,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
               <div className="flex flex-col gap-5 pt-1.5 pb-3.5">
                 {groupNotificationsByDay(notifications).map((group) => (
                   <div key={group.label} className="flex flex-col gap-2">
-                    <p className="pl-4 text-sm leading-[1.15] font-[450] tracking-[0.13px] text-gray-800">
+                    <p className="pl-4 text-sm leading-[1.15] font-[450] tracking-[0.13px] text-gray-500">
                       {group.label}
                     </p>
                     <div className="flex flex-col">
@@ -1390,26 +1390,18 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
                           <button
                             key={notification.id}
                             type="button"
-                            className="group flex flex-col gap-1.5 border-b border-gray-200 px-2 py-3 text-left transition-colors hover:rounded-[8px] hover:border-transparent hover:bg-gray-100"
+                            className="group flex w-full items-center gap-1.5 border-b border-gray-200 px-2 py-3 text-left transition-colors hover:rounded-[8px] hover:border-transparent hover:bg-gray-100"
                             onClick={() => void openNotification(notification)}
                             disabled={readingFormId === notification.formId}
                           >
-                            {/* Top: category + time — 13px / Medium 450 / gray-550. */}
-                            <div className="flex w-full items-center justify-between">
-                              <span className="flex items-center gap-1.5">
-                                <FileTextIcon className="size-3 shrink-0 text-[var(--color-gray-550)]" />
-                                <span className="text-sm leading-[1.15] font-[450] tracking-[0.13px] text-[var(--color-gray-550)]">
-                                  New submission
-                                </span>
-                              </span>
+                            {/* Message — 14px / Medium 450 / gray-800 / lh 1.5 (Figma 27015:15776). */}
+                            <span className="min-w-0 flex-1 text-base leading-[1.5] font-[450] tracking-[0.14px] text-gray-800">
+                              {notification.formTitle || "Untitled"}
+                            </span>
+                            {/* Right cluster — time (13px / gray-550) + unread dot / hover-clear (Figma 27015:15777). */}
+                            <span className="flex shrink-0 items-center gap-0.5">
                               <span className="text-sm leading-[1.15] font-[450] tracking-[0.13px] text-[var(--color-gray-550)]">
                                 {formatNotificationClock(notification.latestSubmissionAt)}
-                              </span>
-                            </div>
-                            {/* Body: message — 14px / Medium 450 / gray-700 / lh 1.5 — + unread dot or hover-clear. */}
-                            <div className="flex w-full items-end gap-4">
-                              <span className="min-w-0 flex-1 text-base leading-[1.5] font-[450] tracking-[0.14px] text-gray-700">
-                                {notification.formTitle || "Untitled"}
                               </span>
                               {isUnread ? (
                                 <span
@@ -1434,7 +1426,7 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
                                   <XIcon className="size-3" />
                                 </Button>
                               )}
-                            </div>
+                            </span>
                           </button>
                         );
                       })}
