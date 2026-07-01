@@ -126,6 +126,23 @@ const config = defineConfig({
             { path: "/api/cron/aggregate-analytics", schedule: "15 0 * * *" },
             { path: "/api/cron/purge-archived-forms", schedule: "30 0 * * *" },
           ],
+          // Provision Vercel's image optimizer (/_vercel/image) for Vercel-Blob covers/previews/
+          // avatars. Unlike Next.js, Nitro/TanStack Start doesn't enable it automatically, so the
+          // Build Output config must declare it — without this the endpoint 404s in prod.
+          // `sizes` MUST list every `w` <Image> requests (w= must match exactly, else 400); keep it
+          // in sync with the widths passed in src/components/ui/image.tsx + lib/vercel-image.ts.
+          images: {
+            sizes: [
+              16, 24, 32, 48, 64, 72, 80, 120, 144, 160, 240, 400, 640, 800, 960, 1200, 1280, 1600,
+              1920, 2048,
+            ],
+            domains: [],
+            remotePatterns: [
+              { protocol: "https", hostname: "*.public.blob.vercel-storage.com", pathname: "/**" },
+            ],
+            formats: ["image/avif", "image/webp"],
+            minimumCacheTTL: 86400,
+          },
         },
       },
       routeRules: {
