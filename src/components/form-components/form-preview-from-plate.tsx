@@ -706,7 +706,12 @@ const FieldByFieldLayout = ({
 
       {/* No progress bar in one-at-a-time (removed by design). */}
       <div
-        className={cn("mx-auto", layout === "editor" ? "w-full px-8 md:px-0" : "px-4")}
+        // Popup: 20px below the footer so it doesn't sit flush at the card edge (Figma 27015:16550 pb-20).
+        className={cn(
+          "mx-auto",
+          layout === "editor" ? "w-full px-8 md:px-0" : "px-4",
+          isPopup && "pb-[20px]",
+        )}
         style={{
           maxWidth: PAGE_MAX_WIDTH[layout],
           ...(layout === "editor"

@@ -771,7 +771,9 @@ const FieldByFieldRSCContent = ({
       {header ? <TypedComposite src={header} /> : null}
 
       <div
-        className="relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col justify-center overflow-hidden px-4 pb-12 sm:px-6"
+        // Top-aligned stack under the header (matches the preview); 20px below the footer so it
+        // doesn't sit flush at the popup edge (Figma 27015:16550 pb-20).
+        className="relative z-10 mx-auto w-full px-4 pb-[20px] sm:px-6"
         style={{ maxWidth: PAGE_MAX_WIDTH }}
         data-bf-form-container
       >
