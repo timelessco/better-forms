@@ -1,4 +1,4 @@
-import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
+import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 import { APP_NAME } from "@/lib/config/app-config";
 import { TextSwap } from "@/components/transitions/text-swap";
 import { use, useMemo, useRef, useState } from "react";
@@ -24,6 +24,9 @@ interface StepFormProps {
   autoActionButton?: boolean;
   /** Show the "Made with Reform." footer badge beside the final Submit (settings.branding). */
   branding?: boolean;
+  /** Auto-action nav style: "hint" = keyboard-hint row (popup/embed); "footer" = full-page
+   *  Back / Next → button row (Figma 27112:21064). */
+  navVariant?: "hint" | "footer";
 }
 
 // One step's form instance. Nav + data accumulation via StepFormContext.
@@ -34,6 +37,7 @@ export const StepForm = ({
   isLastStep,
   autoActionButton = false,
   branding = false,
+  navVariant = "hint",
 }: StepFormProps) => {
   const { totalSteps, goToPrevStep, canGoBack, isSubmitting, tracking } = useStepForm();
   const { t } = useTranslation();
@@ -155,8 +159,13 @@ export const StepForm = ({
         onKeyDownCapture={autoActionButton ? handleFieldByFieldKeyDown : undefined}
         onFocus={handleFormFocus}
         onBlur={autoActionButton ? handleTextareaFocusChange(false) : undefined}
-        // pb-7: 28px breathing room so the final Submit/branding row doesn't sit flush at the form's bottom edge.
-        className="pb-7 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        // footer variant: flex-col gap-7 (28px) so field→footer matches the Figma card. Otherwise
+        // pb-7 gives 28px breathing room so the submit/branding row doesn't sit flush at the bottom.
+        className={
+          navVariant === "footer"
+            ? "flex flex-col gap-7 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            : "pb-7 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        }
       >
         {groupedItems.map((item) => {
           if (item.type === "buttonGroup") {
@@ -264,49 +273,92 @@ export const StepForm = ({
           return null;
         })}
 
-        {!readOnly && showAutoActionButton && !(hideSubmit && isLastStep) && (
-          <div
-            className="flex w-full items-center gap-3 pt-2"
-            style={{ maxWidth: "var(--bf-input-width)" }}
-          >
-            <Button
-              type="submit"
-              data-bf-button=""
-              style={{ fontSize: "13px" }}
-              className="h-9 gap-1.5 rounded-lg px-4"
-              disabled={isSubmitting}
+        {!readOnly &&
+          showAutoActionButton &&
+          !(hideSubmit && isLastStep) &&
+          (navVariant === "footer" ? (
+            // Full-page one-at-a-time footer (Figma 27112:21064): Back / Next → on the left,
+            // "Made with Reform." on the right. Enter/Esc still work (handleFieldByFieldKeyDown).
+            <div className="flex w-full items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                {/* Back is always shown (Figma 27112:21208); disabled on the first step. */}
+                <Button
+                  type="button"
+                  variant="ghost-flat"
+                  onClick={canGoBack ? goToPrevStep : undefined}
+                  disabled={!canGoBack}
+                  style={{ fontSize: "14px" }}
+                  className="h-auto rounded-[8px] px-2 py-1.5 font-[420] tracking-[0.28px] text-gray-900"
+                >
+                  {t("back")}
+                </Button>
+                <Button
+                  type="submit"
+                  data-bf-button=""
+                  disabled={isSubmitting}
+                  style={{ fontSize: "14px" }}
+                  className="h-auto gap-2 rounded-[8px] px-2 py-1.5 font-[420] tracking-[0.28px]"
+                  suffix={<ArrowRightIcon className="size-4" />}
+                >
+                  {(() => {
+                    const label = isSubmitting
+                      ? t("submitting")
+                      : isLastStep
+                        ? t("submit")
+                        : t("next");
+                    return <TextSwap key={label}>{label}</TextSwap>;
+                  })()}
+                </Button>
+              </div>
+              {branding && <FormBrandingBadge />}
+            </div>
+          ) : (
+            <div
+              className="flex w-full items-center gap-3 pt-2"
+              style={{ maxWidth: "var(--bf-input-width)" }}
             >
-              {(() => {
-                const label = isSubmitting ? t("submitting") : isLastStep ? t("submit") : t("next");
-                return <TextSwap key={label}>{label}</TextSwap>;
-              })()}
-            </Button>
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-              press{" "}
-              {isTextareaFocused && (
-                <>
-                  <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
-                    ⌘
-                  </kbd>
-                  +
-                </>
-              )}
-              <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
-                Enter
-              </kbd>
-              <span aria-hidden="true">↵</span>
-            </span>
-            {canGoBack && (
+              <Button
+                type="submit"
+                data-bf-button=""
+                style={{ fontSize: "13px" }}
+                className="h-9 gap-1.5 rounded-lg px-4"
+                disabled={isSubmitting}
+              >
+                {(() => {
+                  const label = isSubmitting
+                    ? t("submitting")
+                    : isLastStep
+                      ? t("submit")
+                      : t("next");
+                  return <TextSwap key={label}>{label}</TextSwap>;
+                })()}
+              </Button>
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                press{" "}
+                {isTextareaFocused && (
+                  <>
+                    <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
+                      ⌘
+                    </kbd>
+                    +
+                  </>
+                )}
                 <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
-                  Esc
+                  Enter
                 </kbd>
-                to go back
+                <span aria-hidden="true">↵</span>
               </span>
-            )}
-            {showBranding && <FormBrandingBadge className="ms-auto" />}
-          </div>
-        )}
+              {canGoBack && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
+                    Esc
+                  </kbd>
+                  to go back
+                </span>
+              )}
+              {showBranding && <FormBrandingBadge className="ms-auto" />}
+            </div>
+          ))}
       </form.Form>
     </form.AppForm>
   );
@@ -346,7 +398,7 @@ const groupSegmentsForRendering = (segments: PreviewSegment[]): GroupedSegment[]
 
 // Inline form-footer branding (Figma 25778-10461): "Made with Reform." — Inter gray/500 + the
 // Timeless Serif "Reform." wordmark. Renders beside the final Submit when settings.branding is on.
-const FormBrandingBadge = ({ className }: { className?: string }) => (
+export const FormBrandingBadge = ({ className }: { className?: string }) => (
   <span
     // Inline fontSize: the form applies a base size via a non-layered rule that out-races Tailwind
     // utilities (same reason the submit button pins fontSize inline). Figma = 14px.

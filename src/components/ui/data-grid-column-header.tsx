@@ -368,7 +368,13 @@ export const DataGridColumnHeader = <TData extends RowData, TValue>({
 
           {props.tableLayout?.columnsMovable && (
             <>
-              <DropdownMenuSeparator />
+              {/* Only divide when a section (filter/sort/pin) actually renders above — else the
+                  separator sits orphaned at the menu's top when Move is the only group. */}
+              {(filter ||
+                column.getCanSort() ||
+                (props.tableLayout?.columnsPinnable && column.getCanPin())) && (
+                <DropdownMenuSeparator />
+              )}
               <DropdownMenuItem
                 onClick={handleMoveLeft}
                 disabled={!canMove("left") || column.getIsPinned() !== false}

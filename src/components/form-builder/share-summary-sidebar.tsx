@@ -608,14 +608,17 @@ const PresentationRows = ({
       />
     </PreferenceRow>
 
-    <PreferenceRow label="Show progress bar">
-      <Switch
-        aria-label="Show progress bar"
-        checked={docProgressBar}
-        onCheckedChange={onProgressBarChange}
-        size="default"
-      />
-    </PreferenceRow>
+    {/* One-at-a-time has no progress bar — hide the toggle in that mode. */}
+    {docPresentationMode !== "field-by-field" && (
+      <PreferenceRow label="Show progress bar">
+        <Switch
+          aria-label="Show progress bar"
+          checked={docProgressBar}
+          onCheckedChange={onProgressBarChange}
+          size="default"
+        />
+      </PreferenceRow>
+    )}
   </>
 );
 
@@ -769,14 +772,17 @@ const FullPagePreferences = ({
         )}
       </form.Field>
 
-      <PreferenceRow label="Show progress bar">
-        <Switch
-          aria-label="Show progress bar"
-          checked={docProgressBar}
-          onCheckedChange={handleProgressBarChange}
-          size="default"
-        />
-      </PreferenceRow>
+      {/* One-at-a-time has no progress bar — hide the toggle in that mode. */}
+      {docPresentationMode !== "field-by-field" && (
+        <PreferenceRow label="Show progress bar">
+          <Switch
+            aria-label="Show progress bar"
+            checked={docProgressBar}
+            onCheckedChange={handleProgressBarChange}
+            size="default"
+          />
+        </PreferenceRow>
+      )}
     </SidebarSection>
 
     <SidebarSection label="Preferences" collapsible={false} divider={false}>
@@ -975,6 +981,7 @@ const PopupTab = ({
 // Embed (standard iframe) tab — inline preview + Appearance + Preferences flat sections.
 const EmbedTab = ({
   form,
+  docPresentationMode,
   docProgressBar,
   handleProgressBarChange,
   docBranding,
@@ -1056,14 +1063,17 @@ const EmbedTab = ({
         )}
       </form.Field>
 
-      <PreferenceRow label="Show progress bar">
-        <Switch
-          aria-label="Show progress bar"
-          checked={docProgressBar}
-          onCheckedChange={handleProgressBarChange}
-          size="default"
-        />
-      </PreferenceRow>
+      {/* One-at-a-time has no progress bar — hide the toggle in that mode. */}
+      {docPresentationMode !== "field-by-field" && (
+        <PreferenceRow label="Show progress bar">
+          <Switch
+            aria-label="Show progress bar"
+            checked={docProgressBar}
+            onCheckedChange={handleProgressBarChange}
+            size="default"
+          />
+        </PreferenceRow>
+      )}
     </SidebarSection>
 
     <SidebarSection label="Preferences" collapsible={false} divider={false}>

@@ -408,8 +408,9 @@
   position: fixed;
   z-index: 2147483001;
   background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  /* Figma 26883/26889: 20px radius + elevation/light/xl shadow. */
+  border-radius: 20px;
+  box-shadow: 0px 24px 30px -8px rgba(0, 0, 0, 0.1), 0px 0px 10px 2px rgba(0, 0, 0, 0.04), 0px 0px 1px 0px rgba(0, 0, 0, 0.2);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -437,7 +438,7 @@
 .bf-iframe-container {
   flex: 1;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: 20px;
 }
 
 .bf-iframe {
@@ -453,10 +454,11 @@
   top: 12px;
   right: 12px;
   z-index: 10;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: none;
-  border-radius: 50%;
+  /* Figma 26883:11949 — rounded-8px chip, not a circle. */
+  border-radius: 8px;
   background-color: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(4px);
   cursor: pointer;

@@ -138,7 +138,8 @@ const PreviewFormHeader = ({
       ? String(Math.max(48, Number.parseInt(customization.logoWidth)))
       : "100";
 
-  // Check if we have valid cover (URL or hex color)
+  // Check if we have valid cover (URL or hex color). Shown as a flush banner in the popup too
+  // (Figma 26889); no cover → the uncovered title-only header (26883). Same for card + one-at-a-time.
   const hasCover = cover && (isHexColor(cover) || isValidUrl(cover)) && !imageError;
   // Popup: icon already shown as bubble, hide inside body (space + no dup).
   const hasIcon = !!icon && !iconError && !isPopup;
@@ -275,12 +276,13 @@ const PreviewFormHeader = ({
           <div
             className={cn(
               "flex gap-1",
-              !hasCover && !hasIcon && "mt-8 sm:mt-12",
-              hasCover && !hasIcon && "mt-4",
+              // Popup has no editor toolbar row → no spacer/margin; title sits at the card top (Figma).
+              !isPopup && !hasCover && !hasIcon && "mt-8 sm:mt-12",
+              !isPopup && hasCover && !hasIcon && "mt-4",
               hasIcon && "mt-0",
             )}
           >
-            {(!hasCover || !hasIcon) && <div className="h-8" />}
+            {!isPopup && (!hasCover || !hasIcon) && <div className="h-8" />}
           </div>
           {/* Title collapse: hideTitle toggle in the Share panel unmounts the h1; AnimatePresence
               animates the height/opacity/margin so the layout reflows smoothly instead of snapping.
@@ -301,7 +303,11 @@ const PreviewFormHeader = ({
                       : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }
                   }
                   style={{ textWrap: "pretty", overflow: "hidden" }}
-                  className="font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px]"
+                  className={cn(
+                    "font-serif font-light -tracking-[0.03em] text-foreground",
+                    // Popup card (Figma 26883/26889): compact 24px title, not the 48px full-page size.
+                    isPopup ? "text-2xl" : "text-4xl sm:text-[48px]",
+                  )}
                 >
                   {title}
                 </m.h1>
@@ -334,7 +340,12 @@ const PreviewFormHeader = ({
             <h1
               data-bf-title
               style={{ textWrap: "pretty" }}
-              className={`font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px] ${hasIcon ? "mt-3" : "mt-6 sm:mt-8"}`}
+              className={cn(
+                "font-serif font-light -tracking-[0.03em] text-foreground",
+                isPopup ? "text-2xl" : "text-4xl sm:text-[48px]",
+                // Popup header row (Figma 26883 py-12): 12px top so the title centers with the close.
+                isPopup ? "mt-3" : hasIcon ? "mt-3" : "mt-6 sm:mt-8",
+              )}
             >
               {title}
             </h1>
@@ -706,6 +717,7 @@ const FieldByFieldLayout = ({
   icon,
   iconColor,
   cover,
+  coverPosition,
   hideTitle,
   layout,
   settings,
@@ -735,6 +747,78 @@ const FieldByFieldLayout = ({
   const showHeader = !hideTitle && (title || hasIcon);
   const isPublic = layout === "public";
   const hasTint = isPublic && coverIsImage && cover.includes("tint=true");
+  // One-at-a-time (full-page AND popup): SAME header/container as card mode (PreviewFormHeader —
+  // title + optional cover + no full-bleed bg); only the below-header body changes to the Figma
+  // Back/Next footer (27112:20994 / 27015:16542). The popup gets its compact title + flush cover
+  // from POPUP_FORM_STYLE_VARS on the wrapper. Only embed keeps the legacy cover-bg layout below.
+  const isCardStyle = !boundToParent;
+
+  if (isCardStyle) {
+    return (
+      <div className="w-full">
+        <PreviewFormHeader
+          title={title}
+          icon={icon}
+          cover={cover}
+          coverPosition={coverPosition}
+          hideTitle={hideTitle}
+          layout={layout}
+          customization={customization}
+          isPopup={isPopup}
+        />
+
+        {/* No progress bar in one-at-a-time (removed by design). */}
+        <div
+          className={cn("mx-auto", layout === "editor" ? "w-full px-8 md:px-0" : "px-4")}
+          style={{
+            maxWidth: PAGE_MAX_WIDTH[layout],
+            ...(layout === "editor"
+              ? ({ "--bf-spacing": "0.5rem" } as React.CSSProperties)
+              : undefined),
+          }}
+          data-bf-form-container
+        >
+          {isSubmitted ? (
+            <ThankYouView
+              thankYouNodes={thankYouNodes}
+              onReset={reset}
+              shareUrl={shareUrl}
+              redirectCountdown={redirectCountdown}
+            />
+          ) : (
+            <LazyMotion features={domAnimation} strict>
+              <AnimatePresence mode="wait" custom={direction}>
+                <m.div
+                  key={currentStep}
+                  custom={direction}
+                  variants={stepVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { type: "spring", stiffness: 300, damping: 30 },
+                    opacity: { duration: 0.2 },
+                  }}
+                  className="w-full"
+                >
+                  <StepForm
+                    key={`${currentStep}:${segmentsKey}`}
+                    stepIndex={currentStep}
+                    segments={currentStepSegments}
+                    questions={currentStepQuestions}
+                    isLastStep={isLastStep}
+                    autoActionButton
+                    navVariant="footer"
+                    branding={Boolean(settings?.branding)}
+                  />
+                </m.div>
+              </AnimatePresence>
+            </LazyMotion>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

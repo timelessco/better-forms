@@ -403,8 +403,9 @@ export const runPublicFormViewRSC = async (data: { shortId: string }) => {
   const [stepComponents, thankYou, header] = await Promise.all([
     Promise.all(steps.map((segs) => renderStepComponent(segs))),
     renderThankYouComponent(thankYouNodes),
-    // Field-by-field renders its own client header (icon beside title, no cover band); skip card header.
-    base.form && !isFieldByField
+    // Card header (cover band + icon + title). Full-page one-at-a-time reuses it too (same header as
+    // card mode); the popup/embed one-at-a-time branch renders its own client header and ignores this.
+    base.form
       ? renderHeaderComponent({
           title: base.form.title,
           icon: base.form.icon,

@@ -753,7 +753,7 @@ const QuickCreateTemplates = ({ disabled, onCreate }: QuickCreateTemplatesProps)
     {/* Browse the full gallery instead of creating a form. */}
     <Link
       to="/templates"
-      className={cn(QUICK_CARD_CLASS, "border-dashed border-gray-300")}
+      className={cn(QUICK_CARD_CLASS, "border-gray-100")}
       aria-label="Browse all templates"
     >
       <FigAllTemplatesIcon className="size-6 text-gray-950" />
