@@ -421,6 +421,9 @@ const StepFormRSC = ({
         ref={formRef}
         noValidate
         data-bf-field-list
+        // Footer variant is flex `gap-7`; mark it so CSS zeroes the field's block margin (flex
+        // items don't margin-collapse, else field→footer doubles to 56px). See styles.css.
+        data-bf-fbf-footer={navVariant === "footer" ? "" : undefined}
         onKeyDownCapture={autoActionButton ? handleFieldByFieldKeyDown : undefined}
         onFocus={handleFormFocus}
         onBlur={autoActionButton ? handleTextareaFocusChange(false) : undefined}

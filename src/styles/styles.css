@@ -1292,6 +1292,13 @@
   margin-bottom: var(--bf-block-margin) !important;
 }
 
+/* One-at-a-time footer form is flex `gap-7`; flex items don't margin-collapse, so the block
+   margin above would ADD to the gap (field→footer = 56px). Zero it — the flex gap owns spacing. */
+[data-bf-field-list][data-bf-fbf-footer] > [data-bf-input],
+[data-bf-field-list][data-bf-fbf-footer] > [data-slate-node="element"]:not([data-bf-chrome]) {
+  margin-bottom: 0 !important;
+}
+
 /* Public-form label spacing mirrors the editor's label block exactly.
    Using MARGIN (not padding) so it vertical-collapses through the
    transparent [data-bf-input] wrapper:
