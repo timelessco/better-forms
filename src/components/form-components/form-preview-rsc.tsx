@@ -436,17 +436,18 @@ const StepFormRSC = ({
             // Full-page one-at-a-time footer (Figma 27112:21064): Back / Next → left, branding right.
             <div className="flex w-full items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                {/* Back is always shown (Figma 27112:21208); disabled on the first step. */}
-                <Button
-                  type="button"
-                  variant="ghost-flat"
-                  onClick={canGoBack ? goToPrevStep : undefined}
-                  disabled={!canGoBack}
-                  style={{ fontSize: "14px" }}
-                  className="h-auto rounded-[8px] px-2 py-1.5 font-[420] tracking-[0.28px] text-gray-900"
-                >
-                  {t("back")}
-                </Button>
+                {/* Back appears only when there's a previous step (Figma 27015:16542 step 1 = Next only). */}
+                {canGoBack && (
+                  <Button
+                    type="button"
+                    variant="ghost-flat"
+                    onClick={goToPrevStep}
+                    style={{ fontSize: "14px" }}
+                    className="h-auto rounded-[8px] px-2 py-1.5 font-[420] tracking-[0.28px] text-gray-900"
+                  >
+                    {t("back")}
+                  </Button>
+                )}
                 {!(hideSubmit && isLastStep) && (
                   <Button
                     type="submit"
