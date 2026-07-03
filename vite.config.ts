@@ -137,8 +137,16 @@ const config = defineConfig({
               1920, 2048,
             ],
             domains: [],
+            // Pinned to OUR blob store (not `*.public.blob.vercel-storage.com`) so the optimizer
+            // can't be used as an open proxy for any Vercel-Blob tenant's images. Host is the
+            // lowercased store id from BLOB_READ_WRITE_TOKEN; the URL parser lowercases hostnames
+            // before matching, so casing of stored URLs is irrelevant.
             remotePatterns: [
-              { protocol: "https", hostname: "*.public.blob.vercel-storage.com", pathname: "/**" },
+              {
+                protocol: "https",
+                hostname: "gwsqlmqg0axhgzzt.public.blob.vercel-storage.com",
+                pathname: "/**",
+              },
             ],
             formats: ["image/avif", "image/webp"],
             minimumCacheTTL: 86400,

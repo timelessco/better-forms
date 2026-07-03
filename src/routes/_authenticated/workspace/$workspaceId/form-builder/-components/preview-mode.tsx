@@ -9,8 +9,6 @@ import { extractFormHeader } from "@/lib/editor/transform-plate-to-form";
 import { RenderStepPreviewInputEager } from "@/components/form-components/render-step-preview-input-eager";
 import { PreviewRendererContext } from "@/components/form-components/render-step-preview-input";
 import { Button } from "@/components/ui/button";
-import { Image } from "@/components/ui/image";
-import { COVER_SRCSET_WIDTHS } from "@/lib/vercel-image";
 import type { EmbedType } from "@/hooks/use-editor-sidebar";
 import { useEditorColorMode } from "@/hooks/use-editor-color-mode";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
@@ -19,7 +17,8 @@ import { useFormThemeContextValue } from "@/hooks/use-form-theme";
 import { useForm } from "@/hooks/use-live-hooks";
 import { useResolvedTheme } from "@/components/theme-provider";
 import { EditorThemeProvider } from "@/contexts/editor-theme-context";
-import { cn, isHexColor, isValidUrl } from "@/lib/utils";
+import { cn, isValidUrl } from "@/lib/utils";
+import { POPUP_FORM_STYLE_VARS } from "@/lib/popup-style";
 import { buildPublicFormSettings } from "@/types/form-settings";
 import type { PublicFormSettings } from "@/types/form-settings";
 
@@ -442,7 +441,8 @@ const PopupPreviewOverlay = ({
       {isPopupOpen && (
         <div
           ref={setPopupEl}
-          className="pointer-events-auto absolute z-20 flex flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-[0_30px_60px_rgba(0,0,0,0.15)] transition-[top,left,transform] duration-300 ease-out"
+          // Figma 26889:14685 — 20px radius, elevation/light/xl shadow, no border.
+          className="pointer-events-auto absolute z-20 flex flex-col overflow-hidden rounded-[20px] bg-background shadow-[0px_0px_1px_0px_rgba(0,0,0,0.2),0px_0px_10px_2px_rgba(0,0,0,0.04),0px_24px_30px_-8px_rgba(0,0,0,0.1)] transition-[top,left,transform] duration-300 ease-out"
           style={{
             width: popupWidth,
             ...(popupPosition === "center"
@@ -464,12 +464,18 @@ const PopupPreviewOverlay = ({
                   }),
           }}
         >
-          <div className="pointer-events-auto absolute top-4 right-4 z-30">
-            {/* Match the app's standard close button (sidebar headers): ghost-flat, rounded-lg. */}
+          {/* Close (rounded-8px, 18px X): over the cover → white/10 chip + white X (Figma 26889:14689);
+              no cover → dark ghost aligned with the title row (26883:11949). */}
+          <div className="pointer-events-auto absolute top-3 right-2 z-30">
             <Button
               variant="ghost-flat"
               size="icon-xs"
-              className="size-7 rounded-lg p-1.25 text-gray-800 hover:text-foreground"
+              className={cn(
+                "size-7 rounded-[8px] p-1.25",
+                doc.cover && isValidUrl(doc.cover)
+                  ? "bg-white/10 text-white hover:bg-white/20"
+                  : "text-gray-800 hover:bg-black/5 hover:text-foreground",
+              )}
               onClick={handleClosePopup}
               aria-label="Close"
             >
@@ -478,11 +484,11 @@ const PopupPreviewOverlay = ({
           </div>
 
           <div
-            className={
-              previewSettings.presentationMode === "field-by-field"
-                ? "h-[650px] overflow-hidden"
-                : "max-h-[650px] overflow-x-hidden overflow-y-auto"
-            }
+            // Height fits the content (up to 650px) for both layouts — one-at-a-time no longer
+            // forces a fixed 650px, so the popup shrinks to the single field (Figma 27015-16542).
+            className="max-h-[650px] overflow-x-hidden overflow-y-auto"
+            // Popup card (Figma 26883): compact title + flush cover — shared with the live popup.
+            style={POPUP_FORM_STYLE_VARS}
           >
             <FormPreviewFromPlate
               content={content}
@@ -564,10 +570,6 @@ const FullpagePreviewSurface = ({
         transparentBackground ? "bg-transparent" : "bg-background",
       )}
     >
-      {/* Field-by-field: cover as full-pane bg here — form-preview's bg-image only fills content height. */}
-      {previewSettings.presentationMode === "field-by-field" && effectiveCover && (
-        <FieldByFieldCoverBackground cover={effectiveCover} />
-      )}
       <div
         className={cn(
           "h-full min-h-0 w-full flex-1",
@@ -589,44 +591,5 @@ const FullpagePreviewSurface = ({
         />
       </div>
     </div>
-  );
-};
-
-const FieldByFieldCoverBackground = ({ cover }: { cover: string }) => {
-  const isImage = isValidUrl(cover);
-  const isHex = isHexColor(cover);
-  const hasTint = isImage && cover.includes("tint=true");
-  if (!isImage && !isHex) return null;
-  return (
-    <>
-      {isImage ? (
-        <Image
-          src={cover}
-          alt=""
-          width={1200}
-          height={400}
-          priority
-          sizes="100vw"
-          srcSetWidths={[...COVER_SRCSET_WIDTHS]}
-          aria-hidden="true"
-          className={cn(
-            "pointer-events-none absolute inset-0 z-0 size-full object-cover",
-            hasTint && "brightness-60 grayscale",
-          )}
-        />
-      ) : (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0"
-          style={{ backgroundColor: cover }}
-        />
-      )}
-      {hasTint && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0 bg-primary opacity-50 mix-blend-color"
-        />
-      )}
-    </>
   );
 };

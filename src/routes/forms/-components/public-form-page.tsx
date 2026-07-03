@@ -19,6 +19,7 @@ import type { EmailVerificationStore } from "@/components/form-components/email-
 import { createPublicSubmission } from "@/lib/server-fn/public-submissions";
 import { clearDraftId, readDraftId, readLocalDraft } from "@/hooks/use-draft-autosave";
 import { usePublicFormTracking } from "@/lib/analytics/use-public-form-tracking";
+import { POPUP_FORM_STYLE_VARS } from "@/lib/popup-style";
 import { getTranslations } from "@/lib/translations";
 import { cn } from "@/lib/utils";
 import {
@@ -609,7 +610,11 @@ const PublicFormMain = ({
       transparentBackground || isPopup ? "bg-transparent" : "bg-background",
       alignLeft && "text-left",
     )}
-    style={dynamicWidth ? ({ "--bf-page-width": "100%" } as React.CSSProperties) : undefined}
+    style={{
+      // Popup card: compact title + flush cover (Figma 26883), identical to the editor preview.
+      ...(isPopup ? POPUP_FORM_STYLE_VARS : undefined),
+      ...(dynamicWidth ? ({ "--bf-page-width": "100%" } as React.CSSProperties) : undefined),
+    }}
     data-bf-hide-title={hideTitle ? "" : undefined}
     aria-live="polite"
   >

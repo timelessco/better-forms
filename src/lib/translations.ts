@@ -2,6 +2,7 @@ type TranslationKey =
   // Buttons
   | "next"
   | "previous"
+  | "back"
   | "submit"
   | "submitting"
   // State pages
@@ -37,6 +38,7 @@ type Translations = Record<TranslationKey, string>;
 const en: Translations = {
   next: "Next",
   previous: "Previous",
+  back: "Back",
   submit: "Submit",
   submitting: "Submitting...",
   formNotFound: "Form not found",
@@ -67,6 +69,7 @@ const en: Translations = {
 const es: Translations = {
   next: "Siguiente",
   previous: "Anterior",
+  back: "Atrás",
   submit: "Enviar",
   submitting: "Enviando...",
   formNotFound: "Formulario no encontrado",
@@ -97,6 +100,7 @@ const es: Translations = {
 const fr: Translations = {
   next: "Suivant",
   previous: "Précédent",
+  back: "Retour",
   submit: "Soumettre",
   submitting: "Envoi en cours...",
   formNotFound: "Formulaire introuvable",

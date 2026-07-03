@@ -138,7 +138,8 @@ const PreviewFormHeader = ({
       ? String(Math.max(48, Number.parseInt(customization.logoWidth)))
       : "100";
 
-  // Check if we have valid cover (URL or hex color)
+  // Check if we have valid cover (URL or hex color). Shown as a flush banner in the popup too
+  // (Figma 26889); no cover → the uncovered title-only header (26883). Same for card + one-at-a-time.
   const hasCover = cover && (isHexColor(cover) || isValidUrl(cover)) && !imageError;
   // Popup: icon already shown as bubble, hide inside body (space + no dup).
   const hasIcon = !!icon && !iconError && !isPopup;
@@ -275,12 +276,13 @@ const PreviewFormHeader = ({
           <div
             className={cn(
               "flex gap-1",
-              !hasCover && !hasIcon && "mt-8 sm:mt-12",
-              hasCover && !hasIcon && "mt-4",
+              // Popup has no editor toolbar row → no spacer/margin; title sits at the card top (Figma).
+              !isPopup && !hasCover && !hasIcon && "mt-8 sm:mt-12",
+              !isPopup && hasCover && !hasIcon && "mt-4",
               hasIcon && "mt-0",
             )}
           >
-            {(!hasCover || !hasIcon) && <div className="h-8" />}
+            {!isPopup && (!hasCover || !hasIcon) && <div className="h-8" />}
           </div>
           {/* Title collapse: hideTitle toggle in the Share panel unmounts the h1; AnimatePresence
               animates the height/opacity/margin so the layout reflows smoothly instead of snapping.
@@ -301,7 +303,11 @@ const PreviewFormHeader = ({
                       : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }
                   }
                   style={{ textWrap: "pretty", overflow: "hidden" }}
-                  className="font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px]"
+                  className={cn(
+                    "font-serif font-light -tracking-[0.03em] text-foreground",
+                    // Popup card (Figma 26883/26889): compact 24px title, not the 48px full-page size.
+                    isPopup ? "text-2xl" : "text-4xl sm:text-[48px]",
+                  )}
                 >
                   {title}
                 </m.h1>
@@ -334,7 +340,12 @@ const PreviewFormHeader = ({
             <h1
               data-bf-title
               style={{ textWrap: "pretty" }}
-              className={`font-serif text-4xl font-light -tracking-[0.03em] text-foreground sm:text-[48px] ${hasIcon ? "mt-3" : "mt-6 sm:mt-8"}`}
+              className={cn(
+                "font-serif font-light -tracking-[0.03em] text-foreground",
+                isPopup ? "text-2xl" : "text-4xl sm:text-[48px]",
+                // Popup header row (Figma 26883 py-12): 12px top so the title centers with the close.
+                isPopup ? "mt-3" : hasIcon ? "mt-3" : "mt-6 sm:mt-8",
+              )}
             >
               {title}
             </h1>
@@ -648,77 +659,23 @@ interface LayoutProps {
   redirectCountdown: number | null;
 }
 
-const FieldByFieldHeaderIcon = ({
-  icon,
-  iconColor,
-  hasCustomization,
-}: {
-  icon: string;
-  iconColor?: string | null;
-  hasCustomization?: boolean;
-}) => {
-  if (icon === DEFAULT_ICON) {
-    return (
-      <span className="flex-shrink-0" data-bf-logo-icon>
-        <IconPickerPreview
-          icon={DEFAULT_ICON_NAME}
-          iconColor={undefined}
-          useThemeColor
-          iconSize="40"
-          size="80"
-        />
-      </span>
-    );
-  }
-
-  if (isValidUrl(icon)) {
-    return (
-      <Image
-        src={icon}
-        alt=""
-        width={80}
-        height={80}
-        className="size-20 flex-shrink-0 rounded-md object-cover"
-        data-bf-logo
-      />
-    );
-  }
-
-  return (
-    <span className="flex-shrink-0" data-bf-logo-icon>
-      <IconPickerPreview
-        icon={icon}
-        // Mirror editor: theme color on themed forms, explicit iconColor only on unthemed. No `standaloneIcon` (same currentColor-through-<use> reason as card-mode header).
-        iconColor={hasCustomization ? undefined : iconColor || undefined}
-        useThemeColor={hasCustomization || !iconColor}
-        iconSize="40"
-        size="80"
-      />
-    </span>
-  );
-};
-
 const FieldByFieldLayout = ({
   steps,
   stepQuestions,
   thankYouNodes,
   title,
   icon,
-  iconColor,
   cover,
+  coverPosition,
   hideTitle,
   layout,
   settings,
   customization,
   isPopup,
-  boundToParent,
   shareUrl,
   redirectCountdown,
 }: LayoutProps) => {
-  const { currentStep, totalSteps, isSubmitted, direction, reset } = useStepForm();
-  const hasCustomization = !!(customization && Object.keys(customization).length > 0);
-  const coverIsImage = cover && isValidUrl(cover);
-  const coverIsColor = cover && isHexColor(cover);
+  const { currentStep, isSubmitted, direction, reset } = useStepForm();
   const isLastStep = currentStep === steps.length - 1;
   const currentStepSegments = steps[currentStep] || [];
   const currentStepQuestions = stepQuestions[currentStep] || [];
@@ -730,74 +687,31 @@ const FieldByFieldLayout = ({
   // `currentStepSegments` (re-created via `|| []` each render).
   const segmentsKey = useMemo(() => JSON.stringify(steps[currentStep] || []), [steps, currentStep]);
 
-  // Popup: avatar already the bubble, hide inside (space + no dup).
-  const hasIcon = !!icon && !isPopup;
-  const showHeader = !hideTitle && (title || hasIcon);
-  const isPublic = layout === "public";
-  const hasTint = isPublic && coverIsImage && cover.includes("tint=true");
-
+  // One-at-a-time everywhere (full-page, popup AND embed): SAME header/container as card mode
+  // (PreviewFormHeader — title + optional cover, no full-bleed bg); only the below-header body
+  // changes to the Figma Back/Next footer (27112:20994 / 27015:16542 / 27112:20302). The popup
+  // gets its compact title + flush cover from POPUP_FORM_STYLE_VARS on the wrapper.
   return (
-    <div
-      className={cn(
-        "relative flex size-full flex-col overflow-hidden",
-        layout === "public"
-          ? isPopup || boundToParent
-            ? "max-h-full min-h-full"
-            : "min-h-screen"
-          : "min-h-[600px]",
-      )}
-      style={
-        isPublic
-          ? {
-              backgroundImage: coverIsImage ? `url("${cover}")` : undefined,
-              backgroundColor: coverIsColor ? cover : undefined,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-            }
-          : undefined
-      }
-      data-bf-cover
-    >
-      {hasTint && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0 bg-primary opacity-50 mix-blend-color"
-        />
-      )}
+    <div className="w-full">
+      <PreviewFormHeader
+        title={title}
+        icon={icon}
+        cover={cover}
+        coverPosition={coverPosition}
+        hideTitle={hideTitle}
+        layout={layout}
+        customization={customization}
+        isPopup={isPopup}
+      />
 
-      {showHeader && (
-        <div
-          className={cn(
-            "relative z-10 flex items-center gap-4",
-            isPopup ? "px-4.5 pt-3" : "mx-auto w-full px-4 pt-6 sm:px-6 sm:pt-8",
-          )}
-          style={isPopup ? undefined : { maxWidth: PAGE_MAX_WIDTH[layout] }}
-        >
-          {hasIcon && icon && (
-            <FieldByFieldHeaderIcon
-              icon={icon}
-              iconColor={iconColor}
-              hasCustomization={hasCustomization}
-            />
-          )}
-          {title && (
-            <h1
-              data-bf-title
-              style={{ textWrap: "pretty" }}
-              className={cn(
-                "font-serif leading-none font-light -tracking-[0.03em] text-foreground",
-                isPopup ? "text-2xl sm:text-3xl" : "text-6xl sm:text-[48px]",
-              )}
-            >
-              {title}
-            </h1>
-          )}
-        </div>
-      )}
-
+      {/* No progress bar in one-at-a-time (removed by design). */}
       <div
-        className="relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col justify-center overflow-hidden px-4 pb-12 sm:px-6"
+        // Popup: 20px below the footer so it doesn't sit flush at the card edge (Figma 27015:16550 pb-20).
+        className={cn(
+          "mx-auto",
+          layout === "editor" ? "w-full px-8 md:px-0" : "px-4",
+          isPopup && "pb-[20px]",
+        )}
         style={{
           maxWidth: PAGE_MAX_WIDTH[layout],
           ...(layout === "editor"
@@ -806,53 +720,44 @@ const FieldByFieldLayout = ({
         }}
         data-bf-form-container
       >
-        {!isSubmitted && settings?.progressBar && totalSteps > 1 && (
-          <div className="mb-4 w-full">
-            <ProgressBar currentStep={currentStep} totalSteps={totalSteps} />
-          </div>
+        {isSubmitted ? (
+          <ThankYouView
+            thankYouNodes={thankYouNodes}
+            onReset={reset}
+            shareUrl={shareUrl}
+            redirectCountdown={redirectCountdown}
+          />
+        ) : (
+          <LazyMotion features={domAnimation} strict>
+            <AnimatePresence mode="wait" custom={direction}>
+              <m.div
+                key={currentStep}
+                custom={direction}
+                variants={stepVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  x: { type: "spring", stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.2 },
+                }}
+                className="w-full"
+              >
+                <StepForm
+                  key={`${currentStep}:${segmentsKey}`}
+                  stepIndex={currentStep}
+                  segments={currentStepSegments}
+                  questions={currentStepQuestions}
+                  isLastStep={isLastStep}
+                  autoActionButton
+                  navVariant="footer"
+                  branding={Boolean(settings?.branding)}
+                />
+              </m.div>
+            </AnimatePresence>
+          </LazyMotion>
         )}
-
-        <div className="w-full">
-          {isSubmitted ? (
-            <ThankYouView
-              thankYouNodes={thankYouNodes}
-              onReset={reset}
-              shareUrl={shareUrl}
-              redirectCountdown={redirectCountdown}
-            />
-          ) : (
-            <LazyMotion features={domAnimation} strict>
-              <AnimatePresence mode="wait" custom={direction}>
-                <m.div
-                  key={currentStep}
-                  custom={direction}
-                  variants={stepVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{
-                    x: { type: "spring", stiffness: 300, damping: 30 },
-                    opacity: { duration: 0.2 },
-                  }}
-                  className="w-full"
-                >
-                  <StepForm
-                    key={`${currentStep}:${segmentsKey}`}
-                    stepIndex={currentStep}
-                    segments={currentStepSegments}
-                    questions={currentStepQuestions}
-                    isLastStep={isLastStep}
-                    autoActionButton
-                    // Popup uses the full-width footer bar below instead of the inline badge.
-                    branding={Boolean(settings?.branding) && !isPopup}
-                  />
-                </m.div>
-              </AnimatePresence>
-            </LazyMotion>
-          )}
-        </div>
       </div>
-      {isPopup && settings?.branding && <PopupBrandingBar />}
     </div>
   );
 };
