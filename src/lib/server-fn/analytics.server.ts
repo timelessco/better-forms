@@ -14,7 +14,6 @@ import {
   workspaces,
 } from "@/db/schema";
 import { buildDailyAnalyticsRows, buildDailyDropoffRows } from "@/lib/analytics/aggregate-utils";
-import { cappedDurationMs } from "@/lib/analytics/duration";
 import {
   EDITABLE_FIELD_TYPES,
   getFieldsFromSegments,
@@ -26,6 +25,7 @@ import { PER_QUESTION_ANALYTICS_CUT_TS } from "@/lib/analytics/cut-date";
 import { filterByCutDate, mergeDropoffMetrics } from "@/lib/analytics/merge-dropoff";
 import { mergeInsightsMetrics } from "@/lib/analytics/merge-metrics";
 import { buildVitalsMetrics } from "@/lib/analytics/merge-vitals";
+import { completionRate, weightedMedianDuration } from "@/lib/analytics/metrics";
 import { parseUserAgent } from "@/lib/analytics/parse-user-agent";
 import { resolveTimeRange, splitTodayVsPast, toDateKey } from "@/lib/analytics/time-range";
 import { planUnlocks } from "@/lib/config/plan-gates";
@@ -398,22 +398,6 @@ const countCompletedSubmissions = async (
 const pctChange = (current: number, prior: number): number | null =>
   prior > 0 ? Math.round(((current - prior) / prior) * 100) : null;
 
-// Visit-weighted MEDIAN duration (ms) across daily rows — matches mergeInsightsMetrics (median, not
-// mean, so abandoned-tab outliers don't blow up the value). null when no day has a duration sample.
-const weightedMedianDurationMs = (
-  rows: readonly { medianDurationMs: number | null; totalVisits: number }[],
-): number | null => {
-  let weightedSum = 0;
-  let visits = 0;
-  for (const r of rows) {
-    if (r.medianDurationMs !== null && r.totalVisits > 0) {
-      weightedSum += cappedDurationMs(r.medianDurationMs) * r.totalVisits;
-      visits += r.totalVisits;
-    }
-  }
-  return visits > 0 ? Math.round(weightedSum / visits) : null;
-};
-
 const durationRowsForDays = async (formId: string, dayKeys: string[]) =>
   dayKeys.length > 0
     ? await db
@@ -490,10 +474,8 @@ export const getFormInsightsImpl = async (
     durationRowsForDays(data.formId, priorDays),
   ]);
   const priorVisits = priorDurRows.reduce((sum, r) => sum + r.totalVisits, 0);
-  const curAvg = weightedMedianDurationMs(curDurRows);
-  const priorAvg = weightedMedianDurationMs(priorDurRows);
-  const rate = (subs: number, visits: number): number =>
-    visits > 0 ? Math.min(100, Math.round((subs / visits) * 100)) : 0;
+  const curAvg = weightedMedianDuration(curDurRows);
+  const priorAvg = weightedMedianDuration(priorDurRows);
 
   return {
     ...metrics,
@@ -502,7 +484,8 @@ export const getFormInsightsImpl = async (
     submissionsDeltaPct: pctChange(completedSubmissions, priorSubmissions),
     completionRateDeltaPts:
       priorVisits > 0
-        ? rate(completedSubmissions, metrics.totalVisits) - rate(priorSubmissions, priorVisits)
+        ? completionRate(completedSubmissions, metrics.totalVisits) -
+          completionRate(priorSubmissions, priorVisits)
         : null,
     avgDurationDeltaMs: curAvg !== null && priorAvg !== null ? curAvg - priorAvg : null,
   };
