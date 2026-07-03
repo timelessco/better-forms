@@ -1,39 +1,22 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import {
-  CheckIcon,
-  CopyIcon,
-  FileTextIcon,
-  HelpCircleIcon,
-  Loader2Icon,
-  MoreHorizontalIcon,
-  Trash2Icon,
-  XIcon,
-} from "@/components/ui/icons";
+import { CheckIcon, FileTextIcon, HelpCircleIcon, Loader2Icon } from "@/components/ui/icons";
 import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
 import {
-  FigAllTemplatesIcon,
+  FigAddMdIcon,
+  FigAppsIcon,
   FigBulletListIcon,
   FigCommentIcon,
   FigFilterIcon,
@@ -49,8 +32,7 @@ import {
   FigTimeIcon,
 } from "@/components/dashboard/dashboard-icons";
 import { FormCardThumbnail, FormListThumbnail } from "@/components/dashboard/form-card-thumbnail";
-import { bulkArchiveFormsLocal, createFormLocal, updateFormStatus } from "@/collections";
-import { useDuplicateForm } from "@/hooks/use-duplicate-form";
+import { createFormLocal } from "@/collections";
 import {
   useFavorites,
   useOrgForms,
@@ -58,7 +40,6 @@ import {
   useSubmissionCounts,
 } from "@/hooks/use-live-hooks";
 import { useSession } from "@/lib/auth/auth-client";
-import { formatForDisplay, HOTKEYS } from "@/lib/hotkeys";
 import { clearLocalDraftIds } from "@/db/local-draft";
 import { hasLocalDataToSync, syncLocalDataToCloud } from "@/db/sync";
 import { buildTemplateContent, FORM_TEMPLATE_META } from "@/lib/form-templates";
@@ -66,15 +47,12 @@ import type { FormTemplateId } from "@/lib/form-templates";
 import { sortByManualOrder } from "@/lib/sort-utils";
 import { cn, parseTimestampAsUTC } from "@/lib/utils";
 import { log } from "evlog";
-import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { orgDataForLayoutQueryOptions } from "@/lib/server-fn/org";
-import { parseError } from "@/lib/errors/parse";
 import { formatDistanceToNow } from "date-fns";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as v from "valibot";
-import { IconSwap } from "@/components/transitions/icon-swap";
 import { TextSwap } from "@/components/transitions/text-swap";
 import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -119,7 +97,17 @@ const useViewportPageSize = (
 
 type FormFilter = "all" | "favorites" | "drafts" | "published";
 type FormViewMode = "grid" | "list";
-type FormSort = "recent" | "title";
+type SortField = "responses" | "created" | "edited";
+type SortDir = "asc" | "desc";
+type FormSort = { field: SortField; dir: SortDir };
+
+// Sort fields shown in the Sort dropdown. Only Responses nests into Ascending / Descending; the
+// date fields are plain items that sort newest-first (descending).
+const SORT_FIELDS: ReadonlyArray<{ value: SortField; label: string; nested: boolean }> = [
+  { value: "responses", label: "Responses", nested: true },
+  { value: "created", label: "Date created", nested: false },
+  { value: "edited", label: "Last edited", nested: false },
+];
 
 const FILTER_OPTIONS: ReadonlyArray<{ value: FormFilter; label: string }> = [
   { value: "all", label: "All" },
@@ -132,7 +120,7 @@ const FILTER_OPTIONS: ReadonlyArray<{ value: FormFilter; label: string }> = [
 const TEMPLATE_ICONS: Partial<
   Record<FormTemplateId, React.ComponentType<React.SVGProps<SVGSVGElement>>>
 > = {
-  blank: FigPlusIcon,
+  blank: FigAddMdIcon,
   survey: FigSurveyIcon,
   feedback: FigCommentIcon,
   eventRsvp: FigRsvpIcon,
@@ -328,24 +316,15 @@ const useLocalDataSync = (
 
 const DashboardPage = () => {
   const navigate = useNavigate();
-  const duplicateFormFn = useDuplicateForm();
   const { q: searchQuery = "" } = useSearch({ strict: false }) as { q?: string };
   const { data: activeOrg } = useQuery({
     ...orgDataForLayoutQueryOptions(),
     select: (d) => d.activeOrg,
   });
   const [isCreating, setIsCreating] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-  const [formToDelete, setFormToDelete] = useState<{
-    id: string;
-    title: string;
-  } | null>(null);
-  const [selectedFormIds, setSelectedFormIds] = useState<Set<string>>(new Set());
-  const [duplicatingFormId, setDuplicatingFormId] = useState<string | null>(null);
   const [currentFilter, setCurrentFilter] = useState<FormFilter>("all");
   const [viewMode, setViewMode] = useState<FormViewMode>("grid");
-  const [sortBy, setSortBy] = useState<FormSort>("recent");
+  const [sortBy, setSortBy] = useState<FormSort>({ field: "edited", dir: "desc" });
   // `formsPerPage` is the viewport-fill batch size; `visibleCount` is how many forms are rendered now
   // (infinite scroll grows it). Initial fallback before the viewport is measured.
   const [formsPerPage, gridRef] = useViewportPageSize(FORMS_PER_PAGE);
@@ -383,7 +362,7 @@ const DashboardPage = () => {
     [orgWorkspaces],
   );
 
-  // Filter → search → sort pipeline. Search matches title; sort by recency or title.
+  // Filter → search → sort pipeline. Search matches title; sort by responses/created/edited × dir.
   const filteredForms = useMemo(() => {
     switch (currentFilter) {
       case "favorites":
@@ -404,14 +383,19 @@ const DashboardPage = () => {
   }, [filteredForms, searchQuery]);
 
   const visibleForms = useMemo(() => {
-    const sorted = [...searchedForms];
-    if (sortBy === "title") {
-      sorted.sort((a, b) => (a.title ?? "Untitled").localeCompare(b.title ?? "Untitled"));
-    } else {
-      sorted.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-    }
-    return sorted;
-  }, [searchedForms, sortBy]);
+    const dir = sortBy.dir === "asc" ? 1 : -1;
+    const compare = (a: FormCardForm, b: FormCardForm) => {
+      switch (sortBy.field) {
+        case "responses":
+          return (submissionCounts.get(a.id) ?? 0) - (submissionCounts.get(b.id) ?? 0);
+        case "created":
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        default: // edited
+          return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+      }
+    };
+    return [...searchedForms].sort((a, b) => compare(a, b) * dir);
+  }, [searchedForms, sortBy, submissionCounts]);
 
   const handleCreateForm = useCallback(
     (workspaceId?: string) => {
@@ -461,106 +445,15 @@ const DashboardPage = () => {
     [orderedWorkspaces, navigate],
   );
 
-  const handleDeleteClick = useCallback((form: { id: string; title: string }) => {
-    setFormToDelete(form);
-    setDeleteDialogOpen(true);
-  }, []);
-
-  const handleConfirmDelete = useCallback(async () => {
-    if (formToDelete) {
-      try {
-        await updateFormStatus(formToDelete.id, "archived");
-        setDeleteDialogOpen(false);
-        setFormToDelete(null);
-      } catch (error) {
-        log.error({ tag: "dashboard", msg: "Failed to archive form", error });
-      }
-    }
-  }, [formToDelete]);
-
-  const handleDuplicate = useCallback(
-    async (formId: string) => {
-      setDuplicatingFormId(formId);
-      try {
-        await duplicateFormFn(formId);
-      } catch {
-        toast.error("Failed to duplicate form");
-      } finally {
-        setDuplicatingFormId(null);
-      }
-    },
-    [duplicateFormFn],
-  );
-
   const formatLastEdited = (timestamp: string) =>
     `Edited ${formatDistanceToNow(parseTimestampAsUTC(timestamp) ?? new Date())} ago`;
-
-  const hasSelection = selectedFormIds.size > 0;
-
-  const handleToggleSelect = useCallback((formId: string) => {
-    setSelectedFormIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(formId)) {
-        next.delete(formId);
-      } else {
-        next.add(formId);
-      }
-      return next;
-    });
-  }, []);
-
-  const isModalDialogOpen = () =>
-    typeof document !== "undefined" &&
-    document.querySelector('[data-slot="dialog-content"][data-open]') !== null;
-
-  // Select-all toggles only the currently-rendered (loaded) rows — never forms still below the
-  // infinite-scroll fold that you can't see.
-  const handleSelectAll = useCallback(() => {
-    if (isModalDialogOpen()) return;
-    const ids = visibleForms.slice(0, visibleCount).map((f) => f.id);
-    if (ids.length === 0) return;
-    setSelectedFormIds((prev) => {
-      const allSelected = ids.every((id) => prev.has(id));
-      const next = new Set(prev);
-      for (const id of ids) {
-        if (allSelected) next.delete(id);
-        else next.add(id);
-      }
-      return next;
-    });
-  }, [visibleForms, visibleCount]);
-
-  const handleClearSelection = useCallback(() => {
-    if (isModalDialogOpen()) return;
-    setSelectedFormIds(new Set());
-  }, []);
-
-  const handleBulkDelete = useCallback(() => {
-    if (isModalDialogOpen()) return;
-    if (selectedFormIds.size === 0) return;
-    setBulkDeleteDialogOpen(true);
-  }, [selectedFormIds.size]);
-
-  const handleConfirmBulkDelete = useCallback(async () => {
-    const ids = [...selectedFormIds];
-    if (ids.length === 0) return;
-    try {
-      await bulkArchiveFormsLocal(ids);
-      setSelectedFormIds(new Set());
-      setBulkDeleteDialogOpen(false);
-      toast.success(`${ids.length} form${ids.length !== 1 ? "s" : ""} deleted`);
-    } catch (error) {
-      const message = parseError(error).message || "Failed to delete some forms";
-      toast.error(message);
-    }
-  }, [selectedFormIds]);
 
   // Infinite scroll: render the first `visibleCount` forms; a sentinel below the grid loads more.
   const renderedForms = visibleForms.slice(0, visibleCount);
   const hasMore = visibleCount < visibleForms.length;
 
   // Reset the scroll window whenever the list itself changes (filter / search / sort).
-  const listKey = `${currentFilter}|${searchQuery}|${sortBy}`;
+  const listKey = `${currentFilter}|${searchQuery}|${sortBy.field}|${sortBy.dir}`;
   const [lastListKey, setLastListKey] = useState(listKey);
   if (lastListKey !== listKey) {
     setLastListKey(listKey);
@@ -590,27 +483,7 @@ const DashboardPage = () => {
 
   const handleFilterChange = useCallback((next: FormFilter) => {
     setCurrentFilter(next);
-    setSelectedFormIds(new Set());
   }, []);
-
-  useHotkey(HOTKEYS.DASHBOARD_SELECT_ALL, handleSelectAll, {
-    conflictBehavior: "replace",
-    ignoreInputs: true,
-  });
-
-  useHotkeys(
-    [
-      { hotkey: HOTKEYS.DASHBOARD_DELETE, callback: handleBulkDelete },
-      { hotkey: "Delete", callback: handleBulkDelete },
-    ],
-    { enabled: hasSelection, conflictBehavior: "replace", ignoreInputs: true },
-  );
-
-  useHotkey(HOTKEYS.DASHBOARD_CLEAR_SELECTION, handleClearSelection, {
-    enabled: hasSelection,
-    conflictBehavior: "replace",
-    ignoreInputs: true,
-  });
 
   const orgWorkspacesCount = orderedWorkspaces.length;
   const userName = session?.user?.name;
@@ -661,13 +534,8 @@ const DashboardPage = () => {
             viewMode={viewMode}
             gridRef={gridRef}
             paginatedForms={renderedForms}
-            selectedFormIds={selectedFormIds}
-            duplicatingFormId={duplicatingFormId}
             submissionCounts={submissionCounts}
             formatLastEdited={formatLastEdited}
-            handleDuplicate={handleDuplicate}
-            handleDeleteClick={handleDeleteClick}
-            handleToggleSelect={handleToggleSelect}
           />
 
           {!isLoading && visibleForms.length === 0 && orgForms.length > 0 && (
@@ -687,29 +555,7 @@ const DashboardPage = () => {
         </section>
       </main>
 
-      {hasSelection && (
-        <BulkSelectionToolbar
-          count={selectedFormIds.size}
-          onBulkDelete={handleBulkDelete}
-          onClearSelection={handleClearSelection}
-        />
-      )}
-
-      {!hasSelection && <FloatingHelpButton />}
-
-      <BulkDeleteDialog
-        open={bulkDeleteDialogOpen}
-        onOpenChange={setBulkDeleteDialogOpen}
-        count={selectedFormIds.size}
-        onConfirm={handleConfirmBulkDelete}
-      />
-
-      <SingleDeleteDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        title={formToDelete?.title}
-        onConfirm={handleConfirmDelete}
-      />
+      <FloatingHelpButton />
     </div>
   );
 };
@@ -725,9 +571,9 @@ const QUICK_CARD_CLASS =
   "flex flex-1 cursor-pointer flex-col items-center gap-3 rounded-[12px] border bg-gray-50 px-5 py-[18px] transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50";
 const QUICK_CARD_LABEL = "text-base font-[450] tracking-[0.28px] text-gray-950";
 
-// Figma node 26208:8027 — row of equal-flex template cards. Blank + "All templates" = dashed
-// gray/300 border; others = solid gray/100 hairline. 24px icon + 14px label. Only `featured`
-// templates are pinned here; the rest live in the /templates gallery.
+// Figma node 27170:28095 — row of equal-flex template cards. Blank = dashed gray/300 border (Figma
+// node 27170:28095); the rest = solid gray/100 hairline. 24px icon + 14px label (Medium/450, gray/950).
+// Only `featured` templates are pinned here; rest live in /templates.
 const QuickCreateTemplates = ({ disabled, onCreate }: QuickCreateTemplatesProps) => (
   <div className="flex items-stretch gap-3">
     {FORM_TEMPLATE_META.filter((t) => t.featured).map((template) => {
@@ -756,8 +602,8 @@ const QuickCreateTemplates = ({ disabled, onCreate }: QuickCreateTemplatesProps)
       className={cn(QUICK_CARD_CLASS, "border-gray-100")}
       aria-label="Browse all templates"
     >
-      <FigAllTemplatesIcon className="size-6 text-gray-950" />
-      <span className={QUICK_CARD_LABEL}>All templates</span>
+      <FigAppsIcon className="size-6 text-gray-950" />
+      <span className={QUICK_CARD_LABEL}>All Templates</span>
     </Link>
   </div>
 );
@@ -780,23 +626,43 @@ const SortMenu = ({
         >
           <FigSortIcon className="size-4 text-gray-800" />
           <span className="font-case text-base font-[450] tracking-[0.14px] text-gray-800">
-            Sort by
+            Sort
           </span>
           <FigSmallDownIcon className="size-4 text-gray-800" />
         </Button>
       }
     />
-    <DropdownMenuContent align="end" sideOffset={4}>
+    <DropdownMenuContent align="end" sideOffset={4} className="min-w-[168px]">
       <DropdownMenuGroup>
-        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => onChange("recent")}>
-          <span className="flex-1 text-left">Recent</span>
-          {sortBy === "recent" && <CheckIcon className="size-4" />}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onChange("title")}>
-          <span className="flex-1 text-left">Name</span>
-          {sortBy === "title" && <CheckIcon className="size-4" />}
-        </DropdownMenuItem>
+        {SORT_FIELDS.map((field) =>
+          field.nested ? (
+            <DropdownMenuSub key={field.value}>
+              <DropdownMenuSubTrigger>
+                <span className="flex-1 text-left whitespace-nowrap">{field.label}</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {(["asc", "desc"] as const).map((dir) => (
+                  <DropdownMenuItem key={dir} onClick={() => onChange({ field: field.value, dir })}>
+                    <span className="flex-1 text-left">
+                      {dir === "asc" ? "Ascending" : "Descending"}
+                    </span>
+                    {sortBy.field === field.value && sortBy.dir === dir && (
+                      <CheckIcon className="size-4" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          ) : (
+            <DropdownMenuItem
+              key={field.value}
+              onClick={() => onChange({ field: field.value, dir: "desc" })}
+            >
+              <span className="flex-1 text-left whitespace-nowrap">{field.label}</span>
+              {sortBy.field === field.value && <CheckIcon className="size-4" />}
+            </DropdownMenuItem>
+          ),
+        )}
       </DropdownMenuGroup>
     </DropdownMenuContent>
   </DropdownMenu>
@@ -833,6 +699,7 @@ type FormCardForm = {
   status: string;
   workspaceId: string;
   updatedAt: string;
+  createdAt: string;
   cover?: string | null;
   previewImageUrl?: string | null;
   customization?: Record<string, unknown> | null;
@@ -844,13 +711,8 @@ interface DashboardFormGridProps {
   viewMode: FormViewMode;
   gridRef: (grid: HTMLDivElement | null) => void;
   paginatedForms: ReadonlyArray<FormCardForm>;
-  selectedFormIds: Set<string>;
-  duplicatingFormId: string | null;
   submissionCounts: Map<string, number>;
   formatLastEdited: (timestamp: string) => string;
-  handleDuplicate: (formId: string) => Promise<void> | void;
-  handleDeleteClick: (form: { id: string; title: string }) => void;
-  handleToggleSelect: (formId: string) => void;
 }
 
 const DashboardFormGrid = ({
@@ -859,13 +721,8 @@ const DashboardFormGrid = ({
   viewMode,
   gridRef,
   paginatedForms,
-  selectedFormIds,
-  duplicatingFormId,
   submissionCounts,
   formatLastEdited,
-  handleDuplicate,
-  handleDeleteClick,
-  handleToggleSelect,
 }: DashboardFormGridProps) => {
   if (isSyncing) return <SyncOverlay />;
   if (isLoading) {
@@ -885,17 +742,7 @@ const DashboardFormGrid = ({
   }
 
   if (viewMode === "list") {
-    return (
-      <DashboardTable
-        paginatedForms={paginatedForms}
-        selectedFormIds={selectedFormIds}
-        duplicatingFormId={duplicatingFormId}
-        submissionCounts={submissionCounts}
-        handleDuplicate={handleDuplicate}
-        handleDeleteClick={handleDeleteClick}
-        handleToggleSelect={handleToggleSelect}
-      />
-    );
+    return <DashboardTable paginatedForms={paginatedForms} submissionCounts={submissionCounts} />;
   }
 
   return (
@@ -907,14 +754,8 @@ const DashboardFormGrid = ({
         <FormCard
           key={form.id}
           form={form}
-          isSelected={selectedFormIds.has(form.id)}
-          selectionActive={selectedFormIds.size > 0}
-          duplicatingFormId={duplicatingFormId}
           responseCount={submissionCounts.get(form.id) ?? 0}
           formatLastEdited={formatLastEdited}
-          onDuplicate={handleDuplicate}
-          onDeleteClick={handleDeleteClick}
-          onToggleSelect={handleToggleSelect}
         />
       ))}
     </div>
@@ -923,58 +764,17 @@ const DashboardFormGrid = ({
 
 interface FormCardProps {
   form: FormCardForm;
-  isSelected: boolean;
-  /** Any form selected → show a select tick on every card instead of the ⋯ menu. */
-  selectionActive: boolean;
-  duplicatingFormId: string | null;
   responseCount: number;
   formatLastEdited: (timestamp: string) => string;
-  onDuplicate: (formId: string) => Promise<void> | void;
-  onDeleteClick: (form: { id: string; title: string }) => void;
-  onToggleSelect: (formId: string) => void;
 }
-
-// Chip for the on-cover hover actions (ghost-flat variant kills the ghost's transparent border).
-const CARD_ACTION_SHADOW = "shadow-[0px_1px_2px_0px_rgba(0,0,0,0.18)] dark:shadow-none";
-// Frosted ⋯ chip over the cover — light = white chip / dark icon; dark = dark chip / white icon.
-const CARD_ACTION_BTN = cn(
-  CARD_ACTION_SHADOW,
-  "bg-white/80 text-gray-700 backdrop-blur-md hover:bg-white hover:text-gray-900 dark:bg-black/45 dark:text-white dark:hover:bg-black/65",
-);
 
 // Figma node 26216:10218 — card with 90px preview area (cover banner) and an info block:
 // title (gray/900) then 3 meta rows (icon + 14px gray/700, status in green).
-const FormCard = ({
-  form,
-  isSelected,
-  selectionActive,
-  duplicatingFormId,
-  responseCount,
-  formatLastEdited,
-  onDuplicate,
-  onDeleteClick,
-  onToggleSelect,
-}: FormCardProps) => {
+const FormCard = ({ form, responseCount, formatLastEdited }: FormCardProps) => {
   const isPublished = form.status === "published";
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  // The action slot stays pinned while duplicating, when this card is selected, when the menu is open,
-  // or whenever a selection is active (every card then shows a select tick instead of the ⋯ menu).
-  const actionsPinned = duplicatingFormId === form.id || isSelected || selectionActive || menuOpen;
-  const actionGroupCls = cn(
-    "absolute top-3 z-[1] flex items-center gap-1 transition-opacity",
-    actionsPinned
-      ? "opacity-100"
-      : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100",
-  );
 
   return (
-    <div
-      className={cn(
-        "group bg-gray-0 relative flex flex-col rounded-[12px] border border-gray-100 px-1.5 pt-1.5 pb-2 transition-[background-color,box-shadow] duration-200",
-        isSelected ? "ring-2 elevation-card ring-ring/50" : "hover:elevation-card",
-      )}
-    >
+    <div className="group bg-gray-0 relative flex flex-col rounded-[12px] border border-gray-100 px-1.5 pt-1.5 pb-2 transition-[background-color,box-shadow] duration-200 hover:elevation-card">
       <Link
         to={
           isPublished
@@ -1000,12 +800,12 @@ const FormCard = ({
           </div>
           <div className="flex w-full flex-col">
             <MetaRow>
-              {/* Status dot — success green (#1e8d02) for published; muted for draft. Centered in a
-                  16px slot so its label aligns with the 16px-icon rows below (Figma icon/line/dot). */}
+              {/* Status dot — Figma icon/line/dot (node 27170:28329): 6px circle centered in a 16px
+                  slot so its label aligns with the 16px-icon rows below. Green #1e8d02 / muted draft. */}
               <span className="flex size-4 shrink-0 items-center justify-center">
                 <span
                   className={cn(
-                    "size-2.5 rounded-full",
+                    "size-1.5 rounded-full",
                     isPublished ? "bg-[var(--color-success)]" : "bg-muted-foreground/50",
                   )}
                 />
@@ -1036,69 +836,6 @@ const FormCard = ({
           </div>
         </div>
       </Link>
-
-      {/* Top-right slot (sibling of the Link, no nested anchors): a ⋯ menu (Duplicate / Select /
-          Delete) on hover; once the form is selected it becomes a checkbox tick — the only
-          selection cue, shown ONLY while selected (never on hover). */}
-      <div className={cn(actionGroupCls, "right-3")}>
-        {isSelected || selectionActive ? (
-          <Button
-            variant="ghost-flat"
-            size="icon-sm"
-            className={CARD_ACTION_BTN}
-            aria-label={isSelected ? "Deselect form" : "Select form"}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onToggleSelect(form.id);
-            }}
-          >
-            {/* Faint check when not yet selected (a selectable tick), solid once selected. */}
-            <CheckIcon className={cn("size-3.5", !isSelected && "opacity-30")} />
-          </Button>
-        ) : (
-          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost-flat"
-                  size="icon-sm"
-                  className={CARD_ACTION_BTN}
-                  aria-label="Form actions"
-                  disabled={duplicatingFormId === form.id}
-                />
-              }
-            >
-              <IconSwap
-                state={duplicatingFormId === form.id ? "b" : "a"}
-                iconA={<MoreHorizontalIcon className="size-4" />}
-                iconB={<Loader2Icon className="size-4 animate-spin" />}
-              />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={4} className="w-40">
-              <DropdownMenuItem
-                disabled={duplicatingFormId === form.id}
-                onClick={() => void onDuplicate(form.id)}
-              >
-                <CopyIcon className="size-4" />
-                <span className="flex-1 text-left">Duplicate</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onToggleSelect(form.id)}>
-                <CheckIcon className="size-4" />
-                <span className="flex-1 text-left">Select</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => onDeleteClick({ id: form.id, title: form.title || "Untitled" })}
-              >
-                <Trash2Icon className="size-4" />
-                <span className="flex-1 text-left">Delete</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
     </div>
   );
 };
@@ -1108,35 +845,21 @@ const MetaRow = ({ children }: { children: React.ReactNode }) => (
 );
 
 // Shared column widths for the list table (Figma node 26216:13434). Title is fluid (flex-1);
-// a 32px gap (gap-8) separates it from the fixed Status/Responses/Edited/Actions columns.
+// a 32px gap (gap-8) separates it from the fixed Status/Responses/Edited columns.
 const LIST_COL_STATUS = "w-36"; // 144px
 const LIST_COL_RESPONSES = "w-36"; // 144px
 const LIST_COL_EDITED = "w-[216px]";
-const LIST_COL_ACTIONS = "size-7"; // 28px
 
 interface DashboardTableProps {
   paginatedForms: ReadonlyArray<FormCardForm>;
-  selectedFormIds: Set<string>;
-  duplicatingFormId: string | null;
   submissionCounts: Map<string, number>;
-  handleDuplicate: (formId: string) => Promise<void> | void;
-  handleDeleteClick: (form: { id: string; title: string }) => void;
-  handleToggleSelect: (formId: string) => void;
 }
 
 const TableHead = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-[420] tracking-[0.26px] text-gray-500">{children}</span>
 );
 
-const DashboardTable = ({
-  paginatedForms,
-  selectedFormIds,
-  duplicatingFormId,
-  submissionCounts,
-  handleDuplicate,
-  handleDeleteClick,
-  handleToggleSelect,
-}: DashboardTableProps) => (
+const DashboardTable = ({ paginatedForms, submissionCounts }: DashboardTableProps) => (
   <div className="overflow-x-auto">
     <div className="min-w-[680px]">
       {/* Header row — border-b gray-100, 13px / font-420 / gray-500 (Figma 26216:13365) */}
@@ -1154,22 +877,11 @@ const DashboardTable = ({
           <div className={cn(LIST_COL_EDITED, "px-2")}>
             <TableHead>Last edited</TableHead>
           </div>
-          <div className={cn(LIST_COL_ACTIONS, "shrink-0")} />
         </div>
       </div>
 
       {paginatedForms.map((form) => (
-        <FormListRow
-          key={form.id}
-          form={form}
-          isSelected={selectedFormIds.has(form.id)}
-          selectionActive={selectedFormIds.size > 0}
-          duplicatingFormId={duplicatingFormId}
-          responseCount={submissionCounts.get(form.id) ?? 0}
-          onDuplicate={handleDuplicate}
-          onDeleteClick={handleDeleteClick}
-          onToggleSelect={handleToggleSelect}
-        />
+        <FormListRow key={form.id} form={form} responseCount={submissionCounts.get(form.id) ?? 0} />
       ))}
     </div>
   </div>
@@ -1177,38 +889,17 @@ const DashboardTable = ({
 
 interface FormListRowProps {
   form: FormCardForm;
-  isSelected: boolean;
-  /** Any form selected → show a checkbox on every row instead of the ⋯ menu. */
-  selectionActive: boolean;
-  duplicatingFormId: string | null;
   responseCount: number;
-  onDuplicate: (formId: string) => Promise<void> | void;
-  onDeleteClick: (form: { id: string; title: string }) => void;
-  onToggleSelect: (formId: string) => void;
 }
 
-// Figma 26216:13294 — 44px row: thumbnail+title (flex) | status pill | responses | edited | ⋯ menu.
-const FormListRow = ({
-  form,
-  isSelected,
-  selectionActive,
-  duplicatingFormId,
-  responseCount,
-  onDuplicate,
-  onDeleteClick,
-  onToggleSelect,
-}: FormListRowProps) => {
+// Figma 26216:13294 — 44px row: thumbnail+title (flex) | status pill | responses | edited.
+const FormListRow = ({ form, responseCount }: FormListRowProps) => {
   const isPublished = form.status === "published";
   const relative = `${formatDistanceToNow(parseTimestampAsUTC(form.updatedAt) ?? new Date())} ago`;
 
   return (
-    <div
-      className={cn(
-        "group flex h-11 items-center gap-8 rounded-lg border-b border-gray-100 px-1 transition-colors hover:bg-secondary",
-        isSelected && "bg-secondary",
-      )}
-    >
-      {/* Name — thumbnail + title (Select moved into the ⋯ menu) */}
+    <div className="group flex h-11 items-center gap-8 rounded-lg border-b border-gray-100 px-1 transition-colors hover:bg-secondary">
+      {/* Name — thumbnail + title */}
       <div className="flex min-w-0 flex-1 items-center gap-2 pl-1">
         <Link
           to={
@@ -1257,61 +948,6 @@ const FormListRow = ({
             {relative}
           </span>
         </div>
-        {/* Actions — ⋯ menu (Duplicate / Select / Delete) on hover; a checkbox once any row is
-            selected (checked on this row, empty on the others to multi-select). */}
-        <div className={cn(LIST_COL_ACTIONS, "flex shrink-0 items-center justify-center")}>
-          {isSelected || selectionActive ? (
-            <Checkbox
-              checked={isSelected}
-              aria-label={isSelected ? "Deselect form" : "Select form"}
-              onClick={(e) => e.stopPropagation()}
-              onCheckedChange={() => onToggleSelect(form.id)}
-            />
-          ) : (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost-flat"
-                    size="icon-sm"
-                    aria-label="Form actions"
-                    disabled={duplicatingFormId === form.id}
-                    className={cn(
-                      "text-muted-foreground",
-                      duplicatingFormId === form.id
-                        ? "opacity-100"
-                        : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100",
-                    )}
-                  />
-                }
-              >
-                {duplicatingFormId === form.id ? (
-                  <Loader2Icon className="size-4 animate-spin" />
-                ) : (
-                  <MoreHorizontalIcon className="size-4" />
-                )}
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" sideOffset={4}>
-                <DropdownMenuItem onClick={() => void onDuplicate(form.id)}>
-                  <CopyIcon className="size-4" />
-                  Duplicate
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onToggleSelect(form.id)}>
-                  <CheckIcon className="size-4" />
-                  Select
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => onDeleteClick({ id: form.id, title: form.title || "Untitled" })}
-                >
-                  <Trash2Icon className="size-4" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -1351,105 +987,6 @@ const DashboardEmptyState = ({ isCreating, disabled, onCreate }: DashboardEmptyS
       {isCreating && <Loader2Icon className="mr-2 size-4 animate-spin" />}
       Create my first form
     </Button>
-  </div>
-);
-
-type BulkDeleteDialogProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  count: number;
-  onConfirm: () => void;
-};
-
-const BulkDeleteDialog = ({ open, onOpenChange, count, onConfirm }: BulkDeleteDialogProps) => (
-  <AlertDialog open={open} onOpenChange={onOpenChange}>
-    <AlertDialogContent>
-      <AlertDialogHeader>
-        <AlertDialogTitle>
-          Delete {count} form{count !== 1 ? "s" : ""}
-        </AlertDialogTitle>
-        <AlertDialogDescription>
-          Are you sure you want to delete {count} form{count !== 1 ? "s" : ""}? This action cannot
-          be undone.
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-      <AlertDialogFooter>
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
-        <AlertDialogAction
-          onClick={onConfirm}
-          className="bg-destructive text-white hover:bg-destructive/90"
-        >
-          Delete
-        </AlertDialogAction>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog>
-);
-
-type SingleDeleteDialogProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string | undefined;
-  onConfirm: () => void;
-};
-
-const SingleDeleteDialog = ({ open, onOpenChange, title, onConfirm }: SingleDeleteDialogProps) => (
-  <AlertDialog open={open} onOpenChange={onOpenChange}>
-    <AlertDialogContent>
-      <AlertDialogHeader>
-        <AlertDialogTitle>Delete form</AlertDialogTitle>
-        <AlertDialogDescription>
-          Are you sure you want to delete "{title}"? This action cannot be undone.
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-      <AlertDialogFooter>
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
-        <AlertDialogAction
-          onClick={onConfirm}
-          className="bg-destructive text-white hover:bg-destructive/90"
-        >
-          Delete
-        </AlertDialogAction>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog>
-);
-
-type BulkSelectionToolbarProps = {
-  count: number;
-  onBulkDelete: () => void;
-  onClearSelection: () => void;
-};
-
-const BulkSelectionToolbar = ({
-  count,
-  onBulkDelete,
-  onClearSelection,
-}: BulkSelectionToolbarProps) => (
-  <div className="fixed bottom-6 left-1/2 z-50 w-[min(560px,90vw)] -translate-x-1/2 animate-in duration-300 fade-in slide-in-from-bottom-4">
-    <div className="shadow-card-elevated flex items-center justify-between rounded-2xl bg-background px-4 py-3 dark:bg-muted/50">
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <CheckIcon className="size-4" strokeWidth={3} />
-        </div>
-        <span className="text-sm font-medium">{count} selected</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={onBulkDelete}>
-          Delete
-          <span className="ml-1 text-xs text-muted-foreground">
-            {formatForDisplay(HOTKEYS.DASHBOARD_DELETE)}
-          </span>
-        </Button>
-        <Button variant="secondary" size="sm" onClick={onClearSelection}>
-          <XIcon className="size-3.5" />
-          Clear
-          <span className="ml-1 text-xs text-muted-foreground">
-            {formatForDisplay(HOTKEYS.DASHBOARD_CLEAR_SELECTION)}
-          </span>
-        </Button>
-      </div>
-    </div>
   </div>
 );
 

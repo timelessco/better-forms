@@ -69,6 +69,7 @@ export const useOrgForms = (_organizationId?: string) =>
         workspaceId: form.workspaceId,
         status: form.status,
         updatedAt: form.updatedAt,
+        createdAt: form.createdAt,
         icon: form.icon,
         cover: form.cover,
         previewImageUrl: form.previewImageUrl,

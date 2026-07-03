@@ -35,6 +35,34 @@ export const FigPlusIcon = (props: IconProps) => (
   </svg>
 );
 
+// Figma icon/line/add-md (node 27170:28096) — plus glyph inset inside a 24 box (~15.24px glyph, not
+// full-bleed). Used by the Blank Form quick-create card, which renders it at 24px.
+export const FigAddMdIcon = (props: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
+    {...props}
+  >
+    <path d="M11.9961 4.375C12.2722 4.375 12.4961 4.59886 12.4961 4.875V11.4961H19.1182C19.394 11.4963 19.6179 11.7203 19.6182 11.9961C19.6182 12.2721 19.3942 12.4959 19.1182 12.4961H12.4961V19.1182C12.4959 19.3942 12.2721 19.6182 11.9961 19.6182C11.7203 19.6179 11.4963 19.394 11.4961 19.1182V12.4961H4.875C4.59886 12.4961 4.375 12.2722 4.375 11.9961C4.37523 11.7201 4.599 11.4961 4.875 11.4961H11.4961V4.875C11.4961 4.599 11.7201 4.37523 11.9961 4.375Z" />
+  </svg>
+);
+
+// Figma icon/line/apps (node 27170:28118) — square + circle + triangle trio in a 24 box. Used by
+// the "All Templates" quick-create card (replaces the old 4-tile grid glyph).
+export const FigAppsIcon = (props: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
+    {...props}
+  >
+    <path d="M11.25 13.75C11.4256 13.75 11.5883 13.8426 11.6787 13.9932L16.1787 21.4932C16.2711 21.6475 16.274 21.8395 16.1855 21.9961C16.0968 22.1528 15.9301 22.25 15.75 22.25H6.75C6.56986 22.25 6.40321 22.1528 6.31445 21.9961C6.22598 21.8395 6.22885 21.6475 6.32129 21.4932L10.8213 13.9932L10.8584 13.9395C10.9525 13.8208 11.0962 13.75 11.25 13.75ZM7.63281 21.25H14.8672L11.25 15.2207L7.63281 21.25ZM18.75 4.75C21.5114 4.75 23.75 6.98858 23.75 9.75C23.75 12.5114 21.5114 14.75 18.75 14.75C15.9886 14.75 13.75 12.5114 13.75 9.75C13.75 6.98858 15.9886 4.75 18.75 4.75ZM18.75 5.75C16.5409 5.75 14.75 7.54086 14.75 9.75C14.75 11.9591 16.5409 13.75 18.75 13.75C20.9591 13.75 22.75 11.9591 22.75 9.75C22.75 7.54086 20.9591 5.75 18.75 5.75ZM9.75 3.25C10.0261 3.25 10.25 3.47386 10.25 3.75V11.25C10.25 11.5261 10.0261 11.75 9.75 11.75H2.25C1.97386 11.75 1.75 11.5261 1.75 11.25V3.75C1.75 3.47386 1.97386 3.25 2.25 3.25H9.75ZM2.75 10.75H9.25V4.25H2.75V10.75Z" />
+  </svg>
+);
+
 // Figma icon/line/add-sm (node 26247:7576) — the same plus glyph as FigPlusIcon but inset 21.88%
 // inside a 16 box (≈9px glyph), matching the New Form button. Separate from FigPlusIcon, which the
 // template cards render full-bleed at 24px.
@@ -63,6 +91,19 @@ export const FigFilterIcon = (props: IconProps) => (
     {...props}
   >
     <path d="M9.60059 10.8281C9.87646 10.8284 10.1006 11.0522 10.1006 11.3281C10.1006 11.6041 9.87646 11.8278 9.60059 11.8281H6.40039C6.12425 11.8281 5.90039 11.6043 5.90039 11.3281C5.90039 11.052 6.12425 10.8281 6.40039 10.8281H9.60059ZM12 7.49707C12.2761 7.49709 12.5 7.72094 12.5 7.99707C12.4999 8.27311 12.2761 8.49705 12 8.49707H4C3.72392 8.49707 3.5001 8.27312 3.5 7.99707C3.5 7.72093 3.72386 7.49707 4 7.49707H12ZM14 4.16602C14.2761 4.16602 14.5 4.38987 14.5 4.66602C14.5 4.94216 14.2761 5.16602 14 5.16602H2C1.72386 5.16602 1.5 4.94216 1.5 4.66602C1.5 4.38987 1.72386 4.16602 2 4.16602H14Z" />
+  </svg>
+);
+
+// Exact Figma icon/line/hashtag (node 27170:32422) — filled # glyph in a 16 box.
+export const FigHashIcon = (props: IconProps) => (
+  <svg
+    viewBox="0 0 16 16"
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
+    {...props}
+  >
+    <path d="M10.335 1.5C10.6111 1.5 10.8349 1.72388 10.835 2V4.83398H14.0029C14.2791 4.83399 14.5029 5.05785 14.5029 5.33398C14.5029 5.61008 14.279 5.83397 14.0029 5.83398H10.835V10.1689H14.0029C14.279 10.169 14.5028 10.3929 14.5029 10.6689C14.5028 10.945 14.279 11.1689 14.0029 11.1689H10.835V14.0029C10.835 14.2791 10.6111 14.5029 10.335 14.5029C10.0588 14.5029 9.83497 14.2791 9.83496 14.0029V11.1689H6.16504V14.0029C6.16503 14.2791 5.94118 14.5029 5.66504 14.5029C5.3889 14.5029 5.16505 14.2791 5.16504 14.0029V11.1689H2C1.72391 11.1689 1.50009 10.945 1.5 10.6689C1.50008 10.3929 1.72391 10.1689 2 10.1689H5.16504V5.83398H2C1.72389 5.83398 1.50004 5.61009 1.5 5.33398C1.5 5.05784 1.72386 4.83398 2 4.83398H5.16504V2C5.16506 1.72388 5.38891 1.5 5.66504 1.5C5.94117 1.5 6.16502 1.72388 6.16504 2V4.83398H9.83496V2C9.83498 1.72388 10.0588 1.5 10.335 1.5ZM6.16504 5.83398V10.1689H9.83496V5.83398H6.16504Z" />
   </svg>
 );
 
@@ -187,16 +228,5 @@ export const FigRegistrationIcon = (props: IconProps) => (
     <path d="M15.25 7.75V8.25" />
     <path d="M15.25 11.75V12.25" />
     <path d="M15.25 15.75V16.25" />
-  </svg>
-);
-
-// "All templates" quick-create card. Stroked 2×2 grid in the same lucide-style 24 box as the
-// sibling template glyphs (FigTilesIcon is a heavier fill glyph reserved for the view toggle).
-export const FigAllTemplatesIcon = (props: IconProps) => (
-  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden {...stroked} {...props}>
-    <rect x="3.75" y="3.75" width="7" height="7" rx="1.5" />
-    <rect x="13.25" y="3.75" width="7" height="7" rx="1.5" />
-    <rect x="3.75" y="13.25" width="7" height="7" rx="1.5" />
-    <rect x="13.25" y="13.25" width="7" height="7" rx="1.5" />
   </svg>
 );
