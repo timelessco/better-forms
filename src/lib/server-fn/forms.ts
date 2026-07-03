@@ -12,8 +12,7 @@ import type { ErrorCode } from "@/lib/errors/codes";
 import { purgeFormCache, purgeFormCacheBatch } from "@/lib/server-fn/cdn-cache";
 import { defaultFormSettings, sanitizeFormSettings } from "@/types/form-settings";
 import type { FormSettings } from "@/types/form-settings";
-import { getActiveOrgId } from "./auth-helpers";
-import { authForm, authFormsBulk } from "./auth-helpers.server";
+import { requireScopedForm, requireScopedFormsBulk } from "./auth-helpers.server";
 import { mergeFormSettings } from "./merge-form-settings.server";
 import { hashFormPassword, isHashedFormPassword } from "./password-hash.server";
 import { getOrgPlan, getOrgPlanWithPolarSync } from "./plan-helpers.server";
@@ -122,8 +121,7 @@ export const updateForm = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { id, updatedAt: clientUpdatedAt, draftSettings: settingsPatch, ...updateData } = data;
-    const orgId = getActiveOrgId(context.session);
-    await authForm(id, context.session.user.id, orgId);
+    await requireScopedForm(context.session, id);
 
     // This path also persists draftSettings (the settings UI flushes here via updateForm, not
     // saveFormSettings). Hash a non-empty, not-already-hashed password so plaintext never lands at
@@ -170,8 +168,7 @@ export const setFormAnalytics = createServerFn({ method: "POST" })
   .middleware([authMiddleware, formProSettingsMiddleware])
   .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()), enabled: v.boolean() }))
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
-    await authForm(data.formId, context.session.user.id, orgId);
+    const { orgId } = await requireScopedForm(context.session, data.formId);
 
     // Re-check plan gate on enable: input is {enabled} not a gated field name, so
     // formProSettingsMiddleware (scans field names) waves it through. Polar-sync since
@@ -234,8 +231,7 @@ export const saveFormSettings = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
-    await authForm(data.formId, context.session.user.id, orgId);
+    await requireScopedForm(context.session, data.formId);
 
     const sanitized = sanitizeFormSettings(data.settings);
     // Hash a non-empty, not-already-hashed password before persisting; never store plaintext.
@@ -264,8 +260,7 @@ export const deleteForm = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(v.object({ id: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
-    await authForm(data.id, context.session.user.id, orgId);
+    await requireScopedForm(context.session, data.id);
 
     const [form] = await db.delete(forms).where(eq(forms.id, data.id)).returning();
     if (!form) {
@@ -292,8 +287,7 @@ export const bulkArchiveForms = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
-    await authFormsBulk(data.ids, context.session.user.id, orgId);
+    await requireScopedFormsBulk(context.session, data.ids);
 
     const updated = await db
       .update(forms)
@@ -316,8 +310,7 @@ export const bulkDeleteForms = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
-    await authFormsBulk(data.ids, context.session.user.id, orgId);
+    await requireScopedFormsBulk(context.session, data.ids);
 
     const deleted = await db
       .delete(forms)
@@ -407,9 +400,8 @@ export const _getFormById = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .inputValidator(v.object({ id: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
     const [_, [form], [settingsRow]] = await Promise.all([
-      authForm(data.id, context.session.user.id, orgId),
+      requireScopedForm(context.session, data.id),
       db.select().from(forms).where(eq(forms.id, data.id)),
       // Carry live settings on the detail so the settings dirty-flag is correct regardless of
       // whether the listing (which also joins form_settings) has loaded yet. Null until first save.
@@ -450,8 +442,7 @@ export const updateFormSlug = createServerFn({ method: "POST" })
   .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()), slug: v.string() }))
   .handler(async ({ data, context }) => {
     const { formId, slug } = data;
-    const orgId = getActiveOrgId(context.session);
-    await authForm(formId, context.session.user.id, orgId);
+    await requireScopedForm(context.session, formId);
 
     if (!SLUG_PATTERN.test(slug)) {
       throw createError({
@@ -577,8 +568,7 @@ export const assignFormDomain = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { formId, customDomainId } = data;
-    const orgId = getActiveOrgId(context.session);
-    await authForm(formId, context.session.user.id, orgId);
+    const { orgId } = await requireScopedForm(context.session, formId);
 
     if (customDomainId !== null) {
       const plan = await getOrgPlan(orgId);
