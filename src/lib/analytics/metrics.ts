@@ -43,18 +43,21 @@ export const dropoffRate = (
   return Math.round((Math.max(0, numerator) / denominator) * 100);
 };
 
+// Blend per-day completion-time medians into one figure, weighted by each day's duration SAMPLE
+// count (its submitted visits), NOT total visits — durations come from submitters only, so a
+// high-traffic/low-conversion day must not outweigh a low-traffic/high-conversion one.
 export const weightedMedianDuration = (
-  rows: readonly { medianDurationMs: number | null; totalVisits: number }[],
+  rows: readonly { medianDurationMs: number | null; sampleCount: number }[],
 ): number | null => {
   let weightedSum = 0;
-  let visits = 0;
+  let samples = 0;
   for (const row of rows) {
-    if (row.medianDurationMs !== null && row.totalVisits > 0) {
-      weightedSum += cappedDurationMs(row.medianDurationMs) * row.totalVisits;
-      visits += row.totalVisits;
+    if (row.medianDurationMs !== null && row.sampleCount > 0) {
+      weightedSum += cappedDurationMs(row.medianDurationMs) * row.sampleCount;
+      samples += row.sampleCount;
     }
   }
-  return visits > 0 ? Math.round(weightedSum / visits) : null;
+  return samples > 0 ? Math.round(weightedSum / samples) : null;
 };
 
 export interface AnalyticsFunnelPoint {

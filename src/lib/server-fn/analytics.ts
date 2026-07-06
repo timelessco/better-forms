@@ -43,8 +43,6 @@ export const recordFormVisit = createServerFn({ method: "POST" })
   .inputValidator(recordVisitInputSchema)
   .handler(async ({ data }): Promise<{ visitId: string | null }> => recordFormVisitImpl(data));
 
-const MAX_DURATION_MS = 86_400_000; // 24h cap as a spam guard for client-supplied values
-
 const MAX_VITAL_MS = 3_600_000; // 1h — generous spam guard for client-reported vitals
 const MAX_CLS = 100;
 
@@ -54,9 +52,6 @@ const updateVisitInputSchema = v.object({
   didSubmit: v.optional(v.boolean()),
   submissionId: v.nullish(v.pipe(v.string(), v.uuid())),
   visitEndedAt: v.nullish(v.pipe(v.string(), v.isoTimestamp())),
-  durationMs: v.nullish(
-    v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(MAX_DURATION_MS)),
-  ),
   lcpMs: v.nullish(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(MAX_VITAL_MS))),
   inpMs: v.nullish(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(MAX_VITAL_MS))),
   cls: v.nullish(v.pipe(v.number(), v.minValue(0), v.maxValue(MAX_CLS))),

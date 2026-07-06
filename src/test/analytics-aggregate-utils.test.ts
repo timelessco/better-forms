@@ -136,30 +136,41 @@ describe("buildDailyAnalyticsRows", () => {
     expect(row.osBreakdown).toStrictEqual({ Windows: 1, iOS: 1, FreeBSD: 1, Other: 1 });
   });
 
-  it("computes average and median durations, ignoring nulls", () => {
+  it("computes completion durations over submitted visits only (server-written durationMs)", () => {
+    // v3 has a durationMs but never submitted → excluded; a submitted null-durationMs row → excluded.
     const visits = [
-      makeVisit({ id: "v1", durationMs: 1000 }),
-      makeVisit({ id: "v2", durationMs: 2000 }),
-      makeVisit({ id: "v3", durationMs: null }),
-      makeVisit({ id: "v4", durationMs: 3000 }),
+      makeVisit({ id: "v1", didSubmit: true, durationMs: 1000 }),
+      makeVisit({ id: "v2", didSubmit: true, durationMs: 2000 }),
+      makeVisit({ id: "v3", didSubmit: false, durationMs: 999_999 }),
+      makeVisit({ id: "v4", didSubmit: true, durationMs: null }),
+      makeVisit({ id: "v5", didSubmit: true, durationMs: 3000 }),
     ];
     const [row] = buildDailyAnalyticsRows(visits, dateKey, now);
-    expect(row).toMatchObject({
-      avgDurationMs: 2000,
-      medianDurationMs: 2000,
-    });
+    // [1000, 2000, 3000] → avg 2000, median 2000.
+    expect(row).toMatchObject({ avgDurationMs: 2000, medianDurationMs: 2000 });
   });
 
-  it("returns null durations when no durationMs values present", () => {
+  it("caps completion durations over the 30-minute max", () => {
     const visits = [
-      makeVisit({ id: "v1", durationMs: null }),
-      makeVisit({ id: "v2", durationMs: null }),
+      makeVisit({ id: "v1", didSubmit: true, durationMs: 1_000 }),
+      makeVisit({ id: "v2", didSubmit: true, durationMs: 3_600_000 }), // 60 min → capped to 30 min
     ];
     const [row] = buildDailyAnalyticsRows(visits, dateKey, now);
-    expect(row).toMatchObject({
-      avgDurationMs: null,
-      medianDurationMs: null,
-    });
+    // [1000, 1_800_000] → median = mean of the two = 900500.
+    expect(row).toMatchObject({ medianDurationMs: 900_500 });
+  });
+
+  it("returns null durations when no visits submitted", () => {
+    const visits = [makeVisit({ id: "v1" }), makeVisit({ id: "v2" })];
+    const [row] = buildDailyAnalyticsRows(visits, dateKey, now);
+    expect(row).toMatchObject({ avgDurationMs: null, medianDurationMs: null });
+  });
+
+  it("counts a submitted visit even when its submission row was deleted (submissionId null)", () => {
+    // durationMs is written at submit and stays; didSubmit gates it, not submissionId (FK set null).
+    const visits = [makeVisit({ id: "v1", didSubmit: true, submissionId: null, durationMs: 1500 })];
+    const [row] = buildDailyAnalyticsRows(visits, dateKey, now);
+    expect(row).toMatchObject({ avgDurationMs: 1500, medianDurationMs: 1500 });
   });
 
   it("builds country breakdown skipping nulls", () => {

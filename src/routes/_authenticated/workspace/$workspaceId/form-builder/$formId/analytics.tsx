@@ -158,7 +158,8 @@ const labelFor = (kind: StatKind, key: string): string =>
 // ── Formatting ──────────────────────────────────────────────────────────────
 
 const formatDuration = (ms: number): string => {
-  if (!ms || ms < 0) return "0s";
+  // No submissions in range → no completion time (a real completion is never 0s).
+  if (!ms || ms <= 0) return "—";
   const totalSeconds = Math.round(ms / 1000);
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
@@ -526,7 +527,7 @@ const AnalyticsPage = () => {
       ["Visits", String(metrics.totalVisits)],
       ["Submissions", String(metrics.totalSubmissions)],
       ["Completion rate", `${completionRate}%`],
-      ["Avg. time", formatDuration(metrics.avgVisitDurationMs)],
+      ["Completion time", formatDuration(metrics.avgVisitDurationMs)],
     ];
     const csv = lines.map((r) => r.map((c) => `"${c.replaceAll('"', '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
@@ -595,7 +596,7 @@ const AnalyticsPage = () => {
                 trend={pctTrend(metrics?.completionRateDeltaPts ?? null, true)}
               />
               <MetricCard
-                label="Avg. time"
+                label="Completion time"
                 value={formatDuration(metrics?.avgVisitDurationMs ?? 0)}
                 trend={durationTrend(metrics?.avgDurationDeltaMs ?? null)}
               />
@@ -664,7 +665,7 @@ const AnalyticsPage = () => {
                 trend={pctTrend(metrics?.submissionsDeltaPct ?? null, true)}
               />
               <MetricCard
-                label="Avg. time"
+                label="Completion time"
                 value={formatDuration(metrics?.avgVisitDurationMs ?? 0)}
                 trend={durationTrend(metrics?.avgDurationDeltaMs ?? null)}
               />
@@ -745,7 +746,7 @@ const AnalyticsPage = () => {
                 }
               />
               <MetricCard
-                label="Avg. time"
+                label="Completion time"
                 value={formatDuration(metrics?.avgVisitDurationMs ?? 0)}
                 trend={durationTrend(metrics?.avgDurationDeltaMs ?? null)}
               />

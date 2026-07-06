@@ -2,6 +2,8 @@
 // tables (form_analytics_daily / form_dropoff_daily) for every historical date. Reuses the EXACT
 // production builders so output matches the nightly cron. Idempotent (delete-then-insert per date).
 // Unlike the cron it does NOT prune raw rows.
+// Caveat: pre-change historical visits may carry beacon-written active-time durationMs, not the
+// submit-time completion snapshot — acceptable, that was the old metric anyway.
 //
 //   pnpm exec tsx scripts/backfill-analytics-daily.ts [startDate] [endDate]   (YYYY-MM-DD, UTC)
 //

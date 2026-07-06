@@ -58,7 +58,6 @@ export type UpdateFormVisitInput = {
   didSubmit?: boolean;
   submissionId?: string | null;
   visitEndedAt?: string | null;
-  durationMs?: number | null;
   lcpMs?: number | null;
   inpMs?: number | null;
   cls?: number | null;
@@ -242,9 +241,6 @@ export const updateFormVisitImpl = async (data: UpdateFormVisitInput): Promise<{
   if (data.visitEndedAt !== undefined) {
     updates.visitEndedAt = data.visitEndedAt ? new Date(data.visitEndedAt) : null;
   }
-  if (data.durationMs !== undefined) {
-    updates.durationMs = data.durationMs;
-  }
   if (data.lcpMs !== undefined) {
     updates.lcpMs = data.lcpMs;
   }
@@ -404,6 +400,8 @@ const durationRowsForDays = async (formId: string, dayKeys: string[]) =>
         .select({
           medianDurationMs: formAnalyticsDaily.medianDurationMs,
           totalVisits: formAnalyticsDaily.totalVisits,
+          // Duration sample count for the median blend (submitters); totalVisits drives prior-visits delta.
+          totalSubmissions: formAnalyticsDaily.totalSubmissions,
         })
         .from(formAnalyticsDaily)
         .where(
@@ -474,8 +472,11 @@ export const getFormInsightsImpl = async (
     durationRowsForDays(data.formId, priorDays),
   ]);
   const priorVisits = priorDurRows.reduce((sum, r) => sum + r.totalVisits, 0);
-  const curAvg = weightedMedianDuration(curDurRows);
-  const priorAvg = weightedMedianDuration(priorDurRows);
+  // Weight the median blend by each day's submitter count (sample count), matching the live path.
+  const toDurationSamples = (rows: typeof curDurRows) =>
+    rows.map((r) => ({ medianDurationMs: r.medianDurationMs, sampleCount: r.totalSubmissions }));
+  const curAvg = weightedMedianDuration(toDurationSamples(curDurRows));
+  const priorAvg = weightedMedianDuration(toDurationSamples(priorDurRows));
 
   return {
     ...metrics,

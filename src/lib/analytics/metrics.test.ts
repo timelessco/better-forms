@@ -56,14 +56,25 @@ describe("analytics metrics", () => {
     expect(dropoffRate(row, mode, kind)).toBe(expected);
   });
 
-  it("computes visit-weighted duration from median duration rows", () => {
+  it("computes sample-weighted duration from median duration rows", () => {
+    // Weighted by sampleCount (submitters); the null-median row is ignored regardless of its weight.
     expect(
       weightedMedianDuration([
-        { medianDurationMs: 1_000, totalVisits: 1 },
-        { medianDurationMs: 3_000, totalVisits: 3 },
-        { medianDurationMs: null, totalVisits: 10 },
+        { medianDurationMs: 1_000, sampleCount: 1 },
+        { medianDurationMs: 3_000, sampleCount: 3 },
+        { medianDurationMs: null, sampleCount: 10 },
       ]),
     ).toBe(2_500);
+  });
+
+  it("weights the median blend by sample count, so a high-sample slow day dominates a low-sample fast day", () => {
+    // 1 sample @ 60s vs 9 samples @ 6s → (60000*1 + 6000*9) / 10 = 11400; not the midpoint 33000.
+    expect(
+      weightedMedianDuration([
+        { medianDurationMs: 60_000, sampleCount: 1 },
+        { medianDurationMs: 6_000, sampleCount: 9 },
+      ]),
+    ).toBe(11_400);
   });
 
   it("computes moved route dropoff derivations", () => {

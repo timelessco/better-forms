@@ -73,7 +73,7 @@ export const MetricsRow = ({ metrics }: MetricsRowProps) => (
       Icon={TrendingUp}
     />
     <MetricCard
-      label="Avg duration"
+      label="Completion time"
       value={formatDuration(metrics.avgVisitDurationMs)}
       Icon={Clock}
     />

@@ -124,8 +124,8 @@ const aggregateRawRows = (rows: RawVisitRow[]): RawAggregate => {
       totalSubmissions += 1;
       respondentHashes.add(row.visitorHash);
     }
-    if (row.durationMs !== null && row.durationMs !== undefined) {
-      // Cap abandoned-tab outliers (durationMs is tab-open wall-clock time) before the median.
+    // Completion time = server-written durationMs snapshot; submitted visits only, capped.
+    if (row.didSubmit && row.durationMs !== null) {
       durations.push(cappedDurationMs(row.durationMs));
     }
 
@@ -137,8 +137,8 @@ const aggregateRawRows = (rows: RawVisitRow[]): RawAggregate => {
     bumpKey(operatingSystems, bucketOs(row.os));
   }
 
-  // Today's typical duration = median of today's visits (outlier-resistant), weighted by count so it
-  // blends with the daily medians in the same visit-weighted average.
+  // Today's typical completion time = median of today's submitters (outlier-resistant); durationCount
+  // is its sample weight so it blends with the daily medians in the same sample-weighted average.
   const durationCount = durations.length;
   const median = medianOf(durations);
   return {
@@ -199,10 +199,15 @@ export const mergeInsightsMetrics = (args: MergeArgs): FormInsightsMetrics => {
   const totalSubmissions = dailyAgg.totalSubmissions + rawAgg.totalSubmissions;
   const uniqueRespondents = dailyAgg.uniqueRespondents + rawAgg.uniqueRespondents;
 
+  // Weight each day's median by its submitted-visit count (totalSubmissions): after backfill a day's
+  // duration samples are exactly its submitters. Today's raw entry weights by its own sample count.
   const avgVisitDurationMs =
     weightedMedianDuration([
-      ...dailyRows,
-      { medianDurationMs: rawAgg.medianDurationMs, totalVisits: rawAgg.durationCount },
+      ...dailyRows.map((row) => ({
+        medianDurationMs: row.medianDurationMs,
+        sampleCount: row.totalSubmissions,
+      })),
+      { medianDurationMs: rawAgg.medianDurationMs, sampleCount: rawAgg.durationCount },
     ]) ?? 0;
 
   const sources = addBreakdowns(dailyAgg.sources, rawAgg.sources);
