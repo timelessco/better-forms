@@ -3,13 +3,11 @@ import { useMemo, useRef, useState } from "react";
 import * as v from "valibot";
 import { CheckIcon } from "@/components/ui/icons";
 import {
-  FigBulletListIcon,
-  FigFilterIcon,
+  FigHashIcon,
   FigSearchAltIcon,
   FigSmallDownIcon,
-  FigTilesIcon,
 } from "@/components/dashboard/dashboard-icons";
-import { FormCardThumbnail, FormListThumbnail } from "@/components/dashboard/form-card-thumbnail";
+import { FormCardThumbnail } from "@/components/dashboard/form-card-thumbnail";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -21,9 +19,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FORM_TEMPLATE_CATEGORY_LABEL, FORM_TEMPLATE_META } from "@/lib/form-templates";
 import type { FormTemplateCategory, FormTemplateMeta } from "@/lib/form-templates";
-import { cn } from "@/lib/utils";
-
-type ViewMode = "grid" | "list";
 
 // Gallery omits the "blank" starter — that path stays pinned in the dashboard quick row.
 const GALLERY_TEMPLATES = FORM_TEMPLATE_META.filter((t) => t.id !== "blank");
@@ -55,11 +50,11 @@ const CategoryFilter = ({
           variant="ghost"
           size="sm"
           aria-label="Filter templates by category"
-          className="rounded-lg bg-secondary px-2 hover:bg-secondary/80"
+          className="h-7 gap-1.5 rounded-lg bg-secondary px-2 hover:bg-secondary/80"
         >
-          <FigFilterIcon className="size-4 text-gray-800" />
+          <FigHashIcon className="size-4 text-gray-800" />
           <span className="font-case text-base font-[450] tracking-[0.14px] text-gray-800">
-            {current === "all" ? "All" : FORM_TEMPLATE_CATEGORY_LABEL[current]}
+            {current === "all" ? "Categories" : FORM_TEMPLATE_CATEGORY_LABEL[current]}
           </span>
           <FigSmallDownIcon className="size-4 text-gray-800" />
         </Button>
@@ -83,46 +78,19 @@ const CategoryFilter = ({
   </DropdownMenu>
 );
 
-// Mirrors the dashboard's grid/list toggle (Figma — segmented control, surface-raised active pill).
-const ViewToggle = ({ mode, onChange }: { mode: ViewMode; onChange: (next: ViewMode) => void }) => (
-  <div className="flex h-7 items-center gap-1 rounded-lg bg-secondary p-px">
-    <button
-      type="button"
-      aria-label="Grid view"
-      aria-pressed={mode === "grid"}
-      onClick={() => onChange("grid")}
-      className={cn(
-        "flex size-[26px] items-center justify-center rounded-[7px] transition-all",
-        mode === "grid"
-          ? "bg-surface shadow-[0px_0px_1.5px_0px_rgba(0,0,0,0.16),0px_2px_5px_0px_rgba(0,0,0,0.14)]"
-          : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <FigTilesIcon className="size-4" />
-    </button>
-    <button
-      type="button"
-      aria-label="List view"
-      aria-pressed={mode === "list"}
-      onClick={() => onChange("list")}
-      className={cn(
-        "flex size-[26px] items-center justify-center rounded-[7px] transition-all",
-        mode === "list"
-          ? "bg-surface shadow-[0px_0px_1.5px_0px_rgba(0,0,0,0.16),0px_2px_5px_0px_rgba(0,0,0,0.14)]"
-          : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <FigBulletListIcon className="size-4" />
-    </button>
-  </div>
-);
-
-const CategoryChip = ({ category }: { category: FormTemplateCategory }) => (
-  <span className="rounded-full bg-secondary px-2 py-0.5 text-[12px] font-[450] text-gray-700">
-    {FORM_TEMPLATE_CATEGORY_LABEL[category]}
+// 16px creator avatar — stands in for Figma's avatar (templates carry no avatar asset). Plain grey
+// initials circle.
+const CreatorAvatar = ({ name }: { name: string }) => (
+  <span
+    aria-hidden
+    className="flex size-4 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[9px] font-[450] text-gray-600"
+  >
+    {name.trim().charAt(0).toUpperCase() || "?"}
   </span>
 );
 
+// Figma node 27170:32333 — grid card: 6px-inset thumbnail, then title + two icon-led meta rows
+// (# category, avatar creator). Meta text = Regular/420, gray/700, 0.28px; title = Medium/450, gray/900.
 const TemplateCard = ({ template }: { template: FormTemplateMeta }) => (
   <Link
     to="/templates/$templateId"
@@ -136,49 +104,26 @@ const TemplateCard = ({ template }: { template: FormTemplateMeta }) => (
       preview={template.thumbnail}
       previewDark={template.thumbnailDark}
     />
-    <div className="mt-3 flex w-full flex-col gap-1.5 px-1">
-      <p className="truncate text-base font-medium tracking-[0.28px] text-foreground">
+    <div className="mt-3 flex w-full flex-col gap-2 px-1">
+      {/* font-sans binds the wght axis to font-[N]; without it the inherited fvs wght 450 wins. */}
+      <p className="truncate font-sans text-base leading-[1.15] font-[450] tracking-[0.28px] text-foreground">
         {template.label}
       </p>
-      <p className="line-clamp-2 text-base font-[420] tracking-[0.28px] text-gray-700">
-        {template.description}
-      </p>
-      <div className="mt-1 flex items-center gap-2">
-        <CategoryChip category={template.category} />
-        <span className="truncate text-[12px] font-[420] text-gray-500">by {template.creator}</span>
+      <div className="flex flex-col">
+        <div className="flex items-center gap-2 py-[5px]">
+          <FigHashIcon className="size-4 shrink-0 text-gray-700" />
+          <span className="truncate font-sans text-base leading-[1.15] font-[420] tracking-[0.28px] text-gray-700">
+            {FORM_TEMPLATE_CATEGORY_LABEL[template.category]}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 py-[5px]">
+          <CreatorAvatar name={template.creator} />
+          <span className="truncate font-sans text-base leading-[1.15] font-[420] tracking-[0.28px] text-gray-700">
+            {template.creator}
+          </span>
+        </div>
       </div>
     </div>
-  </Link>
-);
-
-// List row — mirrors the dashboard list layout (thumbnail + name on the left, meta columns right).
-const TemplateListRow = ({ template }: { template: FormTemplateMeta }) => (
-  <Link
-    to="/templates/$templateId"
-    params={{ templateId: template.id }}
-    preload="intent"
-    className="group flex h-11 items-center gap-8 rounded-lg border-b border-gray-100 px-1 transition-colors outline-none hover:bg-secondary focus-visible:bg-secondary"
-  >
-    <div className="flex min-w-0 flex-1 items-center gap-2 pl-1">
-      <FormListThumbnail
-        title={template.label}
-        cover={template.cover}
-        preview={template.thumbnail}
-        previewDark={template.thumbnailDark}
-      />
-      <span className="shrink-0 truncate text-base font-[450] tracking-[0.28px] text-gray-800">
-        {template.label}
-      </span>
-      <span className="hidden min-w-0 truncate text-base font-[420] tracking-[0.28px] text-gray-500 sm:inline">
-        {template.description}
-      </span>
-    </div>
-    <div className="hidden w-24 shrink-0 sm:block">
-      <CategoryChip category={template.category} />
-    </div>
-    <span className="hidden w-28 shrink-0 truncate text-base font-[420] tracking-[0.28px] text-gray-500 md:inline">
-      by {template.creator}
-    </span>
   </Link>
 );
 
@@ -230,7 +175,6 @@ const TemplatesSearch = () => {
 const TemplatesGalleryPage = () => {
   const navigate = useNavigate();
   const { category = "all", q = "" } = Route.useSearch();
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   const visibleTemplates = useMemo(
     () =>
@@ -251,15 +195,14 @@ const TemplatesGalleryPage = () => {
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8 md:px-12 md:py-12 lg:px-20">
         <section className="flex flex-col gap-5">
           <div className="flex items-center justify-between gap-3">
-            {/* Section title — matches the dashboard's "Recent Forms" heading (font-sans rebinds the
-                wght axis so font-semibold renders 600, not the pinned 450). */}
+            {/* Section title — font-sans rebinds the wght axis so font-semibold renders 600, not the
+                pinned 450 (Figma: SemiBold, 15px, gray/950, 0.225px). */}
             <h2 className="font-sans text-[15px] leading-[1.15] font-semibold tracking-[0.225px] text-gray-950">
-              Templates
+              All Templates
             </h2>
             <div className="flex items-center gap-2">
               <TemplatesSearch />
               <CategoryFilter current={category} onChange={setCategory} />
-              <ViewToggle mode={viewMode} onChange={setViewMode} />
             </div>
           </div>
 
@@ -267,16 +210,10 @@ const TemplatesGalleryPage = () => {
             <p className="py-16 text-center text-base text-gray-600">
               No templates match your search.
             </p>
-          ) : viewMode === "grid" ? (
+          ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {visibleTemplates.map((template) => (
                 <TemplateCard key={template.id} template={template} />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col">
-              {visibleTemplates.map((template) => (
-                <TemplateListRow key={template.id} template={template} />
               ))}
             </div>
           )}

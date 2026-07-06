@@ -15,8 +15,7 @@ import { purgeFormCache } from "@/lib/server-fn/cdn-cache";
 import { stripProCustomization } from "@/lib/theme/pro-customization";
 import { defaultFormSettings } from "@/types/form-settings";
 import type { FormSettings } from "@/types/form-settings";
-import { getActiveOrgId } from "./auth-helpers";
-import { authForm } from "./auth-helpers.server";
+import { requireScopedForm } from "./auth-helpers.server";
 import { getOrgPlanWithPolarSync } from "./plan-helpers.server";
 
 // TODO: make plan-based
@@ -38,8 +37,7 @@ export const publishFormVersion = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
-    await authForm(data.formId, context.session.user.id, orgId);
+    const { orgId } = await requireScopedForm(context.session, data.formId);
 
     const result = await db.transaction(async (tx) => {
       const [form] = await tx.select().from(forms).where(eq(forms.id, data.formId));
@@ -222,9 +220,8 @@ export const getFormVersions = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
     const [_, versions] = await Promise.all([
-      authForm(data.formId, context.session.user.id, orgId),
+      requireScopedForm(context.session, data.formId),
       db
         .select({
           id: formVersions.id,
@@ -291,8 +288,7 @@ export const getFormVersionContent = createServerFn({ method: "GET" })
       });
     }
 
-    const orgId = getActiveOrgId(context.session);
-    await authForm(version.formId, context.session.user.id, orgId);
+    await requireScopedForm(context.session, version.formId);
 
     return { version: serializeVersion(version) };
   });
@@ -307,8 +303,7 @@ export const restoreFormVersion = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
-    const authPromise = authForm(data.formId, context.session.user.id, orgId);
+    const authPromise = requireScopedForm(context.session, data.formId);
 
     const [version] = await db
       .select()
@@ -352,8 +347,7 @@ export const discardFormChanges = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
-    await authForm(data.formId, context.session.user.id, orgId);
+    await requireScopedForm(context.session, data.formId);
 
     const [result] = await db
       .select({

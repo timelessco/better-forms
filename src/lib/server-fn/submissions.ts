@@ -11,8 +11,7 @@ import {
 } from "@/lib/editor/transform-plate-to-form";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { purgeFormCache } from "@/lib/server-fn/cdn-cache";
-import { getActiveOrgId } from "./auth-helpers";
-import { authForm } from "./auth-helpers.server";
+import { requireScopedForm } from "./auth-helpers.server";
 
 export type SerializedSubmission = {
   id: string;
@@ -54,8 +53,7 @@ export const deleteSubmission = createServerFn({ method: "POST" })
     v.object({ id: v.pipe(v.string(), v.uuid()), formId: v.pipe(v.string(), v.uuid()) }),
   )
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
-    await authForm(data.formId, context.session.user.id, orgId);
+    await requireScopedForm(context.session, data.formId);
     await db.delete(submissions).where(eq(submissions.id, data.id));
     await maybePurgeAfterSubmissionDelete(data.formId);
     return { success: true };
@@ -70,8 +68,7 @@ export const deleteSubmissionsBulk = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
-    await authForm(data.formId, context.session.user.id, orgId);
+    await requireScopedForm(context.session, data.formId);
     if (data.submissionIds.length === 0) {
       return { success: true, deleted: 0 };
     }
@@ -99,8 +96,7 @@ export const getSubmissionsByFormIdPaginated = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { formId, cursor, limit, search } = data;
 
-    const orgId = getActiveOrgId(context.session);
-    await authForm(formId, context.session.user.id, orgId);
+    await requireScopedForm(context.session, formId);
 
     const cursorCondition = cursor
       ? or(
@@ -147,8 +143,7 @@ export const getSubmissionsCount = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
-    await authForm(data.formId, context.session.user.id, orgId);
+    await requireScopedForm(context.session, data.formId);
 
     const [result] = await db
       .select({ total: count() })
@@ -164,8 +159,7 @@ export const getSubmissionsBootstrap = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
-    const orgId = getActiveOrgId(context.session);
-    await authForm(data.formId, context.session.user.id, orgId);
+    await requireScopedForm(context.session, data.formId);
 
     const [publishedRow, countRow, allVersions] = await Promise.all([
       db

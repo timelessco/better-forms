@@ -1,4 +1,5 @@
 import type { formDropoffDaily, formQuestionProgress } from "@/db/schema";
+import { completionRate, dropoffRate } from "@/lib/analytics/metrics";
 import type { QuestionDropoffMetrics } from "@/types/analytics";
 
 type DropoffDailyRow = typeof formDropoffDaily.$inferSelect;
@@ -123,9 +124,12 @@ export const mergeDropoffMetrics = (args: MergeDropoffArgs): QuestionDropoffMetr
     const cohort = prev ? prev.completeCount : agg.viewCount;
     const reached = prev ? agg.viewCount : agg.completeCount;
     const dropoffCount = Math.max(0, cohort - reached);
-    const dropoffRate = cohort > 0 ? Math.round((dropoffCount / cohort) * 100) : 0;
-    const completionRate =
-      agg.viewCount > 0 ? Math.round((agg.completeCount / agg.viewCount) * 100) : 0;
+    const rowDropoffRate =
+      dropoffRate(
+        { viewCount: cohort, startCount: cohort, completeCount: reached },
+        "single-page",
+      ) ?? 0;
+    const rowCompletionRate = completionRate(agg.completeCount, agg.viewCount, false);
     return {
       questionId: agg.questionId,
       questionIndex: agg.questionIndex,
@@ -137,8 +141,8 @@ export const mergeDropoffMetrics = (args: MergeDropoffArgs): QuestionDropoffMetr
       completeCount: agg.completeCount,
       dropoffCount,
       terminalDropoffCount: agg.terminalDropoffCount,
-      dropoffRate,
-      completionRate,
+      dropoffRate: rowDropoffRate,
+      completionRate: rowCompletionRate,
     };
   });
 
@@ -148,8 +152,7 @@ export const mergeDropoffMetrics = (args: MergeDropoffArgs): QuestionDropoffMetr
   //   daily rollups, so v1 uses max questionIndex as the "last question" proxy.
   const totalStarted = questions.length > 0 ? questions[0].startCount : 0;
   const totalCompleted = questions.length > 0 ? questions[questions.length - 1].completeCount : 0;
-  const overallCompletionRate =
-    totalStarted > 0 ? Math.round((totalCompleted / totalStarted) * 100) : 0;
+  const overallCompletionRate = completionRate(totalCompleted, totalStarted, false);
 
   return {
     formId,

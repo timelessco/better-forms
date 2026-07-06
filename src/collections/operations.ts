@@ -238,33 +238,6 @@ export const permanentDeleteFormLocal = async (id: string) => {
   await queryClient.invalidateQueries({ queryKey: ["form-listings-archived"] });
 };
 
-// Optimistically remove rows from `formListings` (instant sidebar update), persist flip, invalidate trash query.
-export const bulkArchiveFormsLocal = async (ids: string[]) => {
-  if (ids.length === 0) return { archived: 0 };
-  const { formListings, queryClient, serverFns } = getInit();
-
-  let archived = 0;
-  const tx = createTransaction({
-    mutationFn: async () => {
-      const result = await serverFns.bulkArchiveForms({ ids });
-      archived = result.archived;
-      // Refetch so archived rows are gone from the server snapshot before TanStack DB drops the optimistic deletes (same pattern as updateFormStatus).
-      await Promise.all([
-        formListings.utils.refetch(),
-        queryClient.invalidateQueries({ queryKey: ["form-listings-archived"] }),
-      ]);
-      return result;
-    },
-  });
-  tx.mutate(() => {
-    for (const id of ids) {
-      if (formListings.get(id)) formListings.delete(id);
-    }
-  });
-  await tx.isPersisted.promise;
-  return { archived };
-};
-
 // Rows aren't in `formListings` (server filters archived) — hit server, invalidate trash.
 export const bulkPermanentDeleteFormsLocal = async (ids: string[]) => {
   if (ids.length === 0) return { deleted: 0 };

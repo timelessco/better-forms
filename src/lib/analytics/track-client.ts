@@ -20,7 +20,6 @@ type UpdateVisitArgs = {
   didSubmit?: boolean;
   submissionId?: string | null;
   visitEndedAt?: string | null;
-  durationMs?: number | null;
   // CWV, sent on unload beacon. Null when a metric never finalizes (e.g. no interaction → no INP).
   lcpMs?: number | null;
   inpMs?: number | null;
@@ -82,7 +81,6 @@ export const fireUpdateVisitBeacon = (args: UpdateVisitArgs): void => {
       JSON.stringify({
         visitId: args.visitId,
         visitEndedAt: args.visitEndedAt,
-        durationMs: args.durationMs,
         lcpMs: args.lcpMs,
         inpMs: args.inpMs,
         cls: args.cls,

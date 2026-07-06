@@ -1,5 +1,6 @@
 import { bumpKey } from "@/lib/analytics/aggregate-utils";
 import { cappedDurationMs } from "@/lib/analytics/duration";
+import { weightedMedianDuration } from "@/lib/analytics/metrics";
 import { resolveSource } from "@/lib/analytics/source";
 import type { formAnalyticsDaily, formVisits } from "@/db/schema";
 import type { CountBreakdown, FormInsightsMetrics } from "@/types/analytics";
@@ -47,8 +48,6 @@ interface DailyAggregate {
   uniqueVisitors: number;
   totalSubmissions: number;
   uniqueRespondents: number;
-  durationSumWeighted: number;
-  durationVisitsWeight: number;
   sources: CountBreakdown;
   devices: CountBreakdown;
   countries: CountBreakdown;
@@ -62,8 +61,6 @@ const emptyAggregate = (): DailyAggregate => ({
   uniqueVisitors: 0,
   totalSubmissions: 0,
   uniqueRespondents: 0,
-  durationSumWeighted: 0,
-  durationVisitsWeight: 0,
   sources: {},
   devices: {},
   countries: {},
@@ -89,14 +86,6 @@ const aggregateDailyRows = (rows: DailyRow[]): DailyAggregate => {
     agg.totalSubmissions += row.totalSubmissions;
     agg.uniqueRespondents += row.uniqueSubmitters;
 
-    // Use the per-day MEDIAN, not the mean: a single abandoned tab left open for hours makes the
-    // mean visit duration meaningless (e.g. 6h+ outliers → "405m" avg). Median is the typical time.
-    if (row.medianDurationMs !== null && row.totalVisits > 0) {
-      // Cap stored medians too (older rows were aggregated before the record-time cap existed).
-      agg.durationSumWeighted += cappedDurationMs(row.medianDurationMs) * row.totalVisits;
-      agg.durationVisitsWeight += row.totalVisits;
-    }
-
     agg.devices = addBreakdowns(agg.devices, (row.deviceBreakdown ?? {}) as CountBreakdown);
     agg.browsers = addBreakdowns(agg.browsers, (row.browserBreakdown ?? {}) as CountBreakdown);
     agg.operatingSystems = addBreakdowns(
@@ -111,8 +100,8 @@ const aggregateDailyRows = (rows: DailyRow[]): DailyAggregate => {
 };
 
 interface RawAggregate extends DailyAggregate {
-  durationSum: number;
   durationCount: number;
+  medianDurationMs: number | null;
 }
 
 const aggregateRawRows = (rows: RawVisitRow[]): RawAggregate => {
@@ -135,8 +124,8 @@ const aggregateRawRows = (rows: RawVisitRow[]): RawAggregate => {
       totalSubmissions += 1;
       respondentHashes.add(row.visitorHash);
     }
-    if (row.durationMs !== null && row.durationMs !== undefined) {
-      // Cap abandoned-tab outliers (durationMs is tab-open wall-clock time) before the median.
+    // Completion time = server-written durationMs snapshot; submitted visits only, capped.
+    if (row.didSubmit && row.durationMs !== null) {
       durations.push(cappedDurationMs(row.durationMs));
     }
 
@@ -148,20 +137,17 @@ const aggregateRawRows = (rows: RawVisitRow[]): RawAggregate => {
     bumpKey(operatingSystems, bucketOs(row.os));
   }
 
-  // Today's typical duration = median of today's visits (outlier-resistant), weighted by count so it
-  // blends with the daily medians in the same visit-weighted average.
+  // Today's typical completion time = median of today's submitters (outlier-resistant); durationCount
+  // is its sample weight so it blends with the daily medians in the same sample-weighted average.
   const durationCount = durations.length;
   const median = medianOf(durations);
-  const durationSum = median * durationCount;
   return {
     totalVisits,
     uniqueVisitors: visitorHashes.size,
     totalSubmissions,
     uniqueRespondents: respondentHashes.size,
-    durationSumWeighted: durationSum,
-    durationVisitsWeight: durationCount,
-    durationSum,
     durationCount,
+    medianDurationMs: durationCount > 0 ? median : null,
     sources,
     devices,
     countries,
@@ -213,11 +199,16 @@ export const mergeInsightsMetrics = (args: MergeArgs): FormInsightsMetrics => {
   const totalSubmissions = dailyAgg.totalSubmissions + rawAgg.totalSubmissions;
   const uniqueRespondents = dailyAgg.uniqueRespondents + rawAgg.uniqueRespondents;
 
-  // Weighted avg across daily + raw pools
-  const totalDurationSum = dailyAgg.durationSumWeighted + rawAgg.durationSum;
-  const totalDurationWeight = dailyAgg.durationVisitsWeight + rawAgg.durationCount;
+  // Weight each day's median by its submitted-visit count (totalSubmissions): after backfill a day's
+  // duration samples are exactly its submitters. Today's raw entry weights by its own sample count.
   const avgVisitDurationMs =
-    totalDurationWeight > 0 ? Math.round(totalDurationSum / totalDurationWeight) : 0;
+    weightedMedianDuration([
+      ...dailyRows.map((row) => ({
+        medianDurationMs: row.medianDurationMs,
+        sampleCount: row.totalSubmissions,
+      })),
+      { medianDurationMs: rawAgg.medianDurationMs, sampleCount: rawAgg.durationCount },
+    ]) ?? 0;
 
   const sources = addBreakdowns(dailyAgg.sources, rawAgg.sources);
   const devices = addBreakdowns(dailyAgg.devices, rawAgg.devices);

@@ -9,7 +9,7 @@ import {
   DropoffFunnelChart,
   FormActivityChart,
 } from "@/components/form-builder/analytics/charts";
-import type { DonutDatum, FunnelPoint } from "@/components/form-builder/analytics/charts";
+import type { DonutDatum } from "@/components/form-builder/analytics/charts";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -36,6 +36,18 @@ import { NotFound } from "@/components/ui/not-found";
 import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getFormAnswers, getFormDropoff, getFormInsights } from "@/lib/server-fn/analytics";
 import { numberFormatter } from "@/lib/analytics/format";
+import {
+  analyticsBiggestDropoff,
+  analyticsBreakdowns,
+  analyticsChartData,
+  analyticsCompletionRate,
+  analyticsDropoffRows,
+  analyticsFunnelData,
+  analyticsTotalDropoffs,
+  fillRate,
+  mostSkippedQuestion,
+  visibleAnswerQuestions,
+} from "@/lib/analytics/metrics";
 import type {
   CountBreakdown,
   FormAnswerMetrics,
@@ -146,7 +158,8 @@ const labelFor = (kind: StatKind, key: string): string =>
 // ── Formatting ──────────────────────────────────────────────────────────────
 
 const formatDuration = (ms: number): string => {
-  if (!ms || ms < 0) return "0s";
+  // No submissions in range → no completion time (a real completion is never 0s).
+  if (!ms || ms <= 0) return "—";
   const totalSeconds = Math.round(ms / 1000);
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
@@ -472,32 +485,9 @@ const AnalyticsPage = () => {
 
   const metrics: FormInsightsMetrics | undefined = data;
 
-  const chartData = useMemo(
-    () =>
-      (metrics?.dailyData ?? []).map((d) => ({
-        date: d.date,
-        visits: d.visits,
-        submissions: d.submissions,
-        partial: Math.max(0, d.visits - d.submissions),
-      })),
-    [metrics?.dailyData],
-  );
-
-  // Completion rate uses the authoritative submission count; cap at 100% (untracked submissions can
-  // exceed tracked visits in a range).
-  const completionRate =
-    metrics && metrics.totalVisits > 0
-      ? Math.min(100, Math.round((metrics.completedSubmissions / metrics.totalVisits) * 100))
-      : 0;
-
-  const breakdowns = {
-    sources: metrics?.sources ?? {},
-    devices: metrics?.devices ?? {},
-    browsers: metrics?.browsers ?? {},
-    operatingSystems: metrics?.operatingSystems ?? {},
-    countries: metrics?.countries ?? {},
-    cities: metrics?.cities ?? {},
-  };
+  const chartData = useMemo(() => analyticsChartData(metrics), [metrics]);
+  const completionRate = analyticsCompletionRate(metrics);
+  const breakdowns = useMemo(() => analyticsBreakdowns(metrics), [metrics]);
 
   // Dropoff data (Dropoffs tab) — fetched only when that tab is active.
   const { data: dropoffData, isLoading: dropoffLoading } = useQuery({
@@ -507,46 +497,10 @@ const AnalyticsPage = () => {
     enabled: tab === "dropoffs",
   });
   const dropoff: QuestionDropoffMetrics | undefined = dropoffData;
-
-  const questionLabel = (q: QuestionDropoffMetrics["questions"][number]): string =>
-    q.questionLabel?.trim() || `Q${q.questionIndex + 1}`;
-
-  // Funnel across questions in order: height = respondents still answering (startCount),
-  // descending = drop-off. Retention/drop power the hover tooltip (same model as insights).
-  const funnelData = useMemo<FunnelPoint[]>(() => {
-    const sorted = [...(dropoff?.questions ?? [])].sort(
-      (a, b) => a.questionIndex - b.questionIndex,
-    );
-    const first = sorted[0]?.startCount ?? 0;
-    return sorted.map((q, i) => {
-      const count = q.startCount;
-      const prev = i === 0 ? null : sorted[i - 1].startCount;
-      return {
-        label: `Q${q.questionIndex + 1}`,
-        title: questionLabel(q),
-        count,
-        retention: first > 0 ? count / first : 0,
-        stepDrop: prev == null || prev === 0 ? null : Math.max(0, 1 - count / prev),
-      };
-    });
-  }, [dropoff?.questions]);
-
-  // Per-question drop-off rates, highest first (Figma list order). `qLabel` is the short
-  // Q-number (for the Biggest drop-off stat card); `label` is the full name (for the panel).
-  const dropoffRows = useMemo(
-    () =>
-      [...(dropoff?.questions ?? [])]
-        .map((q) => ({
-          label: questionLabel(q),
-          qLabel: `Q${q.questionIndex + 1}`,
-          rate: q.dropoffRate,
-        }))
-        .sort((a, b) => b.rate - a.rate),
-    [dropoff?.questions],
-  );
-
-  const totalDropoffs = dropoff ? dropoff.totalStarted - dropoff.totalCompleted : 0;
-  const biggestDropoff = dropoffRows[0];
+  const funnelData = useMemo(() => analyticsFunnelData(dropoff), [dropoff]);
+  const dropoffRows = useMemo(() => analyticsDropoffRows(dropoff), [dropoff]);
+  const totalDropoffs = analyticsTotalDropoffs(dropoff);
+  const biggestDropoff = analyticsBiggestDropoff(dropoffRows);
 
   // Answers data (Answers tab) — fetched only when that tab is active.
   const { data: answersData, isLoading: answersLoading } = useQuery({
@@ -556,31 +510,9 @@ const AnalyticsPage = () => {
     enabled: tab === "answers",
   });
   const answers: FormAnswerMetrics | undefined = answersData;
-  // Only render questions with a meaningful chart/list: choice fields (donut), Email (domain
-  // list), and Matrix. Free-text length, presence (upload/signature), URL, Number/Date/Time/Phone
-  // are intentionally hidden — a per-answer bar there is noise. Skip empty cards (no answers yet),
-  // then group all donuts first and all lists after (Figma layout).
-  const answerQuestions = useMemo(() => {
-    const visible = (answers?.questions ?? []).filter(
-      (q) =>
-        (q.analysis === "choice" || q.fieldType === "Email" || q.fieldType === "Matrix") &&
-        q.answered > 0 &&
-        q.distribution.length > 0,
-    );
-    const charts = visible.filter((q) => q.analysis === "choice");
-    const lists = visible.filter((q) => q.analysis !== "choice");
-    return [...charts, ...lists];
-  }, [answers?.questions]);
-
-  // Most-skipped = least-answered question → Q-number + skip rate.
-  const mostSkipped = useMemo(() => {
-    if (!answers || answers.submissions === 0 || answers.questions.length === 0) return null;
-    const q = [...answers.questions].sort((a, b) => a.answered - b.answered)[0];
-    return {
-      qLabel: `Q${q.questionIndex + 1}`,
-      skip: Math.round((1 - q.answered / answers.submissions) * 100),
-    };
-  }, [answers]);
+  const answerQuestions = useMemo(() => visibleAnswerQuestions(answers), [answers]);
+  const mostSkipped = useMemo(() => mostSkippedQuestion(answers), [answers]);
+  const avgAnsweredFillRate = fillRate(answers?.avgAnswered ?? 0, answers?.totalQuestions ?? 0);
 
   const rangeLabel = RANGE_OPTIONS.find((r) => r.value === range)?.label ?? "Last 7 days";
 
@@ -595,7 +527,7 @@ const AnalyticsPage = () => {
       ["Visits", String(metrics.totalVisits)],
       ["Submissions", String(metrics.totalSubmissions)],
       ["Completion rate", `${completionRate}%`],
-      ["Avg. time", formatDuration(metrics.avgVisitDurationMs)],
+      ["Completion time", formatDuration(metrics.avgVisitDurationMs)],
     ];
     const csv = lines.map((r) => r.map((c) => `"${c.replaceAll('"', '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
@@ -664,7 +596,7 @@ const AnalyticsPage = () => {
                 trend={pctTrend(metrics?.completionRateDeltaPts ?? null, true)}
               />
               <MetricCard
-                label="Avg. time"
+                label="Completion time"
                 value={formatDuration(metrics?.avgVisitDurationMs ?? 0)}
                 trend={durationTrend(metrics?.avgDurationDeltaMs ?? null)}
               />
@@ -733,7 +665,7 @@ const AnalyticsPage = () => {
                 trend={pctTrend(metrics?.submissionsDeltaPct ?? null, true)}
               />
               <MetricCard
-                label="Avg. time"
+                label="Completion time"
                 value={formatDuration(metrics?.avgVisitDurationMs ?? 0)}
                 trend={durationTrend(metrics?.avgDurationDeltaMs ?? null)}
               />
@@ -804,20 +736,17 @@ const AnalyticsPage = () => {
               <MetricCard
                 label="Avg. answered"
                 value={String(Math.round(answers?.avgAnswered ?? 0))}
-                // Fill rate (avg answered / total questions): green ≥ 50%, red below.
                 trend={
-                  answers && answers.totalQuestions > 0
-                    ? (() => {
-                        const fill = Math.round(
-                          (answers.avgAnswered / answers.totalQuestions) * 100,
-                        );
-                        return { text: `${fill}% fill rate`, tone: fill >= 50 ? "good" : "bad" };
-                      })()
+                  avgAnsweredFillRate !== null
+                    ? {
+                        text: `${avgAnsweredFillRate}% fill rate`,
+                        tone: avgAnsweredFillRate >= 50 ? "good" : "bad",
+                      }
                     : undefined
                 }
               />
               <MetricCard
-                label="Avg. time"
+                label="Completion time"
                 value={formatDuration(metrics?.avgVisitDurationMs ?? 0)}
                 trend={durationTrend(metrics?.avgDurationDeltaMs ?? null)}
               />

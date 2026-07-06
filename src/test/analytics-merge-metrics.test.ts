@@ -110,7 +110,7 @@ describe("mergeInsightsMetrics", () => {
       todayKey: null,
     });
 
-    // Weighted avg: (1000*10 + 2000*5) / 15 = 20000 / 15 = 1333
+    // Submission-weighted blend: (1000*2 + 2000*1) / (2 + 1) = 4000 / 3 = 1333
     expect(result).toMatchObject({
       totalVisits: 18,
       uniqueVisitors: 15,
@@ -127,10 +127,11 @@ describe("mergeInsightsMetrics", () => {
     });
   });
 
-  it("aggregates only today raw rows when there is no past data", () => {
+  it("aggregates completion time only over today's submitted raw visits", () => {
+    // Only submitted visits contribute a completion duration (server-written durationMs).
     const todayRawRows = [
       makeRaw({ id: "1", visitorHash: "v1", didSubmit: true, durationMs: 1000 }),
-      makeRaw({ id: "2", visitorHash: "v1", didSubmit: false, durationMs: 500 }),
+      makeRaw({ id: "2", visitorHash: "v1", didSubmit: false, durationMs: 999_999 }),
       makeRaw({ id: "3", visitorHash: "v2", didSubmit: true, durationMs: 1500 }),
       makeRaw({ id: "4", visitorHash: "v3", didSubmit: false }),
       makeRaw({ id: "5", visitorHash: "v3", didSubmit: false }),
@@ -145,13 +146,13 @@ describe("mergeInsightsMetrics", () => {
       todayKey: "2026-04-27",
     });
 
-    // Average of [1000, 500, 1500] = 1000
+    // Median of submitted completions [1000, 1500] = 1250 (non-submitters ignored).
     expect(result).toMatchObject({
       totalVisits: 5,
       uniqueVisitors: 3,
       totalSubmissions: 2,
       uniqueRespondents: 2,
-      avgVisitDurationMs: 1000,
+      avgVisitDurationMs: 1250,
       dailyData: [{ date: "2026-04-27", visits: 5, uniqueVisitors: 3, submissions: 2 }],
     });
   });
@@ -320,12 +321,14 @@ describe("mergeInsightsMetrics", () => {
       makeDaily({
         date: "2026-04-26",
         totalVisits: 10,
-        avgDurationMs: 1000, // weight 10
+        totalSubmissions: 10, // sample weight 10
+        avgDurationMs: 1000,
       }),
     ];
+    // Two submitted raw visits, each a 5000ms server-written completion durationMs.
     const todayRawRows = [
-      makeRaw({ id: "r1", durationMs: 5000 }),
-      makeRaw({ id: "r2", durationMs: 5000 }),
+      makeRaw({ id: "r1", didSubmit: true, durationMs: 5000 }),
+      makeRaw({ id: "r2", didSubmit: true, durationMs: 5000 }),
     ];
 
     const result = mergeInsightsMetrics({
@@ -337,8 +340,39 @@ describe("mergeInsightsMetrics", () => {
       todayKey: "2026-04-27",
     });
 
-    // (1000*10 + 5000 + 5000) / (10 + 2) = 20000 / 12 = 1666.67 → 1667
+    // Submission-weighted: (1000*10 + 5000*2) / (10 + 2) = 20000 / 12 = 1666.67 → 1667
     expect(result.avgVisitDurationMs).toBe(1667);
+  });
+
+  it("weights the cross-day median blend by submissions, not visits", () => {
+    // Day A: heavy traffic, 1 submission, slow. Day B: light traffic, 9 submissions, fast.
+    const dailyRows = [
+      makeDaily({
+        date: "2026-04-25",
+        totalVisits: 1000,
+        totalSubmissions: 1,
+        medianDurationMs: 60_000,
+      }),
+      makeDaily({
+        date: "2026-04-26",
+        totalVisits: 10,
+        totalSubmissions: 9,
+        medianDurationMs: 6_000,
+      }),
+    ];
+
+    const result = mergeInsightsMetrics({
+      dailyRows,
+      todayRawRows: [],
+      startDate: "2026-04-25",
+      endDate: "2026-04-26",
+      days: ["2026-04-25", "2026-04-26"],
+      todayKey: null,
+    });
+
+    // Submission-weighted: (60000*1 + 6000*9) / (1 + 9) = 11400. Visit-weighting would give ~59465
+    // (the high-traffic slow day dominating) — this asserts it does not.
+    expect(result.avgVisitDurationMs).toBe(11_400);
   });
 
   it("preserves dailyData ordering matching the input days array", () => {

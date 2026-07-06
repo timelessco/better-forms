@@ -49,7 +49,8 @@ export const bumpKey = (target: Record<string, number>, key: string | null | und
   target[key] = (target[key] ?? 0) + 1;
 };
 
-/** One DailyAnalyticsInsert row per form, grouped by formId. dateKey: YYYY-MM-DD UTC. */
+/** One DailyAnalyticsInsert row per form, grouped by formId. dateKey: YYYY-MM-DD UTC.
+ * The completion-time median is built only from visits that submitted (their server-written durationMs). */
 export const buildDailyAnalyticsRows = (
   visits: RawVisit[],
   dateKey: string,
@@ -97,8 +98,8 @@ export const buildDailyAnalyticsRows = (
         uniqueSubmitterHashes.add(visit.visitorHash);
       }
 
-      if (visit.durationMs !== null && visit.durationMs !== undefined) {
-        // Cap so an abandoned/backgrounded tab (hours of open time) can't skew the day's avg/median.
+      // Completion time = server-written durationMs snapshot; submitted visits only, capped.
+      if (visit.didSubmit && visit.durationMs !== null) {
         durations.push(cappedDurationMs(visit.durationMs));
       }
 
