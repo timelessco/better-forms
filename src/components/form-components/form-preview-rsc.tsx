@@ -133,18 +133,23 @@ const StepButton = ({
   grouped?: boolean;
   totalSteps?: number;
 }) => {
+  const { t } = useTranslation();
   const buttonStyle = { fontSize: "13px" } as const;
 
   if (buttonRole === "previous") {
     const button = (
+      // Ghost + dark text (Figma 27112-20305 "Back") — never a filled primary, which would clash
+      // with the themed Submit/Next.
       <Button
         type="button"
+        variant="ghost-flat"
         onClick={onPrevious}
         style={buttonStyle}
-        className="h-8 gap-1.5 rounded-lg px-2.5"
+        className="h-8 gap-1.5 rounded-lg px-2.5 text-gray-900"
         prefix={<ChevronLeftIcon className="size-4" />}
       >
-        {buttonText}
+        {/* Always "Back" (like the one-at-a-time footer) — ignore any authored/legacy "Previous" text. */}
+        {t("back")}
       </Button>
     );
     return grouped ? (
@@ -180,10 +185,12 @@ const StepButton = ({
   // Submit
   const isMultiStep = totalSteps > 1;
   const submitButton = (
+    // Trailing chevron matches the Next button (Figma "→") and keeps the last glyph from clipping.
     <Button
       type="submit"
       style={buttonStyle}
       className="h-8 gap-1.5 rounded-lg px-2.5"
+      suffix={<ChevronRightIcon className="size-4" />}
       disabled={isSubmitting}
     >
       {buttonText}
@@ -383,35 +390,37 @@ const StepFormRSC = ({
           : action?.buttonText || actionDefaultText;
 
       return (
+        // Prev + Next/Submit grouped left (8px gap), branding pushed right (Figma 27112-20305).
         <div
-          className="flex w-full flex-row-reverse items-center justify-between"
+          className="flex w-full items-center justify-between gap-3"
           style={{ maxWidth: "var(--bf-input-width)" }}
         >
-          {action && !(hideSubmit && actionRole === "submit") && (
-            <StepButton
-              buttonText={actionText}
-              buttonRole={actionRole}
-              isSubmitting={isSubmitting}
-              onPrevious={canGoBack ? goToPrevStep : undefined}
-              grouped
-              totalSteps={totalSteps}
-            />
-          )}
-          {prev ? (
-            <StepButton
-              buttonText={prev.buttonText || t("previous")}
-              buttonRole="previous"
-              isSubmitting={isSubmitting}
-              onPrevious={canGoBack ? goToPrevStep : undefined}
-              grouped
-            />
-          ) : (
-            <div />
-          )}
+          <div className="flex items-center gap-2">
+            {prev && (
+              <StepButton
+                buttonText={prev.buttonText || t("previous")}
+                buttonRole="previous"
+                isSubmitting={isSubmitting}
+                onPrevious={canGoBack ? goToPrevStep : undefined}
+                grouped
+              />
+            )}
+            {action && !(hideSubmit && actionRole === "submit") && (
+              <StepButton
+                buttonText={actionText}
+                buttonRole={actionRole}
+                isSubmitting={isSubmitting}
+                onPrevious={canGoBack ? goToPrevStep : undefined}
+                grouped
+                totalSteps={totalSteps}
+              />
+            )}
+          </div>
+          {branding && <FormBrandingBadge />}
         </div>
       );
     },
-    [t, isSubmitting, canGoBack, goToPrevStep, totalSteps, hideSubmit],
+    [t, isSubmitting, canGoBack, goToPrevStep, totalSteps, hideSubmit, branding],
   );
 
   return (
