@@ -225,7 +225,14 @@ const useIframeResizeNotifier = (
     if ((!isPopup && !dynamicHeight) || typeof window === "undefined" || window.parent === window)
       return;
 
-    sendToParent("Reform.FormLoaded", { formId });
+    // Tell the host-page popup frame (popup.js) to match the form's cover radius so its rounded
+    // corners line up with the cover instead of a fixed default.
+    const frameRadius =
+      isPopup && containerRef.current
+        ? getComputedStyle(containerRef.current).getPropertyValue("--bf-cover-radius").trim() ||
+          undefined
+        : undefined;
+    sendToParent("Reform.FormLoaded", { formId, frameRadius });
 
     let lastHeight = 0;
     let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
