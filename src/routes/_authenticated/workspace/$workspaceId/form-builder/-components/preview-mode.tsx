@@ -432,7 +432,8 @@ const PopupPreviewOverlay = ({
       {darkOverlay && isPopupOpen && (
         <button
           type="button"
-          className="pointer-events-auto absolute inset-0 z-10 size-full cursor-default border-none bg-black/36 backdrop-blur-sm transition-opacity duration-300"
+          // Dark overlay (Figma 27196-14471): black 24% + 6px backdrop blur.
+          className="pointer-events-auto absolute inset-0 z-10 size-full cursor-default border-none bg-black/24 backdrop-blur-[6px] transition-opacity duration-300"
           onClick={handleClosePopup}
           aria-label="Close preview"
         />
@@ -441,8 +442,9 @@ const PopupPreviewOverlay = ({
       {isPopupOpen && (
         <div
           ref={setPopupEl}
-          // Figma 26889:14685 — 20px radius, elevation/light/xl shadow, no border.
-          className="pointer-events-auto absolute z-20 flex flex-col overflow-hidden rounded-[20px] bg-background shadow-[0px_0px_1px_0px_rgba(0,0,0,0.2),0px_0px_10px_2px_rgba(0,0,0,0.04),0px_24px_30px_-8px_rgba(0,0,0,0.1)] transition-[top,left,transform] duration-300 ease-out"
+          // Frame radius follows the Cover-radius customization (--bf-cover-radius) so top + bottom
+          // match the cover; 20px fallback for unthemed forms (Figma 26889:14685).
+          className="pointer-events-auto absolute z-20 flex flex-col overflow-hidden rounded-[var(--bf-cover-radius,20px)] bg-background shadow-[0px_0px_1px_0px_rgba(0,0,0,0.2),0px_0px_10px_2px_rgba(0,0,0,0.04),0px_24px_30px_-8px_rgba(0,0,0,0.1)] transition-[top,left,transform] duration-300 ease-out"
           style={{
             width: popupWidth,
             ...(popupPosition === "center"

@@ -316,7 +316,8 @@ export const EmbedPreviewMockup = ({
           {isPopup && darkOverlay && isPopupExpanded && (
             <motion.div
               key="dark-overlay"
-              className="absolute inset-0 z-10 bg-black/30"
+              // Match the real popup dark overlay (Figma 27196-14471): black 24% + backdrop blur.
+              className="absolute inset-0 z-10 bg-black/24 backdrop-blur-[6px]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}

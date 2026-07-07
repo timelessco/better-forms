@@ -42,7 +42,10 @@ const STYLES = `
   position: fixed;
   inset: 0;
   z-index: 2147483000;
-  background-color: rgba(0, 0, 0, 0.5);
+  /* Dark overlay (Figma 27196-14471): black 24% + 6px backdrop blur. */
+  background-color: rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   justify-content: center;
   align-items: center;
