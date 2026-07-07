@@ -350,8 +350,7 @@ const createSegments = (nodes: Value): PreviewSegment[] => {
       const btnText =
         (node.label as string | undefined) || childText || (node.buttonText as string | undefined);
       const btnRole = (node.buttonRole as "next" | "previous" | "submit") || "submit";
-      const defaultText =
-        btnRole === "next" ? "Next" : btnRole === "previous" ? "Previous" : "Submit";
+      const defaultText = btnRole === "next" ? "Next" : btnRole === "previous" ? "Back" : "Submit";
       const name = `button_${fieldIndex}`;
 
       segments.push({

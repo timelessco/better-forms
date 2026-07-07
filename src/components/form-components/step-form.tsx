@@ -70,8 +70,9 @@ export const StepForm = ({
   });
 
   const groupedItems = useMemo(() => groupSegmentsForRendering(segments), [segments]);
-  // Branding only rides the final Submit row (last step).
-  const showBranding = branding && isLastStep;
+  // Branding rides EVERY step's action row (Next and Submit), not just the final Submit — so
+  // multi-step card forms show "Made with Reform." throughout, matching one-at-a-time (Figma 27112-20324).
+  const showBranding = branding;
 
   const formRef = useRef<HTMLFormElement>(null);
   const [isTextareaFocused, setIsTextareaFocused] = useState(false);
@@ -181,12 +182,21 @@ export const StepForm = ({
             const groupKey = `button-group-${item.buttons.map((b) => b.id).join("-")}`;
 
             return (
+              // Prev + Next/Submit grouped left (8px gap), branding pushed right (Figma 27112-20305).
               <div
                 key={groupKey}
-                className="flex w-full flex-col gap-2"
+                className="flex w-full items-center justify-between gap-3"
                 style={{ maxWidth: "var(--bf-input-width)" }}
               >
-                <div className="flex w-full flex-row-reverse items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {prevButton && (
+                    <RenderStepButton
+                      field={prevButton}
+                      isSubmitting={isSubmitting}
+                      onPrevious={canGoBack ? goToPrevStep : undefined}
+                      grouped
+                    />
+                  )}
                   {actionButton && (
                     <RenderStepButton
                       field={actionButton}
@@ -196,23 +206,8 @@ export const StepForm = ({
                       grouped
                     />
                   )}
-                  {prevButton ? (
-                    <RenderStepButton
-                      field={prevButton}
-                      isSubmitting={isSubmitting}
-                      onPrevious={canGoBack ? goToPrevStep : undefined}
-                      grouped
-                    />
-                  ) : (
-                    <div /> // Spacer for justify-between
-                  )}
                 </div>
-                {/* Multi-step submit row is full (Prev + Submit) — branding sits right-aligned below. */}
-                {showBranding && (
-                  <div className="flex justify-end">
-                    <FormBrandingBadge />
-                  </div>
-                )}
+                {showBranding && <FormBrandingBadge />}
               </div>
             );
           }
@@ -451,14 +446,18 @@ const RenderStepButton = ({
 
   if (buttonRole === "previous") {
     const button = (
+      // Ghost + dark text (Figma 27112-20305 "Back") — never a filled primary, which would clash
+      // with the themed Submit/Next.
       <Button
         type="button"
+        variant="ghost-flat"
         onClick={onPrevious}
         style={buttonStyle}
-        className="h-8 gap-1.5 rounded-lg px-2.5"
+        className="h-8 gap-1.5 rounded-lg px-2.5 text-gray-900"
         prefix={<ChevronLeftIcon className="size-4" />}
       >
-        {buttonText}
+        {/* Always "Back" (like the one-at-a-time footer) — ignore any authored/legacy "Previous" text. */}
+        {t("back")}
       </Button>
     );
     return grouped ? (
@@ -485,32 +484,37 @@ const RenderStepButton = ({
     return grouped ? (
       button
     ) : (
+      // Branding rides the Next row right-aligned (justify-between) — same as the Submit row — so
+      // intermediate steps of a multi-step card form stay branded. Without branding, honor
+      // --bf-button-justify (Buttons → Alignment), fallback right.
       <div
-        className="mb-4 flex"
+        className={`mb-4 flex items-center ${showBranding ? "justify-between gap-3" : ""}`}
         style={{
           maxWidth: "var(--bf-input-width)",
-          // Button alignment (Buttons → Alignment); fallback keeps the prior right-aligned default.
-          justifyContent: "var(--bf-button-justify, flex-end)",
+          ...(showBranding ? {} : { justifyContent: "var(--bf-button-justify, flex-end)" }),
         }}
       >
         {button}
+        {showBranding && <FormBrandingBadge />}
       </div>
     );
   }
 
   const isMultiStep = totalSteps > 1;
   const submitButton = (
+    // Trailing chevron matches the Next button (Figma "→"); it also gives the TextSwap span trailing
+    // room so `.bf-themed` letter-spacing doesn't clip the last glyph ("Submit" → "Submi").
     <Button
       type="submit"
       data-bf-button
       style={buttonStyle}
       className="h-8 gap-1.5 rounded-lg px-2.5"
+      suffix={<ChevronRightIcon className="size-4" />}
       disabled={isSubmitting}
     >
-      {(() => {
-        const label = isSubmitting ? t("submitting") : buttonText;
-        return <TextSwap key={label}>{label}</TextSwap>;
-      })()}
+      {/* Render text directly (not TextSwap) — the inline-block+blur span clipped the last glyph
+          ("Submit" → "Submi"); the Next button and live renderer render text directly too. */}
+      {isSubmitting ? t("submitting") : buttonText}
     </Button>
   );
   return grouped ? (

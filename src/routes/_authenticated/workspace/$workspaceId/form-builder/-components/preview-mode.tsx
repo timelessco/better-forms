@@ -267,11 +267,11 @@ const EmbedPreviewSurface = ({
                 <div
                   ref={setEmbedFrame}
                   className={cn(
-                    "w-full overflow-hidden rounded-2xl transition-all duration-200",
+                    // No card frame (border/radius/shadow) — the real embed iframe is frameborder=0,
+                    // so the preview must match live: borderless form on the host page (Figma 25724-11834).
+                    "w-full overflow-hidden transition-all duration-200",
                     dynamicWidth ? "" : "max-w-[460px]",
-                    transparentBackground
-                      ? "bg-transparent"
-                      : "border border-border bg-background shadow-sm",
+                    transparentBackground ? "bg-transparent" : "bg-background",
                   )}
                   style={{
                     height: dynamicHeight ? "auto" : height,
