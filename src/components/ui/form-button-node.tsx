@@ -19,7 +19,7 @@ export interface FormButtonElementData {
 }
 
 export const createFormButtonNode = (role: ButtonRole, text?: string): FormButtonElementData => {
-  const defaultText = role === "next" ? "Next" : role === "previous" ? "Previous" : "Submit";
+  const defaultText = role === "next" ? "Next" : role === "previous" ? "Back" : "Submit";
   return {
     type: "formButton",
     buttonRole: role,
@@ -33,7 +33,7 @@ const getPlaceholderForRole = (role: ButtonRole): string => {
     case "next":
       return "Next";
     case "previous":
-      return "Previous";
+      return "Back";
     case "submit":
       return "Submit";
     default:
@@ -59,9 +59,12 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
   );
 
   // Get label from element property (fallback to children for backwards compat)
-  const label =
+  const rawLabel =
     (element.label as string) ??
     extractTextFromChildren(element.children as Array<{ text?: string }>);
+  // Back button is a fixed nav affordance — surface "Back" for legacy "Previous"/empty labels so the
+  // editor matches the preview/live (which always render "Back").
+  const label = isPrevious && (!rawLabel || rawLabel === "Previous") ? "Back" : rawLabel;
 
   // Inline-editable label: a native input (Slate ignores it — parent is contentEditable=false)
   // edits element.label directly, the same property the transform reads first. Local state controls
@@ -178,6 +181,10 @@ export const FormButtonElement = ({ children, ...props }: PlateElementProps) => 
             onPointerDown={stopPointer}
             onClick={stopPointer}
             aria-label="Button label"
+            // letterSpacing:normal — the .bf-themed `* { letter-spacing }` makes field-sizing-content
+            // undersize by ~1px, clipping the last glyph ("Submit" → "Submi"). Inline wins over the
+            // unlayered global rule.
+            style={{ letterSpacing: "normal" }}
             className="field-sizing-content min-w-[2ch] cursor-text bg-transparent text-center text-inherit outline-none placeholder:text-current/60"
           />
           {buttonRole === "submit" && <CheckIcon className="size-4" />}

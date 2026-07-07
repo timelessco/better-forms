@@ -887,8 +887,11 @@
 
 .bf-themed [data-bf-cover] {
   height: var(--bf-cover-height);
-  /* unset = current square cover; overflow clips img once a radius is set */
-  border-radius: var(--bf-cover-radius, 0);
+  /* unset = current square cover; overflow clips img once a radius is set. Bottom corners default
+     to the cover radius, but the popup zeroes them (--bf-cover-radius-b: 0) so the popup cover's
+     bottom stays flush over the fields while its top still follows the cover radius. */
+  border-radius: var(--bf-cover-radius, 0) var(--bf-cover-radius, 0)
+    var(--bf-cover-radius-b, var(--bf-cover-radius, 0)) var(--bf-cover-radius-b, var(--bf-cover-radius, 0));
   /* Fill clips to the rounded box (hidden); Fit goes visible so the ambient glow can bleed past. */
   overflow: var(--bf-cover-overflow, hidden);
   isolation: isolate; /* own stacking context so glow (z0) sits under the image (z1) */

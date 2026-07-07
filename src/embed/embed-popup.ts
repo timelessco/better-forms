@@ -163,6 +163,13 @@ const handleMessage = (event: MessageEvent): void => {
       if (instance.loadingEl) {
         hideLoading(instance.loadingEl);
       }
+      // Match the popup frame radius to the form's cover radius (else the fixed 12px frame corners
+      // clip a larger cover radius, leaving a sliver).
+      if (data.frameRadius) {
+        instance.container.style.borderRadius = data.frameRadius;
+        const iframeContainer = instance.iframe.parentElement;
+        if (iframeContainer) iframeContainer.style.borderRadius = data.frameRadius;
+      }
       break;
 
     case "Reform.Resize":
