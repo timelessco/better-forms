@@ -117,7 +117,8 @@ export const DropdownMenuSubTrigger = ({
     {...props}
   >
     {children}
-    <ChevronRightIcon className="ms-auto rtl:rotate-180" />
+    {/* strokeWidth 2: match trigger/select chevrons (1.5 wrapper reads too thin at 16px) */}
+    <ChevronRightIcon strokeWidth={2} className="ms-auto rtl:rotate-180" />
   </MenuPrimitive.SubmenuTrigger>
 );
 

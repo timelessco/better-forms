@@ -27,7 +27,7 @@ const serializeDomain = (domain: CustomDomainRow) => ({
 
 export const listOrgDomains = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ orgId: v.string() }))
+  .validator(v.object({ orgId: v.string() }))
   .handler(async ({ data, context }) => {
     const [membership] = await db
       .select()
@@ -57,7 +57,7 @@ export const listOrgDomains = createServerFn({ method: "POST" })
 
 export const addDomain = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       orgId: v.string(),
       domain: v.string(),
@@ -151,7 +151,7 @@ export const addDomain = createServerFn({ method: "POST" })
 
 export const removeDomain = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ domainId: v.string() }))
+  .validator(v.object({ domainId: v.string() }))
   .handler(async ({ data, context }) => {
     const [domain] = await db
       .select()
@@ -246,7 +246,7 @@ const assertCanReadDomain = async (domainId: string, userId: string) => {
 
 export const checkDomainStatus = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ domainId: v.string() }))
+  .validator(v.object({ domainId: v.string() }))
   .handler(async ({ data, context }) => {
     await assertCanReadDomain(data.domainId, context.session.user.id);
     return refreshDomainStatusFromVercel(data.domainId);
@@ -254,7 +254,7 @@ export const checkDomainStatus = createServerFn({ method: "POST" })
 
 export const recheckDomainStatus = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ domainId: v.string() }))
+  .validator(v.object({ domainId: v.string() }))
   .handler(async ({ data, context }) => {
     await assertCanReadDomain(data.domainId, context.session.user.id);
     return triggerDomainVerification(data.domainId);
@@ -262,7 +262,7 @@ export const recheckDomainStatus = createServerFn({ method: "POST" })
 
 export const updateDomainMeta = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       domainId: v.string(),
       siteTitle: v.optional(v.string()),
@@ -341,7 +341,7 @@ export const updateDomainMeta = createServerFn({ method: "POST" })
   });
 
 export const getDomainByHost = createServerFn({ method: "POST" })
-  .inputValidator(v.object({ host: v.string() }))
+  .validator(v.object({ host: v.string() }))
   .handler(async ({ data }) => {
     const [domain] = await db
       .select({

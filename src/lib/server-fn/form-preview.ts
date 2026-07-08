@@ -18,7 +18,7 @@ const stripDataUrl = (s: string) => s.replace(/^data:image\/png;base64,/, "");
  */
 export const uploadFormPreview = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       formId: v.pipe(v.string(), v.uuid()),
       contentHash: v.pipe(v.string(), v.minLength(1)),

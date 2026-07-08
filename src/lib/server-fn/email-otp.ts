@@ -50,7 +50,7 @@ const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
 /** Mint a 6-digit code + signed challenge and email the code. */
 export const sendEmailOtp = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     v.object({
       formId: v.pipe(v.string(), v.uuid()),
       email: v.pipe(v.string(), v.trim(), v.email(), v.maxLength(320)),
@@ -139,7 +139,7 @@ export const sendEmailOtp = createServerFn({ method: "POST" })
 
 /** Exchange challenge + code for a verified token the submit endpoint trusts. */
 export const verifyEmailOtp = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     v.object({
       challenge: v.pipe(v.string(), v.maxLength(2048)),
       code: v.pipe(v.string(), v.regex(/^\d{6}$/)),

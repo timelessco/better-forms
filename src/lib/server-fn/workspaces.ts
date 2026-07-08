@@ -31,7 +31,7 @@ const workspaceSchema = v.object({
 
 export const createWorkspace = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       organizationId: v.pipe(v.string(), v.uuid()),
       name: v.optional(v.pipe(v.string(), v.maxLength(100)), "Workspace"),
@@ -84,7 +84,7 @@ export const createWorkspace = createServerFn({ method: "POST" })
 
 export const updateWorkspace = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(v.partial(v.pick(workspaceSchema, ["id", "name"]), ["name"]))
+  .validator(v.partial(v.pick(workspaceSchema, ["id", "name"]), ["name"]))
   .handler(async ({ data, context }) => {
     const { id, ...updateData } = data;
     await requireScopedWorkspace(context.session, id);
@@ -120,7 +120,7 @@ export const updateWorkspace = createServerFn({ method: "POST" })
 
 export const deleteWorkspace = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(v.pick(workspaceSchema, ["id"]))
+  .validator(v.pick(workspaceSchema, ["id"]))
   .handler(async ({ data, context }) => {
     const { orgId } = await requireScopedWorkspace(context.session, data.id);
 
@@ -227,7 +227,7 @@ export const getWorkspaces = createServerFn({ method: "GET" })
 
 export const reorderWorkspace = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       workspaceId: v.pipe(v.string(), v.uuid()),
       sortIndex: v.string(),

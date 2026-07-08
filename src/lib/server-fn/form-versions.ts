@@ -31,7 +31,7 @@ const serializeVersion = (version: FormVersionRow) => ({
 
 export const publishFormVersion = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       formId: v.pipe(v.string(), v.uuid()),
     }),
@@ -218,7 +218,7 @@ export const publishFormVersion = createServerFn({ method: "POST" })
 
 export const getFormVersions = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
+  .validator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const [_, versions] = await Promise.all([
       requireScopedForm(context.session, data.formId),
@@ -270,7 +270,7 @@ export const getFormVersionsQueryOption = (formId: string) =>
 
 export const getFormVersionContent = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ versionId: v.pipe(v.string(), v.uuid()) }))
+  .validator(v.object({ versionId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const [version] = await db
       .select()
@@ -296,7 +296,7 @@ export const getFormVersionContent = createServerFn({ method: "GET" })
 /** Restore a version's content to the form draft. Leaves publishedContentHash so "has changes" stays. */
 export const restoreFormVersion = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       formId: v.pipe(v.string(), v.uuid()),
       versionId: v.pipe(v.string(), v.uuid()),
@@ -345,7 +345,7 @@ export const restoreFormVersion = createServerFn({ method: "POST" })
 
 export const discardFormChanges = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
+  .validator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     await requireScopedForm(context.session, data.formId);
 

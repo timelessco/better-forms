@@ -41,6 +41,67 @@ describe("resolveTimeRange", () => {
     expect(result.days).toStrictEqual(["2026-04-26", "2026-04-27"]);
   });
 
+  it("resolves today: single current-day key, end = now (open day reads raw)", () => {
+    const result = resolveTimeRange({ filter: "today" }, FIXED_NOW);
+    expect(result.days).toStrictEqual(["2026-04-27"]);
+    expect(result.start.toISOString()).toBe("2026-04-27T00:00:00.000Z");
+    expect(result.end.toISOString()).toBe(FIXED_NOW.toISOString());
+  });
+
+  it("resolves yesterday: single prior-day key, end before today", () => {
+    const result = resolveTimeRange({ filter: "yesterday" }, FIXED_NOW);
+    expect(result.days).toStrictEqual(["2026-04-26"]);
+    expect(result.start.toISOString()).toBe("2026-04-26T00:00:00.000Z");
+    expect(result.end.toISOString()).toBe("2026-04-26T23:59:59.999Z");
+  });
+
+  it("resolves last_year: 366 day keys at noon (rolling 365 days touches 366 dates)", () => {
+    const result = resolveTimeRange({ filter: "last_year" }, FIXED_NOW);
+    expect(result.days).toHaveLength(366);
+    expect(new Set(result.days).size).toBe(366);
+    expect(result.days[0]).toBe("2025-04-27");
+    expect(result.days[result.days.length - 1]).toBe("2026-04-27");
+  });
+
+  it("resolves all_time: start = form createdAt day, end = now", () => {
+    const result = resolveTimeRange(
+      { filter: "all_time", formCreatedAt: new Date("2026-01-01T08:30:00Z") },
+      FIXED_NOW,
+    );
+    expect(result.start.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+    expect(result.end.toISOString()).toBe(FIXED_NOW.toISOString());
+    expect(result.days[0]).toBe("2026-01-01");
+    expect(result.days[result.days.length - 1]).toBe("2026-04-27");
+  });
+
+  it("all_time clamps a future createdAt (clock skew) to today", () => {
+    const result = resolveTimeRange(
+      { filter: "all_time", formCreatedAt: new Date("2026-05-01T00:00:00Z") },
+      FIXED_NOW,
+    );
+    expect(result.days).toStrictEqual(["2026-04-27"]);
+    expect(result.start.toISOString()).toBe("2026-04-27T00:00:00.000Z");
+  });
+
+  it("all_time without a createdAt degenerates to today", () => {
+    const result = resolveTimeRange({ filter: "all_time" }, FIXED_NOW);
+    expect(result.days).toStrictEqual(["2026-04-27"]);
+  });
+
+  it("custom swaps a reversed range instead of throwing", () => {
+    const result = resolveTimeRange(
+      { filter: "custom", startDate: "2026-04-05", endDate: "2026-04-01" },
+      FIXED_NOW,
+    );
+    expect(result.days).toStrictEqual([
+      "2026-04-01",
+      "2026-04-02",
+      "2026-04-03",
+      "2026-04-04",
+      "2026-04-05",
+    ]);
+  });
+
   it("resolves last_7_days at noon: 8 unique day keys (window touches 8 calendar dates)", () => {
     const result = resolveTimeRange({ filter: "last_7_days" }, FIXED_NOW);
     expect(result.end.toISOString()).toBe(FIXED_NOW.toISOString());
@@ -201,6 +262,33 @@ describe("splitTodayVsPast", () => {
     expect(todayStart?.toISOString()).toBe("2026-04-27T00:00:00.000Z");
     expect(rawStart?.toISOString()).toBe("2026-04-27T00:00:00.000Z");
     expect(pastDays).toStrictEqual(["2026-04-25", "2026-04-26"]);
+  });
+
+  it("today: pastDays empty, rawStart = todayStart (whole window is the open day)", () => {
+    const range = resolveTimeRange({ filter: "today" }, FIXED_NOW);
+    const { todayStart, rawStart, pastDays } = splitTodayVsPast(range, FIXED_NOW);
+    expect(pastDays).toStrictEqual([]);
+    expect(todayStart?.toISOString()).toBe("2026-04-27T00:00:00.000Z");
+    expect(rawStart?.toISOString()).toBe("2026-04-27T00:00:00.000Z");
+  });
+
+  it("yesterday: past-only window, no raw-today read", () => {
+    const range = resolveTimeRange({ filter: "yesterday" }, FIXED_NOW);
+    const { todayStart, rawStart, pastDays } = splitTodayVsPast(range, FIXED_NOW);
+    expect(pastDays).toStrictEqual(["2026-04-26"]);
+    expect(todayStart).toBeNull();
+    expect(rawStart).toBeNull();
+  });
+
+  it("all_time: includes today, pastDays span createdAt..yesterday", () => {
+    const range = resolveTimeRange(
+      { filter: "all_time", formCreatedAt: new Date("2026-04-25T00:00:00Z") },
+      FIXED_NOW,
+    );
+    const { todayStart, rawStart, pastDays } = splitTodayVsPast(range, FIXED_NOW);
+    expect(pastDays).toStrictEqual(["2026-04-25", "2026-04-26"]);
+    expect(todayStart?.toISOString()).toBe("2026-04-27T00:00:00.000Z");
+    expect(rawStart?.toISOString()).toBe("2026-04-27T00:00:00.000Z");
   });
 
   it("last_24_hours at noon: pastDays contains yesterday, todayStart and rawStart set", () => {

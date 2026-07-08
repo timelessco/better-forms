@@ -99,7 +99,7 @@ const getAllowedFieldNames = (versionId: string | null, content: Value): Set<str
  * don't take effect until republish.
  */
 export const createPublicSubmission = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     v.object({
       formId: v.pipe(v.string(), v.uuid()),
       data: v.record(v.string(), v.any()),

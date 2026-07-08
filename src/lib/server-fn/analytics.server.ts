@@ -1,5 +1,6 @@
 import { getRequestHeaders, getRequestIP } from "@tanstack/react-start/server";
-import { and, count, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
+import { and, count, eq, gte, lt, lte, sql } from "drizzle-orm";
+import type { AnyColumn, SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   analyticsRateLimits,
@@ -23,11 +24,13 @@ import type { Value } from "platejs";
 import { isBotUserAgent } from "@/lib/analytics/bot-filter";
 import { PER_QUESTION_ANALYTICS_CUT_TS } from "@/lib/analytics/cut-date";
 import { filterByCutDate, mergeDropoffMetrics } from "@/lib/analytics/merge-dropoff";
+import { rollupToSteps } from "@/lib/analytics/step-rollup";
 import { mergeInsightsMetrics } from "@/lib/analytics/merge-metrics";
 import { buildVitalsMetrics } from "@/lib/analytics/merge-vitals";
 import { completionRate, weightedMedianDuration } from "@/lib/analytics/metrics";
 import { parseUserAgent } from "@/lib/analytics/parse-user-agent";
 import { resolveTimeRange, splitTodayVsPast, toDateKey } from "@/lib/analytics/time-range";
+import type { ResolvedRange } from "@/lib/analytics/time-range";
 import { planUnlocks } from "@/lib/config/plan-gates";
 import { authForm } from "@/lib/server-fn/auth-helpers.server";
 import { isServerPlan } from "@/lib/server-fn/plan-helpers";
@@ -40,6 +43,7 @@ import type {
   FormVitalsMetrics,
   QuestionAnswerSummary,
   QuestionDropoffMetrics,
+  TimeRangeFilter,
 } from "@/types/analytics";
 
 export type RecordFormVisitInput = {
@@ -82,7 +86,7 @@ export type RecordQuestionProgressBatchInput = {
 
 export type InsightsFilterInput = {
   formId: string;
-  filter: "last_24_hours" | "last_7_days" | "last_30_days" | "last_90_days" | "custom";
+  filter: TimeRangeFilter;
   startDate?: string;
   endDate?: string;
 };
@@ -394,6 +398,42 @@ const countCompletedSubmissions = async (
 const pctChange = (current: number, prior: number): number | null =>
   prior > 0 ? Math.round(((current - prior) / prior) * 100) : null;
 
+// Contiguous, sorted YYYY-MM-DD keys → a gte/lte predicate on a sortable text date column. Matches
+// the same rows as inArray without enumerating keys — all_time/last_year span thousands of days.
+const dayKeyRange = (column: AnyColumn, dayKeys: string[]): SQL | undefined =>
+  dayKeys.length > 0
+    ? and(gte(column, dayKeys[0]), lte(column, dayKeys[dayKeys.length - 1]))
+    : undefined;
+
+// all_time's lower bound is the form's createdAt; epoch fallback keeps a missing form from inverting.
+const getFormCreatedAt = async (formId: string): Promise<Date> => {
+  const [row] = await db
+    .select({ createdAt: forms.createdAt })
+    .from(forms)
+    .where(eq(forms.id, formId))
+    .limit(1);
+  return row?.createdAt ?? new Date(0);
+};
+
+// Single source of truth for the query window across all four insights readers. Fetches createdAt
+// only for all_time (its start bound); every other filter resolves purely from the client input.
+const resolveInsightsRange = async (
+  data: InsightsFilterInput,
+  now: Date,
+): Promise<ResolvedRange> => {
+  const formCreatedAt =
+    data.filter === "all_time" ? await getFormCreatedAt(data.formId) : undefined;
+  return resolveTimeRange(
+    { filter: data.filter, startDate: data.startDate, endDate: data.endDate, formCreatedAt },
+    now,
+  );
+};
+
+// Prior equal-length window for "vs previous period" deltas. all_time has no prior (the form didn't
+// exist), so return no keys → deltas resolve to null.
+const priorDaysFor = (data: InsightsFilterInput, range: ResolvedRange): string[] =>
+  data.filter === "all_time" ? [] : priorDayKeys(range.days);
+
 const durationRowsForDays = async (formId: string, dayKeys: string[]) =>
   dayKeys.length > 0
     ? await db
@@ -405,7 +445,7 @@ const durationRowsForDays = async (formId: string, dayKeys: string[]) =>
         })
         .from(formAnalyticsDaily)
         .where(
-          and(eq(formAnalyticsDaily.formId, formId), inArray(formAnalyticsDaily.date, dayKeys)),
+          and(eq(formAnalyticsDaily.formId, formId), dayKeyRange(formAnalyticsDaily.date, dayKeys)),
         )
     : [];
 
@@ -417,10 +457,7 @@ export const getFormInsightsImpl = async (
   await authForm(data.formId, context.session.user.id, orgId);
 
   const now = new Date();
-  const range = resolveTimeRange(
-    { filter: data.filter, startDate: data.startDate, endDate: data.endDate },
-    now,
-  );
+  const range = await resolveInsightsRange(data, now);
   const split = splitTodayVsPast(range, now);
 
   const enabled = await isAnalyticsEnabled(data.formId);
@@ -432,7 +469,7 @@ export const getFormInsightsImpl = async (
           .where(
             and(
               eq(formAnalyticsDaily.formId, data.formId),
-              inArray(formAnalyticsDaily.date, split.pastDays),
+              dayKeyRange(formAnalyticsDaily.date, split.pastDays),
             ),
           )
       : [];
@@ -462,7 +499,7 @@ export const getFormInsightsImpl = async (
 
   // "vs previous equal-length period" trends (shared by all tabs). Prior window is fully past →
   // reads daily rollups + submissions table only.
-  const priorDays = priorDayKeys(range.days);
+  const priorDays = priorDaysFor(data, range);
   const priorStart = priorDays[0] ? new Date(`${priorDays[0]}T00:00:00.000Z`) : range.start;
   const priorEnd = priorDays.at(-1) ? new Date(`${priorDays.at(-1)}T23:59:59.999Z`) : range.start;
   const [completedSubmissions, priorSubmissions, curDurRows, priorDurRows] = await Promise.all([
@@ -515,10 +552,7 @@ export const getFormVitalsImpl = async (
   await authForm(data.formId, context.session.user.id, orgId);
 
   const now = new Date();
-  const range = resolveTimeRange(
-    { filter: data.filter, startDate: data.startDate, endDate: data.endDate },
-    now,
-  );
+  const range = await resolveInsightsRange(data, now);
   const split = splitTodayVsPast(range, now);
   const startDate = data.startDate ?? toDateKey(range.start);
   const endDate = data.endDate ?? toDateKey(range.end);
@@ -551,7 +585,7 @@ export const getFormVitalsImpl = async (
           .where(
             and(
               eq(formAnalyticsDaily.formId, data.formId),
-              inArray(formAnalyticsDaily.date, split.pastDays),
+              dayKeyRange(formAnalyticsDaily.date, split.pastDays),
             ),
           )
       : [];
@@ -569,7 +603,7 @@ export const getFormVitalsImpl = async (
         )
     : [];
 
-  const priorDays = priorDayKeys(range.days);
+  const priorDays = priorDaysFor(data, range);
   const priorDailyRows =
     priorDays.length > 0
       ? await db
@@ -578,7 +612,7 @@ export const getFormVitalsImpl = async (
           .where(
             and(
               eq(formAnalyticsDaily.formId, data.formId),
-              inArray(formAnalyticsDaily.date, priorDays),
+              dayKeyRange(formAnalyticsDaily.date, priorDays),
             ),
           )
       : [];
@@ -602,10 +636,7 @@ export const getFormDropoffImpl = async (
   await authForm(data.formId, context.session.user.id, orgId);
 
   const now = new Date();
-  const range = resolveTimeRange(
-    { filter: data.filter, startDate: data.startDate, endDate: data.endDate },
-    now,
-  );
+  const range = await resolveInsightsRange(data, now);
   const split = splitTodayVsPast(range, now);
 
   const enabled = await isAnalyticsEnabled(data.formId);
@@ -619,7 +650,7 @@ export const getFormDropoffImpl = async (
           .where(
             and(
               eq(formDropoffDaily.formId, data.formId),
-              inArray(formDropoffDaily.date, split.pastDays),
+              dayKeyRange(formDropoffDaily.date, split.pastDays),
               gte(formDropoffDaily.date, cutDateKey),
             ),
           )
@@ -674,7 +705,7 @@ export const getFormDropoffImpl = async (
 
   // Total-dropoffs trend vs the prior equal-length window (submissions/avg-time deltas come from
   // insights). Prior window is fully past → reads daily rollups only.
-  const priorDays = priorDayKeys(range.days);
+  const priorDays = priorDaysFor(data, range);
   const priorDropoffDailyRows =
     enabled && priorDays.length > 0
       ? await db
@@ -683,7 +714,7 @@ export const getFormDropoffImpl = async (
           .where(
             and(
               eq(formDropoffDaily.formId, data.formId),
-              inArray(formDropoffDaily.date, priorDays),
+              dayKeyRange(formDropoffDaily.date, priorDays),
               gte(formDropoffDaily.date, cutDateKey),
             ),
           )
@@ -744,6 +775,7 @@ export const getFormDropoffImpl = async (
     completedSubmissions: await countCompletedSubmissions(data.formId, range.start, range.end),
     totalDropoffsDeltaPct: pctChange(totalDropoffs, priorDropoffs),
     timePerQuestion,
+    steps: rollupToSteps(metrics.questions),
   };
 };
 
@@ -882,10 +914,7 @@ export const getFormAnswersImpl = async (
   await authForm(data.formId, context.session.user.id, orgId);
 
   const now = new Date();
-  const range = resolveTimeRange(
-    { filter: data.filter, startDate: data.startDate, endDate: data.endDate },
-    now,
-  );
+  const range = await resolveInsightsRange(data, now);
 
   const [formRow] = await db
     .select({ content: forms.content })

@@ -6,7 +6,7 @@ import { shortIdSchema } from "@/lib/short-id";
 // platejs/BaseEditorKit/EditorStatic — they drag the editor chunk (361 kB + KaTeX CSS) into the
 // client entry. Heavy work lives behind a dynamic import in the handler, which Start strips.
 export const getPublicFormViewRSC = createServerFn({ method: "GET" })
-  .inputValidator(v.object({ shortId: shortIdSchema }))
+  .validator(v.object({ shortId: shortIdSchema }))
   .handler(async ({ data }) => {
     const { runPublicFormViewRSC } = await import("./public-form-view-rsc.impl");
     return runPublicFormViewRSC(data);

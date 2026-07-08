@@ -6,8 +6,8 @@ import { toast } from "sonner";
 
 import {
   AnswerDonut,
-  DropoffFunnelChart,
   FormActivityChart,
+  MultiPageDropoffFunnelChart,
 } from "@/components/form-builder/analytics/charts";
 import type { DonutDatum } from "@/components/form-builder/analytics/charts";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import {
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import {
   AppleLineIcon,
+  CheckIcon,
   ChromeOsIcon,
   DesktopLineIcon,
   DirectArrowIcon,
@@ -42,7 +43,6 @@ import {
   analyticsChartData,
   analyticsCompletionRate,
   analyticsDropoffRows,
-  analyticsFunnelData,
   analyticsTotalDropoffs,
   fillRate,
   mostSkippedQuestion,
@@ -54,16 +54,24 @@ import type {
   FormInsightsMetrics,
   QuestionAnswerSummary,
   QuestionDropoffMetrics,
-  TimeRangeFilter,
 } from "@/types/analytics";
 import { cn } from "@/lib/utils";
 
 // ── Range options (Figma "Last 7 days" dropdown) ───────────────────────────
-const RANGE_OPTIONS: { value: Extract<TimeRangeFilter, `last_${string}`>; label: string }[] = [
+type RangeValue = "today" | "yesterday" | "last_7_days" | "last_30_days" | "last_year" | "all_time";
+
+const PRESET_OPTIONS: { value: RangeValue; label: string }[] = [
+  { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
   { value: "last_7_days", label: "Last 7 days" },
   { value: "last_30_days", label: "Last 30 days" },
-  { value: "last_90_days", label: "Last 90 days" },
+  { value: "last_year", label: "Last year" },
+  { value: "all_time", label: "All time" },
 ];
+
+// Menu-item label: Figma 13px/450/0.13px/gray-800 (text-sm = 13px on this scale). font-case is on
+// the popup. Overrides the design-system item only where it measurably differs from the spec.
+const RANGE_ITEM_CLS = "justify-between font-[450] tracking-[0.13px] text-gray-800";
 
 // City → country (for flag emoji on the Cities breakdown; cities carry no ISO code).
 const CITY_COUNTRY: Record<string, string> = {
@@ -240,14 +248,21 @@ const QuestionBarListCard = ({
   title,
   rows,
   format,
+  className,
 }: {
   title: string;
   rows: QuestionBarRow[];
   format: (value: number) => string;
+  className?: string;
 }) => {
   const max = Math.max(1, ...rows.map((r) => r.value));
   return (
-    <div className="bg-gray-0 relative flex h-[210px] flex-col gap-[14px] overflow-hidden rounded-[12px] border border-[var(--color-gray-100)] px-1.5 pt-[14px] pb-2 dark:bg-[#1c1c1c]">
+    <div
+      className={cn(
+        "bg-gray-0 relative flex h-[210px] flex-col gap-[14px] overflow-hidden rounded-[12px] border border-[var(--color-gray-100)] px-1.5 pt-[14px] pb-2 dark:bg-[#1c1c1c]",
+        className,
+      )}
+    >
       <h3 className="px-2 text-[15px] font-medium tracking-[0.02em] text-gray-800">{title}</h3>
       {rows.length === 0 ? (
         <p className="px-2 pb-3 text-[13px] text-muted-foreground">No data yet</p>
@@ -412,40 +427,80 @@ const TABS: { id: AnalyticsTab; label: string; icon: React.ReactNode }[] = [
   { id: "dropoffs", label: "Dropoffs", icon: <TabDropoffsIcon className="size-4" /> },
 ];
 
+// Range submenu — pick a start + end on a range calendar (future dates disabled; the calendar's
+// range mode guarantees end ≥ start). Apply commits YYYY-MM-DD strings and closes the whole menu.
+// Uses an inline panel pattern (like block-menu.tsx) instead of a nested submenu popup, so the
+// calendar inherits CSS variables correctly in dark mode.
 // Section label + range dropdown + export menu — shared by the Visits & Dropoffs tabs.
 const SectionToolbar = ({
   label,
+  range,
   rangeLabel,
   onSelectRange,
   onExport,
+  // viewMode,
+  // onSelectViewMode,
 }: {
   label: string;
+  range: RangeValue;
   rangeLabel: string;
   onSelectRange: (value: RangeValue) => void;
   onExport: (format: "csv" | "pdf" | "excel") => void;
+  viewMode?: "list" | "chart";
+  onSelectViewMode?: (mode: "list" | "chart") => void;
 }) => (
   <div className="mt-6 flex items-center justify-between gap-3">
     <span className="text-[15px] font-semibold text-foreground">{label}</span>
     <div className="flex items-center gap-2">
+      {/* {viewMode && onSelectViewMode && (
+        <Tabs
+          value={viewMode}
+          onValueChange={(val) => onSelectViewMode(val as "list" | "chart")}
+          className="mr-1 flex-row!"
+        >
+          <TabsList
+            variant="default"
+            size="sm"
+            className="h-7! flex-row! rounded-lg bg-secondary! p-[2px]!"
+          >
+            <TabsTrigger
+              value="list"
+              className="h-6! px-3 font-case text-[12px] font-[450] tracking-[0.13px] text-gray-600 data-active:text-gray-950"
+            >
+              List
+            </TabsTrigger>
+            <TabsTrigger
+              value="chart"
+              className="h-6! px-3 font-case text-[12px] font-[450] tracking-[0.13px] text-gray-600 data-active:text-gray-950"
+            >
+              Chart
+            </TabsTrigger>
+            <TabsIndicator className="bg-surface! shadow-6xs!" />
+          </TabsList>
+        </Tabs>
+      )} */}
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
             <Button
-              // ghost-flat (not ghost): ghost keeps the base 1px transparent border + bg-clip-padding,
-              // which insets its filled bg ~2px vs the border-none Export button → height mismatch.
               variant="ghost-flat"
               size="sm"
               suffix={<ChevronDown className="size-4 shrink-0" />}
-              className="h-7 rounded-lg bg-secondary px-2 font-case text-base font-[450] tracking-[0.14px] text-gray-800 hover:bg-secondary/80"
+              className="h-7 rounded-lg bg-secondary pr-2 pl-2.5 font-case text-base font-[450] tracking-[0.14px] text-gray-800 hover:bg-secondary/80"
             />
           }
         >
           {rangeLabel}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-36">
-          {RANGE_OPTIONS.map((r) => (
-            <DropdownMenuItem key={r.value} onClick={() => onSelectRange(r.value)}>
+        <DropdownMenuContent align="end" className="w-40">
+          {PRESET_OPTIONS.map((r) => (
+            <DropdownMenuItem
+              key={r.value}
+              className={RANGE_ITEM_CLS}
+              onClick={() => onSelectRange(r.value)}
+            >
               {r.label}
+              {range === r.value && <CheckIcon className="size-4" />}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -477,9 +532,12 @@ const AnalyticsPage = () => {
   const [range, setRange] = useState<RangeValue>("last_7_days");
   const [tab, setTab] = useState<AnalyticsTab>("visits");
 
+  // Server-fn range args + a stable query-key fragment.
+  const rangeArgs = { filter: range };
+
   const { data, isLoading } = useQuery({
-    queryKey: ["analytics", formId, range],
-    queryFn: () => getFormInsights({ data: { formId, filter: range } }),
+    queryKey: ["analytics", formId, rangeArgs],
+    queryFn: () => getFormInsights({ data: { formId, ...rangeArgs } }),
     staleTime: 30_000,
   });
 
@@ -491,21 +549,24 @@ const AnalyticsPage = () => {
 
   // Dropoff data (Dropoffs tab) — fetched only when that tab is active.
   const { data: dropoffData, isLoading: dropoffLoading } = useQuery({
-    queryKey: ["analytics-dropoff", formId, range],
-    queryFn: () => getFormDropoff({ data: { formId, filter: range } }),
+    queryKey: ["analytics-dropoff", formId, rangeArgs],
+    queryFn: () => getFormDropoff({ data: { formId, ...rangeArgs } }),
     staleTime: 30_000,
     enabled: tab === "dropoffs",
   });
   const dropoff: QuestionDropoffMetrics | undefined = dropoffData;
-  const funnelData = useMemo(() => analyticsFunnelData(dropoff), [dropoff]);
+  const [viewModeOverride, setViewModeOverride] = useState<"list" | "chart" | null>(null);
+  const hasPages = dropoff?.steps && dropoff.steps.length > 1;
+  const viewMode = viewModeOverride ?? (hasPages ? "chart" : "list");
+
   const dropoffRows = useMemo(() => analyticsDropoffRows(dropoff), [dropoff]);
   const totalDropoffs = analyticsTotalDropoffs(dropoff);
   const biggestDropoff = analyticsBiggestDropoff(dropoffRows);
 
   // Answers data (Answers tab) — fetched only when that tab is active.
   const { data: answersData, isLoading: answersLoading } = useQuery({
-    queryKey: ["analytics-answers", formId, range],
-    queryFn: () => getFormAnswers({ data: { formId, filter: range } }),
+    queryKey: ["analytics-answers", formId, rangeArgs],
+    queryFn: () => getFormAnswers({ data: { formId, ...rangeArgs } }),
     staleTime: 30_000,
     enabled: tab === "answers",
   });
@@ -514,7 +575,7 @@ const AnalyticsPage = () => {
   const mostSkipped = useMemo(() => mostSkippedQuestion(answers), [answers]);
   const avgAnsweredFillRate = fillRate(answers?.avgAnswered ?? 0, answers?.totalQuestions ?? 0);
 
-  const rangeLabel = RANGE_OPTIONS.find((r) => r.value === range)?.label ?? "Last 7 days";
+  const rangeLabel = PRESET_OPTIONS.find((r) => r.value === range)?.label ?? "Last 7 days";
 
   const handleExport = (format: "csv" | "pdf" | "excel") => {
     if (!metrics) return;
@@ -540,7 +601,7 @@ const AnalyticsPage = () => {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
-      <div className="mx-auto w-full max-w-[760px] px-6 py-6">
+      <div className="mx-auto w-full max-w-[748px] px-6 py-6">
         {/* Title (Figma 26835:12210) — 18px SemiBold gray-950. font-sans re-binds the wght axis so
             font-semibold actually renders 600 (the inherited fvs wght otherwise pins it to ~450). */}
         <h1 className="font-sans text-[18px] leading-[1.15] font-semibold text-gray-950">
@@ -573,6 +634,7 @@ const AnalyticsPage = () => {
           <>
             <SectionToolbar
               label="Visits"
+              range={range}
               rangeLabel={rangeLabel}
               onSelectRange={setRange}
               onExport={handleExport}
@@ -635,9 +697,12 @@ const AnalyticsPage = () => {
           <>
             <SectionToolbar
               label="Dropoffs"
+              range={range}
               rangeLabel={rangeLabel}
               onSelectRange={setRange}
               onExport={handleExport}
+              viewMode={viewMode}
+              onSelectViewMode={setViewModeOverride}
             />
 
             {/* Stat cards (Figma 26889:17288) — values + "vs previous period" trends. */}
@@ -671,38 +736,41 @@ const AnalyticsPage = () => {
               />
             </div>
 
-            {/* Funnel chart (Figma 26989:10813) — fixed 300px card; stepped descending area. */}
-            <div className="bg-gray-0 mt-3 flex h-[300px] flex-col overflow-hidden rounded-[12px] border border-[var(--color-gray-100)] dark:bg-[#1c1c1c]">
-              <h3 className="px-[13px] pt-[13px] text-[15px] font-medium tracking-[0.02em] text-gray-900">
-                Dropoff funnel over time
-              </h3>
-              {funnelData.some((d) => d.count > 0) ? (
-                <div className="min-h-0 flex-1 [&_.recharts-surface]:outline-none [&_.recharts-wrapper]:outline-none [&_.recharts-wrapper:focus-visible]:outline-none">
-                  <DropoffFunnelChart data={funnelData} />
+            {/* Symmetrical toggle between funnel chart (page forms) and full-width drop-off list (page-less forms) */}
+            {dropoffLoading ? (
+              <div className="bg-gray-0 mt-3 flex h-[383px] items-center justify-center rounded-[12px] border border-[var(--color-gray-100)] text-[14px] text-muted-foreground dark:bg-[#1c1c1c]">
+                Loading…
+              </div>
+            ) : dropoff?.steps && dropoff.steps.length > 1 ? (
+              /* Funnel chart (Figma 26989:10813) — fixed 383px card; smoothly tapered descending area. */
+              <div className="bg-gray-0 mt-3 flex h-[383px] flex-col overflow-hidden rounded-[12px] border border-[var(--color-gray-100)] dark:bg-[#1c1c1c]">
+                <h3 className="px-[13px] pt-[13px] text-[15px] font-medium tracking-[0.02em] text-gray-900">
+                  Dropoff funnel over time
+                </h3>
+                <div className="min-h-0 flex-1 p-4">
+                  <MultiPageDropoffFunnelChart data={dropoff.steps} />
                 </div>
-              ) : (
-                <div className="flex flex-1 items-center justify-center text-[14px] text-muted-foreground">
-                  {dropoffLoading ? "Loading…" : "No drop-off data for this range"}
-                </div>
-              )}
-            </div>
-
-            {/* Per-question panels (Figma 26992:11281) — drop-off % and avg time, side by side. */}
-            <div className="mt-5 grid grid-cols-2 gap-5">
-              <QuestionBarListCard
-                title="Dropoff per question"
-                rows={dropoffRows.map((r) => ({ label: r.label, value: r.rate }))}
-                format={(v) => `${Math.round(v)}%`}
-              />
-              <QuestionBarListCard
-                title="Time per question"
-                rows={(dropoff?.timePerQuestion ?? []).map((q) => ({
-                  label: q.label,
-                  value: q.avgMs,
-                }))}
-                format={(ms) => `${Math.round(ms / 1000)}s`}
-              />
-            </div>
+              </div>
+            ) : dropoffRows.length > 0 ? (
+              /* Single-page: Hide funnel entirely and show Dropoff per question card in high-fidelity full-width 424px layout */
+              <div className="mt-3">
+                <QuestionBarListCard
+                  title="Dropoff per question"
+                  rows={dropoffRows.map((r) => {
+                    const displayLabel = r.label.startsWith(r.qLabel)
+                      ? r.label
+                      : `${r.qLabel}. ${r.label}`;
+                    return { label: displayLabel, value: r.rate };
+                  })}
+                  format={(v) => `${Math.round(v)}%`}
+                  className="h-[424px]"
+                />
+              </div>
+            ) : (
+              <div className="bg-gray-0 mt-3 flex h-[300px] items-center justify-center rounded-[12px] border border-[var(--color-gray-100)] text-[14px] text-muted-foreground dark:bg-[#1c1c1c]">
+                No drop-off data for this range
+              </div>
+            )}
           </>
         )}
 
@@ -710,6 +778,7 @@ const AnalyticsPage = () => {
           <>
             <SectionToolbar
               label="Answers"
+              range={range}
               rangeLabel={rangeLabel}
               onSelectRange={setRange}
               onExport={handleExport}
@@ -778,8 +847,6 @@ const AnalyticsPage = () => {
     </div>
   );
 };
-
-type RangeValue = (typeof RANGE_OPTIONS)[number]["value"];
 
 export const Route = createFileRoute(
   "/_authenticated/workspace/$workspaceId/form-builder/$formId/analytics",

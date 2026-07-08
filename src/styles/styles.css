@@ -209,6 +209,9 @@
   /* Soft "published" pill pair (Figma list row 26216:13362). */
   --color-success-soft: #e4faeb;
   --color-success-on-soft: #137949;
+  /* Partial pill pair (Figma 27015:17195). */
+  --color-partial-soft: #fff7d3;
+  --color-partial-on-soft: #b35309;
 
 
 	/* Light Gray Alpha Shades */
@@ -352,12 +355,15 @@
 	--color-gray-950: #f8f8f8;
 	--color-gray-1000: #fff;
 
-	/* DEV FLAG: Figma dark-mode success green not provided — reusing #1e8d02; verify against dark frame. */
+	/* Figma dark-mode success green (27015:17122). */
 	--color-success: #1e8d02;
 	--color-success-foreground: #ffffff;
-	/* DEV FLAG: dark values for the published pill are inferred (no Figma dark table); verify. */
-	--color-success-soft: #0e3318;
-	--color-success-on-soft: #5fd07a;
+	/* Figma 27015:17122 — Completed pill dark: bg #0b2e1c / text #58c08e. */
+	--color-success-soft: #0b2e1c;
+	--color-success-on-soft: #58c08e;
+	/* Figma 27015:17195 — Partial pill dark: bg #371e06 / text #e56300. */
+	--color-partial-soft: #371e06;
+	--color-partial-on-soft: #e56300;
 
 	/* Dark Gray Alpha Shades */
 	--color-gray-alpha-50: rgb(255 255 255 / 5%); /* 5% White */

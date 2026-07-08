@@ -166,12 +166,27 @@ export interface QuestionDropoffRow {
   completionRate: number; // 0-100
 }
 
+export interface StepDropoffMetrics {
+  stepId: string;
+  stepIndex: number;
+  stepLabel?: string;
+  viewCount: number;
+  startCount: number;
+  completeCount: number;
+  dropoffCount: number;
+  terminalDropoffCount: number;
+  dropoffRate: number | null;
+  completionRate: number | null;
+  questions: QuestionDropoffRow[];
+}
+
 export interface QuestionDropoffMetrics {
   formId: string;
   startDate: string;
   endDate: string;
 
   questions: QuestionDropoffRow[];
+  steps?: StepDropoffMetrics[];
 
   totalStarted: number;
   totalCompleted: number;
@@ -254,14 +269,20 @@ export interface FormVitalsMetrics {
 }
 
 export type TimeRangeFilter =
+  | "today"
+  | "yesterday"
   | "last_24_hours"
   | "last_7_days"
   | "last_30_days"
   | "last_90_days"
+  | "last_year"
+  | "all_time"
   | "custom";
 
 export interface TimeRange {
   filter: TimeRangeFilter;
   startDate?: string;
   endDate?: string;
+  /** all_time lower bound = the form's createdAt; ignored by every other filter. */
+  formCreatedAt?: Date;
 }

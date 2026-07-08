@@ -13,7 +13,7 @@ import type { ErrorCode } from "@/lib/errors/codes";
  * keyed by org. Bypass the adapter and create a customer session via the SDK directly. */
 export const openOrgBillingPortal = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ orgId: v.string() }))
+  .validator(v.object({ orgId: v.string() }))
   .handler(async ({ data, context }) => {
     const [membership] = await db
       .select()

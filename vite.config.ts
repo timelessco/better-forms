@@ -326,10 +326,10 @@ const config = defineConfig({
     // If a server fn module is ever scanned for client (during route-tree
     // analysis), these node-only packages would otherwise be eagerly bundled
     // and crash on Buffer/process references at module load.
-    // `@base-ui/react` is excluded per the RSC plugin's inconsistent-
-    // optimization warning (client components consumed across SSR + RSC
-    // envs).
-    exclude: ["postgres", "drizzle-orm/postgres-js", "@base-ui/react"],
+    // `@base-ui/react` + `@tanstack/react-form` are excluded per the RSC
+    // plugin's inconsistent-optimization warning (client components consumed
+    // across SSR + RSC envs).
+    exclude: ["postgres", "drizzle-orm/postgres-js", "@base-ui/react", "@tanstack/react-form"],
     // Force-include CJS-only `use-sync-external-store` so Vite extracts its
     // named exports correctly. The shim uses a `module.exports = require(...)`
     // indirection that Vite's auto-scan misses.

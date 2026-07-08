@@ -187,7 +187,7 @@ const decodeBase64 = (dataUrl: string): Buffer => {
 };
 
 export const uploadFormFile = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     v.object({
       formId: v.pipe(v.string(), v.uuid()),
       draftId: v.pipe(v.string(), v.uuid()),
