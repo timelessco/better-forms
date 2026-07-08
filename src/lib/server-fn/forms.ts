@@ -41,7 +41,7 @@ const serializeForm = (form: FormRow) => ({
 
 export const createForm = createServerFn({ method: "POST" })
   .middleware([authMiddleware, formProSettingsMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       id: v.pipe(v.string(), v.uuid()),
       workspaceId: v.pipe(v.string(), v.uuid()),
@@ -102,7 +102,7 @@ export const createForm = createServerFn({ method: "POST" })
 
 export const updateForm = createServerFn({ method: "POST" })
   .middleware([authMiddleware, formProSettingsMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       id: v.pipe(v.string(), v.uuid()),
       workspaceId: v.optional(v.pipe(v.string(), v.uuid())),
@@ -166,7 +166,7 @@ export const updateForm = createServerFn({ method: "POST" })
  * updated too so share sidebar reflects it without a form-listings-sync roundtrip. */
 export const setFormAnalytics = createServerFn({ method: "POST" })
   .middleware([authMiddleware, formProSettingsMiddleware])
-  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()), enabled: v.boolean() }))
+  .validator(v.object({ formId: v.pipe(v.string(), v.uuid()), enabled: v.boolean() }))
   .handler(async ({ data, context }) => {
     const { orgId } = await requireScopedForm(context.session, data.formId);
 
@@ -224,7 +224,7 @@ export const setFormAnalytics = createServerFn({ method: "POST" })
  * draft and never leak live. Writes draft + live in one tx so both clear the dirty flag. */
 export const saveFormSettings = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       formId: v.pipe(v.string(), v.uuid()),
       settings: v.record(v.string(), v.any()),
@@ -258,7 +258,7 @@ export const saveFormSettings = createServerFn({ method: "POST" })
 
 export const deleteForm = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ id: v.pipe(v.string(), v.uuid()) }))
+  .validator(v.object({ id: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     await requireScopedForm(context.session, data.id);
 
@@ -281,7 +281,7 @@ export const deleteForm = createServerFn({ method: "POST" })
 // Bulk soft-delete (move to trash). Capped at 200 to keep statements bounded.
 export const bulkArchiveForms = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       ids: v.pipe(v.array(v.pipe(v.string(), v.uuid())), v.minLength(1), v.maxLength(200)),
     }),
@@ -304,7 +304,7 @@ export const bulkArchiveForms = createServerFn({ method: "POST" })
 // Bulk hard-delete from trash.
 export const bulkDeleteForms = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       ids: v.pipe(v.array(v.pipe(v.string(), v.uuid())), v.minLength(1), v.maxLength(200)),
     }),
@@ -398,7 +398,7 @@ export const getArchivedFormListings = createServerFn({ method: "GET" })
 
 export const _getFormById = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ id: v.pipe(v.string(), v.uuid()) }))
+  .validator(v.object({ id: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const [_, [form], [settingsRow]] = await Promise.all([
       requireScopedForm(context.session, data.id),
@@ -439,7 +439,7 @@ const generateSlug = (title: string): string =>
 /** @public - consumed by upcoming domain settings UI */
 export const updateFormSlug = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()), slug: v.string() }))
+  .validator(v.object({ formId: v.pipe(v.string(), v.uuid()), slug: v.string() }))
   .handler(async ({ data, context }) => {
     const { formId, slug } = data;
     await requireScopedForm(context.session, formId);
@@ -560,7 +560,7 @@ export const updateFormSlug = createServerFn({ method: "POST" })
 /** @public - consumed by upcoming domain settings UI */
 export const assignFormDomain = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       formId: v.pipe(v.string(), v.uuid()),
       customDomainId: v.nullable(v.string()),

@@ -40,7 +40,7 @@ const recordVisitInputSchema = v.object({
 });
 
 export const recordFormVisit = createServerFn({ method: "POST" })
-  .inputValidator(recordVisitInputSchema)
+  .validator(recordVisitInputSchema)
   .handler(async ({ data }): Promise<{ visitId: string | null }> => recordFormVisitImpl(data));
 
 const MAX_VITAL_MS = 3_600_000; // 1h — generous spam guard for client-reported vitals
@@ -58,7 +58,7 @@ const updateVisitInputSchema = v.object({
 });
 
 export const updateFormVisit = createServerFn({ method: "POST" })
-  .inputValidator(updateVisitInputSchema)
+  .validator(updateVisitInputSchema)
   .handler(async ({ data }): Promise<{ ok: true }> => updateFormVisitImpl(data));
 
 const questionProgressInputSchema = v.object({
@@ -75,7 +75,7 @@ const questionProgressInputSchema = v.object({
 });
 
 export const recordQuestionProgress = createServerFn({ method: "POST" })
-  .inputValidator(questionProgressInputSchema)
+  .validator(questionProgressInputSchema)
   .handler(async ({ data }): Promise<{ ok: true }> => recordQuestionProgressImpl(data));
 
 const MAX_QUESTION_PROGRESS_BATCH = 20;
@@ -89,7 +89,7 @@ const questionProgressBatchInputSchema = v.object({
 });
 
 export const recordQuestionProgressBatch = createServerFn({ method: "POST" })
-  .inputValidator(questionProgressBatchInputSchema)
+  .validator(questionProgressBatchInputSchema)
   .handler(
     async ({
       data,
@@ -105,14 +105,24 @@ const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const insightsFilterInputSchema = v.object({
   formId: v.pipe(v.string(), v.uuid()),
-  filter: v.picklist(["last_24_hours", "last_7_days", "last_30_days", "last_90_days", "custom"]),
+  filter: v.picklist([
+    "today",
+    "yesterday",
+    "last_24_hours",
+    "last_7_days",
+    "last_30_days",
+    "last_90_days",
+    "last_year",
+    "all_time",
+    "custom",
+  ]),
   startDate: v.optional(v.pipe(v.string(), v.regex(DATE_KEY_PATTERN))),
   endDate: v.optional(v.pipe(v.string(), v.regex(DATE_KEY_PATTERN))),
 });
 
 export const getFormInsights = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(insightsFilterInputSchema)
+  .validator(insightsFilterInputSchema)
   .handler(
     async ({ data, context }): Promise<FormInsightsMetrics> =>
       getFormInsightsImpl(data, context, getActiveOrgId(context.session)),
@@ -120,7 +130,7 @@ export const getFormInsights = createServerFn({ method: "POST" })
 
 export const getFormDropoff = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(insightsFilterInputSchema)
+  .validator(insightsFilterInputSchema)
   .handler(
     async ({ data, context }): Promise<QuestionDropoffMetrics> =>
       getFormDropoffImpl(data, context, getActiveOrgId(context.session)),
@@ -128,7 +138,7 @@ export const getFormDropoff = createServerFn({ method: "POST" })
 
 export const getFormAnswers = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(insightsFilterInputSchema)
+  .validator(insightsFilterInputSchema)
   .handler(
     async ({ data, context }): Promise<FormAnswerMetrics> =>
       getFormAnswersImpl(data, context, getActiveOrgId(context.session)),
@@ -136,7 +146,7 @@ export const getFormAnswers = createServerFn({ method: "POST" })
 
 export const getFormVitals = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(insightsFilterInputSchema)
+  .validator(insightsFilterInputSchema)
   .handler(
     async ({ data, context }): Promise<FormVitalsMetrics> =>
       getFormVitalsImpl(data, context, getActiveOrgId(context.session)),
@@ -144,7 +154,7 @@ export const getFormVitals = createServerFn({ method: "POST" })
 
 export const getInsightsAvailability = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
+  .validator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(
     async ({ data, context }): Promise<InsightsAvailability> =>
       getInsightsAvailabilityImpl(data, context, getActiveOrgId(context.session)),
@@ -155,5 +165,5 @@ const aggregateInputSchema = v.object({
 });
 
 export const aggregateAnalyticsDaily = createServerFn({ method: "POST" })
-  .inputValidator(aggregateInputSchema)
+  .validator(aggregateInputSchema)
   .handler(async ({ data }) => aggregateAnalyticsDailyImpl(data));

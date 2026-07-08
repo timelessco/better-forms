@@ -8,7 +8,7 @@ import type { ErrorCode } from "@/lib/errors/codes";
 /** Upload avatar image (base64) to Vercel Blob; returns public URL. */
 export const uploadAvatar = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       base64: v.string(),
       filename: v.optional(v.string()),
@@ -34,7 +34,7 @@ export const uploadAvatar = createServerFn({ method: "POST" })
 /** Upload media (image/video/audio/pdf) for the editor canvas (auth required; Plate media placeholder). */
 export const uploadEditorMedia = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       base64: v.pipe(v.string(), v.minLength(1)),
       filename: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),

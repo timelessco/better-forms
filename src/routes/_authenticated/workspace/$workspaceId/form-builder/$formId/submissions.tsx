@@ -464,11 +464,11 @@ const buildSubmissionColumns = ({
             <span
               className={cn(
                 // Figma 27015:17561/17488 (light) + 27015:17706/17633 (dark): 12px / Medium(450) /
-                // 0.24px (0.02em) / lh1.15, 6×3 pad, pill. Figma keeps the SAME pill colors in both
-                // themes (no flip) — soft pastel bg + saturated text reads fine on dark too, so the
-                // hexes are pinned (NOT the auto-flipping success tokens).
+                // 0.24px (0.02em) / lh1.15, 6×3 pad, pill.
                 "inline-flex items-center rounded-full px-1.5 py-[3px] text-[12px] leading-[1.15] font-[450] tracking-[0.02em]",
-                done ? "bg-[#e4faeb] text-[#137949]" : "bg-[#fff7d3] text-[#b35309]",
+                done
+                  ? "bg-[var(--color-success-soft)] text-[var(--color-success-on-soft)]"
+                  : "bg-[var(--color-partial-soft)] text-[var(--color-partial-on-soft)]",
               )}
             >
               {done ? "Complete" : "Partial"}
@@ -1189,10 +1189,10 @@ const SubmissionSingleView = ({
             <span
               className={cn(
                 "inline-flex items-center rounded-full px-1.5 py-[3px] text-[12px] font-medium tracking-[0.02em]",
-                // Figma 27015:20855 — Completed green-soft pair; Partial amber pair (#fff7d3/#b35309).
+                // Figma 27015:20855 — Completed green-soft pair; Partial amber pair.
                 done
                   ? "bg-[var(--color-success-soft)] text-[var(--color-success-on-soft)]"
-                  : "bg-[#fff7d3] text-[#b35309] dark:bg-amber-950/40 dark:text-amber-400",
+                  : "bg-[var(--color-partial-soft)] text-[var(--color-partial-on-soft)]",
               )}
             >
               {done ? "Completed" : "Partial"}

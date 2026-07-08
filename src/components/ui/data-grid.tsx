@@ -59,6 +59,12 @@ export const DATA_GRID_FEATURES = tableFeatures({
   rowPinningFeature,
   rowSelectionFeature,
   rowSortingFeature,
+  // v9 beta.36: row models + fn registries live inside features; factories are 0-arg.
+  filteredRowModel: createFilteredRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  sortedRowModel: createSortedRowModel(),
+  filterFns,
+  sortFns,
 });
 export type DataGridFeatures = typeof DATA_GRID_FEATURES;
 
@@ -329,14 +335,9 @@ export const {
   useCellContext,
   useHeaderContext,
 } = createTableHook({
-  features: DATA_GRID_FEATURES,
   // Expansion is content-row-only: rowExpandingFeature w/o createExpandedRowModel, so getSubRows
   // flattening silently no-ops — meta.expandedContent rows are rendered manually instead.
-  rowModels: {
-    filteredRowModel: createFilteredRowModel(filterFns),
-    paginatedRowModel: createPaginatedRowModel(),
-    sortedRowModel: createSortedRowModel(sortFns),
-  },
+  features: DATA_GRID_FEATURES,
   tableComponents: {
     DataGrid,
     DataGridContainer,

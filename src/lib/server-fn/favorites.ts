@@ -24,7 +24,7 @@ export const getFavorites = createServerFn({ method: "GET" })
 
 export const addFavorite = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       formId: v.pipe(v.string(), v.uuid()),
       sortIndex: v.nullish(v.string()),
@@ -50,7 +50,7 @@ export const addFavorite = createServerFn({ method: "POST" })
 
 export const removeFavorite = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
+  .validator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     const userId = context.session.user.id;
     await requireScopedForm(context.session, data.formId);
@@ -62,7 +62,7 @@ export const removeFavorite = createServerFn({ method: "POST" })
 
 export const reorderFavorite = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       formId: v.pipe(v.string(), v.uuid()),
       sortIndex: v.string(),

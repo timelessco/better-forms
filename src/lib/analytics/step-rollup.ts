@@ -1,18 +1,5 @@
-import type { QuestionDropoffRow } from "@/types/analytics";
-
-export interface StepDropoffMetrics {
-  stepId: string;
-  stepIndex: number;
-  stepLabel?: string;
-  viewCount: number;
-  startCount: number;
-  completeCount: number;
-  dropoffCount: number;
-  terminalDropoffCount: number;
-  dropoffRate: number | null;
-  completionRate: number | null;
-  questions: QuestionDropoffRow[];
-}
+import type { QuestionDropoffRow, StepDropoffMetrics } from "@/types/analytics";
+export type { StepDropoffMetrics };
 
 interface StepAggregate {
   stepId: string;

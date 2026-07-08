@@ -30,7 +30,7 @@ import { buildPublicFormSettings } from "@/types/form-settings";
 /** Get a published form by public short id. Returns published version content (not draft);
  * only status === "published" forms. */
 export const getPublishedFormByShortId = createServerFn({ method: "GET" })
-  .inputValidator(v.object({ shortId: shortIdSchema }))
+  .validator(v.object({ shortId: shortIdSchema }))
   .handler(async ({ data }) => {
     // Settings live in form_settings now (split from versioning; see
     // docs/plans/2026-05-04-settings-version-split.md). Editor content still comes from the
@@ -186,7 +186,7 @@ export const getPublishedFormByShortId = createServerFn({ method: "GET" })
 
 /** Verify a password for a password-protected form. */
 export const verifyFormPassword = createServerFn({ method: "POST" })
-  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()), password: v.string() }))
+  .validator(v.object({ formId: v.pipe(v.string(), v.uuid()), password: v.string() }))
   .handler(async ({ data }) => {
     // Password is a live setting — read from form_settings, not the draft.
     const [formRow] = await db

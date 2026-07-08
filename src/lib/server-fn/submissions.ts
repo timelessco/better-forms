@@ -49,9 +49,7 @@ const maybePurgeAfterSubmissionDelete = async (formId: string) => {
 
 export const deleteSubmission = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
-    v.object({ id: v.pipe(v.string(), v.uuid()), formId: v.pipe(v.string(), v.uuid()) }),
-  )
+  .validator(v.object({ id: v.pipe(v.string(), v.uuid()), formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     await requireScopedForm(context.session, data.formId);
     await db.delete(submissions).where(eq(submissions.id, data.id));
@@ -61,7 +59,7 @@ export const deleteSubmission = createServerFn({ method: "POST" })
 
 export const deleteSubmissionsBulk = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       formId: v.pipe(v.string(), v.uuid()),
       submissionIds: v.array(v.pipe(v.string(), v.uuid())),
@@ -82,7 +80,7 @@ export const SUBMISSIONS_PAGE_SIZE = 50;
 
 export const getSubmissionsByFormIdPaginated = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     v.object({
       formId: v.pipe(v.string(), v.uuid()),
       cursor: v.optional(v.object({ createdAt: v.string(), id: v.string() })),
@@ -141,7 +139,7 @@ export const getSubmissionsByFormIdPaginated = createServerFn({ method: "GET" })
 
 export const getSubmissionsCount = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
+  .validator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     await requireScopedForm(context.session, data.formId);
 
@@ -157,7 +155,7 @@ export const getSubmissionsCount = createServerFn({ method: "GET" })
  * historical versions. One round-trip replacing three queries; no orphan-detection waterfall. */
 export const getSubmissionsBootstrap = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
+  .validator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data, context }) => {
     await requireScopedForm(context.session, data.formId);
 

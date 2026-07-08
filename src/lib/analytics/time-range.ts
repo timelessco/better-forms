@@ -6,6 +6,7 @@ const HOURS_PER_DAY = 24;
 const DAYS_LAST_7 = 7;
 const DAYS_LAST_30 = 30;
 const DAYS_LAST_90 = 90;
+const DAYS_LAST_YEAR = 365;
 const DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 export type ResolvedRange = {
@@ -74,6 +75,19 @@ const resolveRollingDays = (days: number, now: Date): ResolvedRange => {
 /** Resolve a TimeRange into start/end Dates + UTC date keys the window touches. */
 export const resolveTimeRange = (input: TimeRange, now: Date = new Date()): ResolvedRange => {
   switch (input.filter) {
+    case "today": {
+      // Current UTC calendar day only; end = now so the open day reads raw (splitTodayVsPast).
+      const start = startOfUtcDay(now);
+      const end = new Date(now.getTime());
+      return { start, end, days: buildIntersectingDayKeys(start, end) };
+    }
+    case "yesterday": {
+      // Previous UTC calendar day only; end before today so the raw-today path never fires.
+      const todayStart = startOfUtcDay(now);
+      const start = new Date(todayStart.getTime() - MS_PER_DAY);
+      const end = new Date(todayStart.getTime() - 1);
+      return { start, end, days: buildIntersectingDayKeys(start, end) };
+    }
     case "last_24_hours":
       return resolveRollingHours(HOURS_PER_DAY, now);
     case "last_7_days":
@@ -82,13 +96,29 @@ export const resolveTimeRange = (input: TimeRange, now: Date = new Date()): Reso
       return resolveRollingDays(DAYS_LAST_30, now);
     case "last_90_days":
       return resolveRollingDays(DAYS_LAST_90, now);
+    case "last_year":
+      return resolveRollingDays(DAYS_LAST_YEAR, now);
+    case "all_time": {
+      // Form's createdAt is the lower bound. Clamp a future createdAt (clock skew) to today so the
+      // range never inverts. Callers pass formCreatedAt; absent it, degenerate to today only.
+      const end = new Date(now.getTime());
+      const rawStart = input.formCreatedAt ?? end;
+      const start =
+        rawStart.getTime() > end.getTime() ? startOfUtcDay(end) : startOfUtcDay(rawStart);
+      return { start, end, days: buildIntersectingDayKeys(start, end) };
+    }
     case "custom": {
       if (!(input.startDate && input.endDate)) {
         throw new Error("Custom time range requires both startDate and endDate (YYYY-MM-DD)");
       }
-      const start = parseDateKey(input.startDate);
+      // Swap a reversed range (string compare is valid for YYYY-MM-DD) instead of crashing.
+      const [startKey, endKey] =
+        input.startDate > input.endDate
+          ? [input.endDate, input.startDate]
+          : [input.startDate, input.endDate];
+      const start = parseDateKey(startKey);
       // End-of-day UTC, inclusive
-      const endDay = parseDateKey(input.endDate);
+      const endDay = parseDateKey(endKey);
       const end = new Date(endDay.getTime() + MS_PER_DAY - 1);
       const days = buildIntersectingDayKeys(start, end);
       return { start, end, days };

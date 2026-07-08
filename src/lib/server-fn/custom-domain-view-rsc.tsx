@@ -6,7 +6,7 @@ import * as v from "valibot";
 // never reach the client bundle. Mirrors public-form-view-rsc.tsx on the app-domain route.
 
 export const getCustomDomainFormByIdRSC = createServerFn({ method: "GET" })
-  .inputValidator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
+  .validator(v.object({ formId: v.pipe(v.string(), v.uuid()) }))
   .handler(async ({ data }) => {
     const host = getRequestHost({ xForwardedHost: true });
     const { runCustomDomainByIdRSC } = await import("./custom-domain-view-rsc.impl");
@@ -14,7 +14,7 @@ export const getCustomDomainFormByIdRSC = createServerFn({ method: "GET" })
   });
 
 export const getCustomDomainFormBySlugRSC = createServerFn({ method: "GET" })
-  .inputValidator(v.object({ slug: v.string() }))
+  .validator(v.object({ slug: v.string() }))
   .handler(async ({ data }) => {
     const host = getRequestHost({ xForwardedHost: true });
     const { runCustomDomainBySlugRSC } = await import("./custom-domain-view-rsc.impl");
