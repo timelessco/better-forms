@@ -79,7 +79,10 @@ const TabPanels = ({ activeTab }: { activeTab: SettingsTab }) => {
 };
 
 export const SettingsDialog = () => {
-  const { isOpen, activeTab, close, setTab } = useSettingsDialog();
+  const { isOpen, activeTab, close, setTab, domainsDetailOpen } = useSettingsDialog();
+  // The domain detail screen renders its own header, so hide the generic tab title there
+  // (kept in the DOM, sr-only, so the dialog keeps its accessible name).
+  const hideTitle = activeTab === "domains" && domainsDetailOpen;
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -124,7 +127,9 @@ export const SettingsDialog = () => {
           hideScrollbar
         >
           <div className="px-5 pt-5 pb-5 md:px-12.25 md:pt-8 md:pb-8">
-            <DialogTitle className="mb-4 text-xl font-semibold text-foreground">
+            <DialogTitle
+              className={hideTitle ? "sr-only" : "mb-4 text-xl font-semibold text-foreground"}
+            >
               <TextSwap key={tabTitles[activeTab]}>{tabTitles[activeTab]}</TextSwap>
             </DialogTitle>
             <TabPanels activeTab={activeTab} />

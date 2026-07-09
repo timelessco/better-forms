@@ -111,7 +111,7 @@ export const DropdownMenuSubTrigger = ({
     data-slot="dropdown-menu-sub-trigger"
     data-inset={inset}
     className={cn(
-      "flex h-[26px] cursor-default items-center gap-1.5 rounded-lg px-2 py-[5.5px] text-base outline-hidden select-none focus:bg-secondary focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-popup-open:bg-secondary data-popup-open:text-accent-foreground data-open:bg-secondary data-open:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+      "flex h-[26px] cursor-default items-center gap-1.5 rounded-lg px-2 py-[5.5px] text-sm outline-hidden select-none focus:bg-secondary focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-popup-open:bg-secondary data-popup-open:text-accent-foreground data-open:bg-secondary data-open:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
       className,
     )}
     {...props}
@@ -124,16 +124,18 @@ export const DropdownMenuSubTrigger = ({
 
 export const DropdownMenuSubContent = ({
   align = "start",
-  alignOffset = -3,
+  alignOffset = 0,
   side = "inline-end",
-  sideOffset = 0,
+  sideOffset = 4,
   className,
   ...props
 }: React.ComponentProps<typeof DropdownMenuContent>) => (
   <DropdownMenuContent
     data-slot="dropdown-menu-sub-content"
     className={cn(
-      "w-auto min-w-[96px] rounded-lg bg-popover p-1 text-popover-foreground elevation-lg duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+      // Match parent DropdownMenuContent chrome (rounded-xl / p-1 / elevation) + Figma nested
+      // popover min width 151px so short labels (e.g. "Personal") don't collapse into a pill.
+      "flex w-auto min-w-[151px] translate-x-1 flex-col gap-1 rounded-xl bg-popover p-1 font-case text-popover-foreground elevation-lg duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
       className,
     )}
     align={align}

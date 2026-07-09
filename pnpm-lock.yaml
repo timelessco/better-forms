@@ -208,8 +208,8 @@ importers:
         specifier: 1.7.0
         version: 1.7.0(valibot@1.4.0(typescript@5.9.3))
       '@vercel/blob':
-        specifier: ^2.3.3
-        version: 2.5.0
+        specifier: 2.3.3
+        version: 2.3.3
       '@vercel/og':
         specifier: ^0.11.1
         version: 0.11.1
@@ -248,7 +248,7 @@ importers:
         version: 8.6.0(react@19.2.7)
       evlog:
         specifier: ^2.17.0
-        version: 2.19.2(@tanstack/start-client-core@1.170.13)(ai@6.0.190(zod@4.4.3))(express@5.2.1)(hono@4.12.27)(nitro@3.0.260603-beta(@vercel/blob@2.5.0)(chokidar@5.0.0)(dotenv@16.6.1)(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3))(jiti@2.7.0)(lru-cache@11.5.1)(rollup@4.62.2)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)))(ofetch@2.0.0-alpha.3)(react@19.2.7)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
+        version: 2.19.2(@tanstack/start-client-core@1.170.13)(ai@6.0.190(zod@4.4.3))(express@5.2.1)(hono@4.12.27)(nitro@3.0.260603-beta(@vercel/blob@2.3.3)(chokidar@5.0.0)(dotenv@16.6.1)(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3))(jiti@2.7.0)(lru-cache@11.5.1)(rollup@4.62.2)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)))(ofetch@2.0.0-alpha.3)(react@19.2.7)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
       fractional-indexing:
         specifier: ^3.2.0
         version: 3.4.0
@@ -284,7 +284,7 @@ importers:
         version: 5.1.16
       nitro:
         specifier: 3.0.260603-beta
-        version: 3.0.260603-beta(@vercel/blob@2.5.0)(chokidar@5.0.0)(dotenv@16.6.1)(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3))(jiti@2.7.0)(lru-cache@11.5.1)(rollup@4.62.2)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
+        version: 3.0.260603-beta(@vercel/blob@2.3.3)(chokidar@5.0.0)(dotenv@16.6.1)(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3))(jiti@2.7.0)(lru-cache@11.5.1)(rollup@4.62.2)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
       platejs:
         specifier: ^52.3.21
         version: 52.3.21(@types/react@19.2.17)(immer@11.1.8)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.7))
@@ -3593,16 +3593,9 @@ packages:
     peerDependencies:
       valibot: ^1.4.0
 
-  '@vercel/blob@2.5.0':
-    resolution: {integrity: sha512-ke6WnMMYlUu9nBFmyjwEkC2o03Ku2X7QIeJ3KtlOJzblS/8Xau209zt0ic76rd7IvV5nrKCH/BzP4MkFmoSLuw==}
+  '@vercel/blob@2.3.3':
+    resolution: {integrity: sha512-MtD7VLo6hU07eHR7bmk5SIMD290q574UaNYTe46qeyRT+hWrCy26CoAqfd7PnIefVXvRehRZBzukxuTO9iGTVg==}
     engines: {node: '>=20.0.0'}
-
-  '@vercel/cli-config@0.2.0':
-    resolution: {integrity: sha512-fJRRRB7734BDuXZ89yBEaA2ncYhH7bWX30mk04W80J6VAfQc+4iB8lyzAdaGpFV3/vNlkt9VZt+/uoQoWX6UsQ==}
-
-  '@vercel/cli-exec@1.0.0':
-    resolution: {integrity: sha512-kQF8LGie/Hbdq9/psJxLE7owRTcqMQMhgybU04gCeR7cbQAr5t8OrjefDNColJv1QSSucFt4pLwRiARVmlOnug==}
-    engines: {node: '>= 18'}
 
   '@vercel/og@0.11.1':
     resolution: {integrity: sha512-02rXXRABFq1B03w3aNhcVfxkY+8Ba5QFi4ax0zS0oOiD/LL9WUd/LA7BjVPakrQmVhIBjuo2oBM5U25R9IuXMg==}
@@ -3610,10 +3603,6 @@ packages:
 
   '@vercel/oidc@3.2.0':
     resolution: {integrity: sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug==}
-    engines: {node: '>= 20'}
-
-  '@vercel/oidc@3.7.1':
-    resolution: {integrity: sha512-RrSsVWbq3KLK5lJobyTPp3tSthNfUp+zWkXno5Wkko0oEW05rA4ngOrnVypP4+L8/Av89uPo2rWFmzL8iwnsmA==}
     engines: {node: '>= 20'}
 
   '@vercel/sdk@1.28.6':
@@ -5290,9 +5279,6 @@ packages:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
 
-  jose@5.10.0:
-    resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
-
   jose@6.2.3:
     resolution: {integrity: sha512-YYVDInQKFJfR/xa3ojUTl8c2KoTwiL1R5Wg9YCydwH0x0B9grbzlg5HC7mMjCtUJjbQ/YnGEZIhI5tCgfTb4Hw==}
 
@@ -6072,10 +6058,6 @@ packages:
   ora@8.2.0:
     resolution: {integrity: sha512-weP+BZ8MVNnlCm8c0Qdc1WSWq4Qn7I+9CJGm7Qali6g44e/PUzbjNqJX5NJ9ljlNMosfJvg1fKEGILklK9cwnw==}
     engines: {node: '>=18'}
-
-  os-paths@4.4.0:
-    resolution: {integrity: sha512-wrAwOeXp1RRMFfQY8Sy7VaGVmPocaLwSFOYCGKSyo8qmJ+/yaafCl5BCA1IQZWqFSRBrKDYFeR9d/VyQzfH/jg==}
-    engines: {node: '>= 6.0'}
 
   outvariant@1.4.3:
     resolution: {integrity: sha512-+Sl2UErvtsoajRDKCE5/dBz4DIvHXQQnAxtQTF04OJxY0+DyZXSo5P5Bb7XYWOh81syohlYL24hbDwxedPUJCA==}
@@ -7431,14 +7413,6 @@ packages:
     resolution: {integrity: sha512-g/eziiSUNBSsdDJtCLB8bdYEUMj4jR7AGeUo96p/3dTafgjHhpF4RiCFPiRILwjQoDXx5MqkBr4fwWtR3Ky4Wg==}
     engines: {node: '>=20'}
 
-  xdg-app-paths@5.5.1:
-    resolution: {integrity: sha512-hI3flOB4PLZIy5prbtTpirobtPE2ZtZ52szO+2mM9Efp6ErM398La+C1lIpNWDfNoQk+6Lsi6nMcCwVB7pxeMQ==}
-    engines: {node: '>= 6.0'}
-
-  xdg-portable@7.3.0:
-    resolution: {integrity: sha512-sqMMuL1rc0FmMBOzCpd0yuy9trqF2yTTVe+E9ogwCSWQCdDEtQUwrZPT6AxqtsFGRNxycgncbP/xmOOSPw5ZUw==}
-    engines: {node: '>= 6.0'}
-
   xml-name-validator@5.0.0:
     resolution: {integrity: sha512-EvGK8EJ3DhaHfbRlETOWAS5pO9MZITeauHKJyb8wyajUfQUenkIg2MvLDTZ4T/TgIcm3HU0TFBgWWboAZ30UHg==}
     engines: {node: '>=18'}
@@ -7501,9 +7475,6 @@ packages:
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
-
-  zod@4.1.11:
-    resolution: {integrity: sha512-WPsqwxITS2tzx1bzhIKsEs19ABD5vmCVa4xBo2tq/SrV4RNZtfws1EnCWQXM6yh8bD08a1idvkB5MZSBiZsjwg==}
 
   zod@4.4.3:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
@@ -10494,23 +10465,13 @@ snapshots:
     dependencies:
       valibot: 1.4.0(typescript@5.9.3)
 
-  '@vercel/blob@2.5.0':
+  '@vercel/blob@2.3.3':
     dependencies:
-      '@vercel/oidc': 3.7.1
       async-retry: 1.3.3
       is-buffer: 2.0.5
       is-node-process: 1.2.0
       throttleit: 2.1.0
       undici: 6.27.0
-
-  '@vercel/cli-config@0.2.0':
-    dependencies:
-      xdg-app-paths: 5.5.1
-      zod: 4.1.11
-
-  '@vercel/cli-exec@1.0.0':
-    dependencies:
-      execa: 5.1.1
 
   '@vercel/og@0.11.1':
     dependencies:
@@ -10520,12 +10481,6 @@ snapshots:
       sharp: 0.34.5
 
   '@vercel/oidc@3.2.0': {}
-
-  '@vercel/oidc@3.7.1':
-    dependencies:
-      '@vercel/cli-config': 0.2.0
-      '@vercel/cli-exec': 1.0.0
-      jose: 5.10.0
 
   '@vercel/sdk@1.28.6':
     dependencies:
@@ -11421,13 +11376,13 @@ snapshots:
     dependencies:
       eventsource-parser: 3.1.0
 
-  evlog@2.19.2(@tanstack/start-client-core@1.170.13)(ai@6.0.190(zod@4.4.3))(express@5.2.1)(hono@4.12.27)(nitro@3.0.260603-beta(@vercel/blob@2.5.0)(chokidar@5.0.0)(dotenv@16.6.1)(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3))(jiti@2.7.0)(lru-cache@11.5.1)(rollup@4.62.2)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)))(ofetch@2.0.0-alpha.3)(react@19.2.7)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)):
+  evlog@2.19.2(@tanstack/start-client-core@1.170.13)(ai@6.0.190(zod@4.4.3))(express@5.2.1)(hono@4.12.27)(nitro@3.0.260603-beta(@vercel/blob@2.3.3)(chokidar@5.0.0)(dotenv@16.6.1)(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3))(jiti@2.7.0)(lru-cache@11.5.1)(rollup@4.62.2)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)))(ofetch@2.0.0-alpha.3)(react@19.2.7)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)):
     optionalDependencies:
       '@tanstack/start-client-core': 1.170.13
       ai: 6.0.190(zod@4.4.3)
       express: 5.2.1
       hono: 4.12.27
-      nitro: 3.0.260603-beta(@vercel/blob@2.5.0)(chokidar@5.0.0)(dotenv@16.6.1)(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3))(jiti@2.7.0)(lru-cache@11.5.1)(rollup@4.62.2)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
+      nitro: 3.0.260603-beta(@vercel/blob@2.3.3)(chokidar@5.0.0)(dotenv@16.6.1)(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3))(jiti@2.7.0)(lru-cache@11.5.1)(rollup@4.62.2)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0))
       ofetch: 2.0.0-alpha.3
       react: 19.2.7
       vite: 7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
@@ -11946,8 +11901,6 @@ snapshots:
   isexe@3.1.5: {}
 
   jiti@2.7.0: {}
-
-  jose@5.10.0: {}
 
   jose@6.2.3: {}
 
@@ -12816,7 +12769,7 @@ snapshots:
 
   nf3@0.3.18: {}
 
-  nitro@3.0.260603-beta(@vercel/blob@2.5.0)(chokidar@5.0.0)(dotenv@16.6.1)(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3))(jiti@2.7.0)(lru-cache@11.5.1)(rollup@4.62.2)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)):
+  nitro@3.0.260603-beta(@vercel/blob@2.3.3)(chokidar@5.0.0)(dotenv@16.6.1)(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3))(jiti@2.7.0)(lru-cache@11.5.1)(rollup@4.62.2)(vite@7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)):
     dependencies:
       consola: 3.4.2
       crossws: 0.4.7(srvx@0.11.18)
@@ -12831,7 +12784,7 @@ snapshots:
       rolldown: 1.1.4
       srvx: 0.11.18
       unenv: 2.0.0-rc.24
-      unstorage: 2.0.0-alpha.7(@vercel/blob@2.5.0)(chokidar@5.0.0)(db0@0.3.4(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3)))(lru-cache@11.5.1)(ofetch@2.0.0-alpha.3)
+      unstorage: 2.0.0-alpha.7(@vercel/blob@2.3.3)(chokidar@5.0.0)(db0@0.3.4(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3)))(lru-cache@11.5.1)(ofetch@2.0.0-alpha.3)
     optionalDependencies:
       dotenv: 16.6.1
       jiti: 2.7.0
@@ -12959,8 +12912,6 @@ snapshots:
       stdin-discarder: 0.2.2
       string-width: 7.2.0
       strip-ansi: 7.2.0
-
-  os-paths@4.4.0: {}
 
   outvariant@1.4.3: {}
 
@@ -14085,9 +14036,9 @@ snapshots:
       rollup: 4.62.2
       vite: 7.3.6(@types/node@22.20.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
 
-  unstorage@2.0.0-alpha.7(@vercel/blob@2.5.0)(chokidar@5.0.0)(db0@0.3.4(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3)))(lru-cache@11.5.1)(ofetch@2.0.0-alpha.3):
+  unstorage@2.0.0-alpha.7(@vercel/blob@2.3.3)(chokidar@5.0.0)(db0@0.3.4(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3)))(lru-cache@11.5.1)(ofetch@2.0.0-alpha.3):
     optionalDependencies:
-      '@vercel/blob': 2.5.0
+      '@vercel/blob': 2.3.3
       chokidar: 5.0.0
       db0: 0.3.4(drizzle-orm@1.0.0-rc.1(@opentelemetry/api@1.9.1)(postgres@3.4.9)(valibot@1.4.0(typescript@5.9.3))(zod@4.4.3))
       lru-cache: 11.5.1
@@ -14359,15 +14310,6 @@ snapshots:
       is-wsl: 3.1.1
       powershell-utils: 0.1.0
 
-  xdg-app-paths@5.5.1:
-    dependencies:
-      os-paths: 4.4.0
-      xdg-portable: 7.3.0
-
-  xdg-portable@7.3.0:
-    dependencies:
-      os-paths: 4.4.0
-
   xml-name-validator@5.0.0: {}
 
   xmlbuilder2@4.0.3:
@@ -14420,8 +14362,6 @@ snapshots:
       zod: 4.4.3
 
   zod@3.25.76: {}
-
-  zod@4.1.11: {}
 
   zod@4.4.3: {}
 

@@ -51,7 +51,9 @@ export const UserMenuMinimal = ({ onOpenTrash }: UserMenuMinimalProps) => {
     ...orgDataForLayoutQueryOptions(),
     select: (d) => d.activeOrg,
   });
-  const displayName = activeOrg?.name ?? session?.user?.name ?? "User";
+  // Show the user's display name (session.user.name), not the org name — the profile represents
+  // the person, so the email/org fallback must come after the user's own name.
+  const displayName = session?.user?.name ?? activeOrg?.name ?? "User";
 
   // Was hardcoded "Free Plan" — read the active org's real subscription tier.
   const { plan, isLoading: isPlanLoading } = useUserPlan();

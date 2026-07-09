@@ -19,6 +19,7 @@ import { Route as FormsShortIdRouteImport } from './routes/forms/$shortId'
 import { Route as FFormIdRouteImport } from './routes/f/$formId'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedTemplatesIndexRouteImport } from './routes/_authenticated/templates/index'
+import { Route as TemplatesTemplateIdPreviewRouteImport } from './routes/templates.$templateId.preview'
 import { Route as ApiTrackVisitEndRouteImport } from './routes/api/track/visit-end'
 import { Route as ApiIconsNameRouteImport } from './routes/api/icons/$name'
 import { Route as ApiCronPurgeArchivedFormsRouteImport } from './routes/api/cron/purge-archived-forms'
@@ -85,6 +86,12 @@ const AuthenticatedTemplatesIndexRoute =
     id: '/templates/',
     path: '/templates/',
     getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const TemplatesTemplateIdPreviewRoute =
+  TemplatesTemplateIdPreviewRouteImport.update({
+    id: '/templates/$templateId/preview',
+    path: '/templates/$templateId/preview',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const ApiTrackVisitEndRoute = ApiTrackVisitEndRouteImport.update({
   id: '/api/track/visit-end',
@@ -203,6 +210,7 @@ export interface FileRoutesByFullPath {
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/api/track/visit-end': typeof ApiTrackVisitEndRoute
+  '/templates/$templateId/preview': typeof TemplatesTemplateIdPreviewRoute
   '/templates/': typeof AuthenticatedTemplatesIndexRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
   '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
@@ -230,6 +238,7 @@ export interface FileRoutesByTo {
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/api/track/visit-end': typeof ApiTrackVisitEndRoute
+  '/templates/$templateId/preview': typeof TemplatesTemplateIdPreviewRoute
   '/templates': typeof AuthenticatedTemplatesIndexRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
   '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
@@ -259,6 +268,7 @@ export interface FileRoutesById {
   '/api/cron/purge-archived-forms': typeof ApiCronPurgeArchivedFormsRoute
   '/api/icons/$name': typeof ApiIconsNameRoute
   '/api/track/visit-end': typeof ApiTrackVisitEndRoute
+  '/templates/$templateId/preview': typeof TemplatesTemplateIdPreviewRoute
   '/_authenticated/templates/': typeof AuthenticatedTemplatesIndexRoute
   '/api/forms/$shortId/meta': typeof ApiFormsShortIdMetaRoute
   '/api/og/$shortId/$hash': typeof ApiOgShortIdHashRoute
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
     | '/api/cron/purge-archived-forms'
     | '/api/icons/$name'
     | '/api/track/visit-end'
+    | '/templates/$templateId/preview'
     | '/templates/'
     | '/api/forms/$shortId/meta'
     | '/api/og/$shortId/$hash'
@@ -315,6 +326,7 @@ export interface FileRouteTypes {
     | '/api/cron/purge-archived-forms'
     | '/api/icons/$name'
     | '/api/track/visit-end'
+    | '/templates/$templateId/preview'
     | '/templates'
     | '/api/forms/$shortId/meta'
     | '/api/og/$shortId/$hash'
@@ -343,6 +355,7 @@ export interface FileRouteTypes {
     | '/api/cron/purge-archived-forms'
     | '/api/icons/$name'
     | '/api/track/visit-end'
+    | '/templates/$templateId/preview'
     | '/_authenticated/templates/'
     | '/api/forms/$shortId/meta'
     | '/api/og/$shortId/$hash'
@@ -369,6 +382,7 @@ export interface RootRouteChildren {
   ApiCronPurgeArchivedFormsRoute: typeof ApiCronPurgeArchivedFormsRoute
   ApiIconsNameRoute: typeof ApiIconsNameRoute
   ApiTrackVisitEndRoute: typeof ApiTrackVisitEndRoute
+  TemplatesTemplateIdPreviewRoute: typeof TemplatesTemplateIdPreviewRoute
   ApiFormsShortIdMetaRoute: typeof ApiFormsShortIdMetaRoute
   ApiOgShortIdHashRoute: typeof ApiOgShortIdHashRoute
 }
@@ -444,6 +458,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/templates/'
       preLoaderRoute: typeof AuthenticatedTemplatesIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/templates/$templateId/preview': {
+      id: '/templates/$templateId/preview'
+      path: '/templates/$templateId/preview'
+      fullPath: '/templates/$templateId/preview'
+      preLoaderRoute: typeof TemplatesTemplateIdPreviewRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/track/visit-end': {
       id: '/api/track/visit-end'
@@ -636,6 +657,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCronPurgeArchivedFormsRoute: ApiCronPurgeArchivedFormsRoute,
   ApiIconsNameRoute: ApiIconsNameRoute,
   ApiTrackVisitEndRoute: ApiTrackVisitEndRoute,
+  TemplatesTemplateIdPreviewRoute: TemplatesTemplateIdPreviewRoute,
   ApiFormsShortIdMetaRoute: ApiFormsShortIdMetaRoute,
   ApiOgShortIdHashRoute: ApiOgShortIdHashRoute,
 }

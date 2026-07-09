@@ -66,6 +66,15 @@ const BUTTON_ALIGN_JUSTIFY: Record<string, string> = {
   right: "flex-end",
 };
 
+// When branding is shown, the "Made with Reform." badge sits opposite the action button:
+// left button → badge right, right button → badge left, center button → badge centered below it.
+// Consumed by the branding button-row (flex-direction/justify on the row + order on the badge).
+const BUTTON_ALIGN_BRANDING: Record<string, { dir: string; justify: string; order: string }> = {
+  left: { dir: "row", justify: "space-between", order: "0" },
+  center: { dir: "column", justify: "center", order: "0" },
+  right: { dir: "row", justify: "space-between", order: "-1" },
+};
+
 /** Migrates legacy "vw" page-width values to "%" (same numeric range 30-100). */
 const migratePageWidth = (value: string): string =>
   value.endsWith("vw") ? value.replace(/vw$/, "%") : value;
@@ -234,6 +243,13 @@ const buildModeAgnosticEntries = (
 
   const buttonJustify = BUTTON_ALIGN_JUSTIFY[customization.buttonAlign];
   if (buttonJustify) entries.push(["--bf-button-justify", buttonJustify]);
+
+  const brandingLayout = BUTTON_ALIGN_BRANDING[customization.buttonAlign];
+  if (brandingLayout) {
+    entries.push(["--bf-branding-dir", brandingLayout.dir]);
+    entries.push(["--bf-branding-justify", brandingLayout.justify]);
+    entries.push(["--bf-branding-order", brandingLayout.order]);
+  }
 
   // Cover width: "fit" bleeds 28px past the form width on each side (Figma) into the editor
   // gutter (always >= 64px). "fill"/unset emits the full-bleed values EXPLICITLY (same as the

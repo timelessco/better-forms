@@ -9,7 +9,11 @@ import { buildPublicFormSettings } from "@/types/form-settings";
 const noop = async () => {};
 const PREVIEW_SETTINGS = buildPublicFormSettings(undefined);
 
-const TemplatePreviewPage = () => {
+/**
+ * Bare-bones template preview route — no header, no sidebar, no chrome.
+ * Used by the screenshot generator script to capture clean template thumbnails.
+ */
+const TemplatePreviewOnly = () => {
   const { templateId } = Route.useParams();
   const template = findTemplateMeta(templateId);
   const content = useMemo(
@@ -19,10 +23,9 @@ const TemplatePreviewPage = () => {
 
   if (!template) return <NotFound />;
 
-  // Figma 27189:13092 — full-bleed preview (no right rail). Header owns breadcrumb + Use Template.
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background text-foreground">
-      <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
+    <div className="h-screen w-screen overflow-hidden bg-background">
+      <div className="h-full w-full overflow-x-hidden overflow-y-auto">
         <div className="pb-16">
           <FormPreviewFromPlate
             content={content}
@@ -38,10 +41,10 @@ const TemplatePreviewPage = () => {
   );
 };
 
-export const Route = createFileRoute("/_authenticated/templates/$templateId")({
+export const Route = createFileRoute("/templates/$templateId/preview")({
   loader: ({ params }) => {
     if (!findTemplateMeta(params.templateId)) throw notFound();
   },
-  component: TemplatePreviewPage,
-  notFoundComponent: NotFound,
+  component: TemplatePreviewOnly,
+  notFoundComponent: () => null,
 });

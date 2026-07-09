@@ -213,6 +213,13 @@ const config = defineConfig({
     // grouping collides when both reach the bundler ("Identifier 'import_*'
     // has already been declared"). Deduping picks one for the bundle.
     dedupe: ["@platejs/core", "jotai"],
+    // @vercel/oidc is pulled in transitively by `ai` → `@ai-sdk/gateway` but is
+    // never used at runtime (this project doesn't use AI Gateway auth). The real
+    // package is CJS-only: bundling it crashes Vite 7's dev module runner, and
+    // leaving it external (`ssr.external`) breaks the nitro production build
+    // (Rollup can't resolve the bare import from `node_modules/.nitro/`). Alias
+    // it to a no-op stub so both dev and prod resolve it deterministically.
+    alias: [{ find: "@vercel/oidc", replacement: "/src/lib/vercel-oidc-stub.ts" }],
   },
   server: {
     sourcemapIgnoreList: (sourcePath) => sourcePath.includes("node_modules"),
@@ -286,13 +293,6 @@ const config = defineConfig({
       // the Vercel function. Inlining it into the SSR bundle drops the .ttf
       // and crashes with ENOENT on first import in /var/task/_ssr/.
       "@vercel/og",
-      // @vercel/oidc (pulled in transitively by `ai@6` → `@ai-sdk/gateway`
-      // → here for AI Gateway auth) ships CJS-only modules that crash Vite
-      // 7's module runner with `Cannot read properties of undefined
-      // (reading '__cjs_module_runner_transform')`. Hand it to Node's
-      // native CJS loader at runtime. `@ai-sdk/gateway` itself is ESM and
-      // must stay bundled so Rollup can resolve it.
-      "@vercel/oidc",
     ],
   },
   environments: {

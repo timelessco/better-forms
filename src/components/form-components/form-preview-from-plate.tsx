@@ -26,7 +26,7 @@ import { FormLogicProvider } from "@/contexts/form-logic-context";
 import { buildFormLogic } from "@/lib/logic/build-form-logic";
 import { extractQuestionsForStep } from "@/lib/forms/extract-questions";
 import type { QuestionRef } from "@/lib/forms/extract-questions";
-import { APP_NAME, DEFAULT_ICON } from "@/lib/config/app-config";
+import { DEFAULT_ICON } from "@/lib/config/app-config";
 import { cn, DEFAULT_ICON_NAME, isHexColor, isValidUrl } from "@/lib/utils";
 import type { PublicFormSettings } from "@/types/form-settings";
 import { IconPickerPreview } from "@/components/icon-picker";
@@ -762,24 +762,6 @@ const FieldByFieldLayout = ({
   );
 };
 
-// Popup branding (Figma 26075-12633): a full-width footer BAR (gray/100 fill, centered) at the
-// popup's bottom edge — distinct from the inline submit-row badge used by embed/full-page.
-// "Made with " gray/600 (Inter) + the Timeless Serif italic "Reform." wordmark.
-const PopupBrandingBar = () => (
-  <div className="flex items-center justify-center bg-gray-100 px-2.5 py-[13px]">
-    <span
-      // Inline fontSize: the form's base size out-races Tailwind utilities (see FormBrandingBadge).
-      style={{ fontSize: "14px" }}
-      className="leading-[1.15] font-[420] tracking-[0.28px] text-gray-600"
-    >
-      Made with{" "}
-      <span className="[font-family:'Timeless_Serif',ui-serif,Georgia,serif] italic">
-        {APP_NAME}.
-      </span>
-    </span>
-  </div>
-);
-
 const LinearLayout = ({
   steps,
   stepQuestions,
@@ -877,15 +859,13 @@ const LinearLayout = ({
                   segments={currentStepSegments}
                   questions={currentStepQuestions}
                   isLastStep={isLastStep}
-                  // Popup uses the full-width footer bar below instead of the inline submit-row badge.
-                  branding={Boolean(settings?.branding) && !isPopup}
+                  branding={Boolean(settings?.branding)}
                 />
               </m.div>
             </AnimatePresence>
           </LazyMotion>
         )}
       </div>
-      {isPopup && settings?.branding && <PopupBrandingBar />}
     </div>
   );
 };

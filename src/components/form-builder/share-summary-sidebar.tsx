@@ -2,7 +2,14 @@ import { log } from "evlog";
 import type { AnyFieldApi } from "@tanstack/react-form";
 import { useForm as useTanstackForm } from "@tanstack/react-form";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { CodeXmlIcon, LinkIcon, PlusIcon, RocketIcon, XIcon } from "@/components/ui/icons";
+import {
+  CheckIcon,
+  CodeXmlIcon,
+  LinkIcon,
+  PlusIcon,
+  RocketIcon,
+  XIcon,
+} from "@/components/ui/icons";
 import { memo, useCallback, useMemo, useState } from "react";
 // eslint-disable-next-line react-doctor/no-flush-sync -- flushSync is required so the synchronous router navigation captures the field state update inside the same View Transition snapshot
 import { flushSync } from "react-dom";
@@ -222,13 +229,16 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
   const docCustomDomainId = doc?.customDomainId;
   const docSlug = doc?.slug;
 
-  const [domainState, setDomainState] = useState<{
+  // Local override wins over the (possibly stale) doc so an explicit assign/unlink reflects
+  // instantly — a plain `docCustomDomainId ?? …` kept showing the old domain after unlinking,
+  // because a truthy doc value shadowed the local `null`. `null` here = explicitly unlinked.
+  const [domainOverride, setDomainOverride] = useState<{
     domainId: string | null;
     slug: string | null;
-  }>({ domainId: docCustomDomainId ?? null, slug: docSlug ?? null });
+  } | null>(null);
 
-  const activeDomainId = docCustomDomainId ?? domainState.domainId;
-  const activeSlug = docSlug ?? domainState.slug;
+  const activeDomainId = domainOverride ? domainOverride.domainId : (docCustomDomainId ?? null);
+  const activeSlug = domainOverride ? domainOverride.slug : (docSlug ?? null);
 
   const { data: domains } = useQuery({
     ...orgDomainsQueryOptions(orgId ?? ""),
@@ -241,7 +251,7 @@ export const ShareSummarySidebar = ({ formId }: ShareSummarySidebarProps) => {
   );
 
   const handleDomainAssigned = useCallback((domainId: string | null, slug: string | null) => {
-    setDomainState({ domainId, slug });
+    setDomainOverride({ domainId, slug });
   }, []);
 
   // Soft Pro gate: free drafts can hold Pro styles; publishing asks upgrade-or-strip first.
@@ -1104,6 +1114,9 @@ interface CustomDomainRowProps {
 
 // Sentinel dropdown row: opens workspace domain settings instead of selecting a domain.
 const ADD_DOMAIN_VALUE = "__add_domain__";
+// Sentinel value assigned to the *currently-selected* domain item so re-clicking it is a real
+// value change (Base UI never fires onValueChange for the already-selected value) → unlinks it.
+const REMOVE_DOMAIN_VALUE = "__remove_domain__";
 
 // No verified domains → a single "Add Domain" button jumps straight to settings (one click, no
 // dropdown). Domains exist → a dropdown to pick one, unlink the current one, or add another.
@@ -1156,6 +1169,10 @@ const CustomDomainRow = ({
         settingsDialogStore.open("domains");
         return;
       }
+      if (value === REMOVE_DOMAIN_VALUE) {
+        assignDomain(null);
+        return;
+      }
       assignDomain(value || null);
     },
     [assignDomain],
@@ -1191,20 +1208,18 @@ const CustomDomainRow = ({
                   <PlusIcon className="size-4" />
                   Add domain
                 </SelectItem>
-                {/* Single-select with toggle-off: the selected row shows a tick (SelectItem's built-in
-                    indicator); clicking it again unlinks the domain so it's free for another form.
-                    onValueChange doesn't fire on a same-value re-click, so deselect rides onClick. */}
-                {listedDomains.map((d) => (
-                  <SelectItem
-                    key={d.id}
-                    value={d.id}
-                    onClick={() => {
-                      if (customDomainId === d.id) assignDomain(null);
-                    }}
-                  >
-                    {d.domain}
-                  </SelectItem>
-                ))}
+                {/* Single-select with toggle-off: the selected row shows a check and carries the
+                    REMOVE sentinel as its value, so clicking it again is a real value change that
+                    unlinks the domain (freeing it for another form). */}
+                {listedDomains.map((d) => {
+                  const selected = customDomainId === d.id;
+                  return (
+                    <SelectItem key={d.id} value={selected ? REMOVE_DOMAIN_VALUE : d.id}>
+                      <CheckIcon className={selected ? "size-4" : "size-4 opacity-0"} />
+                      {d.domain}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </FeatureGate>

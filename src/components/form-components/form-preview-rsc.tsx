@@ -9,7 +9,7 @@ import {
 import { SuccessCheck } from "@/components/transitions/success-check";
 import { Button } from "@/components/ui/button";
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
-import { FormBrandingBadge } from "@/components/form-components/step-form";
+import { brandingRowStyle, FormBrandingBadge } from "@/components/form-components/step-form";
 import { ProgressBar } from "@/routes/forms/-components/progress-bar";
 import { EmailVerificationContext } from "@/components/form-components/email-verification-context";
 import type { EmailVerificationStore } from "@/components/form-components/email-verification-context";
@@ -165,6 +165,7 @@ const StepButton = ({
     const button = (
       <Button
         type="submit"
+        data-bf-button=""
         style={buttonStyle}
         className="h-8 gap-1.5 rounded-lg px-2.5"
         suffix={<ChevronRightIcon className="size-4" />}
@@ -188,6 +189,7 @@ const StepButton = ({
     // Trailing chevron matches the Next button (Figma "→") and keeps the last glyph from clipping.
     <Button
       type="submit"
+      data-bf-button=""
       style={buttonStyle}
       className="h-8 gap-1.5 rounded-lg px-2.5"
       suffix={<ChevronRightIcon className="size-4" />}
@@ -390,10 +392,13 @@ const StepFormRSC = ({
           : action?.buttonText || actionDefaultText;
 
       return (
-        // Prev + Next/Submit grouped left (8px gap), branding pushed right (Figma 27112-20305).
+        // Prev + Next/Submit grouped; branding placed opposite per Buttons → Alignment (Figma 27112-20305).
         <div
-          className="flex w-full items-center justify-between gap-3"
-          style={{ maxWidth: "var(--bf-input-width)" }}
+          className={`flex w-full items-center gap-3 ${branding ? "" : "justify-between"}`}
+          style={{
+            maxWidth: "var(--bf-input-width)",
+            ...(branding ? brandingRowStyle : undefined),
+          }}
         >
           <div className="flex items-center gap-2">
             {prev && (
@@ -445,8 +450,12 @@ const StepFormRSC = ({
         <TypedComposite src={stepRSC.src} Field={FieldSlot} ButtonGroup={ButtonGroupSlot} />
         {autoActionButton &&
           (navVariant === "footer" ? (
-            // Full-page one-at-a-time footer (Figma 27112:21064): Back / Next → left, branding right.
-            <div className="flex w-full items-center justify-between gap-3">
+            // Full-page one-at-a-time footer (Figma 27112:21064): Back / Next grouped, branding
+            // placed opposite per Buttons → Alignment.
+            <div
+              className={`flex w-full items-center gap-3 ${branding ? "" : "justify-between"}`}
+              style={branding ? brandingRowStyle : undefined}
+            >
               <div className="flex items-center gap-2">
                 {/* Back appears only when there's a previous step (Figma 27015:16542 step 1 = Next only). */}
                 {canGoBack && (

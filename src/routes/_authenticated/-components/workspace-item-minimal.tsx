@@ -2,7 +2,7 @@ import { ThemedFormIcon } from "@/components/icon-picker";
 import { IconSwap } from "@/components/transitions/icon-swap";
 import { SidebarItem } from "@/components/sidebar-item";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,6 +10,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -106,7 +109,6 @@ export const WorkspaceItemMinimal = ({
 }: WorkspaceItemMinimalProps) => {
   const router = useRouter();
   const [isCreatingForm, setIsCreatingForm] = useState(false);
-  const [sortExpanded, setSortExpanded] = useState(false);
 
   const {
     attributes,
@@ -122,10 +124,6 @@ export const WorkspaceItemMinimal = ({
     transition,
     opacity: isThisDragging ? 0.5 : 1,
   };
-
-  const handlePopoverOpenChange = useCallback((open: boolean) => {
-    if (!open) setSortExpanded(false);
-  }, []);
 
   const sortOptions = [
     { value: "recent", label: "Recent First", icon: CalendarIcon },
@@ -193,7 +191,7 @@ export const WorkspaceItemMinimal = ({
                 iconB={<Loader2Icon className="animate-spin" />}
               />
             </Button>
-            <DropdownMenu onOpenChange={handlePopoverOpenChange}>
+            <DropdownMenu>
               <DropdownMenuTrigger
                 render={
                   <Button
@@ -208,44 +206,27 @@ export const WorkspaceItemMinimal = ({
                 <MoreHorizontalIcon />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48" sideOffset={4}>
-                <div
-                  onMouseEnter={() => setSortExpanded(true)}
-                  onMouseLeave={() => setSortExpanded(false)}
-                >
-                  <Collapsible open={sortExpanded} onOpenChange={setSortExpanded}>
-                    <CollapsibleTrigger className="inline-flex h-[26px] w-full cursor-pointer items-center gap-1.5 overflow-hidden rounded-lg px-2 py-[5.5px] text-[13px] text-foreground transition-colors">
-                      <currentSort.icon className="size-4 shrink-0" />
-                      <span className="flex-1 text-left">{currentSort.label}</span>
-                      <ChevronDownIcon
-                        className={cn("size-3 shrink-0 transition-transform duration-200")}
-                      />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0">
-                      <div className="flex flex-col pt-1">
-                        <DropdownMenuGroup>
-                          <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                          {sortOptions.map((option) => (
-                            <DropdownMenuItem
-                              key={option.value}
-                              closeOnClick={false}
-                              onClick={() => {
-                                onSortChange(option.value);
-                                setSortExpanded(false);
-                              }}
-                              className={cn(sortMode === option.value && "bg-black/5")}
-                            >
-                              <option.icon />
-                              <span className="flex-1 text-left">{option.label}</span>
-                              {sortMode === option.value && (
-                                <CheckIcon className="size-3 shrink-0" />
-                              )}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuGroup>
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </div>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="text-[13px]">
+                    <currentSort.icon className="size-4 shrink-0" />
+                    <span className="flex-1 text-left whitespace-nowrap">{currentSort.label}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                    {sortOptions.map((option) => (
+                      <DropdownMenuItem
+                        key={option.value}
+                        closeOnClick={false}
+                        onClick={() => onSortChange(option.value)}
+                        className={cn(sortMode === option.value && "bg-black/5")}
+                      >
+                        <option.icon />
+                        <span className="flex-1 text-left">{option.label}</span>
+                        {sortMode === option.value && <CheckIcon className="size-3 shrink-0" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>Workspace</DropdownMenuLabel>
                   <DropdownMenuItem onClick={handleCreateForm} disabled={isCreatingForm}>
@@ -419,7 +400,6 @@ const WorkspaceFormMinimal = ({
 }: WorkspaceFormMinimalProps) => {
   const { data: session } = useSession();
   const userId = session?.user?.id;
-  const [moveExpanded, setMoveExpanded] = useState(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: form.id,
@@ -526,39 +506,23 @@ const WorkspaceFormMinimal = ({
               </span>
             </DropdownMenuItem>
             {otherWorkspaces.length > 0 && (
-              <div
-                onMouseEnter={() => setMoveExpanded(true)}
-                onMouseLeave={() => setMoveExpanded(false)}
-              >
-                <Collapsible open={moveExpanded} onOpenChange={setMoveExpanded}>
-                  <CollapsibleTrigger className="inline-flex h-[26px] w-full cursor-pointer items-center gap-1.5 overflow-hidden rounded-lg px-2 py-[5.5px] text-[13px] text-foreground transition-colors hover:bg-accent">
-                    <FolderIcon className="size-3.5 shrink-0" />
-                    <span className="flex-1 text-left">Move to workspace</span>
-                    <ChevronDownIcon
-                      className={cn(
-                        "size-3 shrink-0 transition-transform duration-200",
-                        moveExpanded && "rotate-180",
-                      )}
-                    />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0">
-                    <div className="flex flex-col pt-1">
-                      {otherWorkspaces.map((ws) => (
-                        <DropdownMenuItem
-                          key={ws.id}
-                          closeOnClick={false}
-                          onClick={() => {
-                            handleMoveToWorkspace(ws.id);
-                            setMoveExpanded(false);
-                          }}
-                        >
-                          <span className="flex-1 truncate text-left">{ws.name}</span>
-                        </DropdownMenuItem>
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="text-[13px]">
+                  <FolderIcon className="size-3.5 shrink-0" />
+                  <span className="flex-1 text-left whitespace-nowrap">Move to workspace</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {otherWorkspaces.map((ws) => (
+                    <DropdownMenuItem
+                      key={ws.id}
+                      closeOnClick={false}
+                      onClick={() => handleMoveToWorkspace(ws.id)}
+                    >
+                      <span className="flex-1 truncate text-left">{ws.name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             )}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />

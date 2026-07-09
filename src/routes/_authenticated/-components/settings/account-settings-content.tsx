@@ -693,8 +693,9 @@ interface DeleteAccountSectionProps {
 const DeleteAccountSection = ({ handleDeleteAccount, isPending }: DeleteAccountSectionProps) => (
   <section className="flex flex-col gap-[10px]">
     <h3 className="text-base font-medium text-foreground">Delete Account</h3>
-    <p className="text-base leading-[1.5] text-foreground">
-      If you no longer wish to use recollect, you can permanently delete your account.
+    <p className="text-base leading-[1.5] font-[420] tracking-[0.28px] text-gray-800">
+      If you no longer want to use Reform, you can delete it permanently. All your forms,
+      submissions, and workspaces will be deleted.
     </p>
     <Button
       variant="secondary"
