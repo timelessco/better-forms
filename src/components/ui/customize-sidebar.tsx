@@ -945,7 +945,7 @@ const ButtonsSection = ({
         isAuto={!customization.buttonWidth}
         onAutoChange={() => resetScrubberField("buttonWidth")}
         min={80}
-        max={400}
+        max={200}
         step={4}
         unit="px"
         className={CONFIG_INPUT_CLS}
@@ -958,7 +958,7 @@ const ButtonsSection = ({
         isAuto={!customization.buttonHeight}
         onAutoChange={() => resetScrubberField("buttonHeight")}
         min={24}
-        max={64}
+        max={46}
         step={1}
         unit="px"
         className={CONFIG_INPUT_CLS}

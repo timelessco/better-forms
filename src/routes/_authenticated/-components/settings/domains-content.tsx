@@ -18,9 +18,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { InputGroup, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
+import { useSettingsDialog } from "@/hooks/use-settings-dialog";
 import { auth, useSession } from "@/lib/auth/auth-client";
 import { DOMAIN_LIMITS } from "@/lib/config/plan-config";
 import { getDnsInstructions } from "@/lib/dns-instructions";
+import { detectDnsProvider } from "@/lib/dns-provider";
 import {
   addDomain,
   orgDomainsQueryOptions,
@@ -93,6 +95,7 @@ const StatusBadge = ({ status }: { status: DomainStatus }) => (
 export const DomainsContent = () => {
   const queryClient = useQueryClient();
   const { data: session, isPending: isSessionPending } = useSession();
+  const { setDomainsDetailOpen } = useSettingsDialog();
   const domainInputId = useId();
 
   const [newDomain, setNewDomain] = useState("");
@@ -108,6 +111,18 @@ export const DomainsContent = () => {
   }, []);
   // Stacked detail screen: the domain whose DNS records / config is open (null = list).
   const [selectedDomainId, setSelectedDomainId] = useState<string | null>(null);
+  // Keep the dialog title in sync: the detail screen owns its own header (Figma 26281-7612).
+  const openDetail = useCallback(
+    (id: string) => {
+      setSelectedDomainId(id);
+      setDomainsDetailOpen(true);
+    },
+    [setDomainsDetailOpen],
+  );
+  const closeDetail = useCallback(() => {
+    setSelectedDomainId(null);
+    setDomainsDetailOpen(false);
+  }, [setDomainsDetailOpen]);
 
   const orgId = session?.session?.activeOrganizationId as string | undefined;
 
@@ -155,7 +170,7 @@ export const DomainsContent = () => {
     onSuccess: (_data, domainId) => {
       void queryClient.invalidateQueries({ queryKey: ["org-domains", orgId] });
       clearDnsRecords(domainId);
-      setSelectedDomainId((prev) => (prev === domainId ? null : prev));
+      if (selectedDomainId === domainId) closeDetail();
       toast.success("Domain removed");
     },
     onError: (error: unknown) => {
@@ -259,7 +274,7 @@ export const DomainsContent = () => {
         dnsRecords={dnsRecordsByDomainId[selectedDomain.id]}
         isRecheckPending={recheckMutation.isPending}
         isUpdateMetaPending={updateMetaMutation.isPending}
-        onBack={() => setSelectedDomainId(null)}
+        onBack={closeDetail}
         onRecheck={() => mutateRecheck(selectedDomain.id)}
         onUpdateMeta={mutateUpdateMeta}
       />
@@ -298,7 +313,7 @@ export const DomainsContent = () => {
                 domain={domain}
                 isLast={i === domains.length - 1}
                 isRecheckPending={recheckMutation.isPending}
-                onOpen={() => setSelectedDomainId(domain.id)}
+                onOpen={() => openDetail(domain.id)}
                 onRecheck={() => mutateRecheck(domain.id)}
                 onDelete={() => handleDelete(domain)}
               />
@@ -465,7 +480,7 @@ const DomainDetail = ({
           >
             <ChevronLeftIcon className="size-4" />
           </button>
-          <span className="truncate text-xl text-foreground">{domain.domain}</span>
+          <span className="truncate text-xl font-[420] text-gray-950">{domain.domain}</span>
         </div>
         {domain.status !== "verified" && (
           <Button
@@ -473,7 +488,7 @@ const DomainDetail = ({
             size="sm"
             onClick={onRecheck}
             disabled={isRecheckPending}
-            className="h-7 rounded-lg bg-[var(--color-gray-200)] px-2 text-base font-medium tracking-[0.14px] text-foreground hover:bg-[var(--color-gray-300)]"
+            className="h-7 rounded-lg bg-[var(--color-gray-200)] px-2 text-base font-[450] tracking-[0.14px] text-foreground hover:bg-[var(--color-gray-300)]"
             prefix={isRecheckPending ? <Loader2Icon className="size-4 animate-spin" /> : undefined}
           >
             Verify Now
@@ -488,7 +503,7 @@ const DomainDetail = ({
           onUpdateMeta={onUpdateMeta}
         />
       ) : (
-        <DomainDnsRecords records={records} />
+        <DomainDnsRecords records={records} domain={domain.domain} />
       )}
     </div>
   );
@@ -504,8 +519,10 @@ const DnsKeyValueRow = ({
   copyText?: string;
 }) => (
   <div className="flex items-center gap-3 py-[7px]">
-    <span className="min-w-0 flex-1 text-base text-muted-foreground">{label}</span>
-    <span className="flex items-center gap-1.5 text-base whitespace-nowrap text-gray-800">
+    <span className="min-w-0 flex-1 text-base font-[420] text-muted-foreground font-opsz-24">
+      {label}
+    </span>
+    <span className="flex items-center gap-1.5 text-base font-[420] whitespace-nowrap text-gray-800 font-opsz-24">
       <span className="truncate">{value}</span>
       {copyText && (
         <CopyButton text={copyText} variant="ghost" size="icon-xs" aria-label={`Copy ${label}`} />
@@ -514,27 +531,75 @@ const DnsKeyValueRow = ({
   </div>
 );
 
-const DomainDnsRecords = ({ records }: { records: DnsRecord[] }) => (
+const DomainDnsRecords = ({ records, domain }: { records: DnsRecord[]; domain: string }) => (
   <div className="flex flex-col gap-4">
     <div className="flex flex-col gap-1">
-      <p className="text-base font-medium text-foreground">DNS records</p>
-      <p className="text-base leading-[1.5] tracking-[0.28px] text-muted-foreground">
+      <p className="text-base font-[450] text-foreground">DNS records</p>
+      <p className="text-base leading-[1.5] font-[420] tracking-[0.28px] text-muted-foreground font-opsz-24">
         Add these records to your domain name provider&rsquo;s DNS settings.
       </p>
     </div>
-    <div className="flex flex-col gap-4">
-      {records.map((rec, i) => (
-        <div key={`${rec.type}-${rec.name}-${rec.value}`} className="flex flex-col">
-          {i > 0 && <div className="mb-2 h-px w-full bg-[var(--color-gray-100)]" />}
-          <DnsKeyValueRow label="Record type" value={rec.type} />
-          <DnsKeyValueRow label="Name" value={rec.shortName ?? rec.name} />
-          <DnsKeyValueRow label="Value" value={rec.value} copyText={rec.value} />
-          <DnsKeyValueRow label="TTL" value="Auto" />
-        </div>
-      ))}
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-4">
+        {records.map((rec, i) => (
+          <div key={`${rec.type}-${rec.name}-${rec.value}`} className="flex flex-col">
+            {i > 0 && <div className="mb-2 h-px w-full bg-[var(--color-gray-100)]" />}
+            <DnsKeyValueRow label="Record type" value={rec.type} />
+            <DnsKeyValueRow label="Name" value={rec.shortName ?? rec.name} />
+            <DnsKeyValueRow label="Value" value={rec.value} copyText={rec.value} />
+            <DnsKeyValueRow label="TTL" value="Auto" />
+          </div>
+        ))}
+      </div>
+      <DetectedProviderRow domain={domain} />
     </div>
   </div>
 );
+
+// Figma node 26286:8070 — a pastel "Detected provider" hint resolved client-side (DoH NS lookup).
+// While detecting we show a loading row; if no provider is found we render nothing.
+const DetectedProviderRow = ({ domain }: { domain: string }) => {
+  const {
+    data: provider,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["dns-provider", domain],
+    queryFn: ({ signal }) => detectDnsProvider(domain, signal),
+    enabled: Boolean(domain),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-1.5 rounded-lg bg-[var(--color-gray-100)] px-2.5 py-[7px] text-base font-[420] tracking-[0.14px] text-muted-foreground font-opsz-24">
+        <Loader2Icon className="size-3.5 animate-spin" />
+        Detecting provider&hellip;
+      </div>
+    );
+  }
+
+  if (isError || !provider) return null;
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg bg-[var(--color-gray-100)] px-2.5 py-[7px] text-base font-[420] tracking-[0.14px] font-opsz-24">
+      <span className="min-w-0 flex-1 text-muted-foreground">
+        Detected provider: <span className="tracking-[0.16px] text-gray-800">{provider.name}</span>
+      </span>
+      {provider.dashboardUrl && (
+        <a
+          href={provider.dashboardUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="whitespace-nowrap text-gray-800 hover:underline"
+        >
+          {provider.dashboardUrl}
+        </a>
+      )}
+    </div>
+  );
+};
 
 interface DomainConfigPanelProps {
   domain: Domain;

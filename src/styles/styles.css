@@ -34,6 +34,7 @@
   body {
     @apply bg-background text-foreground;
     scrollbar-gutter: stable; /* reserve scrollbar space so content doesn't reflow */
+    overscroll-behavior: contain; /* prevent page bounce/scroll propagation */
   }
 
   /* When the form-builder editor is themed, propagate its background to html/body
@@ -889,6 +890,7 @@
    to the small viewport width where no container exists (public form = full window). */
 [data-bf-cover-pane] {
   container-type: inline-size;
+  overflow-x: clip; /* contain full-bleed cover breakout — prevents horizontal scroll */
 }
 
 .bf-themed [data-bf-cover] {
@@ -1200,6 +1202,9 @@
 .bf-themed [data-bf-branding] {
   font-variation-settings: var(--font-variation-regular);
   letter-spacing: 0.02em !important;
+  /* Button alignment (Buttons → Alignment) reorders the badge within its flex row: right-aligned
+     buttons push the badge to the left (order -1); left/center keep it after the button. */
+  order: var(--bf-branding-order, 0);
 }
 
 /* Header is excluded from body typography — revert to base layer defaults */
@@ -1518,3 +1523,4 @@ html[data-bf-subnav="prev"]::view-transition-new(bf-submission-record) {
     animation: none;
   }
 }
+

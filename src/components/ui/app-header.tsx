@@ -63,6 +63,9 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { LogoToggle } from "./logo";
 import { useSidebarSafe } from "./sidebar";
+import { useCreateFromTemplate } from "@/hooks/use-create-from-template";
+import { findTemplateMeta } from "@/lib/form-templates";
+import type { FormTemplateId } from "@/lib/form-templates";
 
 interface AppHeaderProps {
   isDistractionHidden?: boolean;
@@ -85,7 +88,11 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
   };
   const pathname = useLocation({ select: (s) => s.pathname });
   const isDashboard = pathname === "/dashboard";
-  const isTemplatesRoute = pathname === "/templates" || pathname.startsWith("/templates/");
+  const isTemplatesIndex = pathname === "/templates";
+  const isTemplateDetail = pathname.startsWith("/templates/") && pathname !== "/templates";
+  const isTemplatesRoute = isTemplatesIndex || isTemplateDetail;
+  const templateIdFromPath = isTemplateDetail ? pathname.split("/")[2] : undefined;
+  const templateMeta = templateIdFromPath ? findTemplateMeta(templateIdFromPath) : undefined;
   const isLandingPage = pathname === "/";
   const isFormBuilder = pathname.startsWith("/form-builder") || pathname.includes("/form-builder/");
   const isEditRoute = pathname.endsWith("/edit");
@@ -297,12 +304,26 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
               <span aria-hidden className="shrink-0 px-0.5 text-gray-400">
                 /
               </span>
-              <Link
-                to="/templates"
-                className="rounded-lg p-1 font-[450] tracking-[0.14px] text-gray-800 hover:text-foreground"
-              >
-                Templates
-              </Link>
+              {isTemplateDetail ? (
+                <>
+                  <Link
+                    to="/templates"
+                    className="rounded-lg p-1 font-[450] tracking-[0.14px] text-gray-500 hover:text-foreground"
+                  >
+                    All Templates
+                  </Link>
+                  <span aria-hidden className="shrink-0 px-0.5 text-gray-400">
+                    /
+                  </span>
+                  <span className="truncate rounded-lg p-1 font-[450] tracking-[0.14px] text-gray-800">
+                    {templateMeta?.label ?? "Template"}
+                  </span>
+                </>
+              ) : (
+                <span className="rounded-lg p-1 font-[450] tracking-[0.14px] text-gray-800">
+                  All Templates
+                </span>
+              )}
             </nav>
           )}
           {isFormBuilder && savedDocs?.[0] && (
@@ -323,6 +344,10 @@ export const AppHeader = ({ isDistractionHidden = false }: AppHeaderProps) => {
             Share sidebar no longer collapses it to a "Preview" label or hides actions. */}
         <div className="flex shrink-0 items-center gap-2">
           {isDashboard && <DashboardHeaderActions />}
+
+          {isTemplateDetail && templateMeta && (
+            <TemplateHeaderActions templateId={templateMeta.id as FormTemplateId} />
+          )}
 
           {isLandingPage && (
             <LandingPageActions
@@ -807,6 +832,22 @@ const LandingPageActions = ({
 // New Form button (Figma 26247:7573). One simple button: with a single workspace it creates
 // straight in the default (top) workspace; with multiple it opens a picker dialog first.
 // Renders only on /dashboard.
+// Figma 27189:13108 — template detail header CTA: black pill, 14/450, same chrome as Publish.
+const TemplateHeaderActions = ({ templateId }: { templateId: FormTemplateId }) => {
+  const { createFromTemplate, isCreating, hasWorkspace } = useCreateFromTemplate();
+  return (
+    <Button
+      type="button"
+      size="sm"
+      disabled={isCreating || !hasWorkspace}
+      onClick={() => createFromTemplate(templateId)}
+      className="h-7 rounded-[min(var(--radius-md),10px)] border-none bg-neutral-950 px-2.5 py-1.5 text-base leading-[1.15] font-[450] tracking-[0.14px] text-white shadow-[0px_1px_1px_0px_rgba(0,0,0,0.06)] transition-all hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-stone-200"
+    >
+      {isCreating ? "Creating…" : "Use Template"}
+    </Button>
+  );
+};
+
 const DashboardHeaderActions = () => {
   const navigate = useNavigate();
   const { data: activeOrg } = useQuery({

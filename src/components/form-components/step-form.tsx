@@ -2,6 +2,7 @@ import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/
 import { APP_NAME } from "@/lib/config/app-config";
 import { TextSwap } from "@/components/transitions/text-swap";
 import { use, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { useFocusFirstField } from "@/hooks/use-focus-first-field";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { Button } from "@/components/ui/button";
@@ -275,9 +276,12 @@ export const StepForm = ({
           showAutoActionButton &&
           !(hideSubmit && isLastStep) &&
           (navVariant === "footer" ? (
-            // Full-page one-at-a-time footer (Figma 27112:21064): Back / Next → on the left,
-            // "Made with Reform." on the right. Enter/Esc still work (handleFieldByFieldKeyDown).
-            <div className="flex w-full items-center justify-between gap-3">
+            // Full-page one-at-a-time footer (Figma 27112:21064): Back / Next grouped, "Made with
+            // Reform." opposite per Buttons → Alignment. Enter/Esc still work (handleFieldByFieldKeyDown).
+            <div
+              className={`flex w-full items-center gap-3 ${branding ? "" : "justify-between"}`}
+              style={branding ? brandingRowStyle : undefined}
+            >
               <div className="flex items-center gap-2">
                 {/* Back appears only when there's a previous step (Figma 27015:16542 step 1 = Next only). */}
                 {canGoBack && (
@@ -395,6 +399,14 @@ const groupSegmentsForRendering = (segments: PreviewSegment[]): GroupedSegment[]
   return result;
 };
 
+// Branding button-row layout driven by Buttons → Alignment (generate-theme-css BUTTON_ALIGN_BRANDING):
+// left button → badge right, right → badge left, center → badge centered below. The badge's `order`
+// (set via [data-bf-branding] in styles.css) does the left/right swap; the row owns direction/justify.
+export const brandingRowStyle: CSSProperties = {
+  flexDirection: "var(--bf-branding-dir, row)" as CSSProperties["flexDirection"],
+  justifyContent: "var(--bf-branding-justify, space-between)",
+};
+
 // Inline form-footer branding (Figma 25778-10461): "Made with Reform." — Inter gray/500 + the
 // Timeless Serif "Reform." wordmark. Renders beside the final Submit when settings.branding is on.
 export const FormBrandingBadge = ({ className }: { className?: string }) => (
@@ -473,6 +485,7 @@ const RenderStepButton = ({
     const button = (
       <Button
         type="submit"
+        data-bf-button
         style={buttonStyle}
         className="h-8 gap-1.5 rounded-lg px-2.5"
         suffix={<ChevronRightIcon className="size-4" />}
@@ -484,14 +497,15 @@ const RenderStepButton = ({
     return grouped ? (
       button
     ) : (
-      // Branding rides the Next row right-aligned (justify-between) — same as the Submit row — so
-      // intermediate steps of a multi-step card form stay branded. Without branding, honor
-      // --bf-button-justify (Buttons → Alignment), fallback right.
+      // Branding rides the Next row opposite the button per Buttons → Alignment; without branding
+      // the button honors --bf-button-justify (fallback right).
       <div
-        className={`mb-4 flex items-center ${showBranding ? "justify-between gap-3" : ""}`}
+        className={`mb-4 flex items-center gap-3`}
         style={{
           maxWidth: "var(--bf-input-width)",
-          ...(showBranding ? {} : { justifyContent: "var(--bf-button-justify, flex-end)" }),
+          ...(showBranding
+            ? brandingRowStyle
+            : { justifyContent: "var(--bf-button-justify, flex-end)" }),
         }}
       >
         {button}
@@ -520,15 +534,14 @@ const RenderStepButton = ({
   return grouped ? (
     submitButton
   ) : (
-    // Branding (Figma 25778-10461) rides the submit row right-aligned (justify-between); keep that
-    // fixed. Otherwise the button row honors --bf-button-justify (Buttons → Alignment), fallback to
-    // the prior default (multi-step right, single-step left).
+    // Branding rides the submit row opposite the button per Buttons → Alignment. Without branding
+    // the button honors --bf-button-justify (fallback: multi-step right, single-step left).
     <div
-      className={`flex items-center ${showBranding ? "justify-between gap-3" : ""}`}
+      className={`flex items-center gap-3`}
       style={{
         maxWidth: "var(--bf-input-width)",
         ...(showBranding
-          ? {}
+          ? brandingRowStyle
           : {
               justifyContent: `var(--bf-button-justify, ${isMultiStep ? "flex-end" : "flex-start"})`,
             }),

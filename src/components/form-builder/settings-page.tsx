@@ -67,9 +67,9 @@ const SettingRow = ({
 }) => (
   <div className="flex w-full items-center gap-5">
     <div className="flex min-w-0 flex-1 flex-col gap-1">
-      <span className="text-base leading-[1.15] font-medium text-gray-900">{label}</span>
+      <span className="text-base leading-[1.15] font-[450] text-gray-900">{label}</span>
       {description && (
-        <p className="text-base leading-[1.5] font-normal tracking-[0.28px] text-gray-600">
+        <p className="text-base leading-[1.5] font-[420] tracking-[0.28px] text-gray-600 font-opsz-24">
           {description}
         </p>
       )}
@@ -227,7 +227,7 @@ const GeneralTab = withForm({
                 value={field.state.value || "English"}
                 onValueChange={(value) => field.handleChange(value ?? "English")}
               >
-                <SelectTrigger className="h-[30px] w-auto shrink-0 gap-1.5 rounded-[8px] border-none bg-gray-50 py-[5.5px] pr-2 pl-2.5 font-case text-sm font-medium text-gray-900 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] data-[size=default]:h-[30px] [&_svg]:size-3 [&_svg]:text-gray-500">
+                <SelectTrigger className="h-[30px] w-auto shrink-0 gap-1.5 rounded-[8px] border-none bg-gray-100 py-[5.5px] pr-2 pl-2.5 font-case text-sm font-[450] text-gray-900 data-[size=default]:h-[30px] [&_svg]:size-3 [&_svg]:text-gray-500">
                   <SelectValue placeholder="Select language" />
                 </SelectTrigger>
                 <SelectContent>
@@ -294,35 +294,6 @@ const GeneralTab = withForm({
               onTimezoneChange={(value) => form.setFieldValue("timezone", value)}
               time={v.dataRetentionTime}
               onTimeChange={(value) => form.setFieldValue("dataRetentionTime", value)}
-            />
-          )}
-        </form.Subscribe>
-
-        <form.Subscribe
-          selector={(state: { values: typeof settingsDefaults }) => ({
-            closeOnDate: state.values.closeOnDate,
-            closeDate: state.values.closeDate,
-            timezone: state.values.timezone,
-            closeTime: state.values.closeTime,
-          })}
-        >
-          {(v: {
-            closeOnDate: boolean;
-            closeDate: string | null;
-            timezone: string | null;
-            closeTime: string | null;
-          }) => (
-            <ScheduleRow
-              label="Schedule form closure"
-              description="Schedule a date on which the form will be closed for new submissions."
-              enabled={v.closeOnDate}
-              onToggle={(checked) => form.setFieldValue("closeOnDate", checked)}
-              date={v.closeDate}
-              onDateChange={(value) => form.setFieldValue("closeDate", value)}
-              timezone={v.timezone}
-              onTimezoneChange={(value) => form.setFieldValue("timezone", value)}
-              time={v.closeTime}
-              onTimeChange={(value) => form.setFieldValue("closeTime", value)}
             />
           )}
         </form.Subscribe>
@@ -539,7 +510,7 @@ const LimitField = ({
   value: number | null;
   onChange: (value: number | null) => void;
 }) => (
-  <div className="flex shrink-0 items-center gap-1.5 overflow-clip rounded-[8px] bg-gray-50 py-[7px] pr-2 pl-2.5 shadow-[0px_0px_1px_0px_rgba(0,0,0,0.54),0px_1px_1px_0px_rgba(0,0,0,0.06)]">
+  <div className="flex shrink-0 items-center gap-1.5 overflow-clip rounded-[8px] bg-gray-100 py-[7px] pr-2 pl-2.5">
     <input
       type="number"
       min={1}
@@ -549,7 +520,7 @@ const LimitField = ({
       onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
       className="field-sizing-content max-w-[6ch] min-w-[2ch] bg-transparent text-base leading-[1.15] font-[420] text-gray-700 outline-none font-opsz-24"
     />
-    <SmallSelectIcon className="size-4 shrink-0 text-gray-700" />
+    <SmallSelectIcon className="size-4 shrink-0 text-gray-900" />
   </div>
 );
 
@@ -666,6 +637,35 @@ const AccessTab = withForm({
             }
           </form.Subscribe>
         </div>
+
+        <form.Subscribe
+          selector={(state: { values: typeof settingsDefaults }) => ({
+            closeOnDate: state.values.closeOnDate,
+            closeDate: state.values.closeDate,
+            timezone: state.values.timezone,
+            closeTime: state.values.closeTime,
+          })}
+        >
+          {(v: {
+            closeOnDate: boolean;
+            closeDate: string | null;
+            timezone: string | null;
+            closeTime: string | null;
+          }) => (
+            <ScheduleRow
+              label="Schedule form closure"
+              description="Schedule a date on which the form will be closed for new submissions."
+              enabled={v.closeOnDate}
+              onToggle={(checked) => form.setFieldValue("closeOnDate", checked)}
+              date={v.closeDate}
+              onDateChange={(value) => form.setFieldValue("closeDate", value)}
+              timezone={v.timezone}
+              onTimezoneChange={(value) => form.setFieldValue("timezone", value)}
+              time={v.closeTime}
+              onTimeChange={(value) => form.setFieldValue("closeTime", value)}
+            />
+          )}
+        </form.Subscribe>
 
         <div className="flex w-full flex-col gap-2">
           <SettingRow
@@ -796,18 +796,18 @@ const SettingsPageInner = ({ formId, isLocal }: { formId: string; isLocal?: bool
             <TabsTrigger
               key={id}
               value={id}
-              className="h-8! flex-none gap-2 px-0! font-[420]! tracking-[0.28px] text-[color:var(--color-gray-550)] hover:text-gray-700 data-active:text-gray-800"
+              className="h-8! flex-none gap-2 px-0! font-[420]! tracking-[0.28px] text-gray-600 font-opsz-24 hover:text-gray-700 data-active:text-gray-950"
             >
               <Icon className="size-4" />
               {label}
             </TabsTrigger>
           ))}
-          <TabsIndicator className="bg-gray-800!" />
+          <TabsIndicator className="bg-gray-950!" />
         </TabsList>
       </Tabs>
 
       <div className="mt-7">
-        <h2 className="text-[15px] leading-[1.15] font-semibold tracking-[0.225px] text-gray-900">
+        <h2 className="text-[15px] leading-[1.15] font-semibold tracking-[0.225px] text-gray-900 font-opsz-24">
           {TABS.find((t) => t.id === activeTab)?.label}
         </h2>
         <div className="mt-6">

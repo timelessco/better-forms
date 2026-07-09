@@ -1,5 +1,6 @@
 import type { TElement } from "platejs";
 
+import { createFormButtonNode } from "@/components/ui/form-button-node";
 import { createFormHeaderNode } from "@/lib/form-schema/form-header-factory";
 import { buildFormBlockNodes } from "@/lib/editor/ai-form-nodes";
 
@@ -58,8 +59,9 @@ export const FORM_TEMPLATE_CATEGORY_LABEL: Record<FormTemplateCategory, string> 
   education: "Education",
 };
 
-// Per-category cover tint so gallery cards read distinctly at a glance.
+// Per-category cover tint so gallery cards + form headers read distinctly at a glance.
 const COVER = {
+  general: "#94A3B8",
   feedback: "#6366F1",
   events: "#EC4899",
   registration: "#14B8A6",
@@ -67,6 +69,22 @@ const COVER = {
   sales: "#3B82F6",
   education: "#8B5CF6",
 } as const;
+
+// Sprite icon names (icon-data) seeded into each template's formHeader avatar.
+const TEMPLATE_ICONS: Record<FormTemplateId, string> = {
+  blank: "file-01",
+  survey: "clipboard-check",
+  feedback: "message-chat-circle",
+  eventRsvp: "calendar-check-01",
+  registration: "ticket-01",
+  contact: "mail-01",
+  jobApplication: "briefcase-01",
+  newsletter: "mail-03",
+  bugReport: "alert-triangle",
+  orderForm: "shopping-bag-01",
+  courseEnrollment: "graduation-hat-01",
+  leadGen: "target-01",
+};
 
 /** Curated built-in templates. `featured` ones also surface in the dashboard quick row. */
 export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
@@ -76,7 +94,7 @@ export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
     description: "Start from scratch with an empty form.",
     category: "general",
     tags: ["empty", "scratch"],
-    cover: null,
+    cover: COVER.general,
     creator: "Reform",
     featured: true,
   },
@@ -210,8 +228,16 @@ export const FORM_TEMPLATE_META: readonly FormTemplateMeta[] = [
 export const findTemplateMeta = (id: string): FormTemplateMeta | undefined =>
   FORM_TEMPLATE_META.find((t) => t.id === id);
 
-const header = (title: string): TElement =>
-  createFormHeaderNode({ title, icon: null, cover: null }) as unknown as TElement;
+const header = (title: string, id: FormTemplateId): TElement => {
+  const meta = findTemplateMeta(id);
+  return createFormHeaderNode({
+    title,
+    icon: TEMPLATE_ICONS[id],
+    cover: meta?.cover ?? COVER.general,
+  }) as unknown as TElement;
+};
+
+const submit = (): TElement => createFormButtonNode("submit") as unknown as TElement;
 
 const p = (text: string): TElement => ({ type: "p", children: [{ text }] }) as TElement;
 
@@ -245,16 +271,15 @@ const ratingNodes = (label: string): TElement[] => [
   { type: "formRating", starCount: 5, children: [{ text: "" }] } as TElement,
 ];
 
-/** Builds pre-seeded Plate content for a template. Each template starts with a header + intro,
- *  followed by relevant starter fields. */
+/** Builds pre-seeded Plate content for a template. Header (icon + cover) + intro + fields + submit. */
 export const buildTemplateContent = (id: FormTemplateId): TElement[] => {
   switch (id) {
     case "blank":
-      return [header("Untitled"), p("Start building your form...")];
+      return [header("Untitled", id), p("Start building your form..."), submit()];
 
     case "survey":
       return [
-        header("Customer Survey"),
+        header("Customer Survey", id),
         p("We'd love your feedback. It takes about 2 minutes."),
         ...block({ fieldType: "input", label: "What's your name?", required: false }),
         ...block({ fieldType: "email", label: "Email address", required: true }),
@@ -269,11 +294,12 @@ export const buildTemplateContent = (id: FormTemplateId): TElement[] => {
           label: "Any other thoughts?",
           placeholder: "Share your experience...",
         }),
+        submit(),
       ];
 
     case "feedback":
       return [
-        header("Feedback"),
+        header("Feedback", id),
         p("Tell us what you think."),
         ...ratingNodes("How would you rate your experience?"),
         ...block({
@@ -282,11 +308,12 @@ export const buildTemplateContent = (id: FormTemplateId): TElement[] => {
           placeholder: "Write your feedback...",
         }),
         ...block({ fieldType: "input", label: "Name (optional)", required: false }),
+        submit(),
       ];
 
     case "eventRsvp":
       return [
-        header("Event RSVP"),
+        header("Event RSVP", id),
         p("Let us know if you can make it."),
         ...block({ fieldType: "input", label: "Full name", required: true }),
         ...block({ fieldType: "email", label: "Email", required: true }),
@@ -302,11 +329,12 @@ export const buildTemplateContent = (id: FormTemplateId): TElement[] => {
           placeholder: "Let us know...",
           required: false,
         }),
+        submit(),
       ];
 
     case "registration":
       return [
-        header("Registration"),
+        header("Registration", id),
         p("Sign up in seconds."),
         ...block({ fieldType: "input", label: "Full name", required: true }),
         ...block({ fieldType: "email", label: "Email address", required: true }),
@@ -317,11 +345,12 @@ export const buildTemplateContent = (id: FormTemplateId): TElement[] => {
           options: ["Workshop", "Keynote", "Networking"],
         }),
         ...block({ fieldType: "date", label: "Preferred start date" }),
+        submit(),
       ];
 
     case "contact":
       return [
-        header("Contact Us"),
+        header("Contact Us", id),
         p("Have a question? Send us a message and we'll get back to you."),
         ...block({ fieldType: "input", label: "Your name", required: true }),
         ...block({ fieldType: "email", label: "Email address", required: true }),
@@ -336,11 +365,12 @@ export const buildTemplateContent = (id: FormTemplateId): TElement[] => {
           placeholder: "How can we help?",
           required: true,
         }),
+        submit(),
       ];
 
     case "jobApplication":
       return [
-        header("Job Application"),
+        header("Job Application", id),
         p("We're excited to learn more about you."),
         ...block({ fieldType: "input", label: "Full name", required: true }),
         ...block({ fieldType: "email", label: "Email address", required: true }),
@@ -352,11 +382,12 @@ export const buildTemplateContent = (id: FormTemplateId): TElement[] => {
           label: "Why are you a great fit?",
           placeholder: "A few sentences...",
         }),
+        submit(),
       ];
 
     case "newsletter":
       return [
-        header("Newsletter Signup"),
+        header("Newsletter Signup", id),
         p("Get the latest updates straight to your inbox."),
         ...block({ fieldType: "input", label: "First name", required: false }),
         ...block({ fieldType: "email", label: "Email address", required: true }),
@@ -365,11 +396,12 @@ export const buildTemplateContent = (id: FormTemplateId): TElement[] => {
           label: "What are you interested in?",
           options: ["Product updates", "Tips & guides", "Events", "Offers"],
         }),
+        submit(),
       ];
 
     case "bugReport":
       return [
-        header("Bug Report"),
+        header("Bug Report", id),
         p("Found something broken? Help us fix it."),
         ...block({ fieldType: "input", label: "Summary", required: true }),
         ...block({
@@ -385,11 +417,12 @@ export const buildTemplateContent = (id: FormTemplateId): TElement[] => {
         }),
         ...block({ fieldType: "fileUpload", label: "Screenshots", required: false }),
         ...block({ fieldType: "email", label: "Your email (for follow-up)", required: false }),
+        submit(),
       ];
 
     case "orderForm":
       return [
-        header("Order Form"),
+        header("Order Form", id),
         p("Place your order below."),
         ...block({ fieldType: "input", label: "Full name", required: true }),
         ...block({ fieldType: "email", label: "Email address", required: true }),
@@ -405,11 +438,12 @@ export const buildTemplateContent = (id: FormTemplateId): TElement[] => {
           placeholder: "Street, city, postal code",
           required: true,
         }),
+        submit(),
       ];
 
     case "courseEnrollment":
       return [
-        header("Course Enrollment"),
+        header("Course Enrollment", id),
         p("Reserve your spot in the program."),
         ...block({ fieldType: "input", label: "Full name", required: true }),
         ...block({ fieldType: "email", label: "Email address", required: true }),
@@ -424,11 +458,12 @@ export const buildTemplateContent = (id: FormTemplateId): TElement[] => {
           options: ["New to this", "Some experience", "Experienced"],
         }),
         ...block({ fieldType: "date", label: "Preferred start date" }),
+        submit(),
       ];
 
     case "leadGen":
       return [
-        header("Get in Touch"),
+        header("Get in Touch", id),
         p("Tell us about your needs and we'll reach out."),
         ...block({ fieldType: "input", label: "Full name", required: true }),
         ...block({ fieldType: "email", label: "Work email", required: true }),
@@ -443,9 +478,10 @@ export const buildTemplateContent = (id: FormTemplateId): TElement[] => {
           label: "What are you looking to achieve?",
           placeholder: "Tell us more...",
         }),
+        submit(),
       ];
 
     default:
-      return [header("Untitled"), p("Start building your form...")];
+      return [header("Untitled", "blank"), p("Start building your form..."), submit()];
   }
 };

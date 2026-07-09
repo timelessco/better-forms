@@ -59,6 +59,13 @@ import Loader from "@/components/ui/loader";
 import { LogoToggle } from "@/components/ui/logo";
 import { NotFound } from "@/components/ui/not-found";
 import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
   RIGHT_SIDEBAR_WIDTH_DEFAULT,
   RIGHT_SIDEBAR_WIDTH_KEY,
   RIGHT_SIDEBAR_WIDTH_MAX,
@@ -529,7 +536,7 @@ const AppSidebar = () => {
   const { data: formsData } = useOrgForms(activeOrg?.id);
   const submissionCounts = useSubmissionCounts();
   // Recently-opened forms (localStorage, no DB round-trip) resolved against the live listings; fall
-  // back to most-recently-updated when there's no open history yet. Top 6 feed Recent Searches.
+  // back to most-recently-updated when there's no open history yet. Top 4 feed Recent Searches.
   const recentFormIds = useRecentFormIds();
   const formById = useMemo(
     () => new Map((formsData ?? []).map((form) => [form.id, form])),
@@ -539,7 +546,7 @@ const AppSidebar = () => {
     const opened = recentFormIds
       .map((id) => formById.get(id))
       .filter((form): form is NonNullable<typeof form> => Boolean(form));
-    return (opened.length > 0 ? opened : (formsData ?? [])).slice(0, 6);
+    return (opened.length > 0 ? opened : (formsData ?? [])).slice(0, 4);
   }, [recentFormIds, formById, formsData]);
   const { unreadSubmissionCount } = useSubmissionNotifications({ poll: true });
 
@@ -1517,13 +1524,18 @@ const InboxPanelBody = ({ onClose, headerLeft }: InboxPanelBodyProps) => {
           )}
 
           {!hasNotifications && !hasPendingInvitations ? (
-            <div className="flex flex-col items-center justify-center gap-1 py-8 text-center">
-              <p className="text-base text-muted-foreground/50">No notifications yet</p>
-              <p className="max-w-[220px] text-[11px] text-muted-foreground/40">
-                Submission notifications appear here for forms where in-app notifications are
-                enabled.
-              </p>
-            </div>
+            <Empty className="border-none py-8">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <BellIcon />
+                </EmptyMedia>
+                <EmptyTitle>No notifications yet</EmptyTitle>
+                <EmptyDescription>
+                  Submission notifications appear here for forms where in-app notifications are
+                  enabled.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           ) : null}
         </div>
       </div>

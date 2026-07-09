@@ -11,7 +11,7 @@
     T = (t) => {
       t !== window.location.origin && (L("preconnect", t, "anonymous"), L("dns-prefetch", t));
     },
-    C = (t, e) => {
+    k = (t, e) => {
       let n = !1,
         o = () => {
           n || ((n = !0), e());
@@ -85,7 +85,7 @@
       }
     },
     v = "http://www.w3.org/2000/svg",
-    O = () => {
+    C = () => {
       let t = document.createElementNS(v, "svg");
       (t.setAttribute("class", "bf-bubble__icon"),
         t.setAttribute("viewBox", "0 0 24 24"),
@@ -104,7 +104,7 @@
       for (; t.firstChild; ) t.removeChild(t.firstChild);
       t.appendChild(e);
     },
-    k = (t, e, n) => {
+    O = (t, e, n) => {
       if (n && /^(https?:\/\/|\/)/.test(n)) {
         let i = document.createElement("img");
         ((i.className = "bf-bubble__icon"), (i.src = n), (i.alt = ""), b(t, i));
@@ -116,10 +116,10 @@
         return;
       }
       if (!(n && /^[a-z0-9-]+$/i.test(n))) {
-        b(t, O());
+        b(t, C());
         return;
       }
-      (b(t, O()),
+      (b(t, C()),
         fetch(`${e}/api/icons/${n}`)
           .then((i) => (i.ok ? i.text() : null))
           .then((i) => {
@@ -137,7 +137,7 @@
         (o.type = "button"),
         (o.className = `bf-bubble bf-bubble--${t.position}`),
         o.setAttribute("aria-label", e?.title || "Open form"),
-        k(o, n, e?.icon),
+        O(o, n, e?.icon),
         document.body.appendChild(o),
         o
       );
@@ -159,9 +159,9 @@
           autoClose: o.autoClose,
           hiddenFields: o.hiddenFields,
         };
-      (C(r, () => e(o.formId, s)),
+      (k(r, () => e(o.formId, s)),
         Q(i, o.formId).then((a) => {
-          a && (a.title && r.setAttribute("aria-label", a.title), a.icon && k(r, i, a.icon));
+          a && (a.title && r.setAttribute("aria-label", a.title), a.icon && O(r, i, a.icon));
         }));
       let l = () => {
         (r.classList.add("bf-bubble--hidden"),
@@ -316,7 +316,7 @@
     A = (t) => {
       ((document.body.style.overflow = ""), j(t));
     },
-    S = (t) => {
+    R = (t) => {
       ((document.body.style.overflow = ""),
         (t.style.opacity = "0"),
         (t.style.transition = "opacity 0.15s ease"),
@@ -324,7 +324,7 @@
           t.remove();
         }, 150));
     },
-    R = (t, e) => {
+    S = (t, e) => {
       let n = Math.min(600, window.innerHeight - 40),
         o = Math.min(e, n);
       ((t.style.height = `${o}px`), (t.style.maxHeight = `${o}px`));
@@ -391,7 +391,10 @@
   position: fixed;
   inset: 0;
   z-index: 2147483000;
-  background-color: rgba(0, 0, 0, 0.5);
+  /* Dark overlay (Figma 27196-14471): black 24% + 6px backdrop blur. */
+  background-color: rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -408,9 +411,8 @@
   position: fixed;
   z-index: 2147483001;
   background-color: #ffffff;
-  /* Figma 26883/26889: 20px radius + elevation/light/xl shadow. */
-  border-radius: 20px;
-  box-shadow: 0px 24px 30px -8px rgba(0, 0, 0, 0.1), 0px 0px 10px 2px rgba(0, 0, 0, 0.04), 0px 0px 1px 0px rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -438,7 +440,7 @@
 .bf-iframe-container {
   flex: 1;
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: 12px;
 }
 
 .bf-iframe {
@@ -454,11 +456,10 @@
   top: 12px;
   right: 12px;
   z-index: 10;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: none;
-  /* Figma 26883:11949 — rounded-8px chip, not a circle. */
-  border-radius: 8px;
+  border-radius: 50%;
   background-color: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(4px);
   cursor: pointer;
@@ -769,7 +770,7 @@
     },
     ce = (t) => {
       let e = p.get(t);
-      e && (P(e.iframe), e.overlay && S(e.overlay), p.delete(t));
+      e && (P(e.iframe), e.overlay && R(e.overlay), p.delete(t));
     },
     de = (t) => {
       let e;
@@ -788,12 +789,16 @@
       if (n)
         switch (e.event) {
           case "Reform.FormLoaded":
-            n.loadingEl && y(n.loadingEl);
+            if ((n.loadingEl && y(n.loadingEl), e.frameRadius)) {
+              n.container.style.borderRadius = e.frameRadius;
+              let o = n.iframe.parentElement;
+              o && (o.style.borderRadius = e.frameRadius);
+            }
             break;
           case "Reform.Resize":
             if (typeof e.height == "number") {
               let o = Math.max(n.maxContentHeight ?? 0, e.height);
-              ((n.maxContentHeight = o), M(n.iframe, o), R(n.container, o));
+              ((n.maxContentHeight = o), M(n.iframe, o), S(n.container, o));
             }
             break;
           case "Reform.FormSubmitted":
