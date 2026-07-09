@@ -11,6 +11,7 @@
     "**/styles.css",
     "**/node_modules/**",
     "**/.output/**",
-    "**/dist/**"
+    "**/dist/**",
+    "public/**/*.js"
   ]
 }
