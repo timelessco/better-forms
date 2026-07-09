@@ -219,7 +219,9 @@ const config = defineConfig({
     // leaving it external (`ssr.external`) breaks the nitro production build
     // (Rollup can't resolve the bare import from `node_modules/.nitro/`). Alias
     // it to a no-op stub so both dev and prod resolve it deterministically.
-    alias: [{ find: "@vercel/oidc", replacement: "/src/lib/vercel-oidc-stub.ts" }],
+    alias: [
+      { find: "@vercel/oidc", replacement: `${import.meta.dirname}/src/lib/vercel-oidc-stub.ts` },
+    ],
   },
   server: {
     sourcemapIgnoreList: (sourcePath) => sourcePath.includes("node_modules"),
