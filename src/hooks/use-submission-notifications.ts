@@ -8,6 +8,7 @@ import type { SerializedSubmissionNotification } from "@/lib/server-fn/notificat
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { parseError } from "@/lib/errors/parse";
+import { safeStorage } from "@/lib/safe-storage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -33,22 +34,6 @@ type PopupState = {
   shownAt: number;
 };
 
-const readJson = <T>(key: string): T | null => {
-  if (typeof window === "undefined") return null;
-
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : null;
-  } catch {
-    return null;
-  }
-};
-
-const writeJson = (key: string, value: unknown) => {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(key, JSON.stringify(value));
-};
-
 const getPollInterval = () => {
   if (typeof document === "undefined") {
     return VISIBLE_POLL_INTERVAL_MS;
@@ -61,10 +46,10 @@ const getPollInterval = () => {
 
 const claimLeader = (tabId: string) => {
   const now = Date.now();
-  const current = readJson<LeaderState>(LEADER_KEY);
+  const current = safeStorage.getJson<LeaderState>(LEADER_KEY);
 
   if (!current || current.tabId === tabId || current.expiresAt <= now) {
-    writeJson(LEADER_KEY, { tabId, expiresAt: now + LEADER_TTL_MS });
+    safeStorage.setJson(LEADER_KEY, { tabId, expiresAt: now + LEADER_TTL_MS });
     return true;
   }
 
@@ -72,15 +57,15 @@ const claimLeader = (tabId: string) => {
 };
 
 const releaseLeader = (tabId: string) => {
-  const current = readJson<LeaderState>(LEADER_KEY);
+  const current = safeStorage.getJson<LeaderState>(LEADER_KEY);
   if (current?.tabId === tabId && typeof window !== "undefined") {
-    window.localStorage.removeItem(LEADER_KEY);
+    safeStorage.remove(LEADER_KEY);
   }
 };
 
 const shouldShowPopup = (formId: string, latestSubmissionId: string) => {
   const key = `${POPUP_STATE_PREFIX}:${formId}`;
-  const current = readJson<PopupState>(key);
+  const current = safeStorage.getJson<PopupState>(key);
   const now = Date.now();
 
   if (current?.latestSubmissionId === latestSubmissionId) {
@@ -91,7 +76,7 @@ const shouldShowPopup = (formId: string, latestSubmissionId: string) => {
     return false;
   }
 
-  writeJson(key, { latestSubmissionId, shownAt: now });
+  safeStorage.setJson(key, { latestSubmissionId, shownAt: now });
   return true;
 };
 

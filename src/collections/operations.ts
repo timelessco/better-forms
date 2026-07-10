@@ -10,7 +10,7 @@ import { getInit, state, stripNulls } from "./_state";
 import type { ServerFnInput } from "./_state";
 
 /** Map a local `Form` onto a `FormListing`. `Form` lacks the listing-only `shortId`/`submissionCount`; supply them (optimistic rows use `""`/`0`, replaced on refetch). */
-const formToListing = (
+export const formToListing = (
   form: Form,
   extras: { shortId: string; submissionCount: number; sortIndex?: string | null },
 ): FormListing => ({

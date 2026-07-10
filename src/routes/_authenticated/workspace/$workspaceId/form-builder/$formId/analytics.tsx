@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/icons";
 import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
+import { ExportMenu, ToolbarPill } from "@/components/ui/route-toolbar";
 import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getFormAnswers, getFormDropoff, getFormInsights } from "@/lib/server-fn/analytics";
 import { numberFormatter } from "@/lib/analytics/format";
@@ -185,6 +186,39 @@ const ScrollFade = () => (
   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent backdrop-blur-[0.5px] dark:from-[#1c1c1c]" />
 );
 
+// Proportional-bar list row (Figma Rectangle 41927) — gray/100 bar behind a label/value pair, with an
+// optional leading icon. `widthPct` is pre-clamped by the caller (min-width floor differs per card).
+const ProportionalBarRow = ({
+  label,
+  value,
+  widthPct,
+  icon,
+}: {
+  label: React.ReactNode;
+  value: React.ReactNode;
+  widthPct: number;
+  icon?: React.ReactNode;
+}) => (
+  <li className="relative flex h-7 shrink-0 items-center rounded-lg">
+    <span
+      aria-hidden
+      className="absolute inset-y-0 left-0 rounded-lg bg-[var(--color-gray-100)]"
+      style={{ width: `${widthPct}%` }}
+    />
+    <div className="relative flex w-full items-center gap-2 px-2">
+      {icon != null && (
+        <span className="flex size-4 shrink-0 items-center justify-center">{icon}</span>
+      )}
+      <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.02em] text-gray-600">
+        {label}
+      </span>
+      <span className="shrink-0 text-[14px] tracking-[0.02em] text-gray-800 tabular-nums">
+        {value}
+      </span>
+    </div>
+  </li>
+);
+
 // `hint` is a muted note (e.g. "49% skip rate"); `trend` is a colored vs-prior delta (Figma:
 // green = good, red = bad). Only one is shown — trend takes precedence when present.
 type Trend = { text: string; tone: "good" | "bad" };
@@ -259,7 +293,8 @@ const QuestionBarListCard = ({
   return (
     <div
       className={cn(
-        "bg-gray-0 relative flex h-[210px] flex-col gap-[14px] overflow-hidden rounded-[12px] border border-[var(--color-gray-100)] px-1.5 pt-[14px] pb-2 dark:bg-[#1c1c1c]",
+        cardClass,
+        "relative flex h-[210px] flex-col gap-[14px] overflow-hidden px-1.5 pt-[14px] pb-2",
         className,
       )}
     >
@@ -269,21 +304,12 @@ const QuestionBarListCard = ({
       ) : (
         <ul className="flex min-h-0 flex-1 [scrollbar-width:none] flex-col gap-[3px] overflow-y-auto pb-1 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {rows.map((row, i) => (
-            <li key={i} className="relative flex h-7 shrink-0 items-center rounded-lg">
-              <span
-                aria-hidden
-                className="absolute inset-y-0 left-0 rounded-lg bg-[var(--color-gray-100)]"
-                style={{ width: `${Math.max(12, (row.value / max) * 100)}%` }}
-              />
-              <div className="relative flex w-full items-center gap-2 px-2">
-                <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.02em] text-gray-600">
-                  {row.label}
-                </span>
-                <span className="shrink-0 text-[14px] tracking-[0.02em] text-gray-800 tabular-nums">
-                  {format(row.value)}
-                </span>
-              </div>
-            </li>
+            <ProportionalBarRow
+              key={i}
+              label={row.label}
+              value={format(row.value)}
+              widthPct={Math.max(12, (row.value / max) * 100)}
+            />
           ))}
         </ul>
       )}
@@ -315,7 +341,8 @@ const StatCard = ({
     // Figma 26835:11709 / :11865: gray/100 border, gap-14 title→list, pt-14 pb-2 px-1.5.
     <div
       className={cn(
-        "bg-gray-0 relative flex flex-col gap-[14px] overflow-hidden rounded-[12px] border border-[var(--color-gray-100)] px-1.5 pt-[14px] pb-2 dark:bg-[#1c1c1c]",
+        cardClass,
+        "relative flex flex-col gap-[14px] overflow-hidden px-1.5 pt-[14px] pb-2",
         scrollable && "h-[250px]",
       )}
     >
@@ -332,25 +359,13 @@ const StatCard = ({
           )}
         >
           {rows.map((row) => (
-            <li key={row.key} className="relative flex h-7 shrink-0 items-center rounded-lg">
-              {/* Proportional bar (Figma Rectangle 41927) — gray/100, rounded-8. */}
-              <span
-                aria-hidden
-                className="absolute inset-y-0 left-0 rounded-lg bg-[var(--color-gray-100)]"
-                style={{ width: `${row.pct}%` }}
-              />
-              <div className="relative flex w-full items-center gap-2 px-2">
-                <span className="flex size-4 shrink-0 items-center justify-center">
-                  {resolveIcon(kind, row.key)}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.02em] text-gray-600">
-                  {labelFor(kind, row.key)}
-                </span>
-                <span className="shrink-0 text-[14px] tracking-[0.02em] text-gray-800 tabular-nums">
-                  {numberFormatter.format(row.value)}
-                </span>
-              </div>
-            </li>
+            <ProportionalBarRow
+              key={row.key}
+              icon={resolveIcon(kind, row.key)}
+              label={labelFor(kind, row.key)}
+              value={numberFormatter.format(row.value)}
+              widthPct={row.pct}
+            />
           ))}
         </ul>
       )}
@@ -397,21 +412,12 @@ const AnswerBarCard = ({ q, unit }: { q: QuestionAnswerSummary; unit: string }) 
         {q.distribution.map((d, i) => {
           const pct = Math.round((d.value / sum) * 100);
           return (
-            <li key={i} className="relative flex h-7 shrink-0 items-center rounded-lg">
-              <span
-                aria-hidden
-                className="absolute inset-y-0 left-0 rounded-lg bg-[var(--color-gray-100)]"
-                style={{ width: `${Math.max(8, pct)}%` }}
-              />
-              <div className="relative flex w-full items-center gap-2 px-2">
-                <span className="min-w-0 flex-1 truncate text-[14px] tracking-[0.02em] text-gray-600">
-                  {d.label}
-                </span>
-                <span className="shrink-0 text-[14px] tracking-[0.02em] text-gray-800 tabular-nums">
-                  {pct}%
-                </span>
-              </div>
-            </li>
+            <ProportionalBarRow
+              key={i}
+              label={d.label}
+              value={`${pct}%`}
+              widthPct={Math.max(8, pct)}
+            />
           );
         })}
       </ul>
@@ -482,11 +488,9 @@ const SectionToolbar = ({
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button
-              variant="ghost-flat"
-              size="sm"
+            <ToolbarPill
+              className="pr-2 pl-2.5"
               suffix={<ChevronDown className="size-4 shrink-0" />}
-              className="h-7 rounded-lg bg-secondary pr-2 pl-2.5 font-case text-base font-[450] tracking-[0.14px] text-gray-800 hover:bg-secondary/80"
             />
           }
         >
@@ -505,24 +509,18 @@ const SectionToolbar = ({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              size="sm"
-              suffix={<ChevronDown className="size-4 shrink-0" />}
-              className="h-7 rounded-lg font-case text-base tracking-[0.14px]"
-            />
-          }
-        >
-          Export
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-36">
-          <DropdownMenuItem onClick={() => onExport("csv")}>CSV</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onExport("pdf")}>PDF</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onExport("excel")}>Excel</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <ExportMenu
+        onExport={onExport}
+        trigger={
+          <Button
+            size="sm"
+            suffix={<ChevronDown className="size-4 shrink-0" />}
+            className="h-7 rounded-lg font-case text-base tracking-[0.14px]"
+          />
+        }
+      >
+        Export
+      </ExportMenu>
     </div>
   </div>
 );
@@ -666,7 +664,7 @@ const AnalyticsPage = () => {
 
             {/* Activity chart (Figma 26835:11656) — fixed 200px card, gray/100 border. Title 15px
                 medium; the series legend lives only in the hover tooltip (no header legend). */}
-            <div className="bg-gray-0 mt-3 flex h-[200px] flex-col overflow-hidden rounded-[12px] border border-[var(--color-gray-100)] dark:bg-[#1c1c1c]">
+            <div className={cn(cardClass, "mt-3 flex h-[200px] flex-col overflow-hidden")}>
               <h3 className="px-[13px] pt-[13px] text-[15px] font-medium tracking-[0.02em] text-gray-900">
                 Form activity over time
               </h3>
@@ -738,12 +736,17 @@ const AnalyticsPage = () => {
 
             {/* Symmetrical toggle between funnel chart (page forms) and full-width drop-off list (page-less forms) */}
             {dropoffLoading ? (
-              <div className="bg-gray-0 mt-3 flex h-[383px] items-center justify-center rounded-[12px] border border-[var(--color-gray-100)] text-[14px] text-muted-foreground dark:bg-[#1c1c1c]">
+              <div
+                className={cn(
+                  cardClass,
+                  "mt-3 flex h-[383px] items-center justify-center text-[14px] text-muted-foreground",
+                )}
+              >
                 Loading…
               </div>
             ) : dropoff?.steps && dropoff.steps.length > 1 ? (
               /* Funnel chart (Figma 26989:10813) — fixed 383px card; smoothly tapered descending area. */
-              <div className="bg-gray-0 mt-3 flex h-[383px] flex-col overflow-hidden rounded-[12px] border border-[var(--color-gray-100)] dark:bg-[#1c1c1c]">
+              <div className={cn(cardClass, "mt-3 flex h-[383px] flex-col overflow-hidden")}>
                 <h3 className="px-[13px] pt-[13px] text-[15px] font-medium tracking-[0.02em] text-gray-900">
                   Dropoff funnel over time
                 </h3>
@@ -767,7 +770,12 @@ const AnalyticsPage = () => {
                 />
               </div>
             ) : (
-              <div className="bg-gray-0 mt-3 flex h-[300px] items-center justify-center rounded-[12px] border border-[var(--color-gray-100)] text-[14px] text-muted-foreground dark:bg-[#1c1c1c]">
+              <div
+                className={cn(
+                  cardClass,
+                  "mt-3 flex h-[300px] items-center justify-center text-[14px] text-muted-foreground",
+                )}
+              >
                 No drop-off data for this range
               </div>
             )}

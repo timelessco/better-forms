@@ -1,9 +1,6 @@
 import { createFileRoute, isNotFound, notFound } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import * as v from "valibot";
-import { optionalCoercedBoolean } from "@/lib/valibot-search";
+import { useMemo } from "react";
 import { PublicFormPage } from "@/routes/forms/-components/public-form-page";
-import type { PublicFormEmbedConfig } from "@/routes/forms/-components/public-form-page";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import Loader from "@/components/ui/loader";
 import { CustomDomainNotFound } from "@/components/ui/custom-domain-not-found";
@@ -14,92 +11,31 @@ import {
   getMediaPreconnects,
   GOOGLE_FONTS_PRECONNECTS,
 } from "@/lib/theme/generate-theme-css";
+import {
+  buildThemeBootScript,
+  publicFormSearchSchema,
+  usePublicFormTheme,
+} from "@/lib/theme/public-form-theme";
 import { seo } from "@/lib/seo";
 import { getCoverPreloadLinks } from "@/lib/vercel-image";
-
-type PublicTheme = "light" | "dark" | "system";
-
-const themeStorageKey = (formId: string) => `bf-form-theme:${formId}`;
-
-const resolveSystemTheme = (): "light" | "dark" => {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-};
 
 const CustomDomainFormIdRoute = () => {
   const loaderData = Route.useLoaderData();
   const { formId } = Route.useParams();
+  const search = Route.useSearch();
 
   const rawCustomization = loaderData?.form?.customization ?? null;
-  const defaultMode = (rawCustomization?.defaultMode as PublicTheme | undefined) ?? "system";
-
-  const [viewerTheme, setViewerTheme] = useState<PublicTheme>(() => {
-    if (typeof window === "undefined") return defaultMode;
-    const saved = window.localStorage.getItem(themeStorageKey(formId)) as PublicTheme | null;
-    return saved ?? defaultMode;
+  const { resolvedTheme, embedConfig, handleThemeChange, showThemeToggle } = usePublicFormTheme({
+    id: formId,
+    rawCustomization,
+    search,
   });
-
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => {
-    if (viewerTheme === "system") return resolveSystemTheme();
-    return viewerTheme;
-  });
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const apply = (resolved: "light" | "dark") => {
-      root.classList.remove("light", "dark");
-      root.classList.add(resolved);
-      root.style.colorScheme = resolved;
-      setResolvedTheme(resolved);
-    };
-
-    apply(viewerTheme === "system" ? resolveSystemTheme() : viewerTheme);
-
-    if (viewerTheme === "system") {
-      const mq = window.matchMedia("(prefers-color-scheme: dark)");
-      const handler = () => apply(mq.matches ? "dark" : "light");
-      mq.addEventListener("change", handler);
-      return () => mq.removeEventListener("change", handler);
-    }
-  }, [viewerTheme]);
-
-  useEffect(() => {
-    document.body.style.backgroundColor = "var(--color-background)";
-    return () => {
-      document.body.style.backgroundColor = "";
-    };
-  }, []);
-
-  const handleThemeChange = useCallback(
-    (next: PublicTheme) => {
-      setViewerTheme(next);
-      try {
-        window.localStorage.setItem(themeStorageKey(formId), next);
-      } catch {
-        // ignore storage failures
-      }
-    },
-    [formId],
-  );
-
-  const search = Route.useSearch();
-  const isTransparent = search.transparentBackground || search.transparent || false;
-
-  const embedConfig: PublicFormEmbedConfig = {
-    title: search.hideTitle ? "hidden" : "visible",
-    background: isTransparent ? "transparent" : "solid",
-    alignment: search.alignLeft ? "left" : "center",
-    dynamicHeight: search.dynamicHeight ?? false,
-    dynamicWidth: search.dynamicWidth ?? false,
-  };
 
   const customization = useMemo(
     () => (rawCustomization ? { ...rawCustomization, mode: resolvedTheme } : rawCustomization),
     [rawCustomization, resolvedTheme],
   );
   const themeCss = useMemo(() => generateThemeCss(customization), [customization]);
-
-  const showThemeToggle = defaultMode === "system" && !search.popup && !isTransparent;
 
   return (
     <>
@@ -134,17 +70,7 @@ const CustomDomainFormIdRoute = () => {
 };
 
 export const Route = createFileRoute("/f/$formId")({
-  // No `.default()` — would 307-redirect bare URLs to defaults-appended canonical, breaking link-preview crawlers.
-  validateSearch: v.object({
-    transparentBackground: v.optional(v.boolean()),
-    transparent: optionalCoercedBoolean,
-    popup: optionalCoercedBoolean,
-    hideTitle: optionalCoercedBoolean,
-    alignLeft: optionalCoercedBoolean,
-    originPage: v.optional(v.string()),
-    dynamicHeight: optionalCoercedBoolean,
-    dynamicWidth: optionalCoercedBoolean,
-  }),
+  validateSearch: publicFormSearchSchema,
   loader: async ({ params }) => {
     try {
       return await getCustomDomainFormByIdRSC({ data: { formId: params.formId } });
@@ -183,11 +109,7 @@ export const Route = createFileRoute("/f/$formId")({
           : []),
         ...getCoverPreloadLinks(loaderData?.form?.cover),
       ],
-      scripts: [
-        {
-          children: `(function(){try{var d=document.documentElement;var override=null;try{override=window.localStorage.getItem("bf-form-theme:${formId}");}catch(e){}var def=${JSON.stringify(defaultMode)};var pick=override||def;var m=pick==="system"?(window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"):pick;d.classList.remove("light","dark");d.classList.add(m);d.style.colorScheme=m;}catch(e){}})();`,
-        },
-      ],
+      scripts: [{ children: buildThemeBootScript(formId, defaultMode) }],
     };
   },
   staleTime: 60_000,

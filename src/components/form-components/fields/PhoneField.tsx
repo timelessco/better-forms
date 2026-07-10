@@ -1,11 +1,10 @@
 import type { Country } from "react-phone-number-input";
 
-import { fieldLabelId, getAriaLabelFallback, getAriaLabelledBy } from "./shared";
+import { useFieldBinding } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
 const PhoneField = ({ element, form, name }: FieldRendererProps<"Phone">) => {
-  const fieldName = name ?? element.name;
-  const isArrayItem = name !== undefined;
+  const { fieldName, ariaLabel, ariaLabelledBy } = useFieldBinding(element, name);
   // Empty whitelist ⇒ all countries: coerce [] to undefined so the dropdown isn't emptied.
   const allowedCountries = element.allowedCountries?.length
     ? (element.allowedCountries as Country[])
@@ -22,8 +21,8 @@ const PhoneField = ({ element, form, name }: FieldRendererProps<"Phone">) => {
             // Default to the first allowed; unset ⇒ PhoneInput auto-detects from the browser locale.
             countries={allowedCountries}
             defaultCountry={allowedCountries?.[0]}
-            aria-label={getAriaLabelFallback(element)}
-            aria-labelledby={isArrayItem ? fieldLabelId(element.name) : getAriaLabelledBy(element)}
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledBy}
             variant="sm"
           />
           <f.FieldError />

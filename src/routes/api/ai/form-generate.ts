@@ -1,40 +1,22 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { createFileRoute } from "@tanstack/react-router";
-import { convertToModelMessages, generateText, streamObject, tool } from "ai";
+import { convertToModelMessages, streamObject } from "ai";
 import type { UIMessage } from "ai";
 import { valibotSchema } from "@ai-sdk/valibot";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import type { RequestLogger } from "evlog";
 import { createAILogger } from "evlog/ai";
-import { identifyUser } from "evlog/better-auth";
 import { useRequest as getNitroRequest } from "nitro/context";
-import * as v from "valibot";
 import { apiAuthMiddleware } from "@/lib/auth/middleware";
-import {
-  formGenSchema,
-  freeThemeSchema,
-  RADIUS_OPTIONS,
-  themeTokensSchema,
-} from "@/lib/ai/ops-schema";
+import { formGenSchema } from "@/lib/ai/ops-schema";
 import {
   FORM_APPEND_SYSTEM_PROMPT,
   FORM_EDIT_SYSTEM_PROMPT,
   FORM_GEN_SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompts";
-import {
-  flattenFreeThemeArgs,
-  flattenProThemeArgs,
-  pickThemePromptForPlan,
-} from "@/lib/ai/theme-route-helpers";
-import { getActiveOrgId } from "@/lib/server-fn/auth-helpers";
-import { getOrgPlanWithPolarSync } from "@/lib/server-fn/plan-helpers.server";
-import {
-  AI_DAILY_LIMIT_ERROR,
-  checkAiQuota,
-  incrementAiCount,
-} from "@/lib/server-fn/ai-quota.server";
-import { checkAiRequestRateLimit } from "@/lib/server-fn/ai-request-rate-limit.server";
-import type { ServerPlan } from "@/lib/server-fn/plan-helpers";
+import { pickThemePromptForPlan } from "@/lib/ai/theme-route-helpers";
+import { checkAiGating, resolvePlanAndSession } from "@/lib/ai/request-gating.server";
+import { runThemeToolCall } from "@/lib/ai/theme-tool-call.server";
+import { incrementAiCount } from "@/lib/server-fn/ai-quota.server";
 import { logger } from "@/lib/utils";
 
 const getModel = async () => {
@@ -97,115 +79,12 @@ export const Route = createFileRoute("/api/ai/form-generate")({
         log?.set({ formGen: { mode } });
 
         // Resolve plan + org up front: theme mode → pickThemePromptForPlan (full vs limited tool); all modes → rate-limit (free=5/day, pro/business=∞).
-        let resolvedPlan: ServerPlan = "free";
-        let resolvedOrgId: string | null = null;
-        let planLookupError: string | null = null;
-        try {
-          const { auth } = await import("@/lib/auth/auth");
-          const session = await auth.api.getSession({ headers: getRequestHeaders() });
-          logger("[ai-plan] session present?", Boolean(session), {
-            userId: (session as { user?: { id?: string } } | null)?.user?.id ?? null,
-            activeOrganizationId:
-              (session as { session?: { activeOrganizationId?: string } } | null)?.session
-                ?.activeOrganizationId ?? null,
-          });
-          if (session) {
-            resolvedOrgId = getActiveOrgId(session as never);
-            const userEmail =
-              (session as { user?: { email?: string } } | null)?.user?.email ?? null;
-            // Self-heal stale plan column (missed webhook): consult Polar by email, rewrite column on drift. Fast path (already paid) skips Polar.
-            resolvedPlan = await getOrgPlanWithPolarSync(resolvedOrgId, userEmail);
-            if (log) {
-              const sessionData = (session as { session: Record<string, unknown> }).session;
-              const roleRaw = sessionData.activeOrganizationRole;
-              const role = typeof roleRaw === "string" ? roleRaw : null;
-              const ipAddress =
-                typeof sessionData.ipAddress === "string" ? sessionData.ipAddress : null;
-              const userAgent =
-                typeof sessionData.userAgent === "string" ? sessionData.userAgent : null;
-              identifyUser(log, session, {
-                fields: ["emailVerified"],
-                session: false,
-                extend: () => ({
-                  ...((ipAddress || userAgent) && {
-                    session: {
-                      ...(ipAddress && { ipAddress }),
-                      ...(userAgent && { userAgent }),
-                    },
-                  }),
-                  activeOrganizationId: resolvedOrgId,
-                  plan: resolvedPlan,
-                  ...(role && { role }),
-                }),
-              });
-            }
-            logger("[ai-plan] resolved", {
-              mode,
-              orgId: resolvedOrgId,
-              plan: resolvedPlan,
-              note: "plan is read from organization.plan DB column (Polar webhook syncs it; route falls back to Polar API on cached='free')",
-            });
-          } else {
-            logger("[ai-plan] no session — defaulting to free, orgId=null");
-          }
-        } catch (e) {
-          planLookupError = e instanceof Error ? e.message : String(e);
-          logger("[ai-plan] lookup threw — falling back to free", planLookupError);
-          // Fall through free/null orgId — skips quota tracking, still gates as free.
-        }
+        const { resolvedPlan, resolvedOrgId } = await resolvePlanAndSession(log, mode);
 
-        // Short-window burst limit (all plans, incl. Pro/Business): caps a runaway loop / leaked session before the LLM call, independent of the per-day quota below.
+        // Burst + daily-quota gating (org-scoped). null orgId (anon/lookup-failed) skips gating, still gates as free.
         if (resolvedOrgId) {
-          const burst = await checkAiRequestRateLimit(resolvedOrgId);
-          logger("[ai-rate-limit] check", {
-            orgId: resolvedOrgId,
-            allowed: burst.allowed,
-            count: burst.count,
-            limit: burst.limit,
-            windowMinutes: burst.windowMinutes,
-          });
-          if (!burst.allowed) {
-            // Distinct `code` so the client shows "slow down" vs. the daily "limit reached". Wire-compatible with client parseError(err).code.
-            return new Response(
-              JSON.stringify({
-                code: "quota/ai-rate-limited",
-                error: "ai_rate_limited",
-                count: burst.count,
-                limit: burst.limit,
-                windowMinutes: burst.windowMinutes,
-                message: `Too many AI requests. Please wait a moment before generating again.`,
-                fix: "Slow down — try again in a few minutes",
-              }),
-              { status: 429, headers: { "Content-Type": "application/json" } },
-            );
-          }
-        }
-
-        // Rate-limit check. Pro/business get null limit → always allowed.
-        if (resolvedOrgId) {
-          const quota = await checkAiQuota(resolvedOrgId, resolvedPlan);
-          logger("[ai-quota] check", {
-            orgId: resolvedOrgId,
-            plan: resolvedPlan,
-            allowed: quota.allowed,
-            used: quota.used,
-            limit: quota.limit,
-          });
-          if (!quota.allowed) {
-            // Wire-compatible with client parseError(err).code. useObject bypasses ofetch — body lands in Error.message string. `code` lets client JSON.parse + branch on stable id vs substring-matching AI_DAILY_LIMIT_ERROR (kept for back-compat).
-            return new Response(
-              JSON.stringify({
-                code: "quota/ai-daily-limit",
-                error: AI_DAILY_LIMIT_ERROR,
-                used: quota.used,
-                limit: quota.limit,
-                plan: quota.plan,
-                message: `Daily AI limit reached (${quota.used}/${quota.limit}). Upgrade to Pro for unlimited generations.`,
-                fix: "Upgrade to Pro for unlimited generations",
-              }),
-              { status: 429, headers: { "Content-Type": "application/json" } },
-            );
-          }
+          const gate = await checkAiGating(resolvedOrgId, resolvedPlan);
+          if (gate) return gate;
         }
 
         log?.set({ formGen: { plan: resolvedPlan, orgId: resolvedOrgId } });
@@ -255,90 +134,12 @@ export const Route = createFileRoute("/api/ai/form-generate")({
         // ── Theme mode: tool-call (one-shot, non-streaming) ─────────────────
         // Theme atomic — no streaming benefit; tool-call gives clear contract. Pro: full tool (30 light:/dark: tokens). Free: limited tool, output stays in gate-allowed keys.
         if (mode === "theme") {
-          if (themePick.isPro) {
-            const setFormThemeArgs = v.object({
-              tokens: themeTokensSchema,
-              font: v.string(),
-              radius: v.picklist(RADIUS_OPTIONS),
-            });
-
-            let captured: v.InferOutput<typeof setFormThemeArgs> | null = null;
-
-            await generateText({
-              model,
-              system: systemWithContext,
-              messages: modelMessages,
-              toolChoice: "required",
-              tools: {
-                [themePick.toolName]: tool({
-                  description:
-                    "Apply a complete visual theme to the form (colors, font, radius). Call exactly once with all 30 token values, font, and radius.",
-                  inputSchema: valibotSchema(setFormThemeArgs),
-                  execute: async (args: v.InferOutput<typeof setFormThemeArgs>) => {
-                    captured = args;
-                    return { ok: true };
-                  },
-                }),
-              },
-            });
-
-            // Re-bind to const so TS narrows past null check — assignment in closure, flow analysis can't reach via the `let`.
-            const captured2 = captured as v.InferOutput<typeof setFormThemeArgs> | null;
-            if (!captured2) {
-              return new Response(JSON.stringify({ error: "model_did_not_emit_theme" }), {
-                status: 502,
-                headers: { "Content-Type": "application/json" },
-              });
-            }
-
-            const theme = flattenProThemeArgs(captured2);
-            if (resolvedOrgId)
-              void incrementAiCount(resolvedOrgId).catch((e) =>
-                logger("[ai-quota] increment failed", e),
-              );
-            return new Response(JSON.stringify({ theme }), {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            });
-          }
-
-          // Free plan: limited tool — themeColor + baseColor + font + radius + defaultMode.
-          let captured: v.InferOutput<typeof freeThemeSchema> | null = null;
-
-          await generateText({
+          return runThemeToolCall({
+            themePick,
             model,
             system: systemWithContext,
             messages: modelMessages,
-            toolChoice: "required",
-            tools: {
-              [themePick.toolName]: tool({
-                description:
-                  "Apply a basic theme available on the free plan. Call exactly once with themeColor, baseColor, font, radius, and defaultMode — each value must be from the allowed list in the system prompt.",
-                inputSchema: valibotSchema(freeThemeSchema),
-                execute: async (args: v.InferOutput<typeof freeThemeSchema>) => {
-                  captured = args;
-                  return { ok: true };
-                },
-              }),
-            },
-          });
-
-          const capturedFree = captured as v.InferOutput<typeof freeThemeSchema> | null;
-          if (!capturedFree) {
-            return new Response(JSON.stringify({ error: "model_did_not_emit_theme" }), {
-              status: 502,
-              headers: { "Content-Type": "application/json" },
-            });
-          }
-
-          const theme = flattenFreeThemeArgs(capturedFree);
-          if (resolvedOrgId)
-            void incrementAiCount(resolvedOrgId).catch((e) =>
-              logger("[ai-quota] increment failed", e),
-            );
-          return new Response(JSON.stringify({ theme }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
+            orgId: resolvedOrgId,
           });
         }
 

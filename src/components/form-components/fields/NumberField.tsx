@@ -1,11 +1,9 @@
 import { isFormattingOn } from "@/lib/form-schema/number-format";
-import { fieldLabelId, getAriaLabelFallback, getAriaLabelledBy } from "./shared";
+import { FORM_INPUT_CLS, useFieldBinding } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
 const NumberField = ({ element, form, name }: FieldRendererProps<"Number">) => {
-  const fieldName = name ?? element.name;
-  const isArrayItem = name !== undefined;
-  const ariaLabelledBy = isArrayItem ? fieldLabelId(element.name) : getAriaLabelledBy(element);
+  const { fieldName, ariaLabel, ariaLabelledBy } = useFieldBinding(element, name);
   const formatted = isFormattingOn({
     format: element.numberFormat,
     decimalSeparator: element.decimalSeparator,
@@ -26,9 +24,9 @@ const NumberField = ({ element, form, name }: FieldRendererProps<"Number">) => {
               decimalSeparator={element.decimalSeparator}
               thousandsSeparator={element.thousandsSeparator}
               autoComplete="off"
-              aria-label={getAriaLabelFallback(element)}
+              aria-label={ariaLabel}
               aria-labelledby={ariaLabelledBy}
-              className="h-[30px] form-input pr-[8px] pl-[10px]"
+              className={FORM_INPUT_CLS}
             />
             <f.FieldError />
           </>
@@ -46,9 +44,9 @@ const NumberField = ({ element, form, name }: FieldRendererProps<"Number">) => {
               // Numbers too ambiguous to autofill (age/amount/qty/zip/year). "on" lets browser skip on no-match rather than suppress.
               autoComplete="on"
               inputMode="numeric"
-              aria-label={getAriaLabelFallback(element)}
+              aria-label={ariaLabel}
               aria-labelledby={ariaLabelledBy}
-              className="h-[30px] form-input pr-[8px] pl-[10px]"
+              className={FORM_INPUT_CLS}
             />
             <f.FieldError />
           </>

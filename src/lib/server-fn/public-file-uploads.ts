@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { putBlob } from "@/integrations/blob";
-import { getRequestIP } from "@tanstack/react-start/server";
 import { and, eq, sql } from "drizzle-orm";
 import { createError } from "@/lib/errors/create";
+import { getClientIp, slidingWindowRateLimit } from "@/lib/server-fn/rate-limit.server";
 import type { Value } from "platejs";
 import * as v from "valibot";
 import { forms, formVersions, uploadRateLimits } from "@/db/schema";
@@ -29,40 +29,21 @@ const CLEANUP_PROBABILITY = 0.01;
 // Hard upper bound: refuse beyond this even if a field is configured higher.
 const HARD_MAX_FILE_BYTES = 50 * 1024 * 1024;
 
-const getClientIp = (): string => getRequestIP({ xForwardedFor: true }) ?? "unknown";
-
 // SQL literal: Postgres can't concat a parameterized int with text in an interval cast. Build-time constant, safe.
 const WINDOW_INTERVAL_SQL = sql.raw(`interval '${WINDOW_MINUTES} minutes'`);
 
 const checkUploadRateLimit = async (ip: string): Promise<void> => {
-  if (Math.random() < CLEANUP_PROBABILITY) {
-    await db.execute(
-      sql`DELETE FROM upload_rate_limits WHERE window_start < now() - interval '1 hour'`,
-    );
-  }
+  const newCount = await slidingWindowRateLimit({
+    table: uploadRateLimits,
+    keyColumn: uploadRateLimits.ip,
+    windowStartColumn: uploadRateLimits.windowStart,
+    countColumn: uploadRateLimits.count,
+    values: { ip, count: 1 },
+    windowIntervalSql: WINDOW_INTERVAL_SQL,
+    cleanupSql: sql`DELETE FROM upload_rate_limits WHERE window_start < now() - interval '1 hour'`,
+    cleanupProbability: CLEANUP_PROBABILITY,
+  });
 
-  // Atomic upsert: insert count=1, or on conflict reset (window expired) or increment.
-  const result = await db
-    .insert(uploadRateLimits)
-    .values({ ip, count: 1 })
-    .onConflictDoUpdate({
-      target: uploadRateLimits.ip,
-      set: {
-        count: sql`CASE
-          WHEN ${uploadRateLimits.windowStart} < now() - ${WINDOW_INTERVAL_SQL}
-            THEN 1
-          ELSE ${uploadRateLimits.count} + 1
-        END`,
-        windowStart: sql`CASE
-          WHEN ${uploadRateLimits.windowStart} < now() - ${WINDOW_INTERVAL_SQL}
-            THEN now()
-          ELSE ${uploadRateLimits.windowStart}
-        END`,
-      },
-    })
-    .returning({ count: uploadRateLimits.count });
-
-  const newCount = result[0]?.count ?? 0;
   if (newCount > MAX_PER_WINDOW) {
     throw createError({
       code: "uploads/rate-limited" satisfies ErrorCode,
@@ -198,7 +179,8 @@ export const uploadFormFile = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    await checkUploadRateLimit(getClientIp());
+    // Fall back to a fixed key off-platform (no request IP); the published-form gate still applies.
+    await checkUploadRateLimit(getClientIp() ?? "unknown");
 
     const { accept, maxFileBytes } = await assertFormFileField(data.formId, data.fieldName);
 

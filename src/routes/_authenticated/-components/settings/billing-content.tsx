@@ -26,26 +26,84 @@ const tierActionVariant = (action: TierAction): ButtonVariant => {
   return "ghost";
 };
 
+type Tier = {
+  plan: Plan;
+  title: string;
+  description: string;
+  price: string;
+  features: readonly string[];
+};
+
+// Plan copy in one data table; the three cards are structurally identical (TierCard).
+const TIERS: readonly Tier[] = [
+  {
+    plan: "free",
+    title: "Free",
+    description: "Perfect for personal projects.",
+    price: "$0",
+    features: ["1 member", "3 forms", "100 submissions/mo"],
+  },
+  {
+    plan: "pro",
+    title: "Pro",
+    description: "For growing teams.",
+    price: "$19/mo",
+    features: ["5 members", "Unlimited forms", "10k submissions/mo"],
+  },
+  {
+    plan: "business",
+    title: "Business",
+    description: "Enterprise-grade features.",
+    price: "$49/mo",
+    features: ["Unlimited members", "Custom domains", "API access"],
+  },
+];
+
+const TierCard = ({
+  tier,
+  active,
+  label,
+  variant,
+  onAction,
+}: {
+  tier: Tier;
+  active: boolean;
+  label: TierAction;
+  variant: ButtonVariant;
+  onAction: () => void;
+}) => (
+  <Card className={active ? "border-primary" : "border-border"}>
+    <CardHeader className="pb-3">
+      <CardTitle className="text-base">{tier.title}</CardTitle>
+      <CardDescription className="text-xs">{tier.description}</CardDescription>
+    </CardHeader>
+    <CardContent className="pt-0">
+      <div className="mb-3 text-2xl font-bold">{tier.price}</div>
+      <ul className="mb-4 space-y-1.5 text-xs text-muted-foreground">
+        {tier.features.map((feature) => (
+          <li key={feature}>• {feature}</li>
+        ))}
+      </ul>
+      <Button
+        className="w-full"
+        variant={variant}
+        size="sm"
+        onClick={active ? undefined : onAction}
+        disabled={active}
+      >
+        {label}
+      </Button>
+    </CardContent>
+  </Card>
+);
+
 export const BillingContent = () => {
   const { data: activeOrg } = useQuery({
     ...orgDataForLayoutQueryOptions(),
     select: (d) => d.activeOrg,
   });
 
-  const {
-    isPro: isProPlan,
-    isBusiness: isBusinessPlan,
-    isFree: isFreePlan,
-    isLoading,
-    plan: currentPlan,
-  } = useUserPlan(activeOrg?.id);
-
-  const freeLabel = tierActionLabel(currentPlan, "free");
-  const proLabel = tierActionLabel(currentPlan, "pro");
-  const businessLabel = tierActionLabel(currentPlan, "business");
-  const freeVariant = tierActionVariant(freeLabel);
-  const proVariant = tierActionVariant(proLabel);
-  const businessVariant = tierActionVariant(businessLabel);
+  const { isFree: isFreePlan, isLoading, plan: currentPlan } = useUserPlan(activeOrg?.id);
 
   const handleOpenPortal = useCallback(async () => {
     if (!activeOrg) {
@@ -89,9 +147,6 @@ export const BillingContent = () => {
     [activeOrg, isFreePlan, handleOpenPortal],
   );
 
-  const handleUpgradePro = useCallback(() => handleUpgrade("Pro"), [handleUpgrade]);
-  const handleUpgradeBusiness = useCallback(() => handleUpgrade("Business"), [handleUpgrade]);
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -116,77 +171,23 @@ export const BillingContent = () => {
       )}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className={`${isFreePlan ? "border-primary" : "border-border"}`}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Free</CardTitle>
-            <CardDescription className="text-xs">Perfect for personal projects.</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="mb-3 text-2xl font-bold">$0</div>
-            <ul className="mb-4 space-y-1.5 text-xs text-muted-foreground">
-              <li>• 1 member</li>
-              <li>• 3 forms</li>
-              <li>• 100 submissions/mo</li>
-            </ul>
-            <Button
-              className="w-full"
-              variant={freeVariant}
-              size="sm"
-              onClick={isFreePlan ? undefined : handleOpenPortal}
-              disabled={isFreePlan}
-            >
-              {freeLabel}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className={`${isProPlan ? "border-primary" : "border-border"}`}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Pro</CardTitle>
-            <CardDescription className="text-xs">For growing teams.</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="mb-3 text-2xl font-bold">$19/mo</div>
-            <ul className="mb-4 space-y-1.5 text-xs text-muted-foreground">
-              <li>• 5 members</li>
-              <li>• Unlimited forms</li>
-              <li>• 10k submissions/mo</li>
-            </ul>
-            <Button
-              className="w-full"
-              variant={proVariant}
-              size="sm"
-              onClick={handleUpgradePro}
-              disabled={isProPlan}
-            >
-              {proLabel}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className={`${isBusinessPlan ? "border-primary" : "border-border"}`}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Business</CardTitle>
-            <CardDescription className="text-xs">Enterprise-grade features.</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="mb-3 text-2xl font-bold">$49/mo</div>
-            <ul className="mb-4 space-y-1.5 text-xs text-muted-foreground">
-              <li>• Unlimited members</li>
-              <li>• Custom domains</li>
-              <li>• API access</li>
-            </ul>
-            <Button
-              className="w-full"
-              variant={businessVariant}
-              size="sm"
-              onClick={handleUpgradeBusiness}
-              disabled={isBusinessPlan}
-            >
-              {businessLabel}
-            </Button>
-          </CardContent>
-        </Card>
+        {TIERS.map((tier) => {
+          const label = tierActionLabel(currentPlan, tier.plan);
+          return (
+            <TierCard
+              key={tier.plan}
+              tier={tier}
+              active={currentPlan === tier.plan}
+              label={label}
+              variant={tierActionVariant(label)}
+              // Free's action is a downgrade → billing portal; paid tiers route through handleUpgrade
+              // (which itself sends existing paid customers to the portal for proration).
+              onAction={
+                tier.plan === "free" ? handleOpenPortal : () => void handleUpgrade(tier.title)
+              }
+            />
+          );
+        })}
       </div>
     </div>
   );

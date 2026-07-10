@@ -24,7 +24,8 @@ import { eq } from "drizzle-orm";
 
 export const polarClient = new Polar({
   accessToken: process.env.POLAR_ACCESS_TOKEN ?? "",
-  server: "sandbox", // TODO: Change to production
+  // Sandbox everywhere except prod builds so preview/dev can't hit live billing.
+  server: import.meta.env.PROD ? "production" : "sandbox",
 });
 
 const getServerBaseURL = () => {

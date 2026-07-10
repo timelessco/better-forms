@@ -14,6 +14,7 @@ import { applyOp, canLiveUpdate, liveUpdateOp } from "@/lib/editor/apply-op";
 import type { AppliedOp, ApplyContext } from "@/lib/editor/apply-op";
 import { mergeThemeIntoCustomization } from "@/lib/editor/merge-theme";
 import { settingsDialogStore } from "@/hooks/use-settings-dialog";
+import { parseAiQuotaCode, showAiQuotaToast } from "@/components/editor/hooks/ai-quota-toast";
 import { FREE_CUSTOMIZATION_KEYS } from "@/lib/server-fn/plan-helpers";
 import { AI_DAILY_LIMIT_ERROR } from "@/lib/server-fn/ai-quota-constants";
 import { parseError } from "@/lib/errors/parse";
@@ -153,70 +154,63 @@ export const useFormGenStream = ({
     [editor],
   );
 
+  // Accept and discard are mirror images: same node walk, insert/remove roles swapped.
+  // discard = remove `insert` blocks, strip `remove` marks; accept = remove `remove` blocks, strip `insert` marks.
+  const settleDiff = useCallback(
+    (mode: "accept" | "discard") => {
+      if (settledRef.current) return;
+      const removeMark = mode === "discard" ? "insert" : "remove";
+      const stripMark = mode === "discard" ? "remove" : "insert";
+      const removePaths: number[][] = [];
+      const stripPaths: number[][] = [];
+      forEachDiffNode((node, path) => {
+        const mark = (node as { aiDiff?: "insert" | "remove" }).aiDiff;
+        if (mark === removeMark) removePaths.push(path);
+        else if (mark === stripMark) stripPaths.push(path);
+      });
+
+      const strip = () => {
+        for (const p of stripPaths) {
+          try {
+            editor.tf.unsetNodes(AI_DIFF_KEY, { at: p });
+          } catch {
+            // node moved; skip
+          }
+        }
+      };
+      // Remove descending so earlier paths stay valid.
+      const remove = () => {
+        for (const p of removePaths.toSorted((a, b) => (b[0] ?? 0) - (a[0] ?? 0))) {
+          try {
+            editor.tf.removeNodes({ at: p });
+          } catch {
+            // path stale; skip
+          }
+        }
+      };
+
+      editor.tf.withoutNormalizing(() => {
+        // Discard strips marks FIRST (paths valid pre-remove); accept removes first (preserved order).
+        if (mode === "discard") {
+          strip();
+          remove();
+        } else {
+          remove();
+          strip();
+        }
+      });
+
+      settledRef.current = true;
+      resetStreamState();
+    },
+    [editor, forEachDiffNode, resetStreamState],
+  );
+
   /** Discard: remove every block marked `insert`; strip the `remove` mark. */
-  const rollback = useCallback(() => {
-    if (settledRef.current) return;
-    const removePaths: number[][] = [];
-    const stripPaths: number[][] = [];
-    forEachDiffNode((node, path) => {
-      const mark = (node as { aiDiff?: "insert" | "remove" }).aiDiff;
-      if (mark === "insert") removePaths.push(path);
-      else if (mark === "remove") stripPaths.push(path);
-    });
-
-    editor.tf.withoutNormalizing(() => {
-      // Strip marks FIRST (paths valid pre-remove), then remove descending so earlier paths stay valid.
-      for (const p of stripPaths) {
-        try {
-          editor.tf.unsetNodes(AI_DIFF_KEY, { at: p });
-        } catch {
-          // node moved; skip
-        }
-      }
-      for (const p of removePaths.toSorted((a, b) => (b[0] ?? 0) - (a[0] ?? 0))) {
-        try {
-          editor.tf.removeNodes({ at: p });
-        } catch {
-          // path stale; skip
-        }
-      }
-    });
-
-    settledRef.current = true;
-    resetStreamState();
-  }, [editor, forEachDiffNode, resetStreamState]);
+  const rollback = useCallback(() => settleDiff("discard"), [settleDiff]);
 
   /** Accept: remove every block marked `remove`; strip the `insert` mark. */
-  const accept = useCallback(() => {
-    if (settledRef.current) return;
-    const removePaths: number[][] = [];
-    const stripPaths: number[][] = [];
-    forEachDiffNode((node, path) => {
-      const mark = (node as { aiDiff?: "insert" | "remove" }).aiDiff;
-      if (mark === "remove") removePaths.push(path);
-      else if (mark === "insert") stripPaths.push(path);
-    });
-
-    editor.tf.withoutNormalizing(() => {
-      for (const p of removePaths.toSorted((a, b) => (b[0] ?? 0) - (a[0] ?? 0))) {
-        try {
-          editor.tf.removeNodes({ at: p });
-        } catch {
-          // path stale; skip
-        }
-      }
-      for (const p of stripPaths) {
-        try {
-          editor.tf.unsetNodes(AI_DIFF_KEY, { at: p });
-        } catch {
-          // node moved; skip
-        }
-      }
-    });
-
-    settledRef.current = true;
-    resetStreamState();
-  }, [editor, forEachDiffNode, resetStreamState]);
+  const accept = useCallback(() => settleDiff("accept"), [settleDiff]);
 
   const lastPromptRef = useRef<string>("");
 
@@ -236,18 +230,11 @@ export const useFormGenStream = ({
             message?: string;
             limit?: number;
           } | null;
-          if (body?.code === "quota/ai-rate-limited") {
-            toast.error(
-              body.message || "Too many AI requests. Please wait a moment before generating again.",
-            );
-            throw new Error(body.message || "AI rate limited");
+          if (parseAiQuotaCode(body?.code) === "rate-limited") {
+            showAiQuotaToast("rate-limited", body?.message);
+            throw new Error(body?.message || "AI rate limited");
           }
-          toast.error(body?.message || "Daily AI limit reached. Upgrade to Pro for unlimited.", {
-            action: {
-              label: "Upgrade to Pro",
-              onClick: () => settingsDialogStore.open("billing"),
-            },
-          });
+          showAiQuotaToast("daily-limit", body?.message);
           throw new Error(body?.message || AI_DAILY_LIMIT_ERROR);
         }
         throw new Error(`theme request failed: ${res.status}`);
@@ -420,14 +407,9 @@ export const useFormGenStream = ({
         msg.includes(AI_DAILY_LIMIT_ERROR) ||
         msg.includes("Daily AI limit");
       if (isRateLimited) {
-        toast.error("Too many AI requests. Please wait a moment before generating again.");
+        showAiQuotaToast("rate-limited");
       } else if (isDailyLimit) {
-        toast.error("Daily AI limit reached. Upgrade to Pro for unlimited generations.", {
-          action: {
-            label: "Upgrade to Pro",
-            onClick: () => settingsDialogStore.open("billing"),
-          },
-        });
+        showAiQuotaToast("daily-limit");
       }
       onError?.(msg || "Generation failed. Changes have been rolled back.");
     },

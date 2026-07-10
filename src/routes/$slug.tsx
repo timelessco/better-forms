@@ -16,10 +16,9 @@ import {
 } from "@/lib/theme/generate-theme-css";
 import { seo } from "@/lib/seo";
 import { getCoverPreloadLinks } from "@/lib/vercel-image";
+import { buildThemeBootScript, themeStorageKey } from "@/lib/theme/public-form-theme";
 
 type PublicTheme = "light" | "dark" | "system";
-
-const themeStorageKey = (formId: string) => `bf-form-theme:${formId}`;
 
 const resolveSystemTheme = (): "light" | "dark" => {
   if (typeof window === "undefined") return "light";
@@ -175,11 +174,7 @@ export const Route = createFileRoute("/$slug")({
           : []),
         ...getCoverPreloadLinks(loaderData?.form?.cover),
       ],
-      scripts: [
-        {
-          children: `(function(){try{var d=document.documentElement;var override=null;try{override=window.localStorage.getItem("bf-form-theme:${formId}");}catch(e){}var def=${JSON.stringify(defaultMode)};var pick=override||def;var m=pick==="system"?(window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"):pick;d.classList.remove("light","dark");d.classList.add(m);d.style.colorScheme=m;}catch(e){}})();`,
-        },
-      ],
+      scripts: [{ children: buildThemeBootScript(formId, defaultMode) }],
     };
   },
   staleTime: 60_000,

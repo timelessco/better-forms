@@ -1,27 +1,36 @@
 // Client consumer of getPublicFormViewRSC. No Plate code — prose pre-rendered server-side; only field widgets fill slots.
 import { CompositeComponent } from "@tanstack/react-start/rsc";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import {
   RenderFieldComponent,
   RenderStepPreviewInput,
 } from "@/components/form-components/render-step-preview-input";
-import { SuccessCheck } from "@/components/transitions/success-check";
 import { Button } from "@/components/ui/button";
-import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
-import { brandingRowStyle, FormBrandingBadge } from "@/components/form-components/step-form";
+import {
+  AutoActionFooter,
+  brandingRowStyle,
+  FormBrandingBadge,
+  StepNavButton,
+  useFieldByFieldKeyboard,
+  useQuestionViewTracking,
+} from "@/components/form-components/step-runner";
+import {
+  buildTracking,
+  DefaultThankYou,
+  NoContentPlaceholder,
+} from "@/components/form-components/preview-shared";
 import { ProgressBar } from "@/routes/forms/-components/progress-bar";
 import { EmailVerificationContext } from "@/components/form-components/email-verification-context";
 import type { EmailVerificationStore } from "@/components/form-components/email-verification-context";
 import { StepFormProvider, useStepForm } from "@/contexts/step-form-context";
-import type { PublicFormTracking, TrackingBase } from "@/contexts/step-form-context";
+import type { TrackingBase } from "@/contexts/step-form-context";
 import { FormLogicProvider } from "@/contexts/form-logic-context";
 import type { FormLogicValue } from "@/lib/logic/build-form-logic";
 import { useTranslation } from "@/contexts/translation-context";
 import { useFocusFirstField } from "@/hooks/use-focus-first-field";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useRedirectCompletion } from "@/hooks/use-redirect-completion";
 import { useStepPreviewForm } from "@/hooks/use-preview-form";
-import { enqueueQuestionProgress } from "@/lib/analytics/track-client";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "@/lib/theme/customization-defaults";
 import { cn } from "@/lib/utils";
 import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
@@ -78,46 +87,7 @@ interface FormPreviewRSCProps {
 
 const PAGE_MAX_WIDTH = `var(--bf-page-width, ${CUSTOMIZATION_AUTO_DEFAULTS.pageWidth})`;
 
-const NoContentPlaceholderIcon = (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="48"
-    height="48"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="mx-auto mb-4 opacity-50"
-  >
-    <title>No content placeholder</title>
-    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" x2="8" y1="13" y2="13" />
-    <line x1="16" x2="8" y1="17" y2="17" />
-    <line x1="10" x2="8" y1="9" y2="9" />
-  </svg>
-);
-
-const DefaultThankYou = ({ onReset }: { onReset?: () => void }) => {
-  const { t } = useTranslation();
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-green-100">
-        <SuccessCheck size={32} className="text-green-600" />
-      </div>
-      <h2 className="mb-2 text-2xl font-semibold">{t("thankYou")}</h2>
-      <p className="mb-6 text-muted-foreground">{t("responseSubmitted")}</p>
-      {onReset && (
-        <Button type="button" onClick={onReset} variant="outline" size="sm" className="rounded-lg">
-          {t("submitAnother")}
-        </Button>
-      )}
-    </div>
-  );
-};
-
+// Wraps the shared StepNavButton in the RSC-specific justify wrappers (branding wrappers stay here).
 const StepButton = ({
   buttonText,
   buttonRole,
@@ -134,23 +104,13 @@ const StepButton = ({
   totalSteps?: number;
 }) => {
   const { t } = useTranslation();
-  const buttonStyle = { fontSize: "13px" } as const;
 
   if (buttonRole === "previous") {
     const button = (
-      // Ghost + dark text (Figma 27112-20305 "Back") — never a filled primary, which would clash
-      // with the themed Submit/Next.
-      <Button
-        type="button"
-        variant="ghost-flat"
-        onClick={onPrevious}
-        style={buttonStyle}
-        className="h-8 gap-1.5 rounded-lg px-2.5 text-gray-900"
-        prefix={<ChevronLeftIcon className="size-4" />}
-      >
-        {/* Always "Back" (like the one-at-a-time footer) — ignore any authored/legacy "Previous" text. */}
+      // Always "Back" (like the one-at-a-time footer) — ignore any authored/legacy "Previous" text.
+      <StepNavButton role="previous" onPrevious={onPrevious}>
         {t("back")}
-      </Button>
+      </StepNavButton>
     );
     return grouped ? (
       button
@@ -163,16 +123,9 @@ const StepButton = ({
 
   if (buttonRole === "next") {
     const button = (
-      <Button
-        type="submit"
-        data-bf-button=""
-        style={buttonStyle}
-        className="h-8 gap-1.5 rounded-lg px-2.5"
-        suffix={<ChevronRightIcon className="size-4" />}
-        disabled={isSubmitting}
-      >
+      <StepNavButton role="next" isSubmitting={isSubmitting}>
         {buttonText}
-      </Button>
+      </StepNavButton>
     );
     return grouped ? (
       button
@@ -183,20 +136,11 @@ const StepButton = ({
     );
   }
 
-  // Submit
   const isMultiStep = totalSteps > 1;
   const submitButton = (
-    // Trailing chevron matches the Next button (Figma "→") and keeps the last glyph from clipping.
-    <Button
-      type="submit"
-      data-bf-button=""
-      style={buttonStyle}
-      className="h-8 gap-1.5 rounded-lg px-2.5"
-      suffix={<ChevronRightIcon className="size-4" />}
-      disabled={isSubmitting}
-    >
+    <StepNavButton role="submit" isSubmitting={isSubmitting}>
       {buttonText}
-    </Button>
+    </StepNavButton>
   );
   return grouped ? (
     submitButton
@@ -230,7 +174,7 @@ const StepFormRSC = ({
   /** Show the "Made with Reform." badge in the footer (full-page, every step). */
   branding?: boolean;
 }) => {
-  const { totalSteps, goToPrevStep, canGoBack, isSubmitting } = useStepForm();
+  const { totalSteps, goToPrevStep, canGoBack, isSubmitting, tracking } = useStepForm();
   const { t } = useTranslation();
   const fields = stepRSC.fields;
 
@@ -254,35 +198,7 @@ const StepFormRSC = ({
   const [isTextareaFocused, setIsTextareaFocused] = useState(false);
   useFocusFirstField(formRef);
 
-  // Field-by-field shortcuts: Enter advances/submits (textarea keeps newline unless ⌘/Ctrl), Esc back. Mirrors step-form.tsx.
-  const handleFieldByFieldKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
-    const target = event.target as HTMLElement | null;
-    if (target && formRef.current && !formRef.current.contains(target)) return;
-
-    if (event.key === "Escape") {
-      if (!canGoBack) return;
-      if (formRef.current?.querySelector('[aria-expanded="true"]')) return;
-      event.preventDefault();
-      event.stopPropagation();
-      goToPrevStep();
-      return;
-    }
-
-    if (event.key !== "Enter") return;
-    if (!target) return;
-    const isInQuestion = target.closest("[data-bf-input]") !== null;
-    const isNavButton =
-      (target.tagName === "BUTTON" || target.getAttribute("role") === "button") && !isInQuestion;
-    if (isNavButton) return;
-
-    const isTextarea = target.tagName === "TEXTAREA";
-    const isMetaEnter = event.metaKey || event.ctrlKey;
-    if (isTextarea && !isMetaEnter) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    formRef.current?.requestSubmit();
-  };
+  const handleFieldByFieldKeyDown = useFieldByFieldKeyboard(formRef, { canGoBack, goToPrevStep });
 
   const handleTextareaFocusChange =
     (focused: boolean) => (event: React.FocusEvent<HTMLFormElement>) => {
@@ -296,29 +212,8 @@ const StepFormRSC = ({
     handleFieldFocus(event);
   };
 
-  const { tracking } = useStepForm();
-
-  // Fire one `view` per Question on mount (mirrors step-form.tsx). Server upsert collapses re-mount dups.
-  useMountEffect(() => {
-    if (!(tracking?.visitId && tracking.mode)) return;
-    const visitId = tracking.visitId;
-    const lastIndex = questions.length - 1;
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i];
-      enqueueQuestionProgress({
-        visitId,
-        formId: tracking.formId,
-        visitorHash: tracking.visitorHash,
-        questionId: q.questionId,
-        questionType: q.questionType,
-        questionIndex: q.questionIndex,
-        stepId: q.stepId,
-        stepIndex: q.stepIndex,
-        event: "view",
-        wasLastQuestion: isLastStep && i === lastIndex,
-      });
-    }
-  });
+  // Server upsert collapses re-mount dups.
+  useQuestionViewTracking(questions, { tracking, isLastStep });
 
   const FieldSlot = useCallback(
     ({ fieldId, field }: FieldSlotProps) => {
@@ -448,82 +343,15 @@ const StepFormRSC = ({
         }
       >
         <TypedComposite src={stepRSC.src} Field={FieldSlot} ButtonGroup={ButtonGroupSlot} />
-        {autoActionButton &&
-          (navVariant === "footer" ? (
-            // Full-page one-at-a-time footer (Figma 27112:21064): Back / Next grouped, branding
-            // placed opposite per Buttons → Alignment.
-            <div
-              className={`flex w-full items-center gap-3 ${branding ? "" : "justify-between"}`}
-              style={branding ? brandingRowStyle : undefined}
-            >
-              <div className="flex items-center gap-2">
-                {/* Back appears only when there's a previous step (Figma 27015:16542 step 1 = Next only). */}
-                {canGoBack && (
-                  <Button
-                    type="button"
-                    variant="ghost-flat"
-                    onClick={goToPrevStep}
-                    style={{ fontSize: "14px" }}
-                    className="h-auto rounded-[8px] px-2 py-1.5 font-[420] tracking-[0.28px] text-gray-900"
-                  >
-                    {t("back")}
-                  </Button>
-                )}
-                {!(hideSubmit && isLastStep) && (
-                  <Button
-                    type="submit"
-                    data-bf-button=""
-                    disabled={isSubmitting}
-                    style={{ fontSize: "14px" }}
-                    className="h-auto gap-2 rounded-[8px] px-2 py-1.5 font-[420] tracking-[0.28px]"
-                    suffix={<ArrowRightIcon className="size-4" />}
-                  >
-                    {isSubmitting ? t("submitting") : isLastStep ? t("submit") : t("next")}
-                  </Button>
-                )}
-              </div>
-              {branding && <FormBrandingBadge />}
-            </div>
-          ) : (
-            <div
-              className="flex w-full items-center gap-3 pt-2"
-              style={{ maxWidth: "var(--bf-input-width)" }}
-            >
-              {!(hideSubmit && isLastStep) && (
-                <Button
-                  type="submit"
-                  style={{ fontSize: "13px" }}
-                  className="h-9 gap-1.5 rounded-lg px-4"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? t("submitting") : isLastStep ? t("submit") : t("next")}
-                </Button>
-              )}
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                press{" "}
-                {isTextareaFocused && (
-                  <>
-                    <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
-                      ⌘
-                    </kbd>
-                    +
-                  </>
-                )}
-                <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
-                  Enter
-                </kbd>
-                <span aria-hidden="true">↵</span>
-              </span>
-              {canGoBack && (
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
-                    Esc
-                  </kbd>
-                  to go back
-                </span>
-              )}
-            </div>
-          ))}
+        {autoActionButton && (
+          <AutoActionFooter
+            navVariant={navVariant}
+            branding={branding}
+            isLastStep={isLastStep}
+            hideSubmit={hideSubmit}
+            isTextareaFocused={isTextareaFocused}
+          />
+        )}
       </form.Form>
     </form.AppForm>
   );
@@ -542,36 +370,11 @@ const FormPreviewRSCContent = ({
 }) => {
   const { currentStep, totalSteps, isSubmitted, direction, reset } = useStepForm();
   const { t } = useTranslation();
-  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
+  const redirectCountdown = useRedirectCompletion(isSubmitted, settings);
   const currentStepQuestions = useMemo(
     () => extractQuestionsForStepRSC(steps, currentStep),
     [steps, currentStep],
   );
-
-  // eslint-disable-next-line react-doctor/no-cascading-set-state -- single state (redirectCountdown) updated via initial set + interval functional updater; not cascading independent state
-  useEffect(() => {
-    if (!isSubmitted) return;
-    if (!settings?.redirectOnCompletion || !settings?.redirectUrl) return;
-
-    const delay = settings.redirectDelay ?? 0;
-    if (delay === 0) {
-      window.location.href = settings.redirectUrl;
-      return;
-    }
-
-    setRedirectCountdown(delay);
-    const interval = setInterval(() => {
-      setRedirectCountdown((prev) => {
-        if (prev === null || prev <= 1) {
-          clearInterval(interval);
-          if (settings.redirectUrl) window.location.href = settings.redirectUrl;
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isSubmitted, settings?.redirectOnCompletion, settings?.redirectUrl, settings?.redirectDelay]);
 
   if (isSubmitted) {
     return (
@@ -672,36 +475,11 @@ const FieldByFieldRSCContent = ({
 }) => {
   const { currentStep, isSubmitted, direction, reset } = useStepForm();
   const { t } = useTranslation();
-  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
+  const redirectCountdown = useRedirectCompletion(isSubmitted, settings);
   const currentStepQuestions = useMemo(
     () => extractQuestionsForStepRSC(steps, currentStep),
     [steps, currentStep],
   );
-
-  // eslint-disable-next-line react-doctor/no-cascading-set-state -- single state updated via initial set + interval functional updater
-  useEffect(() => {
-    if (!isSubmitted) return;
-    if (!settings?.redirectOnCompletion || !settings?.redirectUrl) return;
-
-    const delay = settings.redirectDelay ?? 0;
-    if (delay === 0) {
-      window.location.href = settings.redirectUrl;
-      return;
-    }
-
-    setRedirectCountdown(delay);
-    const interval = setInterval(() => {
-      setRedirectCountdown((prev) => {
-        if (prev === null || prev <= 1) {
-          clearInterval(interval);
-          if (settings.redirectUrl) window.location.href = settings.redirectUrl;
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isSubmitted, settings?.redirectOnCompletion, settings?.redirectUrl, settings?.redirectDelay]);
 
   const { isPopup } = meta;
   const isLastStep = currentStep === steps.length - 1;
@@ -843,30 +621,12 @@ export const FormPreviewRSC = ({
   logic,
 }: FormPreviewRSCProps) => {
   if (steps.length === 0 || stepCount === 0) {
-    return (
-      <div className="flex min-h-[300px] flex-col items-center justify-center p-8 text-center">
-        <div className="mb-4 text-muted-foreground">{NoContentPlaceholderIcon}</div>
-        <h3 className="mb-2 text-lg">No Content Yet</h3>
-        <p className="max-w-md text-sm text-muted-foreground">
-          Add content to the editor to see the preview.
-        </p>
-      </div>
-    );
+    return <NoContentPlaceholder />;
   }
 
   const presentationMode: PresentationMode = settings?.presentationMode ?? "card";
   const isFieldByField = presentationMode === "field-by-field";
-  // Per ADR-0002 tracking always on — card forms still emit per-Question view/start/complete.
-  const trackingMode: PublicFormTracking["mode"] = isFieldByField ? "field-by-field" : "card";
-  const tracking: PublicFormTracking | null =
-    trackingBase && formId
-      ? {
-          visitId: trackingBase.visitId,
-          visitorHash: trackingBase.visitorHash,
-          formId,
-          mode: trackingMode,
-        }
-      : null;
+  const tracking = buildTracking(trackingBase, formId, presentationMode);
 
   const content = (
     <EmailVerificationContext.Provider value={emailVerification ?? null}>

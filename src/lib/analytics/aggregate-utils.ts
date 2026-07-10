@@ -5,6 +5,7 @@ import type {
   formVisits,
 } from "@/db/schema";
 import { cappedDurationMs } from "./duration";
+import { median } from "./metrics";
 import { resolveSource } from "./source";
 import { buildHistogram } from "./vitals";
 
@@ -26,20 +27,6 @@ const computeAverage = (values: number[]): number | null => {
     sum += v;
   }
   return Math.round(sum / values.length);
-};
-
-const computeMedian = (values: number[]): number | null => {
-  if (values.length === 0) {
-    return null;
-  }
-  const sorted = [...values].toSorted((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 0) {
-    const lo = sorted[mid - 1] ?? 0;
-    const hi = sorted[mid] ?? 0;
-    return Math.round((lo + hi) / 2);
-  }
-  return sorted[mid] ?? null;
 };
 
 export const bumpKey = (target: Record<string, number>, key: string | null | undefined): void => {
@@ -132,7 +119,7 @@ export const buildDailyAnalyticsRows = (
       totalSubmissions,
       uniqueSubmitters: uniqueSubmitterHashes.size,
       avgDurationMs: computeAverage(durations),
-      medianDurationMs: computeMedian(durations),
+      medianDurationMs: median(durations),
       deviceBreakdown,
       browserBreakdown,
       osBreakdown,

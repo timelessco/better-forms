@@ -31,6 +31,20 @@ const isShortIdCollision = (err: unknown): boolean =>
   "constraint_name" in err &&
   (err as { constraint_name: unknown }).constraint_name === SHORT_ID_CONSTRAINT;
 
+// Shared field shapes for createForm/updateForm validators — the two differ only in a couple of
+// fields' optionality (workspaceId required on create; updatedAt/draftSettings type), spread below.
+const formMutationFields = {
+  title: v.optional(v.string()),
+  formName: v.optional(v.string()),
+  schemaName: v.optional(v.string()),
+  content: v.optional(v.array(v.any())),
+  icon: v.optional(v.nullable(v.string())),
+  cover: v.optional(v.nullable(v.string())),
+  status: v.optional(v.picklist(["draft", "published", "archived"])),
+  customization: v.optional(v.record(v.string(), v.any())),
+  sortIndex: v.optional(v.nullable(v.string())),
+} as const;
+
 const serializeForm = (form: FormRow) => ({
   ...form,
   createdAt: form.createdAt.toISOString(),
@@ -45,16 +59,8 @@ export const createForm = createServerFn({ method: "POST" })
     v.object({
       id: v.pipe(v.string(), v.uuid()),
       workspaceId: v.pipe(v.string(), v.uuid()),
-      title: v.optional(v.string()),
-      formName: v.optional(v.string()),
-      schemaName: v.optional(v.string()),
-      content: v.optional(v.array(v.any())),
-      icon: v.optional(v.nullable(v.string())),
-      cover: v.optional(v.nullable(v.string())),
-      status: v.optional(v.picklist(["draft", "published", "archived"])),
+      ...formMutationFields,
       draftSettings: v.optional(v.custom<FormSettings>(() => true)),
-      customization: v.optional(v.record(v.string(), v.any())),
-      sortIndex: v.optional(v.nullable(v.string())),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -106,17 +112,9 @@ export const updateForm = createServerFn({ method: "POST" })
     v.object({
       id: v.pipe(v.string(), v.uuid()),
       workspaceId: v.optional(v.pipe(v.string(), v.uuid())),
-      title: v.optional(v.string()),
-      formName: v.optional(v.string()),
-      schemaName: v.optional(v.string()),
-      content: v.optional(v.array(v.any())),
-      icon: v.optional(v.nullable(v.string())),
-      cover: v.optional(v.nullable(v.string())),
-      status: v.optional(v.picklist(["draft", "published", "archived"])),
+      ...formMutationFields,
       updatedAt: v.optional(v.string()),
       draftSettings: v.optional(v.custom<Partial<FormSettings>>(() => true)),
-      customization: v.optional(v.record(v.string(), v.any())),
-      sortIndex: v.optional(v.nullable(v.string())),
     }),
   )
   .handler(async ({ data, context }) => {

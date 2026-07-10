@@ -161,7 +161,7 @@ const ThemeSelect = () => {
     <Select value={theme} onValueChange={handleThemeChange}>
       <SelectTrigger
         size="md"
-        className="shrink-0 rounded-lg border-0 bg-popover pr-2.5 pl-3 text-sm text-popover-foreground capitalize shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] outline-1 -outline-offset-1 outline-transparent"
+        className="shrink-0 rounded-lg border-0 bg-popover pr-2.5 pl-3 text-sm text-popover-foreground capitalize elevation-pop outline-1 -outline-offset-1 outline-transparent"
       >
         <SelectValue />
       </SelectTrigger>
@@ -363,7 +363,7 @@ const AccountSettingsForm = () => {
                         );
                       }}
                       disabled={updateProfileMutation.isPending}
-                      className="h-[24px] w-[47px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
+                      className="h-[24px] w-[47px] rounded-lg bg-popover px-3 text-sm text-popover-foreground elevation-pop hover:bg-muted"
                     >
                       Save
                     </InputGroupButton>
@@ -414,7 +414,7 @@ const AccountSettingsForm = () => {
                         );
                       }}
                       disabled={updateProfileMutation.isPending}
-                      className="h-[24px] w-[47px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
+                      className="h-[24px] w-[47px] rounded-lg bg-popover px-3 text-sm text-popover-foreground elevation-pop hover:bg-muted"
                     >
                       Save
                     </InputGroupButton>
@@ -564,7 +564,7 @@ const EmailSection = withForm({
             variant="secondary"
             size="sm"
             onClick={emailChange.toggle}
-            className="h-[30px] rounded-lg bg-popover px-3 font-sans text-sm font-medium text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
+            className="h-[30px] rounded-lg bg-popover px-3 font-sans text-sm font-medium text-popover-foreground elevation-pop hover:bg-muted"
           >
             Change email
           </Button>
@@ -591,7 +591,7 @@ const EmailSection = withForm({
                     emailChange.submit(field.state.value);
                   }}
                   disabled={emailChange.isPending || !field.state.value}
-                  className="h-[24px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
+                  className="h-[24px] rounded-lg bg-popover px-3 text-sm text-popover-foreground elevation-pop hover:bg-muted"
                 >
                   {emailChange.isPending ? "Sending..." : "Verify"}
                 </InputGroupButton>
@@ -658,7 +658,7 @@ const ConnectedAccountSection = ({
             variant="secondary"
             size="sm"
             onClick={handleDisconnectGoogle}
-            className="h-[30px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
+            className="h-[30px] rounded-lg bg-popover px-3 text-sm text-popover-foreground elevation-pop hover:bg-muted"
           >
             Disconnect
           </Button>
@@ -667,7 +667,7 @@ const ConnectedAccountSection = ({
             variant="secondary"
             size="sm"
             onClick={handleGoogleSignIn}
-            className="h-[30px] w-[95px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
+            className="h-[30px] w-[95px] rounded-lg bg-popover px-3 text-sm text-popover-foreground elevation-pop hover:bg-muted"
           >
             Connect
           </Button>

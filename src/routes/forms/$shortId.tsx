@@ -1,9 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import * as v from "valibot";
-import { optionalCoercedBoolean } from "@/lib/valibot-search";
+import { useMemo } from "react";
 import { PublicFormPage } from "@/routes/forms/-components/public-form-page";
-import type { PublicFormEmbedConfig } from "@/routes/forms/-components/public-form-page";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import Loader from "@/components/ui/loader";
 import { NotFound } from "@/components/ui/not-found";
@@ -14,18 +11,14 @@ import {
   getMediaPreconnects,
   GOOGLE_FONTS_PRECONNECTS,
 } from "@/lib/theme/generate-theme-css";
+import {
+  buildThemeBootScript,
+  publicFormSearchSchema,
+  usePublicFormTheme,
+} from "@/lib/theme/public-form-theme";
 import { seo } from "@/lib/seo";
 import { APP_WEBSITE_URL } from "@/lib/config/app-config";
 import { getCoverPreloadLinks } from "@/lib/vercel-image";
-
-type PublicTheme = "light" | "dark" | "system";
-
-const themeStorageKey = (shortId: string) => `bf-form-theme:${shortId}`;
-
-const resolveSystemTheme = (): "light" | "dark" => {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-};
 
 const PublicFormRoute = () => {
   const loaderData = Route.useLoaderData();
@@ -33,88 +26,14 @@ const PublicFormRoute = () => {
   const search = Route.useSearch();
 
   const rawCustomization = loaderData?.form?.customization ?? null;
-  const defaultMode = (rawCustomization?.defaultMode as PublicTheme | undefined) ?? "system";
-
-  const [viewerTheme, setViewerTheme] = useState<PublicTheme>(() => {
-    if (typeof window === "undefined") return defaultMode;
-    const saved = window.localStorage.getItem(themeStorageKey(shortId)) as PublicTheme | null;
-    return saved ?? defaultMode;
+  const { resolvedTheme, embedConfig, handleThemeChange, showThemeToggle } = usePublicFormTheme({
+    id: shortId,
+    rawCustomization,
+    search,
   });
-
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => {
-    if (viewerTheme === "system") return resolveSystemTheme();
-    return viewerTheme;
-  });
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const apply = (resolved: "light" | "dark") => {
-      root.classList.remove("light", "dark");
-      root.classList.add(resolved);
-      root.style.colorScheme = resolved;
-      setResolvedTheme(resolved);
-    };
-
-    apply(viewerTheme === "system" ? resolveSystemTheme() : viewerTheme);
-
-    if (viewerTheme === "system") {
-      const mq = window.matchMedia("(prefers-color-scheme: dark)");
-      const handler = () => apply(mq.matches ? "dark" : "light");
-      mq.addEventListener("change", handler);
-      return () => mq.removeEventListener("change", handler);
-    }
-  }, [viewerTheme]);
-
-  useEffect(() => {
-    document.body.style.backgroundColor = "var(--color-background)";
-    return () => {
-      document.body.style.backgroundColor = "";
-    };
-  }, []);
-
-  const handleThemeChange = useCallback(
-    (next: PublicTheme) => {
-      // Swap DOM class synchronously so View Transitions snapshot before/after cleanly. Else React + useEffect swap run after the "after" snapshot → crossfade of identical frames (no visible transition).
-      const resolved: "light" | "dark" = next === "system" ? resolveSystemTheme() : next;
-      const applyDom = () => {
-        const root = document.documentElement;
-        root.classList.remove("light", "dark");
-        root.classList.add(resolved);
-        root.style.colorScheme = resolved;
-        setResolvedTheme(resolved);
-        setViewerTheme(next);
-      };
-
-      if (typeof document !== "undefined" && "startViewTransition" in document) {
-        document.startViewTransition(applyDom);
-      } else {
-        applyDom();
-      }
-
-      try {
-        window.localStorage.setItem(themeStorageKey(shortId), next);
-      } catch {
-        // ignore storage failures (private mode etc.)
-      }
-    },
-    [shortId],
-  );
-
-  // Accept both transparentBackground and transparent params.
-  const isTransparent = search.transparentBackground || search.transparent || false;
-
-  const embedConfig: PublicFormEmbedConfig = {
-    title: search.hideTitle ? "hidden" : "visible",
-    background: isTransparent ? "transparent" : "solid",
-    alignment: search.alignLeft ? "left" : "center",
-    dynamicHeight: search.dynamicHeight ?? false,
-    dynamicWidth: search.dynamicWidth ?? false,
-  };
 
   // Dual-mode CSS — emit both light+dark tokens, root `.dark` picks in CSS, no hydration flash.
   const themeCss = useMemo(() => generateDualThemeCss(rawCustomization), [rawCustomization]);
-
-  const showThemeToggle = defaultMode === "system" && !search.popup && !isTransparent;
 
   return (
     <>
@@ -150,17 +69,7 @@ const PublicFormRoute = () => {
 };
 
 export const Route = createFileRoute("/forms/$shortId")({
-  // No `.default()` — Router would 307-canonicalize to ?popup=false&…, stripping link-preview bots that don't follow redirects.
-  validateSearch: v.object({
-    transparentBackground: v.optional(v.boolean()),
-    transparent: optionalCoercedBoolean,
-    popup: optionalCoercedBoolean,
-    hideTitle: optionalCoercedBoolean,
-    alignLeft: optionalCoercedBoolean,
-    originPage: v.optional(v.string()),
-    dynamicHeight: optionalCoercedBoolean,
-    dynamicWidth: optionalCoercedBoolean,
-  }),
+  validateSearch: publicFormSearchSchema,
   loader: async ({ params }) => getPublicFormViewRSC({ data: { shortId: params.shortId } }),
   head: ({ loaderData, params }) => {
     const defaultMode = loaderData?.form?.customization?.defaultMode || "system";
@@ -207,12 +116,7 @@ export const Route = createFileRoute("/forms/$shortId")({
           : []),
       ],
       scripts: [
-        {
-          // Apply theme before paint — viewer override > creator default > system. Also paint the
-          // resolved background on <html> pre-paint (CSS is already inlined above, so the var
-          // resolves immediately) so there's no white flash before the body bg applies post-hydration.
-          children: `(function(){try{var d=document.documentElement;var override=null;try{override=window.localStorage.getItem("bf-form-theme:${shortId}");}catch(e){}var def=${JSON.stringify(defaultMode)};var pick=override||def;var m=pick==="system"?(window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light"):pick;d.classList.remove("light","dark");d.classList.add(m);d.style.colorScheme=m;d.style.backgroundColor="var(--color-background)";}catch(e){}})();`,
-        },
+        { children: buildThemeBootScript(shortId, defaultMode, { paintBackground: true }) },
 
         {
           // Pre-hydration: on SSR HTML parse, tell parent popup (a) measured height (size iframe, no jump) + (b) form ready (hide spinner veil) without waiting for chunks. React ResizeObserver takes over post-hydration.
