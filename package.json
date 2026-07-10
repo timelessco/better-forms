@@ -164,7 +164,7 @@
     "esbuild": "^0.25.10",
     "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "^27.4.0",
-    "knip": "^5.88.1",
+    "knip": "^6.24.0",
     "lefthook": "^2.1.6",
     "oxfmt": "^0.48.0",
     "oxlint": "^1.63.0",
