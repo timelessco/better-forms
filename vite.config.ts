@@ -9,7 +9,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import { analyzer } from "vite-bundle-analyzer";
-import viteTsConfigPaths from "vite-tsconfig-paths";
+
 
 // Custom Cache-Control headers for the public embed script so updates
 // propagate quickly to embedders without requiring a versioned URL.
@@ -168,10 +168,7 @@ const config = defineConfig({
         },
       },
     }),
-    // this is the plugin that enables path aliases
-    viteTsConfigPaths({
-      projects: ["./tsconfig.json"],
-    }),
+
     tailwindcss(),
     tanstackStart({
       router: {},
@@ -208,6 +205,7 @@ const config = defineConfig({
       : null,
   ],
   resolve: {
+    tsconfigPaths: true,
     // `jotai` added: @platejs/core pins ~2.8.4 while another tree pulls 2.20.0,
     // so node_modules has two copies. The Vite RSC plugin's client-references
     // grouping collides when both reach the bundler ("Identifier 'import_*'
@@ -230,52 +228,51 @@ const config = defineConfig({
     // Emit .vite/manifest.json so the server can resolve lazy field chunks
     // and emit <link rel="modulepreload"> for the fields used on step 1.
     manifest: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks(id) {
-          // Pin Vite's dynamic-import preload helper (`__vitePreload`) to its
-          // own tiny chunk. Otherwise Rollup places it in `editor` (largest
-          // shared chunk via platejs), which forces every module that uses
-          // dynamic `import()` — fields, form-preview, public-form-page — to
-          // pull `editor-*.js` (362 kB) and its KaTeX `editor-*.css` (7 kB)
-          // just to call the helper.
-          if (id.includes("vite/preload-helper")) return "vite-runtime";
-          // Pin small shared runtime utilities to their own chunk so Rollup
-          // can't absorb them into `editor`. Without this, `use-sync-external-store`
-          // and `scheduler` end up owned by the editor chunk (because platejs
-          // also uses them), which forces every Base UI primitive that needs
-          // those utilities (e.g. `getDisabledMountTransitionStyles`, `useForm`,
-          // `useDebouncedCallback`) to pull the full editor chunk + KaTeX CSS
-          // on the public form's happy path. Also covers tiny class-name utilities
-          // (`cnfast`, `class-variance-authority`) that every `cn()` caller would
-          // otherwise drag into whatever chunk Rollup picks first.
-          if (id.includes("node_modules/use-sync-external-store")) return "shared-runtime";
-          if (id.includes("node_modules/scheduler")) return "shared-runtime";
-          if (
-            id.includes("node_modules/cnfast") ||
-            id.includes("node_modules/class-variance-authority")
-          )
-            return "shared-runtime";
-          if (id.includes("@platejs/") || id.includes("platejs")) return "editor";
-          if (id.includes("@radix-ui/")) return "ui";
-          // Pin Base UI primitives to their own chunk. Without this, modules
-          // like `getDisabledMountTransitionStyles` / `useOpenInteractionType`
-          // end up grouped with `editor` by Rollup's auto-chunker, which
-          // forces every field chunk (InputField, TextareaField, …) that
-          // uses a Base UI primitive to pull the full 361 kB platejs chunk
-          // + KaTeX CSS.
-          //
-          // A per-primitive split (`ui-base-<primitive>` from a regex) was
-          // tried in PR #86 and rolled back — it caused
-          // `Cannot access 'React$1' before initialization` (TDZ violation)
-          // in the SSR bundle on Vercel, crashing every request with 500.
-          // Rollup splits @base-ui's internal cross-primitive deps in a way
-          // that breaks ESM init order in the Nitro server bundle. Single-
-          // bucket "ui" keeps all base-ui modules together, sidestepping
-          // the cycle. Reintroducing per-primitive needs an actual Nitro
-          // SSR smoke test (vite preview alone doesn't catch it).
-          if (id.includes("@base-ui/")) return "ui";
-          if (id.includes("@sentry/")) return "sentry";
+        codeSplitting: {
+          groups: [
+            // Pin Vite's dynamic-import preload helper (`__vitePreload`) to its
+            // own tiny chunk. Otherwise the bundler places it in `editor` (largest
+            // shared chunk via platejs), which forces every module that uses
+            // dynamic `import()` — fields, form-preview, public-form-page — to
+            // pull `editor-*.js` (362 kB) and its KaTeX `editor-*.css` (7 kB)
+            // just to call the helper.
+            { name: "vite-runtime", test: /vite[\\/]preload-helper/ },
+            // Pin small shared runtime utilities to their own chunk so the
+            // bundler can't absorb them into `editor`. Without this,
+            // `use-sync-external-store` and `scheduler` end up owned by the
+            // editor chunk (because platejs also uses them), which forces every
+            // Base UI primitive that needs those utilities to pull the full
+            // editor chunk + KaTeX CSS on the public form's happy path. Also
+            // covers tiny class-name utilities (`cnfast`,
+            // `class-variance-authority`) that every `cn()` caller would
+            // otherwise drag into whatever chunk gets picked first.
+            {
+              name: "shared-runtime",
+              test: /node_modules[\\/](use-sync-external-store|scheduler|cnfast|class-variance-authority)/,
+            },
+            { name: "editor", test: /node_modules[\\/](@platejs|platejs)/ },
+            { name: "ui", test: /node_modules[\\/](@radix-ui|@base-ui)/ },
+            // Pin Base UI primitives to their own chunk. Without this, modules
+            // like `getDisabledMountTransitionStyles` / `useOpenInteractionType`
+            // end up grouped with `editor`, which forces every field chunk
+            // (InputField, TextareaField, …) that uses a Base UI primitive to
+            // pull the full 361 kB platejs chunk + KaTeX CSS.
+            //
+            // A per-primitive split (`ui-base-<primitive>` from a regex) was
+            // tried in PR #86 and rolled back — it caused
+            // `Cannot access 'React$1' before initialization` (TDZ violation)
+            // in the SSR bundle on Vercel, crashing every request with 500.
+            // The bundler splits @base-ui's internal cross-primitive deps in a
+            // way that breaks ESM init order in the Nitro server bundle. Single-
+            // bucket "ui" keeps all base-ui modules together, sidestepping the
+            // cycle. Reintroducing per-primitive needs an actual Nitro SSR
+            // smoke test (vite preview alone doesn't catch it).
+            //
+            // (ui group above covers both @radix-ui and @base-ui)
+            { name: "sentry", test: /node_modules[\\/]@sentry/ },
+          ],
         },
       },
     },

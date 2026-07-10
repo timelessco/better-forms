@@ -4,6 +4,8 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [
+    // Vitest 3.x pins Vite ^7 — no native tsconfigPaths yet. Remove once
+    // Vitest ships Vite 8 support.
     viteTsConfigPaths({
       projects: ["./tsconfig.json"],
     }),
