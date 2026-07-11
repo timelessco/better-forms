@@ -17,8 +17,8 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     exclude: ["node_modules", ".output", "drizzle"],
     css: false,
-    testTimeout: 30000,
-    hookTimeout: 30000,
+    testTimeout: process.env.CI ? 120_000 : 30_000,
+    hookTimeout: process.env.CI ? 120_000 : 30_000,
     poolOptions: {
       forks: {
         maxForks: 2,
