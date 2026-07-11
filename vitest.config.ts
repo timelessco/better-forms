@@ -19,5 +19,10 @@ export default defineConfig({
     css: false,
     testTimeout: 30000,
     hookTimeout: 30000,
+    poolOptions: {
+      forks: {
+        maxForks: 2,
+      },
+    },
   },
 });
