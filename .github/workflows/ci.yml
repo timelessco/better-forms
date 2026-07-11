@@ -18,9 +18,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # --no-file-parallelism: tests share one remote Supabase DB and flake in parallel.
-      # Drop once tests are DB-isolated (plan 010).
-      - run: pnpm exec vitest run --no-file-parallelism
+      - run: pnpm exec vitest run
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
