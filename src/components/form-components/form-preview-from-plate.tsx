@@ -2,7 +2,6 @@ import { StaticContentBlock } from "@/components/form-components/static-content-
 import { StepForm } from "@/components/form-components/step-form";
 import { ProgressBar } from "@/routes/forms/-components/progress-bar";
 import { Button } from "@/components/ui/button";
-import { CopyButton } from "@/components/ui/copy-button";
 import { Image } from "@/components/ui/image";
 import { COVER_SRCSET_WIDTHS } from "@/lib/vercel-image";
 import { EmailVerificationContext } from "@/components/form-components/email-verification-context";
@@ -12,7 +11,7 @@ import {
   StepFormProvider,
   useStepForm,
 } from "@/contexts/step-form-context";
-import type { PublicFormTracking, TrackingBase } from "@/contexts/step-form-context";
+import type { TrackingBase } from "@/contexts/step-form-context";
 import { useTranslation } from "@/contexts/translation-context";
 import { CUSTOMIZATION_AUTO_DEFAULTS } from "@/lib/theme/customization-defaults";
 import { extractFormHeader } from "@/lib/editor/transform-plate-to-form";
@@ -30,32 +29,16 @@ import { DEFAULT_ICON } from "@/lib/config/app-config";
 import { cn, DEFAULT_ICON_NAME, isHexColor, isValidUrl } from "@/lib/utils";
 import type { PublicFormSettings } from "@/types/form-settings";
 import { IconPickerPreview } from "@/components/icon-picker";
-import { SuccessCheck } from "@/components/transitions/success-check";
 import { AnimatePresence, domAnimation, LazyMotion, m, useReducedMotion } from "motion/react";
 import type { Value } from "platejs";
-import { use, useEffect, useMemo, useRef, useState } from "react";
-
-const NoContentPlaceholderIcon = (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="48"
-    height="48"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="mx-auto mb-4 opacity-50"
-  >
-    <title>No content placeholder</title>
-    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" x2="8" y1="13" y2="13" />
-    <line x1="16" x2="8" y1="17" y2="17" />
-    <line x1="10" x2="8" y1="9" y2="9" />
-  </svg>
-);
+import { use, useMemo, useRef, useState } from "react";
+import { useRedirectCompletion } from "@/hooks/use-redirect-completion";
+import {
+  buildTracking,
+  DefaultThankYou,
+  NoContentPlaceholder,
+  ShareWithOthers,
+} from "./preview-shared";
 
 interface FormPreviewFromPlateProps {
   /** Plate editor content array */
@@ -356,26 +339,6 @@ const PreviewFormHeader = ({
   );
 };
 
-// "Share with others" row (link + copy) on thank-you page.
-const ShareWithOthers = ({ shareUrl }: { shareUrl: string }) => (
-  <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-2 pt-4">
-    <p className="text-sm text-muted-foreground">Share with others</p>
-    <div className="flex h-[30px] w-full items-center gap-[6px] rounded-lg bg-muted/60 py-[3px] pr-[3px] pl-[10px]">
-      <span className="min-w-0 flex-1 truncate text-sm font-normal text-muted-foreground">
-        {shareUrl}
-      </span>
-      <CopyButton
-        text={shareUrl}
-        variant="ghost"
-        size="sm"
-        className="h-6 shrink-0 gap-1 rounded-[5px] border-none bg-background px-2 text-sm text-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] [&_svg]:size-[13px]"
-      >
-        Copy
-      </CopyButton>
-    </div>
-  </div>
-);
-
 // Thank-you page is static-only — rendered via PlateStatic.
 const RenderThankYouContent = ({
   nodes,
@@ -402,25 +365,6 @@ const RenderThankYouContent = ({
             {t("submitAnother")}
           </Button>
         </div>
-      )}
-      {shareUrl && <ShareWithOthers shareUrl={shareUrl} />}
-    </div>
-  );
-};
-
-const DefaultThankYou = ({ onReset, shareUrl }: { onReset?: () => void; shareUrl?: string }) => {
-  const { t } = useTranslation();
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-green-100">
-        <SuccessCheck size={32} className="text-green-600" />
-      </div>
-      <h2 className="mb-2 text-2xl font-semibold">{t("thankYou")}</h2>
-      <p className="mb-6 text-muted-foreground">{t("responseSubmitted")}</p>
-      {onReset && (
-        <Button type="button" onClick={onReset} variant="outline" size="sm" className="rounded-lg">
-          {t("submitAnother")}
-        </Button>
       )}
       {shareUrl && <ShareWithOthers shareUrl={shareUrl} />}
     </div>
@@ -486,29 +430,10 @@ export const FormPreviewFromPlate = ({
   );
 
   if (steps.length === 0 || steps.flat().length === 0) {
-    return (
-      <div className="flex min-h-[300px] flex-col items-center justify-center p-8 text-center">
-        <div className="mb-4 text-muted-foreground">{NoContentPlaceholderIcon}</div>
-        <h3 className="mb-2 text-lg">No Content Yet</h3>
-        <p className="max-w-md text-sm text-muted-foreground">
-          Add content to the editor to see the preview.
-        </p>
-      </div>
-    );
+    return <NoContentPlaceholder />;
   }
 
-  // Per ADR-0002 tracking always on — card forms still emit per-Question view/start/complete (Step mounts once, focus per Question, complete per Question on Submit).
-  const isFieldByField = settings?.presentationMode === "field-by-field";
-  const trackingMode: PublicFormTracking["mode"] = isFieldByField ? "field-by-field" : "card";
-  const tracking: PublicFormTracking | null =
-    trackingBase && formId
-      ? {
-          visitId: trackingBase.visitId,
-          visitorHash: trackingBase.visitorHash,
-          formId,
-          mode: trackingMode,
-        }
-      : null;
+  const tracking = buildTracking(trackingBase, formId, settings?.presentationMode ?? "card");
 
   return (
     <FormPreviewReadOnlyContext.Provider value={readOnly}>
@@ -562,42 +487,6 @@ const stepVariants = {
     x: direction < 0 ? 20 : -20,
     opacity: 0,
   }),
-};
-
-const useRedirectCountdown = (isSubmitted: boolean, settings?: PublicFormSettings) => {
-  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
-
-  // eslint-disable-next-line react-doctor/no-cascading-set-state -- single state (redirectCountdown) updated via initial set + interval functional updater; not cascading independent state
-  useEffect(() => {
-    if (!isSubmitted) return;
-    if (!settings?.redirectOnCompletion || !settings?.redirectUrl) return;
-
-    const delay = settings.redirectDelay ?? 0;
-
-    if (delay === 0) {
-      window.location.href = settings.redirectUrl;
-      return;
-    }
-
-    setRedirectCountdown(delay);
-
-    const interval = setInterval(() => {
-      setRedirectCountdown((prev) => {
-        if (prev === null || prev <= 1) {
-          clearInterval(interval);
-          if (settings.redirectUrl) {
-            window.location.href = settings.redirectUrl;
-          }
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isSubmitted, settings?.redirectOnCompletion, settings?.redirectUrl, settings?.redirectDelay]);
-
-  return redirectCountdown;
 };
 
 interface ThankYouViewProps {
@@ -892,7 +781,7 @@ const FormPreviewContent = (props: {
     ...props,
     isFieldByField: props.settings?.presentationMode === "field-by-field",
   };
-  const redirectCountdown = useRedirectCountdown(isSubmitted, settings);
+  const redirectCountdown = useRedirectCompletion(isSubmitted, settings);
 
   // Thank-you share URL. Built from shortId since editor preview's window.location is the editor route, not the public URL.
   const shareUrl = useMemo(() => {

@@ -1,9 +1,8 @@
-import { fieldLabelId, getAriaLabelFallback, getAriaLabelledBy, guessAutocomplete } from "./shared";
+import { FORM_INPUT_CLS, guessAutocomplete, useFieldBinding } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
 const InputField = ({ element, form, name }: FieldRendererProps<"Input">) => {
-  const fieldName = name ?? element.name;
-  const isArrayItem = name !== undefined;
+  const { fieldName, ariaLabel, ariaLabelledBy } = useFieldBinding(element, name);
   return (
     <form.AppField name={fieldName}>
       {(f) => (
@@ -15,9 +14,9 @@ const InputField = ({ element, form, name }: FieldRendererProps<"Input">) => {
             minLength={element.minLength}
             maxLength={element.maxLength}
             autoComplete={guessAutocomplete(element)}
-            aria-label={getAriaLabelFallback(element)}
-            aria-labelledby={isArrayItem ? fieldLabelId(element.name) : getAriaLabelledBy(element)}
-            className="h-[30px] form-input pr-[8px] pl-[10px]"
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledBy}
+            className={FORM_INPUT_CLS}
           />
           <f.FieldError />
         </>

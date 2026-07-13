@@ -9,11 +9,21 @@ import type { PlateFormField } from "@/lib/editor/transform-plate-to-form";
 // Re-export alias kept for callers — name stays stable even though impl is valibot.
 type AnyValibotSchema = v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>;
 
-/** Strict per-item validator for a repeatable scalar field. Every item must be
- * a valid non-empty value of the field's type. Branches inline rather than
- * accumulating into an array because valibot's v.pipe is strongly typed and
- * spread arrays of mixed PipeItems don't satisfy its generics. */
-const buildArrayItemSchema = (field: PlateFormField): AnyValibotSchema => {
+const urlRegex = /^(https?:\/\/)?[\w.-]+\.\w{2,}(\/\S*)?$/;
+
+// Coerce string/number → number, guard "" → undefined (Number("")===0 would pass otherwise).
+const coerceNum = (val: unknown): number | undefined => {
+  if (val === "" || val === null || val === undefined) return undefined;
+  return Number(val);
+};
+
+/** Strict, non-empty per-type validator for a field. Single source of truth: the array-item
+ * path uses it directly; the object path derives its required schema from it and its optional
+ * schema by unioning it with "" (or overriding for the non-string types that manage their own
+ * empty/optional handling). Branches inline rather than accumulating into an array because
+ * valibot's v.pipe is strongly typed and spread arrays of mixed PipeItems don't satisfy its
+ * generics. */
+const baseValidatorForField = (field: PlateFormField): AnyValibotSchema => {
   switch (field.fieldType) {
     case "Email":
       return v.pipe(
@@ -21,20 +31,13 @@ const buildArrayItemSchema = (field: PlateFormField): AnyValibotSchema => {
         v.nonEmpty("This field is required"),
         v.email("Please enter a valid email address"),
       );
-    case "Link": {
-      const urlRegex = /^(https?:\/\/)?[\w.-]+\.\w{2,}(\/\S*)?$/;
+    case "Link":
       return v.pipe(
         v.string(),
         v.nonEmpty("This field is required"),
         v.regex(urlRegex, "Please enter a valid URL"),
       );
-    }
     case "Number": {
-      // Coerce string/number → number, guard "" → undefined (Number("")===0 would pass otherwise).
-      const coerceNum = (val: unknown): number | undefined => {
-        if (val === "" || val === null || val === undefined) return undefined;
-        return Number(val);
-      };
       const base = v.pipe(
         v.unknown(),
         v.transform(coerceNum),
@@ -131,7 +134,7 @@ export const generateZodSchemaFromFields = (
       // own per-index "This field is required" error routed to <FieldError />
       // inside the item component). Optional: accept empty items via union;
       // only flag genuinely-malformed non-empty values.
-      const strictItem = buildArrayItemSchema(field);
+      const strictItem = baseValidatorForField(field);
       const item = field.required
         ? strictItem
         : (v.union([v.literal(""), strictItem]) as AnyValibotSchema);
@@ -146,114 +149,15 @@ export const generateZodSchemaFromFields = (
     let isAlreadyOptional = false;
 
     switch (field.fieldType) {
+      // Email, Link, Number, Phone share one shape: required ⇒ the strict base validator;
+      // optional ⇒ accept "" as a literal pass-through, else coerce+validate via base. (For the
+      // non-empty branch, base's leading nonEmpty is a no-op — the value already isn't "".)
       case "Email":
-        fieldSchema = field.required
-          ? v.pipe(
-              v.string(),
-              v.nonEmpty("This field is required"),
-              v.email("Please enter a valid email address"),
-            )
-          : v.union([
-              v.literal(""),
-              v.pipe(v.string(), v.email("Please enter a valid email address")),
-            ]);
-        break;
-      case "Link": {
-        const urlRegex = /^(https?:\/\/)?[\w.-]+\.\w{2,}(\/\S*)?$/;
-        fieldSchema = field.required
-          ? v.pipe(
-              v.string(),
-              v.nonEmpty("This field is required"),
-              v.regex(urlRegex, "Please enter a valid URL"),
-            )
-          : v.union([
-              v.literal(""),
-              v.pipe(v.string(), v.regex(urlRegex, "Please enter a valid URL")),
-            ]);
-        break;
-      }
-      case "Number": {
-        // Coerce string/number → number, guard "" → undefined (Number("")===0 would pass without this).
-        const coerceNum = (val: unknown): number | undefined => {
-          if (val === "" || val === null || val === undefined) return undefined;
-          return Number(val);
-        };
-        // Build number schema with optional int/min/max validations.
-        const buildNumSchema = (): AnyValibotSchema => {
-          const base = v.pipe(
-            v.unknown(),
-            v.transform(coerceNum),
-            // Cast: transform output is number|undefined; number() rejects undefined — correct behavior.
-            v.number("Please enter a valid number") as unknown as v.TransformAction<
-              unknown,
-              number
-            >,
-          );
-          if (
-            field.allowDecimals === false &&
-            typeof field.min === "number" &&
-            typeof field.max === "number"
-          ) {
-            return v.pipe(
-              base,
-              v.integer("Decimals are not allowed"),
-              v.minValue(field.min, `Value must be at least ${field.min}`),
-              v.maxValue(field.max, `Value must be at most ${field.max}`),
-            );
-          }
-          if (field.allowDecimals === false && typeof field.min === "number") {
-            return v.pipe(
-              base,
-              v.integer("Decimals are not allowed"),
-              v.minValue(field.min, `Value must be at least ${field.min}`),
-            );
-          }
-          if (field.allowDecimals === false && typeof field.max === "number") {
-            return v.pipe(
-              base,
-              v.integer("Decimals are not allowed"),
-              v.maxValue(field.max, `Value must be at most ${field.max}`),
-            );
-          }
-          if (field.allowDecimals === false) {
-            return v.pipe(base, v.integer("Decimals are not allowed"));
-          }
-          if (typeof field.min === "number" && typeof field.max === "number") {
-            return v.pipe(
-              base,
-              v.minValue(field.min, `Value must be at least ${field.min}`),
-              v.maxValue(field.max, `Value must be at most ${field.max}`),
-            );
-          }
-          if (typeof field.min === "number") {
-            return v.pipe(base, v.minValue(field.min, `Value must be at least ${field.min}`));
-          }
-          if (typeof field.max === "number") {
-            return v.pipe(base, v.maxValue(field.max, `Value must be at most ${field.max}`));
-          }
-          return base;
-        };
-        const numSchema = buildNumSchema();
-        fieldSchema = field.required
-          ? numSchema
-          : // Accept "" as literal pass-through; otherwise coerce+validate.
-            v.union([v.literal(""), numSchema]);
-        break;
-      }
+      case "Link":
+      case "Number":
       case "Phone": {
-        // PhoneInput emits E.164 (e.g. "+919360992440"). Validate format via
-        // libphonenumber, not stale char-count limits from the old text UI.
-        const phoneSchema = v.pipe(
-          v.string(),
-          v.check((val) => isValidPhoneNumber(val), "Please enter a valid phone number"),
-        );
-        fieldSchema = field.required
-          ? v.pipe(
-              v.string(),
-              v.nonEmpty("This field is required"),
-              v.check((val) => isValidPhoneNumber(val), "Please enter a valid phone number"),
-            )
-          : v.union([v.literal(""), phoneSchema]);
+        const base = baseValidatorForField(field);
+        fieldSchema = field.required ? base : v.union([v.literal(""), base]);
         break;
       }
       case "Date":

@@ -2,6 +2,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
 import { useLazyRef } from "@/hooks/use-lazy-ref";
+import { cssColorToHex } from "@/lib/color";
 import { cn } from "@/lib/utils";
 import { AlignLeftIcon, AlignCenterIcon, AlignRightIcon } from "@/components/ui/icons";
 import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
@@ -113,19 +114,6 @@ export const StyleNumberInput = ({
       trackClassName={cn(!bare && "border border-border/60", className)}
     />
   );
-};
-
-/** Convert any CSS color (hex, oklch, rgb, etc.) to #rrggbb for <input type="color"> */
-const cssColorToHex = (color: string): string => {
-  if (color?.startsWith("#")) return color.slice(0, 7);
-  try {
-    const ctx = document.createElement("canvas").getContext("2d");
-    if (!ctx) return "#000000";
-    ctx.fillStyle = color;
-    return ctx.fillStyle;
-  } catch {
-    return "#000000";
-  }
 };
 
 export const StyleColorPicker = ({

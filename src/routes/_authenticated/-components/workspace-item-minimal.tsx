@@ -212,19 +212,21 @@ export const WorkspaceItemMinimal = ({
                     <span className="flex-1 text-left whitespace-nowrap">{currentSort.label}</span>
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
-                    <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                    {sortOptions.map((option) => (
-                      <DropdownMenuItem
-                        key={option.value}
-                        closeOnClick={false}
-                        onClick={() => onSortChange(option.value)}
-                        className={cn(sortMode === option.value && "bg-black/5")}
-                      >
-                        <option.icon />
-                        <span className="flex-1 text-left">{option.label}</span>
-                        {sortMode === option.value && <CheckIcon className="size-3 shrink-0" />}
-                      </DropdownMenuItem>
-                    ))}
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                      {sortOptions.map((option) => (
+                        <DropdownMenuItem
+                          key={option.value}
+                          closeOnClick={false}
+                          onClick={() => onSortChange(option.value)}
+                          className={cn(sortMode === option.value && "bg-black/5")}
+                        >
+                          <option.icon />
+                          <span className="flex-1 text-left">{option.label}</span>
+                          {sortMode === option.value && <CheckIcon className="size-3 shrink-0" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuGroup>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
                 <DropdownMenuGroup>

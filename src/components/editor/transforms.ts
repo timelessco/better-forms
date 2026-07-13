@@ -35,6 +35,148 @@ const insertList = (editor: PlateEditor, type: string) => {
   );
 };
 
+type FieldNode = Record<string, unknown>;
+
+type LabeledFieldOptions = {
+  labelPlaceholder?: string;
+  // formInput/formTextarea historically call editor.tf.focus() after selecting the label.
+  focus?: boolean;
+};
+
+// Insert a formLabel + its field node(s) after the current block, then park the caret in the label.
+const insertLabeledField = (
+  editor: PlateEditor,
+  fieldNodes: FieldNode | FieldNode[],
+  { labelPlaceholder = "Type a question", focus = false }: LabeledFieldOptions = {},
+) => {
+  const block = editor.api.block();
+  if (!block) return;
+
+  const [, path] = block;
+  const labelPath = PathApi.next(path);
+
+  const label: FieldNode = {
+    type: "formLabel",
+    required: true,
+    placeholder: labelPlaceholder,
+    children: [{ text: "" }],
+  };
+  const fields = Array.isArray(fieldNodes) ? fieldNodes : [fieldNodes];
+
+  editor.tf.insertNodes([label, ...fields] as unknown as TElement[], { at: labelPath });
+
+  editor.tf.select({ path: [...labelPath, 0], offset: 0 });
+  if (focus) editor.tf.focus();
+};
+
+type LabeledFieldConfig = {
+  // Field node(s) inserted after the label. Factory so entries needing fresh short ids re-run per insert.
+  fields: () => FieldNode | FieldNode[];
+  focus?: boolean;
+};
+
+const LABELED_FIELD_CONFIGS: Record<string, LabeledFieldConfig> = {
+  formInput: {
+    fields: () => ({
+      type: "formInput",
+      placeholder: "Type Placeholder text",
+      children: [{ text: "" }],
+    }),
+    focus: true,
+  },
+  formTextarea: {
+    fields: () => ({
+      type: "formTextarea",
+      placeholder: "Type a placeholder",
+      children: [{ text: "" }],
+    }),
+    focus: true,
+  },
+  formEmail: {
+    fields: () => ({
+      type: "formEmail",
+      placeholder: "email@example.com",
+      children: [{ text: "" }],
+    }),
+  },
+  formPhone: {
+    fields: () => ({
+      type: "formPhone",
+      placeholder: "+1 (555) 000-0000",
+      children: [{ text: "" }],
+    }),
+  },
+  formNumber: {
+    fields: () => ({ type: "formNumber", placeholder: "0", children: [{ text: "" }] }),
+  },
+  formLink: {
+    fields: () => ({
+      type: "formLink",
+      placeholder: "https://example.com",
+      children: [{ text: "" }],
+    }),
+  },
+  formDate: {
+    fields: () => ({ type: "formDate", placeholder: "Select a date", children: [{ text: "" }] }),
+  },
+  formTime: {
+    fields: () => ({ type: "formTime", placeholder: "Select a time", children: [{ text: "" }] }),
+  },
+  formFileUpload: {
+    fields: () => ({ type: "formFileUpload", children: [{ text: "" }] }),
+  },
+  formLinearScale: {
+    // Settings seed the NPS default (1–10, step 1); the block menu edits them.
+    fields: () => ({
+      type: "formLinearScale",
+      scaleMin: 1,
+      scaleMax: 10,
+      scaleStep: 1,
+      children: [{ text: "" }],
+    }),
+  },
+  formMatrix: {
+    // Single-select per row by default; the block menu's "Multiple selection" flips it.
+    fields: () => ({
+      type: "formMatrix",
+      rows: MATRIX_DEFAULTS.rows.map((label) => ({ id: generateShortId(), label })),
+      columns: MATRIX_DEFAULTS.columns.map((label) => ({ id: generateShortId(), label })),
+      children: [{ text: "" }],
+    }),
+  },
+  formCheckbox: {
+    fields: () => [
+      { type: "formOptionItem", variant: "checkbox", children: [{ text: "" }] },
+      { type: "p", children: [{ text: "" }] },
+    ],
+  },
+  formMultiChoice: {
+    fields: () => [
+      { type: "formOptionItem", variant: "multiChoice", children: [{ text: "" }] },
+      { type: "p", children: [{ text: "" }] },
+    ],
+  },
+  formRanking: {
+    fields: () => [
+      { type: "formOptionItem", variant: "ranking", children: [{ text: "" }] },
+      { type: "p", children: [{ text: "" }] },
+    ],
+  },
+  formRating: {
+    fields: () => ({ type: "formRating", starCount: 5, children: [{ text: "" }] }),
+  },
+  formSignature: {
+    fields: () => ({ type: "formSignature", children: [{ text: "" }] }),
+  },
+};
+
+const labeledFieldInserters = Object.fromEntries(
+  Object.entries(LABELED_FIELD_CONFIGS).map(([type, cfg]) => [
+    type,
+    (editor: PlateEditor) => insertLabeledField(editor, cfg.fields(), { focus: cfg.focus }),
+  ]),
+) as Record<string, (editor: PlateEditor, type: string) => void>;
+
 const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void> = {
   logicBlock: (editor) => {
     const block = editor.api.block();
@@ -63,346 +205,7 @@ const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void
     }),
   [KEYS.toc]: (editor) => insertToc(editor, { select: true }),
   [KEYS.video]: (editor) => insertVideoPlaceholder(editor, { select: true }),
-  formInput: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-
-    editor.tf.insertNodes(
-      {
-        type: "formLabel",
-        required: true,
-        placeholder: "Type a question",
-        children: [{ text: "" }],
-      } as TElement,
-      { at: labelPath },
-    );
-
-    editor.tf.insertNodes(
-      {
-        type: "formInput",
-        placeholder: "Type Placeholder text",
-        children: [{ text: "" }],
-      } as TElement,
-      { at: PathApi.next(labelPath) },
-    );
-
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-    editor.tf.focus();
-  },
-  formTextarea: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-
-    editor.tf.insertNodes(
-      {
-        type: "formLabel",
-        required: true,
-        placeholder: "Type a question",
-        children: [{ text: "" }],
-      } as TElement,
-      { at: labelPath },
-    );
-
-    editor.tf.insertNodes(
-      {
-        type: "formTextarea",
-        placeholder: "Type a placeholder",
-        children: [{ text: "" }],
-      } as TElement,
-      { at: PathApi.next(labelPath) },
-    );
-
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-    editor.tf.focus();
-  },
-  formEmail: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formEmail", placeholder: "email@example.com", children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formPhone: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formPhone", placeholder: "+1 (555) 000-0000", children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formNumber: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formNumber", placeholder: "0", children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formLink: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formLink", placeholder: "https://example.com", children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formDate: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formDate", placeholder: "Select a date", children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formTime: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formTime", placeholder: "Select a time", children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formFileUpload: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formFileUpload", children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formLinearScale: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        // Settings seed the NPS default (1–10, step 1); the block menu edits them.
-        {
-          type: "formLinearScale",
-          scaleMin: 1,
-          scaleMax: 10,
-          scaleStep: 1,
-          children: [{ text: "" }],
-        },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formMatrix: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        // Single-select per row by default; the block menu's "Multiple selection" flips it.
-        {
-          type: "formMatrix",
-          rows: MATRIX_DEFAULTS.rows.map((label) => ({ id: generateShortId(), label })),
-          columns: MATRIX_DEFAULTS.columns.map((label) => ({ id: generateShortId(), label })),
-          children: [{ text: "" }],
-        },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formCheckbox: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formOptionItem", variant: "checkbox", children: [{ text: "" }] },
-        { type: "p", children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formMultiChoice: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formOptionItem", variant: "multiChoice", children: [{ text: "" }] },
-        { type: "p", children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formRanking: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formOptionItem", variant: "ranking", children: [{ text: "" }] },
-        { type: "p", children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formRating: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formRating", starCount: 5, children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
-  formSignature: (editor) => {
-    const block = editor.api.block();
-    if (!block) return;
-    const [, path] = block;
-    const labelPath = PathApi.next(path);
-    editor.tf.insertNodes(
-      [
-        {
-          type: "formLabel",
-          required: true,
-          placeholder: "Type a question",
-          children: [{ text: "" }],
-        },
-        { type: "formSignature", children: [{ text: "" }] },
-      ] as unknown as TElement[],
-      { at: labelPath },
-    );
-    editor.tf.select({ path: [...labelPath, 0], offset: 0 });
-  },
+  ...labeledFieldInserters,
   pageBreak: (editor) => {
     const block = editor.api.block();
     if (!block) return;

@@ -24,7 +24,6 @@ import {
   FigPlusIcon,
   FigRegistrationIcon,
   FigRsvpIcon,
-  FigSearchAltIcon,
   FigSmallDownIcon,
   FigSortIcon,
   FigSurveyIcon,
@@ -54,7 +53,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as v from "valibot";
 import { TextSwap } from "@/components/transitions/text-swap";
-import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToolbarPill, ToolbarSearch, ViewToggle } from "@/components/ui/route-toolbar";
 import { toast } from "sonner";
 
 // Fallback page size before the viewport is measured (SSR / first paint).
@@ -166,17 +165,11 @@ const DashboardSearch = () => {
   }, [input, search.q, navigate]);
 
   return (
-    <div className="flex h-7 w-[170px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2">
-      <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
-      <input
-        type="search"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Search"
-        aria-label="Search forms"
-        className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
-      />
-    </div>
+    <ToolbarSearch
+      value={input}
+      onChange={(e) => setInput(e.target.value)}
+      aria-label="Search forms"
+    />
   );
 };
 
@@ -190,18 +183,11 @@ const FilterMenu = ({
   <DropdownMenu>
     <DropdownMenuTrigger
       render={
-        <Button
-          variant="ghost-flat"
-          size="sm"
-          aria-label="Filter forms"
-          className="rounded-lg bg-secondary px-2 hover:bg-secondary/80"
-        >
-          <FigFilterIcon className="size-4 text-gray-800" />
-          <span className="font-case text-base font-[450] tracking-[0.14px] text-gray-800">
-            Filter
-          </span>
-          <FigSmallDownIcon className="size-4 text-gray-800" />
-        </Button>
+        <ToolbarPill aria-label="Filter forms">
+          <FigFilterIcon />
+          <span>Filter</span>
+          <FigSmallDownIcon />
+        </ToolbarPill>
       }
     />
     <DropdownMenuContent align="end" sideOffset={4}>
@@ -523,7 +509,22 @@ const DashboardPage = () => {
                 <DashboardSearch />
                 <FilterMenu currentFilter={currentFilter} onChange={handleFilterChange} />
                 <SortMenu sortBy={sortBy} onChange={setSortBy} />
-                <ViewToggle mode={viewMode} onChange={setViewMode} />
+                <ViewToggle
+                  value={viewMode}
+                  onValueChange={setViewMode}
+                  options={[
+                    {
+                      value: "grid",
+                      icon: <FigTilesIcon className="size-4" />,
+                      label: "Grid view",
+                    },
+                    {
+                      value: "list",
+                      icon: <FigBulletListIcon className="size-4" />,
+                      label: "List view",
+                    },
+                  ]}
+                />
               </div>
             )}
           </div>
@@ -618,18 +619,11 @@ const SortMenu = ({
   <DropdownMenu>
     <DropdownMenuTrigger
       render={
-        <Button
-          variant="ghost-flat"
-          size="sm"
-          aria-label="Sort forms"
-          className="rounded-lg bg-secondary px-2 hover:bg-secondary/80"
-        >
-          <FigSortIcon className="size-4 text-gray-800" />
-          <span className="font-case text-base font-[450] tracking-[0.14px] text-gray-800">
-            Sort
-          </span>
-          <FigSmallDownIcon className="size-4 text-gray-800" />
-        </Button>
+        <ToolbarPill aria-label="Sort forms">
+          <FigSortIcon />
+          <span>Sort</span>
+          <FigSmallDownIcon />
+        </ToolbarPill>
       }
     />
     <DropdownMenuContent align="end" sideOffset={4} className="min-w-[168px]">
@@ -666,31 +660,6 @@ const SortMenu = ({
       </DropdownMenuGroup>
     </DropdownMenuContent>
   </DropdownMenu>
-);
-
-// Figma "tabs" (26208:8090) — gray/100 track with a sliding active pill. Uses the shared animated
-// Tabs (TabsIndicator) so the highlight slides between options, matching the share-sidebar tabs.
-// Square icon-only triggers: w-[26px] (sm trigger is already h-6.5), flex-none + px-0! drop the
-// stretch/padding the text-tab variant applies.
-const VIEW_TAB = "w-[26px] flex-none px-0! text-muted-foreground";
-const ViewToggle = ({
-  mode,
-  onChange,
-}: {
-  mode: FormViewMode;
-  onChange: (next: FormViewMode) => void;
-}) => (
-  <Tabs value={mode} onValueChange={(value) => onChange(value as FormViewMode)}>
-    <TabsList className="gap-1 rounded-lg">
-      <TabsTrigger value="grid" aria-label="Grid view" className={VIEW_TAB}>
-        <FigTilesIcon className="size-4" />
-      </TabsTrigger>
-      <TabsTrigger value="list" aria-label="List view" className={VIEW_TAB}>
-        <FigBulletListIcon className="size-4" />
-      </TabsTrigger>
-      <TabsIndicator />
-    </TabsList>
-  </Tabs>
 );
 
 type FormCardForm = {

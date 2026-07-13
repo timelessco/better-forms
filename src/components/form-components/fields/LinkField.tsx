@@ -1,9 +1,8 @@
-import { fieldLabelId, getAriaLabelFallback, getAriaLabelledBy } from "./shared";
+import { FORM_INPUT_CLS, useFieldBinding } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
 const LinkField = ({ element, form, name }: FieldRendererProps<"Link">) => {
-  const fieldName = name ?? element.name;
-  const isArrayItem = name !== undefined;
+  const { fieldName, ariaLabel, ariaLabelledBy } = useFieldBinding(element, name);
   return (
     <form.AppField name={fieldName}>
       {(f) => (
@@ -14,9 +13,9 @@ const LinkField = ({ element, form, name }: FieldRendererProps<"Link">) => {
             placeholder={element.placeholder}
             autoComplete="url"
             inputMode="url"
-            aria-label={getAriaLabelFallback(element)}
-            aria-labelledby={isArrayItem ? fieldLabelId(element.name) : getAriaLabelledBy(element)}
-            className="h-[30px] form-input pr-[8px] pl-[10px]"
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledBy}
+            className={FORM_INPUT_CLS}
           />
           <f.FieldError />
         </>

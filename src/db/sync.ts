@@ -2,8 +2,8 @@ import { createTransaction } from "@tanstack/react-db";
 import { log } from "evlog";
 import { logger } from "@/lib/utils";
 import { localFormCollection } from "@/collections/local/form";
-import { getFormListings, getWorkspaces, createWorkspaceLocal } from "@/collections";
-import type { FormListing } from "@/collections";
+import type { Form } from "@/collections/local/form";
+import { getFormListings, getWorkspaces, createWorkspaceLocal, formToListing } from "@/collections";
 import { createForm } from "@/lib/server-fn/forms";
 
 type SyncResult = {
@@ -62,10 +62,12 @@ export const syncLocalDataToCloud = async (organizationId: string): Promise<Sync
         const newFormId = crypto.randomUUID();
         const now = new Date().toISOString();
 
-        const newFormData = {
+        const newFormData: Form = {
           id: newFormId,
           workspaceId: targetWorkspaceId,
-          createdByUserId: "", // Server will use context.session.user.id
+          // Placeholder — createForm ignores this and uses context.session.user.id; kept so
+          // formToListing maps a defined (non-null) createdByUserId on the optimistic row.
+          createdByUserId: "",
           title: localForm.title || "Untitled",
           formName: localForm.formName || "draft",
           schemaName: localForm.schemaName || "draftFormSchema",
@@ -75,6 +77,7 @@ export const syncLocalDataToCloud = async (organizationId: string): Promise<Sync
           status: localForm.status || "draft",
           // Promote local draft to cloud `draftSettings` — no live row yet; first Publish creates the formSettings row.
           draftSettings: localForm.draftSettings,
+          liveSettings: localForm.liveSettings ?? null,
           customization: localForm.customization,
           createdAt: now,
           updatedAt: now,
@@ -90,7 +93,7 @@ export const syncLocalDataToCloud = async (organizationId: string): Promise<Sync
         });
 
         tx.mutate(() => {
-          getFormListings().insert(newFormData as unknown as FormListing);
+          getFormListings().insert(formToListing(newFormData, { shortId: "", submissionCount: 0 }));
           localFormCollection.delete(localForm.id);
         });
 

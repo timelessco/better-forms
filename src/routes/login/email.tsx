@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { revalidateLogic, useAppForm } from "@/components/ui/tanstack-form";
 import { authClient } from "@/lib/auth/auth-client";
 import { guestMiddleware } from "@/lib/auth/middleware";
-import { isSafeRedirect } from "@/lib/auth/safe-redirect";
-import { Logo } from "@/components/ui/logo";
+import { resolveCallbackURL } from "@/lib/auth/safe-redirect";
+import { LoginShell } from "@/routes/login/-components/login-shell";
 import { SuccessCheck } from "@/components/transitions/success-check";
 
 const emailSchema = v.object({
@@ -26,7 +26,7 @@ const EmailLoginPage = () => {
     emailInputRef.current?.focus();
   }, []);
 
-  const callbackURL = isSafeRedirect(redirectTo) ? redirectTo : "/dashboard";
+  const callbackURL = resolveCallbackURL(redirectTo);
 
   // eslint-disable-next-line react-doctor/query-mutation-missing-invalidation -- magic link sends email; no cache to invalidate
   const magicLinkMutation = useMutation({
@@ -66,87 +66,75 @@ const EmailLoginPage = () => {
 
   if (sent) {
     return (
-      <div className="mx-auto flex min-h-dvh max-w-[300px] flex-col justify-center">
-        <header className="mb-[54px] flex items-center justify-center">
-          <Logo className="h-10 w-6 text-foreground/90" />
-        </header>
+      <LoginShell>
+        <SuccessCheck size={44} className="text-primary" />
+        <div className="space-y-2 text-center">
+          <h2 className="text-sm font-semibold text-foreground">Check your email</h2>
+          <p className="text-xs text-muted-foreground">
+            We sent a sign-in link to <span className="text-foreground/80">{sentEmail}</span>
+          </p>
+        </div>
 
-        <main className="flex flex-col items-center justify-center gap-4">
-          <SuccessCheck size={44} className="text-primary" />
-          <div className="space-y-2 text-center">
-            <h2 className="text-sm font-semibold text-foreground">Check your email</h2>
-            <p className="text-xs text-muted-foreground">
-              We sent a sign-in link to <span className="text-foreground/80">{sentEmail}</span>
-            </p>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSent(false);
-              magicLinkMutation.reset();
-            }}
-          >
-            Try a different email
-          </Button>
-        </main>
-      </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setSent(false);
+            magicLinkMutation.reset();
+          }}
+        >
+          Try a different email
+        </Button>
+      </LoginShell>
     );
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-[300px] flex-col justify-center">
-      <header className="mb-[54px] flex items-center justify-center">
-        <Logo className="h-10 w-6 text-foreground/90" />
-      </header>
+    <LoginShell>
+      <form.AppForm>
+        <form.Form className="flex w-full flex-col gap-4">
+          <form.AppField name="email">
+            {(field) => {
+              const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+              return (
+                <field.FieldSet className="gap-1">
+                  <field.Field data-invalid={isInvalid}>
+                    <Input
+                      type="email"
+                      placeholder="Enter your email"
+                      aria-label="Email address"
+                      autoComplete="email"
+                      name="email"
+                      ref={emailInputRef}
+                      value={field.state.value ?? ""}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      disabled={isPending}
+                      aria-invalid={isInvalid}
+                      className="h-9 rounded-xl"
+                    />
+                  </field.Field>
+                  <field.FieldError />
+                </field.FieldSet>
+              );
+            }}
+          </form.AppField>
 
-      <main className="flex flex-col items-center justify-center gap-4">
-        <form.AppForm>
-          <form.Form className="flex w-full flex-col gap-4">
-            <form.AppField name="email">
-              {(field) => {
-                const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                return (
-                  <field.FieldSet className="gap-1">
-                    <field.Field data-invalid={isInvalid}>
-                      <Input
-                        type="email"
-                        placeholder="Enter your email"
-                        aria-label="Email address"
-                        autoComplete="email"
-                        name="email"
-                        ref={emailInputRef}
-                        value={field.state.value ?? ""}
-                        onBlur={field.handleBlur}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        disabled={isPending}
-                        aria-invalid={isInvalid}
-                        className="h-9 rounded-xl"
-                      />
-                    </field.Field>
-                    <field.FieldError />
-                  </field.FieldSet>
-                );
-              }}
-            </form.AppField>
-
-            <Button
-              type="submit"
-              disabled={isPending}
-              className="w-full rounded-xl font-sans text-base font-medium"
-              size="lg"
-            >
-              {isPending ? (
-                <Loader2Icon className="size-4 animate-spin" aria-label="Loading" />
-              ) : (
-                "Continue with Email"
-              )}
-            </Button>
-          </form.Form>
-        </form.AppForm>
-      </main>
-    </div>
+          <Button
+            type="submit"
+            disabled={isPending}
+            className="w-full rounded-xl font-sans text-base font-medium"
+            size="lg"
+          >
+            {isPending ? (
+              <Loader2Icon className="size-4 animate-spin" aria-label="Loading" />
+            ) : (
+              "Continue with Email"
+            )}
+          </Button>
+        </form.Form>
+      </form.AppForm>
+    </LoginShell>
   );
 };
 

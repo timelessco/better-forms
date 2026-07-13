@@ -8,6 +8,16 @@ import {
 } from "@/components/ui/icons";
 import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import {
@@ -111,6 +121,7 @@ export const DomainsContent = () => {
   }, []);
   // Stacked detail screen: the domain whose DNS records / config is open (null = list).
   const [selectedDomainId, setSelectedDomainId] = useState<string | null>(null);
+  const [domainToDelete, setDomainToDelete] = useState<Domain | null>(null);
   // Keep the dialog title in sync: the detail screen owns its own header (Figma 26281-7612).
   const openDetail = useCallback(
     (id: string) => {
@@ -240,13 +251,9 @@ export const DomainsContent = () => {
     mutateAddDomain(trimmed);
   }, [newDomain, mutateAddDomain]);
 
-  const handleDelete = useCallback(
-    (domain: Domain) => {
-      if (!window.confirm(`Remove ${domain.domain}? This can't be undone.`)) return;
-      mutateRemoveDomain(domain.id);
-    },
-    [mutateRemoveDomain],
-  );
+  // Open the confirm dialog; the actual removal fires from the dialog's action (AlertDialog pattern,
+  // consistent with the workspace/form delete confirms).
+  const handleDelete = useCallback((domain: Domain) => setDomainToDelete(domain), []);
 
   if (isSessionPending) {
     return (
@@ -321,6 +328,33 @@ export const DomainsContent = () => {
           </div>
         )}
       </div>
+
+      <AlertDialog
+        open={domainToDelete !== null}
+        onOpenChange={(open) => !open && setDomainToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove domain</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove <strong>{domainToDelete?.domain}</strong>? This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (domainToDelete) mutateRemoveDomain(domainToDelete.id);
+                setDomainToDelete(null);
+              }}
+              disabled={removeMutation.isPending}
+              className="bg-destructive text-white hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
@@ -372,7 +406,7 @@ const AddDomainCard = ({
           variant="default"
           onClick={onAdd}
           disabled={!canAddDomain || isAdding}
-          className="h-[24px] w-[47px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
+          className="h-[24px] w-[47px] rounded-lg bg-popover px-3 text-sm text-popover-foreground elevation-pop hover:bg-muted"
         >
           {isAdding ? <Loader2Icon className="size-3 animate-spin" /> : "Save"}
         </InputGroupButton>
@@ -691,7 +725,7 @@ const DomainConfigPanel = ({
                 onUpdateMeta({ domainId: domain.id, siteTitle: siteTitle || undefined })
               }
               disabled={isUpdateMetaPending}
-              className="h-[24px] w-[47px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
+              className="h-[24px] w-[47px] rounded-lg bg-popover px-3 text-sm text-popover-foreground elevation-pop hover:bg-muted"
             >
               {isUpdateMetaPending ? <Loader2Icon className="size-3 animate-spin" /> : "Save"}
             </InputGroupButton>
@@ -755,7 +789,7 @@ const DomainAssetUpload = ({
         size="sm"
         onClick={() => inputRef.current?.click()}
         disabled={isUploading}
-        className="h-[30px] rounded-lg bg-popover px-3 text-sm text-popover-foreground shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] hover:bg-muted"
+        className="h-[30px] rounded-lg bg-popover px-3 text-sm text-popover-foreground elevation-pop hover:bg-muted"
         prefix={
           isUploading ? (
             <Loader2Icon className="size-3 animate-spin" />

@@ -6,15 +6,14 @@ import { useEmailVerificationStore } from "@/components/form-components/email-ve
 import type { EmailVerificationStore } from "@/components/form-components/email-verification-context";
 import { sendEmailOtp, verifyEmailOtp } from "@/lib/server-fn/email-otp";
 import { parseError } from "@/lib/errors/parse";
-import { fieldLabelId, getAriaLabelFallback, getAriaLabelledBy } from "./shared";
+import { FORM_INPUT_CLS, useFieldBinding } from "./shared";
 import type { FieldRendererProps } from "./shared";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const normalize = (email: string) => email.trim().toLowerCase();
 
 const EmailField = ({ element, form, name }: FieldRendererProps<"Email">) => {
-  const fieldName = name ?? element.name;
-  const isArrayItem = name !== undefined;
+  const { fieldName, ariaLabel, ariaLabelledBy } = useFieldBinding(element, name);
   const ctx = useEmailVerificationStore();
   // No provider (editor canvas / embeds) → standalone mock store.
   const [fallbackStore] = useState<EmailVerificationStore>(() => ({
@@ -31,8 +30,8 @@ const EmailField = ({ element, form, name }: FieldRendererProps<"Email">) => {
     placeholder: element.placeholder,
     autoComplete: "email",
     inputMode: "email",
-    "aria-label": getAriaLabelFallback(element),
-    "aria-labelledby": isArrayItem ? fieldLabelId(element.name) : getAriaLabelledBy(element),
+    "aria-label": ariaLabel,
+    "aria-labelledby": ariaLabelledBy,
   } as const;
 
   if (!verifyEnabled) {
@@ -40,7 +39,7 @@ const EmailField = ({ element, form, name }: FieldRendererProps<"Email">) => {
       <form.AppField name={fieldName}>
         {(f) => (
           <>
-            <f.Input {...inputProps} className="h-[30px] form-input pr-[8px] pl-[10px]" />
+            <f.Input {...inputProps} className={FORM_INPUT_CLS} />
             <f.FieldError />
           </>
         )}

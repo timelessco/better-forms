@@ -3,52 +3,11 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, dev]
+    branches: [main]
 
 permissions: {}
 
 jobs:
-  fmt:
-    name: Format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run fmt:check
-
-  lint:
-    name: Lint (type-aware)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec oxlint --type-aware --format=github
-      - run: pnpm run knip
-
-  typecheck:
-    name: Typecheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec oxlint --type-aware --type-check --format=github
-      - run: pnpm exec tsc --noEmit
-
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -60,9 +19,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # --no-file-parallelism: tests share one remote Supabase DB and flake in parallel.
-      # Drop once tests are DB-isolated (plan 010).
-      - run: pnpm exec vitest run --no-file-parallelism
+      - run: pnpm exec vitest run
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}

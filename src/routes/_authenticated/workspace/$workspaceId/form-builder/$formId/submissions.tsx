@@ -47,11 +47,8 @@ import {
   Trash2Icon,
   XIcon,
 } from "@/components/ui/icons";
-import {
-  FigFilterIcon,
-  FigSearchAltIcon,
-  FigSmallDownIcon,
-} from "@/components/dashboard/dashboard-icons";
+import { FigFilterIcon, FigSmallDownIcon } from "@/components/dashboard/dashboard-icons";
+import { ExportMenu, ToolbarPill, ToolbarSearch, ViewToggle } from "@/components/ui/route-toolbar";
 import { FormPreviewFromPlate } from "@/components/form-components/form-preview-from-plate";
 import type { PublicFormSettings } from "@/types/form-settings";
 import {
@@ -62,6 +59,16 @@ import {
   FileText,
   Paperclip,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { Value } from "platejs";
 import { useCallback, useMemo, useState } from "react";
@@ -69,7 +76,6 @@ import { flushSync } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import { HOTKEYS, formatForDisplay } from "@/lib/hotkeys";
-import { Tabs, TabsIndicator, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type FieldStatus = "current" | "deleted";
 const EMPTY_LABELS: Record<string, string> = {};
@@ -792,7 +798,15 @@ const SubmissionsPage = () => {
   // Registers the table with TanStack Devtools; no-op when no devtools listening.
   useTanStackTableDevtools(table);
 
-  const { handleBulkDelete, handleExportSelected, handleExport } = useSubmissionExportAndDelete({
+  const {
+    handleBulkDelete,
+    handleExportSelected,
+    handleExport,
+    bulkDeleteOpen,
+    setBulkDeleteOpen,
+    bulkDeleteCount,
+    confirmBulkDelete,
+  } = useSubmissionExportAndDelete({
     formId,
     queryClient,
     table,
@@ -863,6 +877,27 @@ const SubmissionsPage = () => {
         />
 
         <SubmissionPreviewDialog file={previewFile} onClose={closePreview} />
+
+        <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete submissions</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete {bulkDeleteCount} submission
+                {bulkDeleteCount > 1 ? "s" : ""}? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmBulkDelete}
+                className="bg-destructive text-white hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <AnimatePresence>
@@ -962,15 +997,22 @@ const useSubmissionExportAndDelete = ({
   table,
   setRowSelection,
 }: UseSubmissionExportAndDeleteOptions) => {
-  const handleBulkDelete = useCallback(async () => {
-    // selected row model — same source export reads, never stale selection keys
-    const selectedIds = table.getSelectedRowModel().rows.map((r) => r.id);
-    if (selectedIds.length === 0) return;
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleteCount, setBulkDeleteCount] = useState(0);
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${selectedIds.length} submission${selectedIds.length > 1 ? "s" : ""}?`,
-    );
-    if (!confirmed) return;
+  // Opens the confirm dialog (AlertDialog pattern) instead of a native window.confirm.
+  const handleBulkDelete = useCallback(() => {
+    const count = table.getSelectedRowModel().rows.length;
+    if (count === 0) return;
+    setBulkDeleteCount(count);
+    setBulkDeleteOpen(true);
+  }, [table]);
+
+  const confirmBulkDelete = useCallback(async () => {
+    // fresh selection at confirm time — same source export reads, never stale selection keys
+    const selectedIds = table.getSelectedRowModel().rows.map((r) => r.id);
+    setBulkDeleteOpen(false);
+    if (selectedIds.length === 0) return;
 
     await deleteSubmissionsBulk({
       data: { formId, submissionIds: selectedIds },
@@ -1081,7 +1123,15 @@ const useSubmissionExportAndDelete = ({
     [downloadCSV, downloadExcel, printPDF, formId, table],
   );
 
-  return { handleBulkDelete, handleExportSelected, handleExport };
+  return {
+    handleBulkDelete,
+    handleExportSelected,
+    handleExport,
+    bulkDeleteOpen,
+    setBulkDeleteOpen,
+    bulkDeleteCount,
+    confirmBulkDelete,
+  };
 };
 
 interface UseSubmissionsHotkeysOptions {
@@ -1245,10 +1295,6 @@ interface SubmissionsToolbarProps {
   canNextSubmission: boolean;
 }
 
-// Square icon-only trigger for the shared animated Tabs: w-[26px] (sm trigger is already h-6.5),
-// flex-none + px-0! drop the stretch/padding the text-tab variant applies.
-const VIEW_TAB = "w-[26px] flex-none px-0! text-muted-foreground";
-
 const SubmissionsToolbar = ({
   activeTab,
   globalFilter,
@@ -1265,146 +1311,129 @@ const SubmissionsToolbar = ({
   onNextSubmission,
   canPrevSubmission,
   canNextSubmission,
-}: SubmissionsToolbarProps) => {
-  // Matches the dashboard toolbar (FilterMenu/SortMenu): gray pill, 14px/450, Fig* icons at size-4.
-  const pill =
-    "font-case inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg bg-secondary px-2 text-base font-[450] tracking-[0.14px] text-gray-800 transition-colors hover:bg-secondary/80 [&_svg]:size-4 [&_svg]:text-gray-800";
-  return (
-    <div className="shrink-0 border-border pt-8 pr-6 pb-5">
-      <div className="flex items-center gap-3">
-        {/* Figma 27015:20774: title + total-count badge on the left, controls on the right. */}
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <h2 className="truncate text-[15px] font-semibold tracking-[0.015em] text-gray-950">
-            Submissions
-          </h2>
-          {totalCount > 0 && (
-            // Inverted chip (Figma gray/950 + white): bg-foreground/text-background stays a dark
-            // pill with light text in light mode and flips legibly in dark mode.
-            <span className="inline-flex shrink-0 items-center rounded-full bg-foreground px-[5px] py-px text-[12px] text-background tabular-nums">
-              {totalCount}
+}: SubmissionsToolbarProps) => (
+  <div className="shrink-0 border-border pt-8 pr-6 pb-5">
+    <div className="flex items-center gap-3">
+      {/* Figma 27015:20774: title + total-count badge on the left, controls on the right. */}
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        <h2 className="truncate text-[15px] font-semibold tracking-[0.015em] text-gray-950">
+          Submissions
+        </h2>
+        {totalCount > 0 && (
+          // Inverted chip (Figma gray/950 + white): bg-foreground/text-background stays a dark
+          // pill with light text in light mode and flips legibly in dark mode.
+          <span className="inline-flex shrink-0 items-center rounded-full bg-foreground px-[5px] py-px text-[12px] text-background tabular-nums">
+            {totalCount}
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        {/* Search / pager / Download / Filter all show in both views (Figma 27015:20773). */}
+        {/* Search — matches the dashboard toolbar pill (gray/100 surface, search-alt icon). */}
+        {/* Figma 27015:16994 — 170×28, gray/100, pl-8 pr-10 gap-6, 8px radius; expands on focus. */}
+        <ToolbarSearch
+          value={globalFilter}
+          onChange={onGlobalFilterChange}
+          aria-label="Search responses"
+          name="search"
+          className="transition-[width] duration-200 ease-out focus-within:w-[260px]"
+        />
+
+        {/* Per-submission pager (Figma 27015:20788) — single view only; nav moved out of the card. */}
+        {view === "single" && (
+          <div className="flex h-7 items-center gap-1.5 rounded-lg bg-secondary pr-1.5 pl-1">
+            <button
+              type="button"
+              onClick={onPrevSubmission}
+              disabled={!canPrevSubmission}
+              aria-label="Previous submission"
+              className="flex size-5 items-center justify-center rounded-md text-gray-800 transition-colors hover:bg-background/60 disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <span className="font-case text-base font-[450] tracking-[0.14px] text-gray-800 tabular-nums">
+              {singleCurrent} of {totalCount}
             </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          {/* Search / pager / Download / Filter all show in both views (Figma 27015:20773). */}
-          {/* Search — matches the dashboard toolbar pill (gray/100 surface, search-alt icon). */}
-          {/* Figma 27015:16994 — 170×28, gray/100, pl-8 pr-10 gap-6, 8px radius. */}
-          <div className="flex h-7 w-[170px] items-center gap-1.5 rounded-lg bg-secondary pr-2.5 pl-2 transition-[width] duration-200 ease-out focus-within:w-[260px]">
-            <FigSearchAltIcon className="size-4 shrink-0 text-muted-foreground" />
-            <input
-              type="search"
-              placeholder="Search"
-              className="w-full bg-transparent font-case text-base font-[450] tracking-[0.14px] text-foreground outline-none placeholder:text-muted-foreground"
-              value={globalFilter}
-              onChange={onGlobalFilterChange}
-              aria-label="Search responses"
-              name="search"
-            />
+            <button
+              type="button"
+              onClick={onNextSubmission}
+              disabled={!canNextSubmission}
+              aria-label="Next submission"
+              className="flex size-5 items-center justify-center rounded-md text-gray-800 transition-colors hover:bg-background/60 disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              <ChevronRight className="size-4" />
+            </button>
           </div>
+        )}
 
-          {/* Per-submission pager (Figma 27015:20788) — single view only; nav moved out of the card. */}
-          {view === "single" && (
-            <div className="flex h-7 items-center gap-1.5 rounded-lg bg-secondary pr-1.5 pl-1">
-              <button
-                type="button"
-                onClick={onPrevSubmission}
-                disabled={!canPrevSubmission}
-                aria-label="Previous submission"
-                className="flex size-5 items-center justify-center rounded-md text-gray-800 transition-colors hover:bg-background/60 disabled:opacity-40 disabled:hover:bg-transparent"
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-              <span className="font-case text-base font-[450] tracking-[0.14px] text-gray-800 tabular-nums">
-                {singleCurrent} of {totalCount}
-              </span>
-              <button
-                type="button"
-                onClick={onNextSubmission}
-                disabled={!canNextSubmission}
-                aria-label="Next submission"
-                className="flex size-5 items-center justify-center rounded-md text-gray-800 transition-colors hover:bg-background/60 disabled:opacity-40 disabled:hover:bg-transparent"
-              >
-                <ChevronRight className="size-4" />
-              </button>
-            </div>
-          )}
+        {/* Download (Figma 27015:21450) — pill with chevron; CSV / PDF / Excel. */}
+        <ExportMenu
+          onExport={onExport}
+          contentClassName="w-40"
+          trigger={
+            <ToolbarPill
+              variant="ghost"
+              prefix={<Download className="size-4 shrink-0" strokeWidth={2} />}
+              suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
+            />
+          }
+        >
+          Download
+        </ExportMenu>
 
-          {/* Download (Figma 27015:21450) — pill with chevron; CSV / PDF / Excel. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  prefix={<Download className="size-4 shrink-0" strokeWidth={2} />}
-                  suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
-                  className={pill}
-                />
-              }
-            >
-              Download
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={() => onExport("csv")}>CSV</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onExport("pdf")}>PDF</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onExport("excel")}>Excel</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Filter (status) — static "Filter" title; the active tab is ticked in the dropdown
+        {/* Filter (status) — static "Filter" title; the active tab is ticked in the dropdown
               (matches the dashboard FilterMenu). */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  prefix={<FigFilterIcon className="size-4 shrink-0" />}
-                  suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
-                  className={pill}
-                />
-              }
-            >
-              Filter
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Filter</DropdownMenuLabel>
-                <DropdownMenuItem onClick={onSetTabAll}>
-                  <span className="flex-1 text-left">All</span>
-                  {activeTab === "all" && <CheckIcon className="size-4" />}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onSetTabCompleted}>
-                  <span className="flex-1 text-left">Completed</span>
-                  {activeTab === "completed" && <CheckIcon className="size-4" />}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onSetTabPartial}>
-                  <span className="flex-1 text-left">Partial</span>
-                  {activeTab === "partial" && <CheckIcon className="size-4" />}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <ToolbarPill
+                variant="ghost"
+                prefix={<FigFilterIcon className="size-4 shrink-0" />}
+                suffix={<FigSmallDownIcon className="size-4 shrink-0" />}
+              />
+            }
+          >
+            Filter
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Filter</DropdownMenuLabel>
+              <DropdownMenuItem onClick={onSetTabAll}>
+                <span className="flex-1 text-left">All</span>
+                {activeTab === "all" && <CheckIcon className="size-4" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onSetTabCompleted}>
+                <span className="flex-1 text-left">Completed</span>
+                {activeTab === "completed" && <CheckIcon className="size-4" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onSetTabPartial}>
+                <span className="flex-1 text-left">Partial</span>
+                {activeTab === "partial" && <CheckIcon className="size-4" />}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-          {/* View toggle (Figma 26586:29914): list | board segmented control. Shared animated Tabs
-              (TabsIndicator) so the active pill slides, matching the share-sidebar tabs. */}
-          <Tabs value={view} onValueChange={(value) => onViewChange(value as "table" | "single")}>
-            <TabsList className="gap-1 rounded-[8px] bg-muted">
-              <TabsTrigger value="table" aria-label="Table view" className={VIEW_TAB}>
-                <ListViewIcon className="size-4" />
-              </TabsTrigger>
-              <TabsTrigger value="single" aria-label="Submission view" className={VIEW_TAB}>
-                <CardsViewIcon className="size-4" />
-              </TabsTrigger>
-              <TabsIndicator />
-            </TabsList>
-          </Tabs>
-        </div>
+        {/* View toggle (Figma 26586:29914): list | board segmented control. Shared animated
+              ViewToggle so the active pill slides, matching the share-sidebar tabs. */}
+        <ViewToggle
+          value={view}
+          onValueChange={onViewChange}
+          listClassName="bg-muted"
+          options={[
+            { value: "table", icon: <ListViewIcon className="size-4" />, label: "Table view" },
+            {
+              value: "single",
+              icon: <CardsViewIcon className="size-4" />,
+              label: "Submission view",
+            },
+          ]}
+        />
       </div>
     </div>
-  );
-};
+  </div>
+);
 
 const SubmissionPreviewDialog = ({
   file,

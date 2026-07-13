@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "@/contexts/translation-context";
+import { safeStorage } from "@/lib/safe-storage";
 import { verifyFormPassword } from "@/lib/server-fn/public-form-view";
 
 interface PasswordGateProps {
@@ -15,14 +16,9 @@ const getStorageKey = (formId: string) => `bf-unlocked-${formId}`;
 export const PasswordGate = ({ formId, children }: PasswordGateProps) => {
   const { t } = useTranslation();
   // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value gates the children render below
-  const [unlocked, setUnlocked] = useState(() => {
-    try {
-      return sessionStorage.getItem(getStorageKey(formId)) === "1";
-    } catch {
-      // sessionStorage unavailable
-      return false;
-    }
-  });
+  const [unlocked, setUnlocked] = useState(
+    () => safeStorage.get(getStorageKey(formId), "session") === "1",
+  );
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -60,11 +56,7 @@ export const PasswordGate = ({ formId, children }: PasswordGateProps) => {
         });
 
         if (result.valid) {
-          try {
-            sessionStorage.setItem(getStorageKey(formId), "1");
-          } catch {
-            // sessionStorage unavailable
-          }
+          safeStorage.set(getStorageKey(formId), "1", "session");
           setUnlocked(true);
         } else {
           setError(t("incorrectPassword"));

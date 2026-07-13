@@ -1,3 +1,4 @@
+import { safeStorage } from "@/lib/safe-storage";
 import { useSyncExternalStore } from "react";
 
 // Recently-opened form ids, persisted to localStorage — no DB round-trip. Most-recent-first,
@@ -14,27 +15,14 @@ const listeners = new Set<() => void>();
 const read = (): string[] => {
   if (typeof window === "undefined") return cache ?? (EMPTY as string[]);
   if (cache) return cache;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-    cache = Array.isArray(parsed)
-      ? parsed.filter((id): id is string => typeof id === "string")
-      : [];
-  } catch {
-    cache = [];
-  }
+  const parsed = safeStorage.getJson<unknown>(KEY);
+  cache = Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
   return cache;
 };
 
 const write = (next: string[]) => {
-  cache = next;
-  if (typeof window !== "undefined") {
-    try {
-      window.localStorage.setItem(KEY, JSON.stringify(next));
-    } catch {
-      // ignore quota / private-mode errors — the in-memory cache still drives this session
-    }
-  }
+  cache = next; // in-memory cache still drives this session if storage write fails
+  safeStorage.setJson(KEY, next);
   for (const notify of listeners) notify();
 };
 

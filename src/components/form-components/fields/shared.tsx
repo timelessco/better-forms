@@ -24,6 +24,21 @@ export type FieldRendererProps<
   name?: string;
 };
 
+// Canonical single-line text control class (Figma 30px pill). Shared so a spacing change is one edit.
+export const FORM_INPUT_CLS = "h-[30px] form-input pr-[8px] pl-[10px]";
+
+// Shared field wiring: standalone vs repeatable-array-item binding + aria plumbing. Not a stateful
+// hook (no React state), but `use`-named since it's the per-field binding entry point.
+export const useFieldBinding = (element: PlateFormField, name?: string) => {
+  const fieldName = name ?? element.name;
+  const isArrayItem = name !== undefined;
+  return {
+    fieldName,
+    ariaLabel: getAriaLabelFallback(element),
+    ariaLabelledBy: isArrayItem ? fieldLabelId(element.name) : getAriaLabelledBy(element),
+  };
+};
+
 export const getFieldLabelProps = (element: PlateFormField) => ({
   label: "label" in element ? (element.label ?? "") : "",
   required: "required" in element ? !!element.required : false,

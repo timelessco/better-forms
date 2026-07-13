@@ -1,6 +1,6 @@
 import { bumpKey } from "@/lib/analytics/aggregate-utils";
 import { cappedDurationMs } from "@/lib/analytics/duration";
-import { weightedMedianDuration } from "@/lib/analytics/metrics";
+import { median, weightedMedianDuration } from "@/lib/analytics/metrics";
 import { resolveSource } from "@/lib/analytics/source";
 import type { formAnalyticsDaily, formVisits } from "@/db/schema";
 import type { CountBreakdown, FormInsightsMetrics } from "@/types/analytics";
@@ -69,14 +69,6 @@ const emptyAggregate = (): DailyAggregate => ({
   operatingSystems: {},
 });
 
-// Median of a number list (0 for empty). Outlier-resistant central value for visit durations.
-const medianOf = (values: number[]): number => {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
-};
-
 const aggregateDailyRows = (rows: DailyRow[]): DailyAggregate => {
   const agg = emptyAggregate();
   for (const row of rows) {
@@ -140,14 +132,15 @@ const aggregateRawRows = (rows: RawVisitRow[]): RawAggregate => {
   // Today's typical completion time = median of today's submitters (outlier-resistant); durationCount
   // is its sample weight so it blends with the daily medians in the same sample-weighted average.
   const durationCount = durations.length;
-  const median = medianOf(durations);
+  // `?? 0` preserves the prior empty→0 shape; only read when durationCount > 0 anyway.
+  const medianMs = median(durations) ?? 0;
   return {
     totalVisits,
     uniqueVisitors: visitorHashes.size,
     totalSubmissions,
     uniqueRespondents: respondentHashes.size,
     durationCount,
-    medianDurationMs: durationCount > 0 ? median : null,
+    medianDurationMs: durationCount > 0 ? medianMs : null,
     sources,
     devices,
     countries,

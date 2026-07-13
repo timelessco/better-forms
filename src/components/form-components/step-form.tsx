@@ -1,20 +1,21 @@
-import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
-import { APP_NAME } from "@/lib/config/app-config";
-import { TextSwap } from "@/components/transitions/text-swap";
 import { use, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
 import { useFocusFirstField } from "@/hooks/use-focus-first-field";
-import { useMountEffect } from "@/hooks/use-mount-effect";
-import { Button } from "@/components/ui/button";
 import { FormPreviewReadOnlyContext, useStepForm } from "@/contexts/step-form-context";
 import { useTranslation } from "@/contexts/translation-context";
 import { useStepPreviewForm } from "@/hooks/use-preview-form";
-import { enqueueQuestionProgress } from "@/lib/analytics/track-client";
 import { getFieldsFromSegments } from "@/lib/editor/transform-plate-for-preview";
 import type { FieldSegment, PreviewSegment } from "@/lib/editor/transform-plate-for-preview";
 import type { QuestionRef } from "@/lib/forms/extract-questions";
 import { StaticContentBlock } from "./static-content-block";
 import { PreviewRendererContext, RenderStepPreviewInput } from "./render-step-preview-input";
+import {
+  AutoActionFooter,
+  brandingRowStyle,
+  FormBrandingBadge,
+  StepNavButton,
+  useFieldByFieldKeyboard,
+  useQuestionViewTracking,
+} from "./step-runner";
 
 interface StepFormProps {
   stepIndex: number;
@@ -41,7 +42,6 @@ export const StepForm = ({
   navVariant = "hint",
 }: StepFormProps) => {
   const { totalSteps, goToPrevStep, canGoBack, isSubmitting, tracking } = useStepForm();
-  const { t } = useTranslation();
   // Read-only submission view: suppress every nav/action affordance (button groups,
   // authored Buttons, auto Next/Submit) so stacked steps read as a flat record.
   const readOnly = use(FormPreviewReadOnlyContext);
@@ -78,41 +78,7 @@ export const StepForm = ({
   const formRef = useRef<HTMLFormElement>(null);
   const [isTextareaFocused, setIsTextareaFocused] = useState(false);
 
-  // Field-by-field shortcuts, CAPTURE phase (intercept Enter before child handlers e.g. Base UI Checkbox).
-  // Enter → advance/submit; textareas keep newline unless Cmd/Ctrl; nav buttons (outside [data-bf-input]) keep native; in-question widgets advance (Space to interact).
-  // Esc → back one step. Open popover: focus is portaled (outside form), handler doesn't fire, popover closes first.
-  const handleFieldByFieldKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
-    // React events bubble the React tree, so portaled UI (combobox, popovers) still reaches this handler. Bail if target isn't a DOM descendant of form, so popups handle own Enter/Esc (e.g. phone-input country combobox).
-    const target = event.target as HTMLElement | null;
-    if (target && formRef.current && !formRef.current.contains(target)) return;
-
-    if (event.key === "Escape") {
-      if (!canGoBack) return;
-      // Defensive: bail if an in-form popover trigger is open — Esc shouldn't navigate away if focus stayed on trigger.
-      if (formRef.current?.querySelector('[aria-expanded="true"]')) return;
-      event.preventDefault();
-      event.stopPropagation();
-      goToPrevStep();
-      return;
-    }
-
-    if (event.key !== "Enter") return;
-    if (!target) return;
-    const isInQuestion = target.closest("[data-bf-input]") !== null;
-    const isNavButton =
-      (target.tagName === "BUTTON" || target.getAttribute("role") === "button") && !isInQuestion;
-    if (isNavButton) return;
-
-    const isTextarea = target.tagName === "TEXTAREA";
-    const isMetaEnter = event.metaKey || event.ctrlKey;
-
-    if (isTextarea && !isMetaEnter) return;
-
-    // stopPropagation stops widget keydown handlers (PopoverTrigger, Checkbox) reacting to Enter, else popover flashes open for a frame before next step.
-    event.preventDefault();
-    event.stopPropagation();
-    formRef.current?.requestSubmit();
-  };
+  const handleFieldByFieldKeyDown = useFieldByFieldKeyboard(formRef, { canGoBack, goToPrevStep });
 
   const handleTextareaFocusChange =
     (focused: boolean) => (event: React.FocusEvent<HTMLFormElement>) => {
@@ -129,27 +95,7 @@ export const StepForm = ({
 
   useFocusFirstField(formRef);
 
-  // Fire one `view` per Question on mount. No-op if tracking null (builder preview) or visitId null (pre-recordFormVisit). Last Question of final Step flags `wasLastQuestion` for funnel terminal detection.
-  useMountEffect(() => {
-    if (!(tracking?.visitId && tracking.mode)) return;
-    const visitId = tracking.visitId;
-    const lastIndex = stepQuestions.length - 1;
-    for (let i = 0; i < stepQuestions.length; i++) {
-      const q = stepQuestions[i];
-      enqueueQuestionProgress({
-        visitId,
-        formId: tracking.formId,
-        visitorHash: tracking.visitorHash,
-        questionId: q.questionId,
-        questionType: q.questionType,
-        questionIndex: q.questionIndex,
-        stepId: q.stepId,
-        stepIndex: q.stepIndex,
-        event: "view",
-        wasLastQuestion: isLastStep && i === lastIndex,
-      });
-    }
-  });
+  useQuestionViewTracking(stepQuestions, { tracking, isLastStep });
 
   return (
     <form.AppForm>
@@ -272,96 +218,15 @@ export const StepForm = ({
           return null;
         })}
 
-        {!readOnly &&
-          showAutoActionButton &&
-          !(hideSubmit && isLastStep) &&
-          (navVariant === "footer" ? (
-            // Full-page one-at-a-time footer (Figma 27112:21064): Back / Next grouped, "Made with
-            // Reform." opposite per Buttons → Alignment. Enter/Esc still work (handleFieldByFieldKeyDown).
-            <div
-              className={`flex w-full items-center gap-3 ${branding ? "" : "justify-between"}`}
-              style={branding ? brandingRowStyle : undefined}
-            >
-              <div className="flex items-center gap-2">
-                {/* Back appears only when there's a previous step (Figma 27015:16542 step 1 = Next only). */}
-                {canGoBack && (
-                  <Button
-                    type="button"
-                    variant="ghost-flat"
-                    onClick={goToPrevStep}
-                    style={{ fontSize: "14px" }}
-                    className="h-auto rounded-[8px] px-2 py-1.5 font-[420] tracking-[0.28px] text-gray-900"
-                  >
-                    {t("back")}
-                  </Button>
-                )}
-                <Button
-                  type="submit"
-                  data-bf-button=""
-                  disabled={isSubmitting}
-                  style={{ fontSize: "14px" }}
-                  className="h-auto gap-2 rounded-[8px] px-2 py-1.5 font-[420] tracking-[0.28px]"
-                  suffix={<ArrowRightIcon className="size-4" />}
-                >
-                  {(() => {
-                    const label = isSubmitting
-                      ? t("submitting")
-                      : isLastStep
-                        ? t("submit")
-                        : t("next");
-                    return <TextSwap key={label}>{label}</TextSwap>;
-                  })()}
-                </Button>
-              </div>
-              {branding && <FormBrandingBadge />}
-            </div>
-          ) : (
-            <div
-              className="flex w-full items-center gap-3 pt-2"
-              style={{ maxWidth: "var(--bf-input-width)" }}
-            >
-              <Button
-                type="submit"
-                data-bf-button=""
-                style={{ fontSize: "13px" }}
-                className="h-9 gap-1.5 rounded-lg px-4"
-                disabled={isSubmitting}
-              >
-                {(() => {
-                  const label = isSubmitting
-                    ? t("submitting")
-                    : isLastStep
-                      ? t("submit")
-                      : t("next");
-                  return <TextSwap key={label}>{label}</TextSwap>;
-                })()}
-              </Button>
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                press{" "}
-                {isTextareaFocused && (
-                  <>
-                    <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
-                      ⌘
-                    </kbd>
-                    +
-                  </>
-                )}
-                <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
-                  Enter
-                </kbd>
-                <span aria-hidden="true">↵</span>
-              </span>
-              {canGoBack && (
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <kbd className="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-medium text-foreground">
-                    Esc
-                  </kbd>
-                  to go back
-                </span>
-              )}
-              {showBranding && <FormBrandingBadge className="ms-auto" />}
-            </div>
-          ))}
+        {!readOnly && showAutoActionButton && !(hideSubmit && isLastStep) && (
+          <AutoActionFooter
+            navVariant={navVariant}
+            branding={showBranding}
+            isLastStep={isLastStep}
+            hideSubmit={hideSubmit}
+            isTextareaFocused={isTextareaFocused}
+          />
+        )}
       </form.Form>
     </form.AppForm>
   );
@@ -399,33 +264,6 @@ const groupSegmentsForRendering = (segments: PreviewSegment[]): GroupedSegment[]
   return result;
 };
 
-// Branding button-row layout driven by Buttons → Alignment (generate-theme-css BUTTON_ALIGN_BRANDING):
-// left button → badge right, right → badge left, center → badge centered below. The badge's `order`
-// (set via [data-bf-branding] in styles.css) does the left/right swap; the row owns direction/justify.
-export const brandingRowStyle: CSSProperties = {
-  flexDirection: "var(--bf-branding-dir, row)" as CSSProperties["flexDirection"],
-  justifyContent: "var(--bf-branding-justify, space-between)",
-};
-
-// Inline form-footer branding (Figma 25778-10461): "Made with Reform." — Inter gray/500 + the
-// Timeless Serif "Reform." wordmark. Renders beside the final Submit when settings.branding is on.
-export const FormBrandingBadge = ({ className }: { className?: string }) => (
-  <span
-    // Inline fontSize: the form applies a base size via a non-layered rule that out-races Tailwind
-    // utilities (same reason the submit button pins fontSize inline). Figma = 14px.
-    style={{ fontSize: "14px" }}
-    // weight 420 + 0.28px tracking come from the shared rule (data-bf-branding) since the
-    // .bf-themed variation(450)/letter-spacing(0.14px) defaults would otherwise override classes.
-    data-bf-branding
-    className={`shrink-0 leading-[1.15] text-gray-500 ${className ?? ""}`}
-  >
-    Made with{" "}
-    <span className="[font-family:'Timeless_Serif',ui-serif,Georgia,serif] italic">
-      {APP_NAME}.
-    </span>
-  </span>
-);
-
 // Step-form button. Previous uses onClick; Next/Submit use type="submit" to trigger validation.
 const RenderStepButton = ({
   field,
@@ -453,24 +291,12 @@ const RenderStepButton = ({
     buttonRole === "next" ? t("next") : buttonRole === "previous" ? t("previous") : t("submit");
   const buttonText = field.buttonText || defaultText;
 
-  // Matches editor button: h-8, 13px font, px-2.5
-  const buttonStyle = { fontSize: "13px" } as const;
-
   if (buttonRole === "previous") {
     const button = (
-      // Ghost + dark text (Figma 27112-20305 "Back") — never a filled primary, which would clash
-      // with the themed Submit/Next.
-      <Button
-        type="button"
-        variant="ghost-flat"
-        onClick={onPrevious}
-        style={buttonStyle}
-        className="h-8 gap-1.5 rounded-lg px-2.5 text-gray-900"
-        prefix={<ChevronLeftIcon className="size-4" />}
-      >
-        {/* Always "Back" (like the one-at-a-time footer) — ignore any authored/legacy "Previous" text. */}
+      // Always "Back" (like the one-at-a-time footer) — ignore any authored/legacy "Previous" text.
+      <StepNavButton role="previous" onPrevious={onPrevious}>
         {t("back")}
-      </Button>
+      </StepNavButton>
     );
     return grouped ? (
       button
@@ -483,16 +309,9 @@ const RenderStepButton = ({
 
   if (buttonRole === "next") {
     const button = (
-      <Button
-        type="submit"
-        data-bf-button
-        style={buttonStyle}
-        className="h-8 gap-1.5 rounded-lg px-2.5"
-        suffix={<ChevronRightIcon className="size-4" />}
-        disabled={isSubmitting}
-      >
+      <StepNavButton role="next" isSubmitting={isSubmitting}>
         {buttonText}
-      </Button>
+      </StepNavButton>
     );
     return grouped ? (
       button
@@ -516,20 +335,11 @@ const RenderStepButton = ({
 
   const isMultiStep = totalSteps > 1;
   const submitButton = (
-    // Trailing chevron matches the Next button (Figma "→"); it also gives the TextSwap span trailing
-    // room so `.bf-themed` letter-spacing doesn't clip the last glyph ("Submit" → "Submi").
-    <Button
-      type="submit"
-      data-bf-button
-      style={buttonStyle}
-      className="h-8 gap-1.5 rounded-lg px-2.5"
-      suffix={<ChevronRightIcon className="size-4" />}
-      disabled={isSubmitting}
-    >
-      {/* Render text directly (not TextSwap) — the inline-block+blur span clipped the last glyph
-          ("Submit" → "Submi"); the Next button and live renderer render text directly too. */}
+    // Render text directly (not TextSwap) — the inline-block+blur span clipped the last glyph
+    // ("Submit" → "Submi"); the Next button and live renderer render text directly too.
+    <StepNavButton role="submit" isSubmitting={isSubmitting}>
       {isSubmitting ? t("submitting") : buttonText}
-    </Button>
+    </StepNavButton>
   );
   return grouped ? (
     submitButton

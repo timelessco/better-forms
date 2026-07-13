@@ -22,13 +22,8 @@ import { usePublicFormTracking } from "@/lib/analytics/use-public-form-tracking"
 import { POPUP_FORM_STYLE_VARS } from "@/lib/popup-style";
 import { getTranslations } from "@/lib/translations";
 import { cn } from "@/lib/utils";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { safeStorage } from "@/lib/safe-storage";
+import { FormEmptyState } from "@/routes/forms/-components/form-empty-state";
 import { defaultPublicFormSettings } from "@/types/form-settings";
 import type { PublicFormSettings } from "@/types/form-settings";
 import { EditorThemeProvider } from "@/contexts/editor-theme-context";
@@ -116,34 +111,22 @@ const sendToParent = (event: string, payload?: Record<string, unknown>): void =>
 const FormNotFound = () => {
   const { t } = useTranslation();
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
-      <Empty className="border-none">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <FileQuestionIcon />
-          </EmptyMedia>
-          <EmptyTitle>{t("formNotFound")}</EmptyTitle>
-          <EmptyDescription>{t("formNotFoundDescription")}</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    </div>
+    <FormEmptyState
+      icon={<FileQuestionIcon />}
+      title={t("formNotFound")}
+      description={t("formNotFoundDescription")}
+    />
   );
 };
 
 const FormNotPublished = () => {
   const { t } = useTranslation();
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
-      <Empty className="border-none">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <LockIcon />
-          </EmptyMedia>
-          <EmptyTitle>{t("formNotAvailable")}</EmptyTitle>
-          <EmptyDescription>{t("formNotAvailableDescription")}</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    </div>
+    <FormEmptyState
+      icon={<LockIcon />}
+      title={t("formNotAvailable")}
+      description={t("formNotAvailableDescription")}
+    />
   );
 };
 
@@ -297,16 +280,11 @@ export const PublicFormPage = ({
   // Analytics writers always run (Option B): record visits/progress so toggling analytics on later shows history, not zero. Toggle gates DISPLAY not recording. Suppress only when no form.
   const trackingBase = usePublicFormTracking({ formId, enabled: !!form });
   // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers -- value is read in JSX to render AlreadySubmitted
-  const [submitted, setSubmitted] = useState(() => {
-    if (form?.settings?.preventDuplicateSubmissions) {
-      try {
-        return localStorage.getItem(`bf-submitted-${formId}`) === "1";
-      } catch {
-        // localStorage unavailable
-      }
-    }
-    return false;
-  });
+  const [submitted, setSubmitted] = useState(
+    () =>
+      !!form?.settings?.preventDuplicateSubmissions &&
+      safeStorage.get(`bf-submitted-${formId}`) === "1",
+  );
 
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -365,11 +343,7 @@ export const PublicFormPage = ({
         clearDraftId(formId);
 
         if (form?.settings?.preventDuplicateSubmissions) {
-          try {
-            localStorage.setItem(`bf-submitted-${formId}`, "1");
-          } catch {
-            // localStorage unavailable
-          }
+          safeStorage.set(`bf-submitted-${formId}`, "1");
           setSubmitted(true);
         }
 

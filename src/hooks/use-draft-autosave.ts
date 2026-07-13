@@ -1,5 +1,6 @@
 import { log } from "evlog";
 import { useCallback } from "react";
+import { safeStorage } from "@/lib/safe-storage";
 import { createPublicSubmission } from "@/lib/server-fn/public-submissions";
 
 const draftKey = (formId: string) => `bf-draft-${formId}`;
@@ -7,35 +8,18 @@ const draftDataKey = (formId: string) => `bf-draft-data-${formId}`;
 
 /** Read persisted draftId, or generate+persist one. Ephemeral UUID fallback when localStorage unavailable (SSR, private mode). */
 export const getOrCreateDraftId = (formId: string): string => {
-  if (typeof window === "undefined") return crypto.randomUUID();
-  try {
-    const existing = localStorage.getItem(draftKey(formId));
-    if (existing) return existing;
-    const fresh = crypto.randomUUID();
-    localStorage.setItem(draftKey(formId), fresh);
-    return fresh;
-  } catch {
-    return crypto.randomUUID();
-  }
+  const existing = safeStorage.get(draftKey(formId));
+  if (existing) return existing;
+  const fresh = crypto.randomUUID();
+  safeStorage.set(draftKey(formId), fresh); // no-op when storage unavailable — fresh id stays ephemeral
+  return fresh;
 };
 
-export const readDraftId = (formId: string): string | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    return localStorage.getItem(draftKey(formId));
-  } catch {
-    return null;
-  }
-};
+export const readDraftId = (formId: string): string | null => safeStorage.get(draftKey(formId));
 
 export const clearDraftId = (formId: string) => {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem(draftKey(formId));
-    localStorage.removeItem(draftDataKey(formId));
-  } catch {
-    // localStorage unavailable
-  }
+  safeStorage.remove(draftKey(formId));
+  safeStorage.remove(draftDataKey(formId));
 };
 
 /** Local mirror of in-progress draft — read-path cache for resume prompt, no server roundtrip. Server keeps canonical row. */
@@ -45,24 +29,12 @@ export interface LocalDraft {
   savedAt: number;
 }
 
-export const readLocalDraft = (formId: string): LocalDraft | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(draftDataKey(formId));
-    if (!raw) return null;
-    return JSON.parse(raw) as LocalDraft;
-  } catch {
-    return null;
-  }
-};
+export const readLocalDraft = (formId: string): LocalDraft | null =>
+  safeStorage.getJson<LocalDraft>(draftDataKey(formId));
 
+// quota/private mode — no-op; server save still happened, just no local resume
 const writeLocalDraft = (formId: string, payload: LocalDraft): void => {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(draftDataKey(formId), JSON.stringify(payload));
-  } catch {
-    // quota/private mode — server save still happened, just no local resume
-  }
+  safeStorage.setJson(draftDataKey(formId), payload);
 };
 
 interface SaveDraftInput {

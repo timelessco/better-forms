@@ -4,6 +4,7 @@ import { ClockIcon, MailIcon, PlusIcon, Trash2Icon, XIcon } from "@/components/u
 import { useId } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { useAppForm } from "@/components/ui/tanstack-form";
 import { auth } from "@/lib/auth/auth-client";
@@ -138,8 +139,10 @@ export const MembersContent = () => {
                       </div>
                     </div>
                     {invitation.status === "pending" && (
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost-flat"
+                        size="sm"
                         onClick={() =>
                           cancelInvitationMutation.mutate({
                             invitationId: invitation.id,
@@ -147,10 +150,10 @@ export const MembersContent = () => {
                         }
                         disabled={cancelInvitationMutation.isPending}
                         aria-label="Cancel invitation"
-                        className="h-[30px] shrink-0 cursor-pointer rounded-lg bg-white px-3 text-[13px] text-destructive shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] transition-colors hover:bg-neutral-50"
+                        className="h-[30px] shrink-0 rounded-lg bg-white px-3 text-[13px] text-destructive elevation-pop transition-colors hover:bg-neutral-50"
                       >
                         <XIcon className="size-3.5" />
-                      </button>
+                      </Button>
                     )}
                   </div>
                 ),
@@ -188,8 +191,10 @@ export const MembersContent = () => {
                       {member.role}
                     </Badge>
                     {member.role !== "owner" && (
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost-flat"
+                        size="sm"
                         onClick={() =>
                           removeMemberMutation.mutate({
                             memberIdOrEmail: member.id,
@@ -197,10 +202,10 @@ export const MembersContent = () => {
                         }
                         disabled={removeMemberMutation.isPending}
                         aria-label="Remove member"
-                        className="h-[30px] shrink-0 cursor-pointer rounded-lg bg-white px-3 text-[13px] shadow-[0px_1px_1px_0px_rgba(0,0,0,0.1),0px_0px_0.5px_0px_rgba(0,0,0,0.6)] transition-colors hover:bg-neutral-50"
+                        className="h-[30px] shrink-0 rounded-lg bg-white px-3 text-[13px] elevation-pop transition-colors hover:bg-neutral-50"
                       >
                         <Trash2Icon className="size-3.5 text-destructive" />
-                      </button>
+                      </Button>
                     )}
                   </div>
                 ),

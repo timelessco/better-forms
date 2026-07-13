@@ -43,6 +43,22 @@ export const dropoffRate = (
   return Math.round((Math.max(0, numerator) / denominator) * 100);
 };
 
+// Median of a number list (null for empty). Outlier-resistant central value; even-length lists
+// average the two middle samples (rounded). Shared by the daily rollup and the merge reader.
+export const median = (values: number[]): number | null => {
+  if (values.length === 0) {
+    return null;
+  }
+  const sorted = [...values].toSorted((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    const lo = sorted[mid - 1] ?? 0;
+    const hi = sorted[mid] ?? 0;
+    return Math.round((lo + hi) / 2);
+  }
+  return sorted[mid] ?? null;
+};
+
 // Blend per-day completion-time medians into one figure, weighted by each day's duration SAMPLE
 // count (its submitted visits), NOT total visits — durations come from submitters only, so a
 // high-traffic/low-conversion day must not outweigh a low-traffic/high-conversion one.

@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
-import { db } from "@/db";
 import { aiRequestRateLimits } from "@/db/schema";
+import { slidingWindowRateLimit } from "@/lib/server-fn/rate-limit.server";
 
 /** Per-org short-window burst limit for AI form-generate. Separate from the per-day quota
  * (ai-quota.server) — this caps a runaway client loop / leaked session regardless of plan. */
@@ -22,33 +22,16 @@ export interface AiRateLimitCheck {
 /** Atomic upsert: insert count=1, or on conflict reset (window expired) or increment. Returns the
  * post-increment count and whether it's within the window limit. */
 export const checkAiRequestRateLimit = async (orgId: string): Promise<AiRateLimitCheck> => {
-  if (Math.random() < CLEANUP_PROBABILITY) {
-    await db.execute(
-      sql`DELETE FROM ai_request_rate_limits WHERE window_start < now() - interval '1 hour'`,
-    );
-  }
-
-  const result = await db
-    .insert(aiRequestRateLimits)
-    .values({ orgId, count: 1 })
-    .onConflictDoUpdate({
-      target: aiRequestRateLimits.orgId,
-      set: {
-        count: sql`CASE
-          WHEN ${aiRequestRateLimits.windowStart} < now() - ${WINDOW_INTERVAL_SQL}
-            THEN 1
-          ELSE ${aiRequestRateLimits.count} + 1
-        END`,
-        windowStart: sql`CASE
-          WHEN ${aiRequestRateLimits.windowStart} < now() - ${WINDOW_INTERVAL_SQL}
-            THEN now()
-          ELSE ${aiRequestRateLimits.windowStart}
-        END`,
-      },
-    })
-    .returning({ count: aiRequestRateLimits.count });
-
-  const count = result[0]?.count ?? 0;
+  const count = await slidingWindowRateLimit({
+    table: aiRequestRateLimits,
+    keyColumn: aiRequestRateLimits.orgId,
+    windowStartColumn: aiRequestRateLimits.windowStart,
+    countColumn: aiRequestRateLimits.count,
+    values: { orgId, count: 1 },
+    windowIntervalSql: WINDOW_INTERVAL_SQL,
+    cleanupSql: sql`DELETE FROM ai_request_rate_limits WHERE window_start < now() - interval '1 hour'`,
+    cleanupProbability: CLEANUP_PROBABILITY,
+  });
   return {
     allowed: count <= MAX_PER_WINDOW,
     count,
