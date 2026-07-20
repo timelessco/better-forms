@@ -334,13 +334,20 @@ export const generateThemeCss = (raw: Record<string, string> | null | undefined)
   const varLines = entries.map(([prop, val]) => `  ${prop}: ${val};`).join("\n");
 
   let css = `.bf-themed {\n${varLines}\n}`;
-
-  const customCss = customization.customCss?.trim();
-  if (customCss) {
-    css += `\n/* Custom CSS */\n${customCss}\n`;
-  }
+  css += buildCustomCssBlock(customization);
 
   return css;
+};
+
+// User custom CSS is authored as bare declarations (mostly --bf-* variable overrides, e.g.
+// `--bf-block-margin: 40px;`). Wrap it in the `.bf-themed` scope so those declarations set the
+// vars on the themed container — overriding the generated defaults for the whole form — without
+// the user having to type any selector. Emitted AFTER the generated block so it wins on cascade
+// order; native CSS nesting also lets advanced authors nest real selectors (`[data-bf-title] {…}`).
+const buildCustomCssBlock = (customization: Record<string, string>): string => {
+  const customCss = customization.customCss?.trim();
+  if (!customCss) return "";
+  return `\n/* Custom CSS (scoped to the form) */\n.bf-themed {\n${customCss}\n}\n`;
 };
 
 const formatCssBlock = (selector: string, entries: [string, string][]): string => {
@@ -378,11 +385,7 @@ export const generateDualThemeCss = (raw: Record<string, string> | null | undefi
   }
 
   let css = blocks.join("\n");
-
-  const customCss = customization.customCss?.trim();
-  if (customCss) {
-    css += `\n/* Custom CSS */\n${customCss}\n`;
-  }
+  css += buildCustomCssBlock(customization);
 
   return css;
 };

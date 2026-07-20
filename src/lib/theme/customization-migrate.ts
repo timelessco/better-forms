@@ -15,5 +15,17 @@ export const migrateCustomization = (
   if (!c) return {};
   const out: Record<string, string> = { ...c };
   for (const k of STALE_CUSTOMIZATION_KEYS) delete out[k];
+
+  // Custom CSS is a single global `<style>` block, not per-mode. Older rows saved it
+  // under a mode-prefixed key (`light:customCss` / `dark:customCss`) which the theme
+  // generator never read, so it silently never applied. Promote any prefixed value to
+  // the bare `customCss` key (prefer light) and drop the dead prefixed keys.
+  if (!out.customCss) {
+    const legacy = out["light:customCss"] || out["dark:customCss"];
+    if (legacy) out.customCss = legacy;
+  }
+  delete out["light:customCss"];
+  delete out["dark:customCss"];
+
   return out;
 };

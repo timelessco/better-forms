@@ -381,8 +381,15 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
   useMountEffect(() => () => setEditorColorMode(null));
   const activeFont = getValue("font");
 
-  const cssKey = `${activeMode}:customCss`;
-  const cssValue = customization[cssKey] || customization.customCss || "";
+  // Custom CSS is a single global `<style>` block injected on the published form — NOT
+  // per-mode (both modes emit the same block). Store/read the bare key; fall back to the
+  // legacy mode-prefixed keys so CSS authored before the fix still shows in the editor.
+  const cssKey = "customCss";
+  const cssValue =
+    customization.customCss ||
+    customization["light:customCss"] ||
+    customization["dark:customCss"] ||
+    "";
 
   const handleFontChange = useCallback(
     (v: string) => {
@@ -404,9 +411,15 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
 
   const handleCssChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      updateWithCustomPreset(cssKey, e.target.value);
+      // Write the global key and clear any legacy mode-prefixed remnants in one update.
+      updateFields({
+        [cssKey]: e.target.value,
+        preset: "custom",
+        "light:customCss": null,
+        "dark:customCss": null,
+      });
     },
-    [updateWithCustomPreset, cssKey],
+    [updateFields, cssKey],
   );
 
   const [typoScope, setTypoScope] = useState<"title" | "body">("title");
@@ -464,11 +477,7 @@ export const CustomizeSidebar = ({ formId, isLocal }: CustomizeSidebarProps) => 
             resetScrubberField={resetScrubberField}
           />
 
-          <CustomCssSection
-            cssValue={cssValue}
-            handleCssChange={handleCssChange}
-            activeMode={activeMode}
-          />
+          <CustomCssSection cssValue={cssValue} handleCssChange={handleCssChange} />
         </div>
       </SidebarContent>
     </Sidebar>
@@ -1006,22 +1015,105 @@ const ButtonsSection = ({
 interface CustomCssSectionProps {
   cssValue: string;
   handleCssChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  activeMode: string;
 }
 
-const CustomCssSection = ({ cssValue, handleCssChange, activeMode }: CustomCssSectionProps) => (
+// Theme variables the published-form stylesheet (styles.css) reads via var(). Set them in the
+// Custom CSS box (bare `--name: value;` lines) to fine-tune the form beyond the sidebar's own
+// controls. The generator wraps these declarations in `.bf-themed`, so a value set here overrides
+// the form defaults for descendants by inheritance. Grouped for scanability; keep the names in
+// sync with the var() consumers in styles.css. Colors are intentionally excluded — they're
+// emitted per-mode at higher specificity, so they belong in the Colors section, not here.
+const CSS_VARIABLE_GROUPS: { group: string; vars: { name: string; label: string }[] }[] = [
+  {
+    group: "Spacing",
+    vars: [
+      { name: "--bf-block-margin", label: "Gap between fields" },
+      { name: "--bf-field-gap", label: "Gap around labels" },
+      { name: "--bf-option-gap", label: "Gap between choices" },
+      { name: "--bf-input-margin-bottom", label: "Space below inputs" },
+      { name: "--bf-input-padding", label: "Input padding" },
+    ],
+  },
+  {
+    group: "Size",
+    vars: [
+      { name: "--bf-page-width", label: "Form width" },
+      { name: "--bf-cover-height", label: "Cover height" },
+      { name: "--bf-logo-width", label: "Logo width" },
+      { name: "--bf-input-width", label: "Input width" },
+      { name: "--bf-input-height", label: "Input height" },
+      { name: "--bf-button-width", label: "Button width" },
+      { name: "--bf-button-height", label: "Button height" },
+    ],
+  },
+  {
+    group: "Radius",
+    vars: [
+      { name: "--bf-radius", label: "Global corner radius" },
+      { name: "--bf-input-radius", label: "Input radius" },
+      { name: "--bf-button-radius", label: "Button radius" },
+      { name: "--bf-cover-radius", label: "Cover radius" },
+      { name: "--bf-logo-radius", label: "Logo radius" },
+    ],
+  },
+  {
+    group: "Typography",
+    vars: [
+      { name: "--bf-font-size", label: "Body font size" },
+      { name: "--bf-line-height", label: "Body line-height" },
+      { name: "--bf-letter-spacing", label: "Body letter-spacing" },
+      { name: "--bf-text-align", label: "Body alignment" },
+      { name: "--bf-title-font-size", label: "Title size" },
+      { name: "--bf-title-line-height", label: "Title line-height" },
+      { name: "--bf-title-letter-spacing", label: "Title letter-spacing" },
+      { name: "--bf-title-font-style", label: "Title italic (set italic)" },
+    ],
+  },
+];
+
+// Authored as bare declarations (no selector, no <style> tag) — the theme generator scopes them
+// to `.bf-themed` for the user. Example uses two of the listed variables.
+const CSS_PLACEHOLDER = "--bf-block-margin: 32px;\n--bf-title-letter-spacing: -0.02em;";
+
+const CustomCssSection = ({ cssValue, handleCssChange }: CustomCssSectionProps) => (
   <SidebarSection label="Custom CSS" collapsible="flat" divider={false}>
     <div className="overflow-hidden rounded-lg bg-muted">
       <Textarea
         value={cssValue}
         onChange={handleCssChange}
-        aria-label={`Custom CSS (${activeMode} mode)`}
+        aria-label="Custom CSS"
         // Figma (node 25420-11752): IBM Plex Mono 14px, gray/500, lh 1.4 (140%), 0.14px tracking. Self-hosted @font-face (styles.css), generic mono fallback.
         className="h-36 resize-none rounded-none border-0 bg-muted p-3 font-['IBM_Plex_Mono',ui-monospace,monospace] text-[14px] leading-[1.4] tracking-[0.14px] text-gray-500 focus-visible:ring-2 focus-visible:ring-ring"
-        placeholder={"<style>\n.reform-block {...\n\n\n</style>"}
+        placeholder={CSS_PLACEHOLDER}
         spellCheck={false}
       />
     </div>
+    <p className="mt-2 text-[12px] leading-[1.4] text-muted-foreground">
+      Set theme variables to fine-tune your published form — no selectors or{" "}
+      <code className="font-mono">{"<style>"}</code> tag needed:
+    </p>
+    <div className="mt-2 flex flex-col gap-3">
+      {CSS_VARIABLE_GROUPS.map(({ group, vars }) => (
+        <div key={group}>
+          <p className="mb-1 text-[10px] font-medium tracking-[0.06em] text-muted-foreground/70 uppercase">
+            {group}
+          </p>
+          <ul className="flex flex-col gap-1">
+            {vars.map((hint) => (
+              <li key={hint.name} className="flex items-center gap-2 text-[12px] leading-[1.4]">
+                <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground">
+                  {hint.name}
+                </code>
+                <span className="min-w-0 truncate text-muted-foreground">{hint.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+    <p className="mt-3 text-[11px] leading-[1.4] text-muted-foreground/70">
+      Colors are set in the <span className="text-muted-foreground">Colors</span> section above.
+    </p>
   </SidebarSection>
 );
 
